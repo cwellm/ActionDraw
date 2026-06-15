@@ -11,7 +11,9 @@ skills. Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Wi
 - Controls: **Play** (restart the timer for the current image), **Pause/Resume**, **Stop** (back to
   the menu), **Prev**, **Next**. The timer auto-advances when it runs out.
 - Adjust the time **while paused** — the elapsed time is left untouched.
-- Live filters: **Black & white**, **Blur**, **Upside down** (more in [IDEAS.md](IDEAS.md)).
+- **View modes** (pick one): None, **Black & white**, **Squint** (low contrast), **Edge** (outline),
+  **Silhouette** (threshold). Plus independent toggles: **Blur**, **Upside down**, and a **Grid**
+  proportion overlay (rule-of-thirds + center cross). More in [IDEAS.md](IDEAS.md).
 - **Fullscreen** toggle (`F`): the image fills the entire screen with only the remaining time in the
   bottom corner — no controls. `Esc` leaves fullscreen and restores the normal resizable window.
 - Keyboard shortcuts: `Space` play/pause, `←`/`→` prev/next, `F` fullscreen, `Esc` exit fullscreen

@@ -9,6 +9,9 @@ import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.SeenStore
 import java.io.File
 
+/** Mutually-exclusive ways of viewing the reference image (value/structure studies). */
+enum class ViewMode { NONE, GRAYSCALE, SQUINT, EDGE, SILHOUETTE }
+
 /**
  * Single hoisted state holder for the whole app. Plain class backed by Compose state so the UI
  * recomposes on change; all mutations happen through the action methods below.
@@ -39,9 +42,10 @@ class AppState {
         private set
 
     // Live filters.
-    var grayscale by mutableStateOf(false)
+    var viewMode by mutableStateOf(ViewMode.NONE)
     var blur by mutableStateOf(false)
     var upsideDown by mutableStateOf(false)
+    var showGrid by mutableStateOf(false)
     val blurRadius: Dp = 12.dp
 
     val remainingSeconds: Int
