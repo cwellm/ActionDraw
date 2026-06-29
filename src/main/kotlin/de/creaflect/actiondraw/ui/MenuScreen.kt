@@ -1,74 +1,120 @@
 package de.creaflect.actiondraw.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Slider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
+import de.creaflect.actiondraw.SessionPlans
 import java.io.File
 import javax.swing.JFileChooser
 import javax.swing.UIManager
-import kotlin.math.roundToInt
 
 @Composable
 fun MenuScreen(state: AppState) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically),
-    ) {
-        Text("ActionDraw", style = MaterialTheme.typography.h3)
-        Text("Timed reference practice for drawing", style = MaterialTheme.typography.subtitle1)
+    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Spacer(Modifier.height(8.dp))
+            Text("ActionDraw", style = MaterialTheme.typography.h2, color = MaterialTheme.colors.primary)
+            Text(
+                "Timed reference practice — get into the flow and draw.",
+                style = MaterialTheme.typography.subtitle1,
+                textAlign = TextAlign.Center,
+            )
 
-        Button(onClick = { chooseFolder()?.let { state.selectFolder(it) } }) {
-            Text("Select folder…")
-        }
+            // ---- Folder ----
+            SectionLabel("Reference folder")
+            Button(onClick = { chooseFolder()?.let { state.selectFolder(it) } }) {
+                Text("Select folder…")
+            }
+            state.folder?.let { dir ->
+                Text(
+                    dir.absolutePath,
+                    style = MaterialTheme.typography.body2,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    "${state.unseenCount} unseen of ${state.totalCount} images",
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.secondary,
+                )
+            }
 
-        state.folder?.let { dir ->
-            Text(dir.absolutePath, style = MaterialTheme.typography.body2)
-            Text("${state.unseenCount} unseen of ${state.totalCount} images")
-        }
+            // ---- Session type ----
+            SectionLabel("Session")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                SelectChip("Fixed time", state.rampPlan == null) { state.rampPlan = null }
+                SessionPlans.ALL.forEach { plan ->
+                    SelectChip(plan.name, state.rampPlan == plan) { state.rampPlan = plan }
+                }
+            }
 
-        IntervalSelector(
-            seconds = state.intervalSeconds,
-            onChange = { state.intervalSeconds = it },
-        )
+            val plan = state.rampPlan
+            if (plan == null) {
+                IntervalSelector(seconds = state.intervalSeconds, onChange = { state.intervalSeconds = it })
+            } else {
+                Text(
+                    "${plan.totalPoses} poses · ${formatDuration(plan.totalSeconds)} total",
+                    style = MaterialTheme.typography.body1,
+                )
+                Text(
+                    plan.steps.joinToString("  →  ") { "${formatTime(it.seconds)}×${it.count}" },
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                )
+            }
 
-        Button(onClick = { state.start() }, enabled = state.totalCount > 0) {
-            Text("Start")
+            if (state.lastSessionPoses > 0) {
+                Text(
+                    "Last session: ${state.lastSessionPoses} poses · ${formatDuration(state.lastSessionSeconds)}",
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                )
+            }
+
+            Spacer(Modifier.height(4.dp))
+            Button(
+                onClick = { state.start() },
+                enabled = state.totalCount > 0,
+                colors = ButtonDefaults.buttonColors(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 36.dp, vertical = 12.dp),
+            ) {
+                Text("Start drawing", style = MaterialTheme.typography.h6)
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
-/** Slider over 30s..10min in 30s steps, with a mm:ss label. */
 @Composable
-fun IntervalSelector(seconds: Int, onChange: (Int) -> Unit, enabled: Boolean = true) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Time per image: ${formatTime(seconds)}")
-        Slider(
-            value = (seconds / 30).toFloat(),
-            onValueChange = { onChange(it.roundToInt().coerceIn(1, 20) * 30) },
-            valueRange = 1f..20f,
-            steps = 18, // 20 discrete stops (30s .. 600s)
-            enabled = enabled,
-            modifier = Modifier.width(360.dp),
-        )
-    }
-}
-
-fun formatTime(totalSeconds: Int): String {
-    val m = totalSeconds / 60
-    val s = totalSeconds % 60
-    return "%d:%02d".format(m, s)
+private fun SectionLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.overline,
+        color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+    )
 }
 
 private fun chooseFolder(): File? {

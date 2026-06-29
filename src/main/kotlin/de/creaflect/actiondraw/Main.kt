@@ -15,13 +15,6 @@ import androidx.compose.ui.window.Window
 fun main() = application {
     val windowState = rememberWindowState()
     val appState = remember { AppState() }
-
-    val toggleFullscreen = {
-        windowState.placement =
-            if (windowState.placement == WindowPlacement.Fullscreen) WindowPlacement.Floating
-            else WindowPlacement.Fullscreen
-    }
-
     val isFullscreen = windowState.placement == WindowPlacement.Fullscreen
 
     Window(
@@ -30,34 +23,52 @@ fun main() = application {
         state = windowState,
         onKeyEvent = { handleKey(it, appState, windowState) },
     ) {
-        App(appState, isFullscreen = isFullscreen, onToggleFullscreen = toggleFullscreen)
+        App(appState, isFullscreen = isFullscreen, onToggleFullscreen = { toggleFullscreen(windowState) })
     }
 }
 
-/** Window-level shortcuts, active only during a drawing session. */
+private fun toggleFullscreen(ws: WindowState) {
+    ws.placement =
+        if (ws.placement == WindowPlacement.Fullscreen) WindowPlacement.Floating
+        else WindowPlacement.Fullscreen
+}
+
+/** Window-level shortcuts. Keeps hands on the keyboard so the drawing stays in flow. */
 private fun handleKey(event: KeyEvent, state: AppState, windowState: WindowState): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
-    if (state.screen != Screen.Session) return false
-    return when (event.key) {
-        Key.Spacebar -> { state.togglePause(); true }
-        Key.DirectionLeft -> { state.previous(); true }
-        Key.DirectionRight -> { state.next(); true }
-        Key.Escape -> {
-            // Esc leaves fullscreen first (restoring the decorated, resizable window);
-            // only when already windowed does it stop the session and return to the menu.
-            if (windowState.placement == WindowPlacement.Fullscreen) {
-                windowState.placement = WindowPlacement.Floating
-            } else {
-                state.stop()
+    return when (state.screen) {
+        Screen.Summary -> when (event.key) {
+            Key.Escape, Key.Enter -> { state.backToMenu(); true }
+            else -> false
+        }
+
+        Screen.Session -> when (event.key) {
+            Key.Spacebar -> { state.togglePause(); true }
+            Key.DirectionLeft -> { state.previous(); true }
+            Key.DirectionRight -> { state.next(); true }
+            Key.Escape -> {
+                // Esc leaves fullscreen first (restoring the decorated window);
+                // when already windowed, it ends the session.
+                if (windowState.placement == WindowPlacement.Fullscreen) {
+                    windowState.placement = WindowPlacement.Floating
+                } else {
+                    state.stop()
+                }
+                true
             }
-            true
+            Key.F -> { toggleFullscreen(windowState); true }
+            Key.G -> { state.showGrid = !state.showGrid; true }
+            Key.M -> { state.mirror = !state.mirror; true }
+            Key.B -> { state.blur = !state.blur; true }
+            Key.U -> { state.upsideDown = !state.upsideDown; true }
+            Key.One -> { state.viewMode = ViewMode.NONE; true }
+            Key.Two -> { state.viewMode = ViewMode.GRAYSCALE; true }
+            Key.Three -> { state.viewMode = ViewMode.SQUINT; true }
+            Key.Four -> { state.viewMode = ViewMode.EDGE; true }
+            Key.Five -> { state.viewMode = ViewMode.SILHOUETTE; true }
+            else -> false
         }
-        Key.F -> {
-            windowState.placement =
-                if (windowState.placement == WindowPlacement.Fullscreen) WindowPlacement.Floating
-                else WindowPlacement.Fullscreen
-            true
-        }
+
         else -> false
     }
 }
