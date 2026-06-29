@@ -6,7 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,7 +18,6 @@ import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -46,10 +44,12 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.min
 
+private val LowTimeColor = Color(0xFFEF5350)
+
 @Composable
 fun SessionScreen(state: AppState, onToggleFullscreen: () -> Unit, isFullscreen: Boolean) {
-    // Per-second countdown. Restarts on navigation (index) and suspends while paused.
-    LaunchedEffect(state.index, state.isPaused) {
+    // Per-second countdown. Restarts on navigation (index/pose) and suspends while paused.
+    LaunchedEffect(state.index, state.rampPose, state.isPaused) {
         while (!state.isPaused) {
             delay(1000)
             state.tick()
@@ -74,7 +74,7 @@ fun SessionScreen(state: AppState, onToggleFullscreen: () -> Unit, isFullscreen:
             ) {
                 Text(
                     formatTime(state.remainingSeconds),
-                    color = Color.White,
+                    color = if (state.remainingSeconds <= 5) LowTimeColor else Color.White,
                     style = MaterialTheme.typography.h5,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
@@ -110,7 +110,10 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                 colorFilter = colorFilter,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { if (state.upsideDown) rotationZ = 180f } // outermost: orientation
+                    .graphicsLayer { // outermost: orientation
+                        if (state.upsideDown) rotationZ = 180f
+                        if (state.mirror) scaleX = -1f
+                    }
                     .blur(if (state.blur) state.blurRadius else 0.dp)
                     .graphicsLayer { this.renderEffect = renderEffect }, // innermost: on the raw image
             )
@@ -155,20 +158,37 @@ private fun ProportionOverlay(bitmap: ImageBitmap, modifier: Modifier) {
 private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
     Surface(elevation = 8.dp) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
+            val low = state.remainingSeconds <= 5
             val progress =
-                if (state.intervalSeconds > 0) state.elapsedSeconds.toFloat() / state.intervalSeconds else 0f
+                if (state.currentIntervalSeconds > 0)
+                    state.elapsedSeconds.toFloat() / state.currentIntervalSeconds
+                else 0f
             LinearProgressIndicator(
                 progress = progress.coerceIn(0f, 1f),
+                color = if (low) LowTimeColor else MaterialTheme.colors.primary,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(6.dp))
+
+            // Stats / ramp progress line.
+            Text(
+                buildProgressText(state),
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(6.dp))
 
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(formatTime(state.remainingSeconds), style = MaterialTheme.typography.h6)
+                Text(
+                    formatTime(state.remainingSeconds),
+                    style = MaterialTheme.typography.h6,
+                    color = if (low) LowTimeColor else MaterialTheme.colors.onSurface,
+                )
                 Spacer(Modifier.width(16.dp))
                 Button(onClick = { state.previous() }) { Text("◀ Prev") }
                 Button(onClick = { state.play() }) { Text("Play") }
@@ -190,11 +210,11 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("View:")
-                ModeChip("None", state.viewMode == ViewMode.NONE) { state.viewMode = ViewMode.NONE }
-                ModeChip("B&W", state.viewMode == ViewMode.GRAYSCALE) { state.viewMode = ViewMode.GRAYSCALE }
-                ModeChip("Squint", state.viewMode == ViewMode.SQUINT) { state.viewMode = ViewMode.SQUINT }
-                ModeChip("Edge", state.viewMode == ViewMode.EDGE) { state.viewMode = ViewMode.EDGE }
-                ModeChip("Silhouette", state.viewMode == ViewMode.SILHOUETTE) { state.viewMode = ViewMode.SILHOUETTE }
+                SelectChip("None", state.viewMode == ViewMode.NONE) { state.viewMode = ViewMode.NONE }
+                SelectChip("B&W", state.viewMode == ViewMode.GRAYSCALE) { state.viewMode = ViewMode.GRAYSCALE }
+                SelectChip("Squint", state.viewMode == ViewMode.SQUINT) { state.viewMode = ViewMode.SQUINT }
+                SelectChip("Edge", state.viewMode == ViewMode.EDGE) { state.viewMode = ViewMode.EDGE }
+                SelectChip("Silhouette", state.viewMode == ViewMode.SILHOUETTE) { state.viewMode = ViewMode.SILHOUETTE }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -206,30 +226,40 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 FilterToggle("Blur", state.blur) { state.blur = it }
+                FilterToggle("Mirror", state.mirror) { state.mirror = it }
                 FilterToggle("Upside down", state.upsideDown) { state.upsideDown = it }
                 FilterToggle("Grid", state.showGrid) { state.showGrid = it }
             }
 
             // Adjusting the time is only allowed while paused; elapsed time is left untouched.
-            if (state.isPaused) {
+            // (In a ramp the durations are fixed by the plan, so the slider only shows in fixed mode.)
+            if (state.isPaused && !state.isRamp) {
                 Spacer(Modifier.height(8.dp))
                 IntervalSelector(
                     seconds = state.intervalSeconds,
                     onChange = { state.intervalSeconds = it },
                 )
             }
+
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Space pause · ←/→ prev/next · 1-5 view · B blur · M mirror · U flip · G grid · F fullscreen · Esc stop",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
 
-@Composable
-private fun ModeChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    val padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-    if (selected) {
-        Button(onClick = onClick, contentPadding = padding) { Text(label) }
-    } else {
-        OutlinedButton(onClick = onClick, contentPadding = padding) { Text(label) }
+private fun buildProgressText(state: AppState): String = buildString {
+    val plan = state.rampPlan
+    if (plan != null) {
+        append("Step ${state.rampStepIndex + 1}/${plan.steps.size}")
+        append(" · pose ${state.rampPose + 1}/${state.rampTotalPoses}")
+        append("  ·  ")
     }
+    append("${state.sessionPoses} drawn · ${formatDuration(state.sessionSeconds)}")
 }
 
 @Composable

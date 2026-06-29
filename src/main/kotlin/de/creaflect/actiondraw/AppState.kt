@@ -35,21 +35,72 @@ class AppState {
     /** Names of images already shown for this folder (persisted in [SeenStore]). */
     private var seen: MutableSet<String> = mutableSetOf()
 
+    // ---- Timing ----
+    /** Per-image duration in fixed mode. */
     var intervalSeconds by mutableStateOf(120)
+
+    /** When non-null, the session runs this finite gesture ramp instead of fixed timing. */
+    var rampPlan by mutableStateOf<SessionPlan?>(null)
+
+    /** 0-based pose index within the ramp. */
+    var rampPose by mutableStateOf(0)
+        private set
+
     var elapsedSeconds by mutableStateOf(0)
         private set
     var isPaused by mutableStateOf(false)
         private set
 
-    // Live filters.
+    // ---- Live filters ----
     var viewMode by mutableStateOf(ViewMode.NONE)
     var blur by mutableStateOf(false)
     var upsideDown by mutableStateOf(false)
+    var mirror by mutableStateOf(false)
     var showGrid by mutableStateOf(false)
     val blurRadius: Dp = 12.dp
 
+    // ---- Session stats ----
+    var sessionPoses by mutableStateOf(0)
+        private set
+    var sessionSeconds by mutableStateOf(0)
+        private set
+    var lastSessionPoses by mutableStateOf(0)
+        private set
+    var lastSessionSeconds by mutableStateOf(0)
+        private set
+    var lastSessionCompleted by mutableStateOf(false)
+        private set
+
+    val isRamp: Boolean get() = rampPlan != null
+
+    /** Duration for the current image: the ramp step's time, or the fixed interval. */
+    val currentIntervalSeconds: Int
+        get() {
+            val plan = rampPlan ?: return intervalSeconds
+            var n = rampPose
+            for (step in plan.steps) {
+                if (n < step.count) return step.seconds
+                n -= step.count
+            }
+            return plan.steps.last().seconds
+        }
+
     val remainingSeconds: Int
-        get() = (intervalSeconds - elapsedSeconds).coerceAtLeast(0)
+        get() = (currentIntervalSeconds - elapsedSeconds).coerceAtLeast(0)
+
+    /** Index of the ramp leg the current pose belongs to. */
+    val rampStepIndex: Int
+        get() {
+            val plan = rampPlan ?: return 0
+            var n = rampPose
+            plan.steps.forEachIndexed { i, step ->
+                if (n < step.count) return i
+                n -= step.count
+            }
+            return plan.steps.lastIndex
+        }
+
+    val rampTotalPoses: Int get() = rampPlan?.totalPoses ?: 0
 
     val currentImage: File?
         get() = pool.getOrNull(index)
@@ -75,8 +126,11 @@ class AppState {
         seen = SeenStore.read(dir).toMutableSet()
         rebuildPool()
         index = 0
+        rampPose = 0
         elapsedSeconds = 0
         isPaused = false
+        sessionPoses = if (pool.isEmpty()) 0 else 1
+        sessionSeconds = 0
         screen = Screen.Session
     }
 
@@ -106,8 +160,18 @@ class AppState {
         isPaused = !isPaused
     }
 
-    fun stop() {
+    /** Manual stop -> session summary (incomplete). */
+    fun stop() = endSession(completed = false)
+
+    private fun endSession(completed: Boolean) {
         markCurrentSeen()
+        lastSessionPoses = sessionPoses
+        lastSessionSeconds = sessionSeconds
+        lastSessionCompleted = completed
+        screen = Screen.Summary
+    }
+
+    fun backToMenu() {
         screen = Screen.Menu
     }
 
@@ -119,8 +183,7 @@ class AppState {
         }
     }
 
-    fun next() {
-        markCurrentSeen()
+    private fun advanceImage() {
         if (index + 1 >= pool.size) {
             // Whole folder has now been shown -> truncate the seen file and start a fresh cycle.
             resetSeen()
@@ -129,20 +192,35 @@ class AppState {
         } else {
             index += 1
         }
+    }
+
+    fun next() {
+        markCurrentSeen()
+        if (isRamp) {
+            rampPose += 1
+            if (rampPose >= rampTotalPoses) {
+                endSession(completed = true) // ramp finished
+                return
+            }
+        }
+        advanceImage()
+        sessionPoses += 1
         elapsedSeconds = 0
         isPaused = false
     }
 
     fun previous() {
+        if (isRamp && rampPose > 0) rampPose -= 1
         index = (index - 1).coerceAtLeast(0)
         elapsedSeconds = 0
         isPaused = false
     }
 
-    /** Called once per second by the session timer. */
+    /** Called once per second by the session timer (only while running). */
     fun tick() {
         elapsedSeconds += 1
-        if (elapsedSeconds >= intervalSeconds) {
+        sessionSeconds += 1
+        if (elapsedSeconds >= currentIntervalSeconds) {
             next()
         }
     }
