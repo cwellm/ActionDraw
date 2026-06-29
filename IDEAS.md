@@ -5,28 +5,28 @@ timed reference practice.
 
 ## Filters — implemented
 View modes (mutually exclusive): **None**, **Black & white** (full desaturation),
-**Squint** (low contrast + reduced saturation), **Edge** (Sobel outline), **Silhouette** (threshold).
-Independent toggles: **Blur**, **Upside down** (180°), **Grid** (proportion overlay).
+**Squint** (low contrast + reduced saturation), **Sepia** (warm partial desaturation),
+**Posterize** (few value bands), **Pixelate** (coarse blocks), **Warm** / **Cool** (white-balance
+shift), **Edge** (Sobel outline), **Silhouette** (threshold).
+Independent toggles: **Blur**, **Mirror** (horizontal flip), **Upside down** (180°).
+Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal**, each with a centre cross.
 
 ## Filters — backlog
-- **Horizontal mirror flip** — classic trick to spot proportion/symmetry errors.
-- **Sepia / partial desaturation** — reduce color distraction without going fully grey.
-- **Posterize** — collapse to a few value bands, training value grouping.
-- **Pixelate / low-res** — force big-shape thinking, ignore detail.
-- **Color-temperature shift** — practice drawing under warm/cool light.
+- **Adjustable params** — posterize band count, pixelate block size, silhouette threshold via a slider.
+- **Continuous colour-temperature** — a warm↔cool slider instead of the two fixed presets.
+- **Notan (2–3 value)** — collapse to two/three values for value-grouping study (posterize covers part of this).
 
-## Claude's 3 best ideas
-1. **Gesture-ramp sessions** — predefined life-drawing structures (e.g. 10×30s → 5×2min → 2×5min)
-   that auto-advance through durations. The single most-requested feature for serious gesture
-   practice; it turns the app from a plain timer into a structured warm-up tool.
-2. ~~**Proportion overlays** — toggleable rule-of-thirds grid and a center cross drawn over the
-   image to train placement and proportion.~~ ✅ Implemented (the **Grid** toggle). Future: add a
-   diagonal/Φ ("phi grid") variant and pair it with a mirror-flip filter.
-3. **Session log & "redo" flags** — building on the per-folder seen-tracking that is now core:
-   record images drawn and total time per session, and let you flag an image to "redo" so it is
-   resurfaced first next time (stored in a separate `.actiondraw_redo.txt`).
+## Best ideas
+1. ~~**Gesture-ramp sessions** — predefined life-drawing structures that auto-advance through
+   durations.~~ ✅ Implemented (Quick warm-up / Classic gesture / Long studies).
+2. ~~**Proportion overlays** — toggleable grid to train placement and proportion.~~ ✅ Implemented —
+   **Thirds**, **Phi** and **Diagonal** variants, plus a centre cross. `G` cycles them.
+3. ~~**Session log & "redo" flags**~~ ✅ Implemented — per-session stats and a Summary screen, plus a
+   per-image **Redo** flag (`R`) persisted in `.actiondraw_redo.txt`; flagged images resurface first
+   next session (and the flag clears once redrawn).
 
 ## Other notes
-- Keyboard shortcuts: Space = play/pause, ←/→ = prev/next, F = fullscreen, Esc = exit fullscreen
-  (or stop when windowed). Fullscreen hides all controls — image only, time in the corner.
-- Seen-tracking file: `.actiondraw_seen.txt`, written inside the selected folder.
+- Keyboard: Space play/pause · ←/→ prev/next · 1–0 view mode · B blur · M mirror · U upside-down ·
+  G cycle grid · R redo flag · F fullscreen · Esc leave fullscreen / stop.
+- Per-folder state files, written inside the selected image folder:
+  `.actiondraw_seen.txt` (shown images) and `.actiondraw_redo.txt` (redo flags).

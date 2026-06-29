@@ -31,6 +31,45 @@ fun squintFilter(): ColorFilter {
     return ColorFilter.colorMatrix(matrix)
 }
 
+/** Warm monochrome sepia tone — partial desaturation with a warm cast, reduces colour distraction. */
+fun sepiaFilter(): ColorFilter =
+    ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                0.393f, 0.769f, 0.189f, 0f, 0f,
+                0.349f, 0.686f, 0.168f, 0f, 0f,
+                0.272f, 0.534f, 0.131f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        ),
+    )
+
+/** Warm white-balance shift (boost red, cut blue) — practice drawing under warm light. */
+fun warmFilter(): ColorFilter =
+    ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                1.10f, 0f, 0f, 0f, 0f,
+                0f, 1.00f, 0f, 0f, 0f,
+                0f, 0f, 0.82f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        ),
+    )
+
+/** Cool white-balance shift (boost blue, cut red) — practice drawing under cool light. */
+fun coolFilter(): ColorFilter =
+    ColorFilter.colorMatrix(
+        ColorMatrix(
+            floatArrayOf(
+                0.82f, 0f, 0f, 0f, 0f,
+                0f, 1.00f, 0f, 0f, 0f,
+                0f, 0f, 1.12f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ),
+        ),
+    )
+
 /** Sobel edge detection: dark contour lines on a white ground, for line/contour study. */
 internal const val EDGE_SKSL = """
 uniform shader content;
@@ -71,13 +110,45 @@ half4 main(float2 coord) {
 }
 """
 
+/** Posterize: collapse each channel to a few value bands, training value grouping. */
+internal const val POSTERIZE_SKSL = """
+uniform shader content;
+uniform float levels;
+
+half4 main(float2 coord) {
+    half4 px = content.eval(coord);
+    float n = max(levels - 1.0, 1.0);
+    half3 q = half3(floor(float3(px.rgb) * n + 0.5) / n);
+    return half4(q, 1.0) * px.a;
+}
+"""
+
+/** Pixelate: snap to coarse blocks to force big-shape thinking and ignore detail. */
+internal const val PIXELATE_SKSL = """
+uniform shader content;
+uniform float block;
+
+half4 main(float2 coord) {
+    float2 c = (floor(coord / block) + 0.5) * block;
+    return content.eval(c);
+}
+"""
+
 private val edgeEffect: RenderEffect by lazy { runtimeShaderEffect(EDGE_SKSL) }
 private val silhouetteEffect: RenderEffect by lazy {
     runtimeShaderEffect(SILHOUETTE_SKSL) { it.uniform("threshold", 0.5f) }
 }
+private val posterizeEffect: RenderEffect by lazy {
+    runtimeShaderEffect(POSTERIZE_SKSL) { it.uniform("levels", 5f) }
+}
+private val pixelateEffect: RenderEffect by lazy {
+    runtimeShaderEffect(PIXELATE_SKSL) { it.uniform("block", 8f) }
+}
 
 fun edgeRenderEffect(): RenderEffect = edgeEffect
 fun silhouetteRenderEffect(): RenderEffect = silhouetteEffect
+fun posterizeRenderEffect(): RenderEffect = posterizeEffect
+fun pixelateRenderEffect(): RenderEffect = pixelateEffect
 
 /** Builds a Compose [RenderEffect] from an SkSL shader that samples the layer content as `content`. */
 private fun runtimeShaderEffect(

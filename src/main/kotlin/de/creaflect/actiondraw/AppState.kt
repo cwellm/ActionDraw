@@ -6,11 +6,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.image.ImageScanner
+import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import java.io.File
 
-/** Mutually-exclusive ways of viewing the reference image (value/structure studies). */
-enum class ViewMode { NONE, GRAYSCALE, SQUINT, EDGE, SILHOUETTE }
+/** Mutually-exclusive ways of viewing the reference image (value / colour / structure studies). */
+enum class ViewMode { NONE, GRAYSCALE, SQUINT, SEPIA, POSTERIZE, PIXELATE, WARM, COOL, EDGE, SILHOUETTE }
+
+/** Proportion-overlay variants drawn over the image. */
+enum class GridMode { OFF, THIRDS, PHI, DIAGONAL }
 
 /**
  * Single hoisted state holder for the whole app. Plain class backed by Compose state so the UI
@@ -26,7 +30,7 @@ class AppState {
     /** Every image in the folder (sorted) — basis for the seen/unseen counts. */
     private var allImages: List<File> = emptyList()
 
-    /** The current play set: images not yet seen at session start, shuffled. */
+    /** The current play set: redo-flagged images first, then unseen, shuffled within each group. */
     var pool by mutableStateOf<List<File>>(emptyList())
         private set
     var index by mutableStateOf(0)
@@ -34,6 +38,13 @@ class AppState {
 
     /** Names of images already shown for this folder (persisted in [SeenStore]). */
     private var seen: MutableSet<String> = mutableSetOf()
+
+    /** Names the user flagged to "redo" — resurfaced first next session (persisted in [RedoStore]). */
+    private var redo: MutableSet<String> = mutableSetOf()
+
+    /** Bumped whenever the redo set changes so [isCurrentRedo] recomposes. */
+    var redoTick by mutableStateOf(0)
+        private set
 
     // ---- Timing ----
     /** Per-image duration in fixed mode. */
@@ -56,7 +67,7 @@ class AppState {
     var blur by mutableStateOf(false)
     var upsideDown by mutableStateOf(false)
     var mirror by mutableStateOf(false)
-    var showGrid by mutableStateOf(false)
+    var gridMode by mutableStateOf(GridMode.OFF)
     val blurRadius: Dp = 12.dp
 
     // ---- Session stats ----
@@ -108,13 +119,22 @@ class AppState {
     val totalCount: Int get() = allImages.size
     val unseenCount: Int get() = allImages.count { it.name !in seen }
 
+    /** Whether the current image is flagged for redo (reads [redoTick] so the control recomposes). */
+    val isCurrentRedo: Boolean
+        get() {
+            redoTick // snapshot read: recompose when flags change
+            val name = currentImage?.name ?: return false
+            return name in redo
+        }
+
     // ---- Menu ----
 
-    /** Called when the user picks a folder; loads the image list and the saved seen-set. */
+    /** Called when the user picks a folder; loads the image list and the saved seen/redo sets. */
     fun selectFolder(dir: File) {
         folder = dir
         allImages = ImageScanner.scan(dir)
         seen = SeenStore.read(dir).toMutableSet()
+        redo = RedoStore.read(dir).toMutableSet()
     }
 
     // ---- Session lifecycle ----
@@ -124,6 +144,7 @@ class AppState {
         // Re-read in case the folder contents changed since it was selected.
         allImages = ImageScanner.scan(dir)
         seen = SeenStore.read(dir).toMutableSet()
+        redo = RedoStore.read(dir).toMutableSet()
         rebuildPool()
         index = 0
         rampPose = 0
@@ -131,17 +152,18 @@ class AppState {
         isPaused = false
         sessionPoses = if (pool.isEmpty()) 0 else 1
         sessionSeconds = 0
+        redoTick++
         screen = Screen.Session
     }
 
-    /** pool = unseen images, shuffled. If nothing is left unseen, reset and use the whole set. */
+    /** pool = redo-flagged first, then unseen — each group shuffled. If nothing is left, reshuffle all. */
     private fun rebuildPool() {
-        val unseen = allImages.filter { it.name !in seen }
-        pool = if (unseen.isEmpty()) {
+        val (redoFirst, rest) = poolGroups(allImages, seen, redo)
+        pool = if (redoFirst.isEmpty() && rest.isEmpty()) {
             resetSeen()
             allImages.shuffled()
         } else {
-            unseen.shuffled()
+            redoFirst.shuffled() + rest.shuffled()
         }
     }
 
@@ -175,11 +197,28 @@ class AppState {
         screen = Screen.Menu
     }
 
+    /** Flag/unflag the current image for redo; persisted immediately. */
+    fun toggleRedoCurrent() {
+        val dir = folder ?: return
+        val name = currentImage?.name ?: return
+        if (!redo.add(name)) redo.remove(name)
+        RedoStore.write(dir, redo)
+        redoTick++
+    }
+
+    /** Cycle the proportion overlay: Off -> Thirds -> Phi -> Diagonal -> Off. */
+    fun cycleGrid() {
+        gridMode = GridMode.entries[(gridMode.ordinal + 1) % GridMode.entries.size]
+    }
+
     private fun markCurrentSeen() {
         val dir = folder ?: return
         val current = currentImage ?: return
-        if (seen.add(current.name)) {
-            SeenStore.write(dir, seen)
+        if (seen.add(current.name)) SeenStore.write(dir, seen)
+        // Drawing a flagged image counts as having redone it -> clear the flag.
+        if (redo.remove(current.name)) {
+            RedoStore.write(dir, redo)
+            redoTick++
         }
     }
 
@@ -224,4 +263,19 @@ class AppState {
             next()
         }
     }
+}
+
+/**
+ * Splits the folder into the next session's play groups: images flagged for **redo** come first
+ * (regardless of seen state), then the **unseen, un-flagged** images. Seen, un-flagged images are
+ * dropped. Pure and deterministic (no shuffle) so the ordering rule is unit-testable.
+ */
+fun poolGroups(
+    all: List<File>,
+    seen: Set<String>,
+    redo: Set<String>,
+): Pair<List<File>, List<File>> {
+    val redoFirst = all.filter { it.name in redo }
+    val rest = all.filter { it.name !in seen && it.name !in redo }
+    return redoFirst to rest
 }

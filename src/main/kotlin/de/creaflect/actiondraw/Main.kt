@@ -57,15 +57,22 @@ private fun handleKey(event: KeyEvent, state: AppState, windowState: WindowState
                 true
             }
             Key.F -> { toggleFullscreen(windowState); true }
-            Key.G -> { state.showGrid = !state.showGrid; true }
+            Key.G -> { state.cycleGrid(); true }
+            Key.R -> { state.toggleRedoCurrent(); true }
             Key.M -> { state.mirror = !state.mirror; true }
             Key.B -> { state.blur = !state.blur; true }
             Key.U -> { state.upsideDown = !state.upsideDown; true }
+            // Number row selects the view mode (1..0 -> the ten ViewMode values in order).
             Key.One -> { state.viewMode = ViewMode.NONE; true }
             Key.Two -> { state.viewMode = ViewMode.GRAYSCALE; true }
             Key.Three -> { state.viewMode = ViewMode.SQUINT; true }
-            Key.Four -> { state.viewMode = ViewMode.EDGE; true }
-            Key.Five -> { state.viewMode = ViewMode.SILHOUETTE; true }
+            Key.Four -> { state.viewMode = ViewMode.SEPIA; true }
+            Key.Five -> { state.viewMode = ViewMode.POSTERIZE; true }
+            Key.Six -> { state.viewMode = ViewMode.PIXELATE; true }
+            Key.Seven -> { state.viewMode = ViewMode.WARM; true }
+            Key.Eight -> { state.viewMode = ViewMode.COOL; true }
+            Key.Nine -> { state.viewMode = ViewMode.EDGE; true }
+            Key.Zero -> { state.viewMode = ViewMode.SILHOUETTE; true }
             else -> false
         }
 
