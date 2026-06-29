@@ -3,12 +3,12 @@ package de.creaflect.actiondraw.image
 import java.io.File
 
 /**
- * Persists which images have already been shown, as a hidden text file inside the image folder
- * (one file name per line). Self-contained per folder and identical on Windows and Linux. All IO
- * is best-effort so an unwritable folder never crashes a session.
+ * Persists images flagged for "redo" as a hidden text file inside the image folder (one name per
+ * line). Mirrors [SeenStore]. All IO is best-effort: a read-only or unwritable folder degrades to
+ * "no redo flags" rather than crashing a practice session.
  */
-object SeenStore {
-    const val FILE_NAME = ".actiondraw_seen.txt"
+object RedoStore {
+    const val FILE_NAME = ".actiondraw_redo.txt"
 
     private fun file(folder: File) = File(folder, FILE_NAME)
 
@@ -19,7 +19,10 @@ object SeenStore {
     }.getOrDefault(emptySet())
 
     fun write(folder: File, names: Set<String>) {
-        runCatching { file(folder).writeText(names.joinToString(System.lineSeparator())) }
+        runCatching {
+            val f = file(folder)
+            if (names.isEmpty()) f.delete() else f.writeText(names.joinToString(System.lineSeparator()))
+        }
     }
 
     fun clear(folder: File) {

@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
+import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.image.ImageLoader
 import kotlinx.coroutines.Dispatchers
@@ -96,11 +99,16 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
             val colorFilter = when (state.viewMode) {
                 ViewMode.GRAYSCALE -> grayscaleFilter()
                 ViewMode.SQUINT -> squintFilter()
+                ViewMode.SEPIA -> sepiaFilter()
+                ViewMode.WARM -> warmFilter()
+                ViewMode.COOL -> coolFilter()
                 else -> null
             }
             val renderEffect = when (state.viewMode) {
                 ViewMode.EDGE -> edgeRenderEffect()
                 ViewMode.SILHOUETTE -> silhouetteRenderEffect()
+                ViewMode.POSTERIZE -> posterizeRenderEffect()
+                ViewMode.PIXELATE -> pixelateRenderEffect()
                 else -> null
             }
             Image(
@@ -118,8 +126,8 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                     .graphicsLayer { this.renderEffect = renderEffect }, // innermost: on the raw image
             )
             // Proportion overlay sits above the image and is unaffected by its filters/rotation.
-            if (state.showGrid) {
-                ProportionOverlay(bmp, Modifier.fillMaxSize())
+            if (state.gridMode != GridMode.OFF) {
+                ProportionOverlay(bmp, state.gridMode, Modifier.fillMaxSize())
             }
         } else {
             Text(if (current == null) "No image" else "Loading…", color = Color.White)
@@ -127,11 +135,12 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
     }
 }
 
-/** Rule-of-thirds grid + a stronger center cross, drawn within the fitted image rect. */
+/** Proportion overlay (thirds / phi / diagonal) + a stronger centre cross, within the fitted image rect. */
 @Composable
-private fun ProportionOverlay(bitmap: ImageBitmap, modifier: Modifier) {
-    val thirds = Color.White.copy(alpha = 0.45f)
-    val center = Color.White.copy(alpha = 0.8f)
+private fun ProportionOverlay(bitmap: ImageBitmap, mode: GridMode, modifier: Modifier) {
+    val lineColor = Color.White.copy(alpha = 0.45f)
+    val centerColor = Color.White.copy(alpha = 0.8f)
+    val lines = gridLines(mode)
     Canvas(modifier) {
         val scale = min(size.width / bitmap.width, size.height / bitmap.height)
         val w = bitmap.width * scale
@@ -139,21 +148,17 @@ private fun ProportionOverlay(bitmap: ImageBitmap, modifier: Modifier) {
         val left = (size.width - w) / 2f
         val top = (size.height - h) / 2f
         val stroke = 1.5.dp.toPx()
+        fun at(nx: Float, ny: Float) = Offset(left + w * nx, top + h * ny)
 
-        for (i in 1..2) {
-            val x = left + w * i / 3f
-            drawLine(thirds, Offset(x, top), Offset(x, top + h), stroke)
-            val y = top + h * i / 3f
-            drawLine(thirds, Offset(left, y), Offset(left + w, y), stroke)
-        }
-        val cx = left + w / 2f
-        val cy = top + h / 2f
-        drawLine(center, Offset(cx, top), Offset(cx, top + h), stroke)
-        drawLine(center, Offset(left, cy), Offset(left + w, cy), stroke)
-        drawRect(thirds, topLeft = Offset(left, top), size = Size(w, h), style = Stroke(stroke))
+        lines.forEach { drawLine(lineColor, at(it.x1, it.y1), at(it.x2, it.y2), stroke) }
+        // Shared centre cross + outer border for every active mode.
+        drawLine(centerColor, at(0.5f, 0f), at(0.5f, 1f), stroke)
+        drawLine(centerColor, at(0f, 0.5f), at(1f, 0.5f), stroke)
+        drawRect(lineColor, topLeft = Offset(left, top), size = Size(w, h), style = Stroke(stroke))
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
     Surface(elevation = 8.dp) {
@@ -203,32 +208,40 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
 
             Spacer(Modifier.height(8.dp))
 
-            // View mode: mutually-exclusive value/structure studies.
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("View:")
-                SelectChip("None", state.viewMode == ViewMode.NONE) { state.viewMode = ViewMode.NONE }
-                SelectChip("B&W", state.viewMode == ViewMode.GRAYSCALE) { state.viewMode = ViewMode.GRAYSCALE }
-                SelectChip("Squint", state.viewMode == ViewMode.SQUINT) { state.viewMode = ViewMode.SQUINT }
-                SelectChip("Edge", state.viewMode == ViewMode.EDGE) { state.viewMode = ViewMode.EDGE }
-                SelectChip("Silhouette", state.viewMode == ViewMode.SILHOUETTE) { state.viewMode = ViewMode.SILHOUETTE }
+            // View mode: mutually-exclusive value / colour / structure studies (wraps on narrow windows).
+            Text("VIEW", style = MaterialTheme.typography.overline, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                ViewChip("None", state, ViewMode.NONE)
+                ViewChip("B&W", state, ViewMode.GRAYSCALE)
+                ViewChip("Squint", state, ViewMode.SQUINT)
+                ViewChip("Sepia", state, ViewMode.SEPIA)
+                ViewChip("Posterize", state, ViewMode.POSTERIZE)
+                ViewChip("Pixelate", state, ViewMode.PIXELATE)
+                ViewChip("Warm", state, ViewMode.WARM)
+                ViewChip("Cool", state, ViewMode.COOL)
+                ViewChip("Edge", state, ViewMode.EDGE)
+                ViewChip("Silhouette", state, ViewMode.SILHOUETTE)
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // Independent toggles.
-            Row(
+            // Grid mode + independent toggles + per-image redo flag.
+            FlowRow(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                Text("Grid:", modifier = Modifier.align(Alignment.CenterVertically))
+                SelectChip("Off", state.gridMode == GridMode.OFF) { state.gridMode = GridMode.OFF }
+                SelectChip("Thirds", state.gridMode == GridMode.THIRDS) { state.gridMode = GridMode.THIRDS }
+                SelectChip("Phi", state.gridMode == GridMode.PHI) { state.gridMode = GridMode.PHI }
+                SelectChip("Diagonal", state.gridMode == GridMode.DIAGONAL) { state.gridMode = GridMode.DIAGONAL }
+                Spacer(Modifier.width(8.dp))
                 FilterToggle("Blur", state.blur) { state.blur = it }
                 FilterToggle("Mirror", state.mirror) { state.mirror = it }
                 FilterToggle("Upside down", state.upsideDown) { state.upsideDown = it }
-                FilterToggle("Grid", state.showGrid) { state.showGrid = it }
+                Spacer(Modifier.width(8.dp))
+                SelectChip("⟳ Redo", state.isCurrentRedo) { state.toggleRedoCurrent() }
             }
 
             // Adjusting the time is only allowed while paused; elapsed time is left untouched.
@@ -243,7 +256,7 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
 
             Spacer(Modifier.height(6.dp))
             Text(
-                "Space pause · ←/→ prev/next · 1-5 view · B blur · M mirror · U flip · G grid · F fullscreen · Esc stop",
+                "Space pause · ←/→ prev/next · 1-0 view · B blur · M mirror · U flip · G grid · R redo · F fullscreen · Esc stop",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth(),
@@ -260,6 +273,11 @@ private fun buildProgressText(state: AppState): String = buildString {
         append("  ·  ")
     }
     append("${state.sessionPoses} drawn · ${formatDuration(state.sessionSeconds)}")
+}
+
+@Composable
+private fun ViewChip(label: String, state: AppState, mode: ViewMode) {
+    SelectChip(label, state.viewMode == mode) { state.viewMode = mode }
 }
 
 @Composable
