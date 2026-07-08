@@ -1,0 +1,7 @@
+# Keep shell/packaging scripts LF so they work when built in a Linux container.
+*.sh          text eol=lf
+*.desktop     text eol=lf
+*.install     text eol=lf
+PKGBUILD      text eol=lf
+*.svg         text eol=lf
+gradlew       text eol=lf

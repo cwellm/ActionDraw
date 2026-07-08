@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#242427"/>
+      <stop offset="1" stop-color="#121212"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#FFCC80"/>
+      <stop offset="0.5" stop-color="#FFB74D"/>
+      <stop offset="1" stop-color="#FB8C00"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App-icon squircle background -->
+  <rect x="16" y="16" width="480" height="480" rx="116" fill="url(#bg)"/>
+
+  <!-- Gesture brush-stroke "A": two splayed legs + a crossbar, round caps for a brushy feel -->
+  <g fill="none" stroke="url(#amber)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 130 C 236 216, 200 324, 146 396" stroke-width="64"/>
+    <path d="M256 130 C 276 216, 312 324, 366 394 q 22 28 46 10" stroke-width="64"/>
+    <path d="M198 306 Q 256 292 316 306" stroke-width="50"/>
+  </g>
+
+  <!-- Pen-nib accent at the apex, in the app's teal secondary -->
+  <circle cx="256" cy="124" r="19" fill="#80CBC4"/>
+</svg>

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ActionDraw
+GenericName=Reference Drawing Timer
+Comment=Timed reference drawing practice
+Exec=actiondraw
+Icon=actiondraw
+Terminal=false
+Categories=Graphics;2DGraphics;Education;
+Keywords=drawing;gesture;reference;timer;art;figure;
+StartupWMClass=ActionDraw

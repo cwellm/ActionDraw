@@ -1,0 +1,50 @@
+# Maintainer: creaflect <christoph.wellm@creaflect.de>
+pkgname=actiondraw
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Timed reference drawing practice — Compose Multiplatform desktop app"
+arch=('x86_64')
+url="https://github.com/cwellm/ActionDraw"
+license=('MIT')  # TODO: confirm the project's licence
+depends=('hicolor-icon-theme')
+makedepends=('jdk17-openjdk')
+install="$pkgname.install"
+# The app image ships a bundled JRE; stripping its binaries can break them.
+options=('!strip')
+
+# This PKGBUILD builds from the repository checkout it ships in (packaging/arch/),
+# so no source download is needed. For AUR/release, swap in a git or tarball source.
+
+build() {
+    cd "$startdir/../.."
+    export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+    sh ./gradlew --no-daemon --console=plain createDistributable
+}
+
+package() {
+    cd "$startdir/../.."
+    local app="build/compose/binaries/main/app/ActionDraw"
+
+    # Self-contained app image (app + bundled runtime) under /opt.
+    install -d "$pkgdir/opt/actiondraw"
+    cp -a "$app/." "$pkgdir/opt/actiondraw/"
+
+    # Launcher on PATH.
+    install -d "$pkgdir/usr/bin"
+    cat > "$pkgdir/usr/bin/actiondraw" <<'EOF'
+#!/bin/sh
+exec /opt/actiondraw/bin/ActionDraw "$@"
+EOF
+    chmod 755 "$pkgdir/usr/bin/actiondraw"
+
+    # Desktop entry.
+    install -Dm644 "packaging/arch/actiondraw.desktop" \
+        "$pkgdir/usr/share/applications/actiondraw.desktop"
+
+    # Hicolor icons (same master logo as the Windows build).
+    for sz in 512 256 128 64 48 32 16; do
+        local png="art/icons/actiondraw-$sz.png"
+        [ -f "$png" ] && install -Dm644 "$png" \
+            "$pkgdir/usr/share/icons/hicolor/${sz}x${sz}/apps/actiondraw.png"
+    done
+}
