@@ -1,5 +1,11 @@
 # Packaging ActionDraw
 
+Detailed, step-by-step guides (with verification checkpoints):
+- **[docs/Packaging-Windows.md](../docs/Packaging-Windows.md)** — build & install the `.msi`
+- **[docs/Packaging-ArchLinux.md](../docs/Packaging-ArchLinux.md)** — build & install the `.pkg.tar.zst`
+
+This file is the short overview.
+
 One master logo — `art/actiondraw.svg` — drives every icon.
 
 ## Icons
