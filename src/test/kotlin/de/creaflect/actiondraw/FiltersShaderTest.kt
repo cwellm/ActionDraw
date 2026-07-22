@@ -39,6 +39,17 @@ class FiltersShaderTest {
     }
 
     @Test
+    fun renderEffectsBuildAcrossTheParameterRanges() {
+        // Uniform binding must hold for every slider extreme.
+        assertNotNull(posterizeRenderEffect(levels = 2))
+        assertNotNull(posterizeRenderEffect(levels = 8))
+        assertNotNull(pixelateRenderEffect(block = 4))
+        assertNotNull(pixelateRenderEffect(block = 48))
+        assertNotNull(silhouetteRenderEffect(threshold = 0.05f))
+        assertNotNull(silhouetteRenderEffect(threshold = 0.95f))
+    }
+
+    @Test
     fun colorMatrixFiltersBuild() {
         assertNotNull(grayscaleFilter())
         assertNotNull(squintFilter())

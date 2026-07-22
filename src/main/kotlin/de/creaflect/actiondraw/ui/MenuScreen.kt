@@ -14,7 +14,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.Checkbox
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -55,10 +57,19 @@ fun MenuScreen(state: AppState) {
                     textAlign = TextAlign.Center,
                 )
                 Text(
-                    "${state.unseenCount} unseen of ${state.totalCount} images",
+                    if (state.selection == null)
+                        "${state.unseenCount} unseen of ${state.totalCount} images"
+                    else
+                        "${state.unseenCount} unseen of ${state.selectedCount} selected (${state.totalCount} in folder)",
                     style = MaterialTheme.typography.body2,
                     color = MaterialTheme.colors.secondary,
                 )
+                OutlinedButton(onClick = { state.openPicker() }) {
+                    Text(
+                        if (state.selection == null) "Choose pictures… (all ${state.totalCount})"
+                        else "Choose pictures… (${state.selectedCount} of ${state.totalCount})",
+                    )
+                }
             }
 
             // ---- Session type ----
@@ -86,6 +97,11 @@ fun MenuScreen(state: AppState) {
                 )
             }
 
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = state.autoAdvance, onCheckedChange = { state.autoAdvance = it })
+                Text("Auto-advance to the next picture (off = countdown only)")
+            }
+
             if (state.lastSessionPoses > 0) {
                 Text(
                     "Last session: ${state.lastSessionPoses} poses · ${formatDuration(state.lastSessionSeconds)}",
@@ -97,7 +113,7 @@ fun MenuScreen(state: AppState) {
             Spacer(Modifier.height(4.dp))
             Button(
                 onClick = { state.start() },
-                enabled = state.totalCount > 0,
+                enabled = state.selectedCount > 0,
                 colors = ButtonDefaults.buttonColors(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 36.dp, vertical = 12.dp),
             ) {
