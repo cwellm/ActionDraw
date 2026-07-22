@@ -13,9 +13,14 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
 
 ## Filters — backlog
 - ~~**Adjustable params** — posterize band count, pixelate block size, silhouette threshold via a
-  slider.~~ ✅ Implemented — a slider appears under the view row for Posterize / Pixelate / Silhouette.
+  slider.~~ ✅ Implemented — sliders appear under the view row (now also blur radius, notan and
+  defraction parameters).
+- ~~**Notan (2–3 value)** — collapse to two/three values for value-grouping study.~~ ✅ Implemented —
+  view mode (`N`) with a 2/3-value switch and threshold slider.
+- ✅ **Defraction** (new) — cubist shard mosaic (jittered-Voronoi, per-shard offset+rotation);
+  independent toggle (`D`), re-rolled randomly on every switch-on; shard size + strength sliders.
+- ✅ **Invert** (new) — colour inversion of the final image, independent of all other effects (`I`).
 - **Continuous colour-temperature** — a warm↔cool slider instead of the two fixed presets.
-- **Notan (2–3 value)** — collapse to two/three values for value-grouping study (posterize covers part of this).
 
 ## Best ideas
 1. ~~**Gesture-ramp sessions** — predefined life-drawing structures that auto-advance through
@@ -34,7 +39,8 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
   informational only, runs into "+overtime", and switching stays manual.
 
 ## Other notes
-- Keyboard: Space play/pause · ←/→ prev/next · 1–0 view mode · A auto-advance · B blur ·
-  M mirror · U upside-down · G cycle grid · R redo flag · F fullscreen · Esc leave fullscreen / stop.
+- Keyboard: Space play/pause · ←/→ prev/next · 1–0 view mode · N notan · A auto-advance · B blur ·
+  I invert · D defraction · M mirror · U upside-down · G cycle grid · R redo flag · F fullscreen ·
+  Esc leave fullscreen / stop.
 - Per-folder state files, written inside the selected image folder:
   `.actiondraw_seen.txt` (shown images) and `.actiondraw_redo.txt` (redo flags).

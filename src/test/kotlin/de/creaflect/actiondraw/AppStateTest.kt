@@ -78,6 +78,19 @@ class AppStateTest {
     }
 
     @Test
+    fun defractionRollsAFreshSeedOnEverySwitchOn() {
+        val state = AppState()
+        val seeds = mutableSetOf<Float>()
+        repeat(4) {
+            state.toggleDefraction() // on -> rolls a seed
+            assertTrue(state.defraction)
+            seeds += state.defractionSeed
+            state.toggleDefraction() // off
+        }
+        assertTrue(seeds.size > 1, "seed must differ between activations (got $seeds)")
+    }
+
+    @Test
     fun freshCycleForgetsOnlyTheSelectedImagesSeenState() {
         makeImages("a.jpg", "b.jpg", "c.jpg")
         // b was seen in some earlier session and is NOT part of the selection.

@@ -65,6 +65,9 @@ private fun handleKey(event: KeyEvent, state: AppState, windowState: WindowState
             Key.G -> { state.cycleGrid(); true }
             Key.R -> { state.toggleRedoCurrent(); true }
             Key.A -> { state.autoAdvance = !state.autoAdvance; true }
+            Key.I -> { state.invert = !state.invert; true }
+            Key.D -> { state.toggleDefraction(); true }
+            Key.N -> { state.viewMode = ViewMode.NOTAN; true }
             Key.M -> { state.mirror = !state.mirror; true }
             Key.B -> { state.blur = !state.blur; true }
             Key.U -> { state.upsideDown = !state.upsideDown; true }

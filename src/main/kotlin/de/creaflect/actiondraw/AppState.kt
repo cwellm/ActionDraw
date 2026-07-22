@@ -3,15 +3,14 @@ package de.creaflect.actiondraw
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import java.io.File
+import kotlin.random.Random
 
 /** Mutually-exclusive ways of viewing the reference image (value / colour / structure studies). */
-enum class ViewMode { NONE, GRAYSCALE, SQUINT, SEPIA, POSTERIZE, PIXELATE, WARM, COOL, EDGE, SILHOUETTE }
+enum class ViewMode { NONE, GRAYSCALE, SQUINT, SEPIA, POSTERIZE, PIXELATE, WARM, COOL, EDGE, SILHOUETTE, NOTAN }
 
 /** Proportion-overlay variants drawn over the image. */
 enum class GridMode { OFF, THIRDS, PHI, DIAGONAL }
@@ -84,9 +83,20 @@ class AppState {
     var upsideDown by mutableStateOf(false)
     var mirror by mutableStateOf(false)
     var gridMode by mutableStateOf(GridMode.OFF)
-    val blurRadius: Dp = 12.dp
+
+    /** Invert the final colours — independent of (and applied after) every other effect. */
+    var invert by mutableStateOf(false)
+
+    /** Cubist "defraction": the image splits into random shards. Re-rolled on every switch-on. */
+    var defraction by mutableStateOf(false)
+        private set
+    var defractionSeed by mutableStateOf(0f)
+        private set
 
     // ---- Adjustable filter parameters ----
+    /** Blur radius in dp. */
+    var blurRadius by mutableStateOf(12)
+
     /** Posterize: number of value bands per channel. */
     var posterizeLevels by mutableStateOf(5)
 
@@ -95,6 +105,18 @@ class AppState {
 
     /** Silhouette: luminance threshold (0..1) separating black from white. */
     var silhouetteThreshold by mutableStateOf(0.5f)
+
+    /** Notan: number of values (2 or 3). */
+    var notanBands by mutableStateOf(2)
+
+    /** Notan: centre luminance threshold (0..1). */
+    var notanThreshold by mutableStateOf(0.5f)
+
+    /** Defraction: approximate shard size in pixels. */
+    var defractionBlock by mutableStateOf(96)
+
+    /** Defraction: displacement/rotation strength (0..1). */
+    var defractionStrength by mutableStateOf(0.5f)
 
     // ---- Session stats ----
     var sessionPoses by mutableStateOf(0)
@@ -279,6 +301,12 @@ class AppState {
     /** Cycle the proportion overlay: Off -> Thirds -> Phi -> Diagonal -> Off. */
     fun cycleGrid() {
         gridMode = GridMode.entries[(gridMode.ordinal + 1) % GridMode.entries.size]
+    }
+
+    /** Toggle defraction; every switch-on rolls a fresh seed, so the shards differ each time. */
+    fun toggleDefraction() {
+        defraction = !defraction
+        if (defraction) defractionSeed = Random.nextFloat() * 1000f
     }
 
     private fun markCurrentSeen() {

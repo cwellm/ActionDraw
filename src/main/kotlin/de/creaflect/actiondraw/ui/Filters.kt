@@ -134,12 +134,86 @@ half4 main(float2 coord) {
 }
 """
 
+/** Notan: collapse luminance to two or three flat values — the classic value-grouping study. */
+internal const val NOTAN_SKSL = """
+uniform shader content;
+uniform float bands;
+uniform float threshold;
+
+half4 main(float2 coord) {
+    half4 px = content.eval(coord);
+    float l = dot(float3(px.rgb), float3(0.299, 0.587, 0.114));
+    float v;
+    if (bands > 2.5) {
+        v = l < threshold - 0.1667 ? 0.0 : (l < threshold + 0.1667 ? 0.5 : 1.0);
+    } else {
+        v = step(threshold, l);
+    }
+    half hv = half(v);
+    return half4(hv, hv, hv, 1.0) * px.a;
+}
+"""
+
+/**
+ * Cubist "defraction": a jittered-Voronoi mosaic of irregular shards, each shard sampling the
+ * image with its own random offset and rotation. `seed` re-randomises the whole pattern.
+ */
+internal const val DEFRACTION_SKSL = """
+uniform shader content;
+uniform float seed;
+uniform float block;
+uniform float strength;
+
+float2 hash2(float2 p) {
+    float2 q = float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)));
+    return fract(sin(q + seed) * 43758.5453);
+}
+
+half4 main(float2 coord) {
+    // Nearest jittered site of the 3x3 neighbourhood -> irregular polygonal cells.
+    float2 g = floor(coord / block);
+    float2 bestCell = g;
+    float2 bestSite = (g + 0.5) * block;
+    float bd = 1e9;
+    for (int y = -1; y <= 1; y++) {
+        for (int x = -1; x <= 1; x++) {
+            float2 cell = g + float2(float(x), float(y));
+            float2 site = (cell + hash2(cell)) * block;
+            float d = distance(coord, site);
+            if (d < bd) { bd = d; bestCell = cell; bestSite = site; }
+        }
+    }
+    // Per-shard random rotation about its site plus a random offset.
+    float2 h = hash2(bestCell + 71.3);
+    float a = (h.x - 0.5) * strength;
+    float s = sin(a);
+    float c = cos(a);
+    float2 rel = coord - bestSite;
+    float2 rot = float2(rel.x * c - rel.y * s, rel.x * s + rel.y * c);
+    float2 off = (h - 0.5) * 1.6 * strength * block;
+    return content.eval(bestSite + rot + off);
+}
+"""
+
+/** Invert the final colours; applied as the outermost layer so it composes with everything. */
+internal const val INVERT_SKSL = """
+uniform shader content;
+
+half4 main(float2 coord) {
+    half4 px = content.eval(coord);
+    return half4(half3(1.0) - px.rgb, px.a);
+}
+"""
+
 // Each SkSL program is compiled once; per-call we only rebuild the (cheap) uniform bindings, so
 // dragging a parameter slider never recompiles a shader.
 private val edgeRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(EDGE_SKSL) }
 private val silhouetteRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(SILHOUETTE_SKSL) }
 private val posterizeRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(POSTERIZE_SKSL) }
 private val pixelateRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(PIXELATE_SKSL) }
+private val notanRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(NOTAN_SKSL) }
+private val defractionRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(DEFRACTION_SKSL) }
+private val invertRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(INVERT_SKSL) }
 
 fun edgeRenderEffect(): RenderEffect = effectOf(edgeRuntime)
 
@@ -151,6 +225,21 @@ fun posterizeRenderEffect(levels: Int = 5): RenderEffect =
 
 fun pixelateRenderEffect(block: Int = 8): RenderEffect =
     effectOf(pixelateRuntime) { it.uniform("block", block.toFloat()) }
+
+fun notanRenderEffect(bands: Int = 2, threshold: Float = 0.5f): RenderEffect =
+    effectOf(notanRuntime) {
+        it.uniform("bands", bands.toFloat())
+        it.uniform("threshold", threshold)
+    }
+
+fun defractionRenderEffect(seed: Float, block: Int = 96, strength: Float = 0.5f): RenderEffect =
+    effectOf(defractionRuntime) {
+        it.uniform("seed", seed)
+        it.uniform("block", block.toFloat())
+        it.uniform("strength", strength)
+    }
+
+fun invertRenderEffect(): RenderEffect = effectOf(invertRuntime)
 
 /** Builds a Compose [RenderEffect] from a compiled shader that samples the layer as `content`. */
 private fun effectOf(

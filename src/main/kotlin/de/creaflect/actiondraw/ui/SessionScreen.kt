@@ -115,7 +115,15 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                     remember(state.posterizeLevels) { posterizeRenderEffect(state.posterizeLevels) }
                 ViewMode.PIXELATE ->
                     remember(state.pixelateBlock) { pixelateRenderEffect(state.pixelateBlock) }
+                ViewMode.NOTAN ->
+                    remember(state.notanBands, state.notanThreshold) {
+                        notanRenderEffect(state.notanBands, state.notanThreshold)
+                    }
                 else -> null
+            }
+            val invertEffect = remember { invertRenderEffect() }
+            val defractionEffect = remember(state.defractionSeed, state.defractionBlock, state.defractionStrength) {
+                defractionRenderEffect(state.defractionSeed, state.defractionBlock, state.defractionStrength)
             }
             Image(
                 bitmap = bmp,
@@ -124,12 +132,18 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                 colorFilter = colorFilter,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { // outermost: orientation
+                    .graphicsLayer { // outermost: colour inversion of the final result
+                        this.renderEffect = if (state.invert) invertEffect else null
+                    }
+                    .graphicsLayer { // orientation
                         if (state.upsideDown) rotationZ = 180f
                         if (state.mirror) scaleX = -1f
                     }
-                    .blur(if (state.blur) state.blurRadius else 0.dp)
-                    .graphicsLayer { this.renderEffect = renderEffect }, // innermost: on the raw image
+                    .blur(if (state.blur) state.blurRadius.dp else 0.dp)
+                    .graphicsLayer { this.renderEffect = renderEffect } // view mode
+                    .graphicsLayer { // innermost: shards cut from the raw image
+                        this.renderEffect = if (state.defraction) defractionEffect else null
+                    },
             )
             // Proportion overlay sits above the image and is unaffected by its filters/rotation.
             if (state.gridMode != GridMode.OFF) {
@@ -227,32 +241,78 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 ViewChip("Cool", state, ViewMode.COOL)
                 ViewChip("Edge", state, ViewMode.EDGE)
                 ViewChip("Silhouette", state, ViewMode.SILHOUETTE)
+                ViewChip("Notan", state, ViewMode.NOTAN)
             }
 
-            // Parameter slider for the active view mode, when it has one.
-            when (state.viewMode) {
-                ViewMode.POSTERIZE -> ParamSlider(
-                    label = "Bands: ${state.posterizeLevels}",
-                    value = state.posterizeLevels.toFloat(),
-                    range = 2f..8f,
-                    steps = 5,
-                ) { state.posterizeLevels = it.roundToInt() }
+            // Parameter sliders for whatever is active (view-mode param, blur, defraction).
+            FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
+            ) {
+                when (state.viewMode) {
+                    ViewMode.POSTERIZE -> ParamSlider(
+                        label = "Bands: ${state.posterizeLevels}",
+                        value = state.posterizeLevels.toFloat(),
+                        range = 2f..8f,
+                        steps = 5,
+                    ) { state.posterizeLevels = it.roundToInt() }
 
-                ViewMode.PIXELATE -> ParamSlider(
-                    label = "Block: ${state.pixelateBlock} px",
-                    value = state.pixelateBlock.toFloat(),
-                    range = 4f..48f,
-                    steps = 10,
-                ) { state.pixelateBlock = it.roundToInt() }
+                    ViewMode.PIXELATE -> ParamSlider(
+                        label = "Block: ${state.pixelateBlock} px",
+                        value = state.pixelateBlock.toFloat(),
+                        range = 4f..48f,
+                        steps = 10,
+                    ) { state.pixelateBlock = it.roundToInt() }
 
-                ViewMode.SILHOUETTE -> ParamSlider(
-                    label = "Threshold: " + "%.2f".format(state.silhouetteThreshold),
-                    value = state.silhouetteThreshold,
-                    range = 0.05f..0.95f,
-                    steps = 17,
-                ) { state.silhouetteThreshold = it }
+                    ViewMode.SILHOUETTE -> ParamSlider(
+                        label = "Threshold: " + "%.2f".format(state.silhouetteThreshold),
+                        value = state.silhouetteThreshold,
+                        range = 0.05f..0.95f,
+                        steps = 17,
+                    ) { state.silhouetteThreshold = it }
 
-                else -> {}
+                    ViewMode.NOTAN -> {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Values:", style = MaterialTheme.typography.caption)
+                            Spacer(Modifier.width(6.dp))
+                            SelectChip("2", state.notanBands == 2) { state.notanBands = 2 }
+                            Spacer(Modifier.width(4.dp))
+                            SelectChip("3", state.notanBands == 3) { state.notanBands = 3 }
+                        }
+                        ParamSlider(
+                            label = "Threshold: " + "%.2f".format(state.notanThreshold),
+                            value = state.notanThreshold,
+                            range = 0.05f..0.95f,
+                            steps = 17,
+                        ) { state.notanThreshold = it }
+                    }
+
+                    else -> {}
+                }
+
+                if (state.blur) {
+                    ParamSlider(
+                        label = "Blur: ${state.blurRadius} dp",
+                        value = state.blurRadius.toFloat(),
+                        range = 2f..40f,
+                        steps = 18,
+                    ) { state.blurRadius = it.roundToInt() }
+                }
+
+                if (state.defraction) {
+                    ParamSlider(
+                        label = "Shards: ${state.defractionBlock} px",
+                        value = state.defractionBlock.toFloat(),
+                        range = 32f..192f,
+                        steps = 9,
+                    ) { state.defractionBlock = it.roundToInt() }
+                    ParamSlider(
+                        label = "Strength: " + "%.0f%%".format(state.defractionStrength * 100),
+                        value = state.defractionStrength,
+                        range = 0.1f..1f,
+                        steps = 8,
+                    ) { state.defractionStrength = it }
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -270,6 +330,8 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 SelectChip("Diagonal", state.gridMode == GridMode.DIAGONAL) { state.gridMode = GridMode.DIAGONAL }
                 Spacer(Modifier.width(8.dp))
                 FilterToggle("Blur", state.blur) { state.blur = it }
+                FilterToggle("Invert", state.invert) { state.invert = it }
+                FilterToggle("Defraction", state.defraction) { state.toggleDefraction() }
                 FilterToggle("Mirror", state.mirror) { state.mirror = it }
                 FilterToggle("Upside down", state.upsideDown) { state.upsideDown = it }
                 FilterToggle("Auto-advance", state.autoAdvance) { state.autoAdvance = it }
@@ -289,7 +351,7 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
 
             Spacer(Modifier.height(6.dp))
             Text(
-                "Space pause · ←/→ prev/next · 1-0 view · A auto-advance · B blur · M mirror · U flip · G grid · R redo · F fullscreen · Esc stop",
+                "Space pause · ←/→ prev/next · 1-0 view · N notan · A auto · B blur · I invert · D defraction · M mirror · U flip · G grid · R redo · F fullscreen · Esc stop",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth(),
