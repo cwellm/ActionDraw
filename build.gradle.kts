@@ -35,6 +35,35 @@ compose.desktop {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb)
             packageName = "ActionDraw"
             packageVersion = "1.0.0"
+            description = "Timed reference drawing practice"
+            copyright = "© 2026 creaflect"
+            vendor = "creaflect"
+
+            windows {
+                iconFile.set(project.file("art/icons/actiondraw.ico"))
+                menuGroup = "ActionDraw"
+                shortcut = true
+                dirChooser = true
+                perUserInstall = true
+                // Stable GUID: future versions upgrade in place instead of installing side by side.
+                upgradeUuid = "028fad78-4d72-4bab-858a-6e06e449826e"
+            }
+            linux {
+                iconFile.set(project.file("art/icons/actiondraw-512.png"))
+                packageName = "actiondraw"
+                menuGroup = "Graphics"
+                appCategory = "Graphics"
+                shortcut = true
+            }
         }
     }
+}
+
+// Render art/actiondraw.svg into art/icons/ (PNGs + multi-res .ico) using the bundled Skia engine.
+tasks.register<JavaExec>("genIcons") {
+    group = "distribution"
+    description = "Generate icon assets from art/actiondraw.svg"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("de.creaflect.actiondraw.tools.IconGenKt")
+    args(project.file("art/actiondraw.svg").path, project.file("art/icons").path)
 }
