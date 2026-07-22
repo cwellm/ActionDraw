@@ -134,27 +134,29 @@ half4 main(float2 coord) {
 }
 """
 
-private val edgeEffect: RenderEffect by lazy { runtimeShaderEffect(EDGE_SKSL) }
-private val silhouetteEffect: RenderEffect by lazy {
-    runtimeShaderEffect(SILHOUETTE_SKSL) { it.uniform("threshold", 0.5f) }
-}
-private val posterizeEffect: RenderEffect by lazy {
-    runtimeShaderEffect(POSTERIZE_SKSL) { it.uniform("levels", 5f) }
-}
-private val pixelateEffect: RenderEffect by lazy {
-    runtimeShaderEffect(PIXELATE_SKSL) { it.uniform("block", 8f) }
-}
+// Each SkSL program is compiled once; per-call we only rebuild the (cheap) uniform bindings, so
+// dragging a parameter slider never recompiles a shader.
+private val edgeRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(EDGE_SKSL) }
+private val silhouetteRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(SILHOUETTE_SKSL) }
+private val posterizeRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(POSTERIZE_SKSL) }
+private val pixelateRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(PIXELATE_SKSL) }
 
-fun edgeRenderEffect(): RenderEffect = edgeEffect
-fun silhouetteRenderEffect(): RenderEffect = silhouetteEffect
-fun posterizeRenderEffect(): RenderEffect = posterizeEffect
-fun pixelateRenderEffect(): RenderEffect = pixelateEffect
+fun edgeRenderEffect(): RenderEffect = effectOf(edgeRuntime)
 
-/** Builds a Compose [RenderEffect] from an SkSL shader that samples the layer content as `content`. */
-private fun runtimeShaderEffect(
-    sksl: String,
+fun silhouetteRenderEffect(threshold: Float = 0.5f): RenderEffect =
+    effectOf(silhouetteRuntime) { it.uniform("threshold", threshold) }
+
+fun posterizeRenderEffect(levels: Int = 5): RenderEffect =
+    effectOf(posterizeRuntime) { it.uniform("levels", levels.toFloat()) }
+
+fun pixelateRenderEffect(block: Int = 8): RenderEffect =
+    effectOf(pixelateRuntime) { it.uniform("block", block.toFloat()) }
+
+/** Builds a Compose [RenderEffect] from a compiled shader that samples the layer as `content`. */
+private fun effectOf(
+    runtime: RuntimeEffect,
     configure: (RuntimeShaderBuilder) -> Unit = {},
 ): RenderEffect {
-    val builder = RuntimeShaderBuilder(RuntimeEffect.makeForShader(sksl)).also(configure)
+    val builder = RuntimeShaderBuilder(runtime).also(configure)
     return ImageFilter.makeRuntimeShader(builder, "content", null).asComposeRenderEffect()
 }

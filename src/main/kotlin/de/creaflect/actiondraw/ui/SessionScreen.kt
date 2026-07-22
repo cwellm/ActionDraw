@@ -20,12 +20,14 @@ import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Slider
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -46,6 +48,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 private val LowTimeColor = Color(0xFFEF5350)
 
@@ -76,7 +79,7 @@ fun SessionScreen(state: AppState, onToggleFullscreen: () -> Unit, isFullscreen:
                 modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
             ) {
                 Text(
-                    formatTime(state.remainingSeconds),
+                    timerText(state),
                     color = if (state.remainingSeconds <= 5) LowTimeColor else Color.White,
                     style = MaterialTheme.typography.h5,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -105,10 +108,13 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                 else -> null
             }
             val renderEffect = when (state.viewMode) {
-                ViewMode.EDGE -> edgeRenderEffect()
-                ViewMode.SILHOUETTE -> silhouetteRenderEffect()
-                ViewMode.POSTERIZE -> posterizeRenderEffect()
-                ViewMode.PIXELATE -> pixelateRenderEffect()
+                ViewMode.EDGE -> remember { edgeRenderEffect() }
+                ViewMode.SILHOUETTE ->
+                    remember(state.silhouetteThreshold) { silhouetteRenderEffect(state.silhouetteThreshold) }
+                ViewMode.POSTERIZE ->
+                    remember(state.posterizeLevels) { posterizeRenderEffect(state.posterizeLevels) }
+                ViewMode.PIXELATE ->
+                    remember(state.pixelateBlock) { pixelateRenderEffect(state.pixelateBlock) }
                 else -> null
             }
             Image(
@@ -190,7 +196,7 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    formatTime(state.remainingSeconds),
+                    timerText(state),
                     style = MaterialTheme.typography.h6,
                     color = if (low) LowTimeColor else MaterialTheme.colors.onSurface,
                 )
@@ -223,6 +229,32 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 ViewChip("Silhouette", state, ViewMode.SILHOUETTE)
             }
 
+            // Parameter slider for the active view mode, when it has one.
+            when (state.viewMode) {
+                ViewMode.POSTERIZE -> ParamSlider(
+                    label = "Bands: ${state.posterizeLevels}",
+                    value = state.posterizeLevels.toFloat(),
+                    range = 2f..8f,
+                    steps = 5,
+                ) { state.posterizeLevels = it.roundToInt() }
+
+                ViewMode.PIXELATE -> ParamSlider(
+                    label = "Block: ${state.pixelateBlock} px",
+                    value = state.pixelateBlock.toFloat(),
+                    range = 4f..48f,
+                    steps = 10,
+                ) { state.pixelateBlock = it.roundToInt() }
+
+                ViewMode.SILHOUETTE -> ParamSlider(
+                    label = "Threshold: " + "%.2f".format(state.silhouetteThreshold),
+                    value = state.silhouetteThreshold,
+                    range = 0.05f..0.95f,
+                    steps = 17,
+                ) { state.silhouetteThreshold = it }
+
+                else -> {}
+            }
+
             Spacer(Modifier.height(8.dp))
 
             // Grid mode + independent toggles + per-image redo flag.
@@ -240,6 +272,7 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 FilterToggle("Blur", state.blur) { state.blur = it }
                 FilterToggle("Mirror", state.mirror) { state.mirror = it }
                 FilterToggle("Upside down", state.upsideDown) { state.upsideDown = it }
+                FilterToggle("Auto-advance", state.autoAdvance) { state.autoAdvance = it }
                 Spacer(Modifier.width(8.dp))
                 SelectChip("⟳ Redo", state.isCurrentRedo) { state.toggleRedoCurrent() }
             }
@@ -256,12 +289,41 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
 
             Spacer(Modifier.height(6.dp))
             Text(
-                "Space pause · ←/→ prev/next · 1-0 view · B blur · M mirror · U flip · G grid · R redo · F fullscreen · Esc stop",
+                "Space pause · ←/→ prev/next · 1-0 view · A auto-advance · B blur · M mirror · U flip · G grid · R redo · F fullscreen · Esc stop",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+/** Remaining time, or — in manual mode past the interval — the overtime as "+m:ss". */
+private fun timerText(state: AppState): String =
+    if (state.overtimeSeconds > 0) "+" + formatTime(state.overtimeSeconds)
+    else formatTime(state.remainingSeconds)
+
+@Composable
+private fun ParamSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onChange: (Float) -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.caption)
+        Slider(
+            value = value,
+            onValueChange = onChange,
+            valueRange = range,
+            steps = steps,
+            modifier = Modifier.width(280.dp),
+        )
     }
 }
 

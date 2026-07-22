@@ -42,6 +42,11 @@ private fun handleKey(event: KeyEvent, state: AppState, windowState: WindowState
             else -> false
         }
 
+        Screen.Picker -> when (event.key) {
+            Key.Escape, Key.Enter -> { state.closePicker(); true }
+            else -> false
+        }
+
         Screen.Session -> when (event.key) {
             Key.Spacebar -> { state.togglePause(); true }
             Key.DirectionLeft -> { state.previous(); true }
@@ -59,6 +64,7 @@ private fun handleKey(event: KeyEvent, state: AppState, windowState: WindowState
             Key.F -> { toggleFullscreen(windowState); true }
             Key.G -> { state.cycleGrid(); true }
             Key.R -> { state.toggleRedoCurrent(); true }
+            Key.A -> { state.autoAdvance = !state.autoAdvance; true }
             Key.M -> { state.mirror = !state.mirror; true }
             Key.B -> { state.blur = !state.blur; true }
             Key.U -> { state.upsideDown = !state.upsideDown; true }

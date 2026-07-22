@@ -12,7 +12,8 @@ Independent toggles: **Blur**, **Mirror** (horizontal flip), **Upside down** (18
 Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal**, each with a centre cross.
 
 ## Filters — backlog
-- **Adjustable params** — posterize band count, pixelate block size, silhouette threshold via a slider.
+- ~~**Adjustable params** — posterize band count, pixelate block size, silhouette threshold via a
+  slider.~~ ✅ Implemented — a slider appears under the view row for Posterize / Pixelate / Silhouette.
 - **Continuous colour-temperature** — a warm↔cool slider instead of the two fixed presets.
 - **Notan (2–3 value)** — collapse to two/three values for value-grouping study (posterize covers part of this).
 
@@ -25,8 +26,15 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
    per-image **Redo** flag (`R`) persisted in `.actiondraw_redo.txt`; flagged images resurface first
    next session (and the flag clears once redrawn).
 
+## Session features (beyond filters)
+- ✅ **Picture picker** — thumbnail grid (menu → "Choose pictures…"): click to include/exclude,
+  All/None; sessions draw only from the selection, and a fresh cycle resets seen-state only for
+  the selected pictures.
+- ✅ **Manual mode** — "Auto-advance" toggle (menu + session + `A`): off = the countdown is
+  informational only, runs into "+overtime", and switching stays manual.
+
 ## Other notes
-- Keyboard: Space play/pause · ←/→ prev/next · 1–0 view mode · B blur · M mirror · U upside-down ·
-  G cycle grid · R redo flag · F fullscreen · Esc leave fullscreen / stop.
+- Keyboard: Space play/pause · ←/→ prev/next · 1–0 view mode · A auto-advance · B blur ·
+  M mirror · U upside-down · G cycle grid · R redo flag · F fullscreen · Esc leave fullscreen / stop.
 - Per-folder state files, written inside the selected image folder:
   `.actiondraw_seen.txt` (shown images) and `.actiondraw_redo.txt` (redo flags).

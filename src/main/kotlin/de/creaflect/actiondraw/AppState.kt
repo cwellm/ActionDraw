@@ -27,8 +27,18 @@ class AppState {
     var folder by mutableStateOf<File?>(null)
         private set
 
-    /** Every image in the folder (sorted) — basis for the seen/unseen counts. */
+    /** Every image in the folder (sorted) — basis for the picker and the seen/unseen counts. */
     private var allImages: List<File> = emptyList()
+
+    /** All images of the folder, for the picker grid. */
+    val images: List<File> get() = allImages
+
+    /**
+     * Names of the images chosen in the picker; `null` means "all images". Session pools are
+     * always built from this subset.
+     */
+    var selection by mutableStateOf<Set<String>?>(null)
+        private set
 
     /** The current play set: redo-flagged images first, then unseen, shuffled within each group. */
     var pool by mutableStateOf<List<File>>(emptyList())
@@ -50,6 +60,12 @@ class AppState {
     /** Per-image duration in fixed mode. */
     var intervalSeconds by mutableStateOf(120)
 
+    /**
+     * When true (default) the timer advances to the next image at 0. When false the countdown is
+     * informational only: it runs into overtime and switching stays manual.
+     */
+    var autoAdvance by mutableStateOf(true)
+
     /** When non-null, the session runs this finite gesture ramp instead of fixed timing. */
     var rampPlan by mutableStateOf<SessionPlan?>(null)
 
@@ -69,6 +85,16 @@ class AppState {
     var mirror by mutableStateOf(false)
     var gridMode by mutableStateOf(GridMode.OFF)
     val blurRadius: Dp = 12.dp
+
+    // ---- Adjustable filter parameters ----
+    /** Posterize: number of value bands per channel. */
+    var posterizeLevels by mutableStateOf(5)
+
+    /** Pixelate: block edge length in pixels. */
+    var pixelateBlock by mutableStateOf(8)
+
+    /** Silhouette: luminance threshold (0..1) separating black from white. */
+    var silhouetteThreshold by mutableStateOf(0.5f)
 
     // ---- Session stats ----
     var sessionPoses by mutableStateOf(0)
@@ -99,6 +125,10 @@ class AppState {
     val remainingSeconds: Int
         get() = (currentIntervalSeconds - elapsedSeconds).coerceAtLeast(0)
 
+    /** Seconds past the interval — only ever non-zero in manual (non-auto-advance) mode. */
+    val overtimeSeconds: Int
+        get() = (elapsedSeconds - currentIntervalSeconds).coerceAtLeast(0)
+
     /** Index of the ramp leg the current pose belongs to. */
     val rampStepIndex: Int
         get() {
@@ -116,8 +146,13 @@ class AppState {
     val currentImage: File?
         get() = pool.getOrNull(index)
 
+    /** The images the next session will draw from: the picker selection, or the whole folder. */
+    val candidates: List<File>
+        get() = selection?.let { sel -> allImages.filter { it.name in sel } } ?: allImages
+
     val totalCount: Int get() = allImages.size
-    val unseenCount: Int get() = allImages.count { it.name !in seen }
+    val selectedCount: Int get() = candidates.size
+    val unseenCount: Int get() = candidates.count { it.name !in seen }
 
     /** Whether the current image is flagged for redo (reads [redoTick] so the control recomposes). */
     val isCurrentRedo: Boolean
@@ -133,8 +168,36 @@ class AppState {
     fun selectFolder(dir: File) {
         folder = dir
         allImages = ImageScanner.scan(dir)
+        selection = null
         seen = SeenStore.read(dir).toMutableSet()
         redo = RedoStore.read(dir).toMutableSet()
+    }
+
+    // ---- Picker ----
+
+    fun openPicker() {
+        if (folder != null) screen = Screen.Picker
+    }
+
+    fun closePicker() {
+        screen = Screen.Menu
+    }
+
+    fun isSelected(name: String): Boolean = selection?.let { name in it } ?: true
+
+    fun toggleSelected(name: String) {
+        val all = allImages.mapTo(mutableSetOf()) { it.name }
+        val current = selection ?: all
+        val next = if (name in current) current - name else current + name
+        selection = if (next == all) null else next
+    }
+
+    fun selectAllImages() {
+        selection = null
+    }
+
+    fun selectNoImages() {
+        selection = emptySet()
     }
 
     // ---- Session lifecycle ----
@@ -156,20 +219,27 @@ class AppState {
         screen = Screen.Session
     }
 
-    /** pool = redo-flagged first, then unseen — each group shuffled. If nothing is left, reshuffle all. */
+    /** pool = redo-flagged first, then unseen — each group shuffled. If nothing is left, reshuffle. */
     private fun rebuildPool() {
-        val (redoFirst, rest) = poolGroups(allImages, seen, redo)
+        val cand = candidates
+        val (redoFirst, rest) = poolGroups(cand, seen, redo)
         pool = if (redoFirst.isEmpty() && rest.isEmpty()) {
-            resetSeen()
-            allImages.shuffled()
+            startFreshCycle(cand)
         } else {
             redoFirst.shuffled() + rest.shuffled()
         }
     }
 
-    private fun resetSeen() {
-        folder?.let { SeenStore.clear(it) }
-        seen.clear()
+    /**
+     * Every candidate has been seen: forget ONLY the candidates' seen state (other images of the
+     * folder keep theirs — matters when a picker subset is active) and reshuffle them all.
+     */
+    private fun startFreshCycle(cand: List<File>): List<File> {
+        if (cand.isNotEmpty()) {
+            seen.removeAll(cand.mapTo(mutableSetOf()) { it.name })
+            folder?.let { SeenStore.write(it, seen) }
+        }
+        return cand.shuffled()
     }
 
     /** Restart the timer fresh for the current picture. */
@@ -224,9 +294,8 @@ class AppState {
 
     private fun advanceImage() {
         if (index + 1 >= pool.size) {
-            // Whole folder has now been shown -> truncate the seen file and start a fresh cycle.
-            resetSeen()
-            pool = allImages.shuffled()
+            // All candidates have now been shown -> forget their seen state and start a new cycle.
+            pool = startFreshCycle(candidates)
             index = 0
         } else {
             index += 1
@@ -259,14 +328,14 @@ class AppState {
     fun tick() {
         elapsedSeconds += 1
         sessionSeconds += 1
-        if (elapsedSeconds >= currentIntervalSeconds) {
+        if (autoAdvance && elapsedSeconds >= currentIntervalSeconds) {
             next()
         }
     }
 }
 
 /**
- * Splits the folder into the next session's play groups: images flagged for **redo** come first
+ * Splits the play set into the next session's groups: images flagged for **redo** come first
  * (regardless of seen state), then the **unseen, un-flagged** images. Seen, un-flagged images are
  * dropped. Pure and deterministic (no shuffle) so the ordering rule is unit-testable.
  */

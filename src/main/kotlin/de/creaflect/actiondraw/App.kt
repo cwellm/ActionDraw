@@ -6,10 +6,11 @@ import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import de.creaflect.actiondraw.ui.MenuScreen
+import de.creaflect.actiondraw.ui.PickerScreen
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
 
-enum class Screen { Menu, Session, Summary }
+enum class Screen { Menu, Picker, Session, Summary }
 
 /** Calm, warm dark palette — easy on the eyes for long drawing sessions. */
 private val ActionDrawColors = darkColors(
@@ -30,6 +31,7 @@ fun App(state: AppState, isFullscreen: Boolean, onToggleFullscreen: () -> Unit) 
         Surface {
             when (state.screen) {
                 Screen.Menu -> MenuScreen(state)
+                Screen.Picker -> PickerScreen(state)
                 Screen.Session -> SessionScreen(state, onToggleFullscreen, isFullscreen)
                 Screen.Summary -> SummaryScreen(state)
             }
