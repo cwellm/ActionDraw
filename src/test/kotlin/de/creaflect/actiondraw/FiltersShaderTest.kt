@@ -1,12 +1,18 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.ui.DEFRACTION_SKSL
 import de.creaflect.actiondraw.ui.EDGE_SKSL
+import de.creaflect.actiondraw.ui.INVERT_SKSL
+import de.creaflect.actiondraw.ui.NOTAN_SKSL
 import de.creaflect.actiondraw.ui.PIXELATE_SKSL
 import de.creaflect.actiondraw.ui.POSTERIZE_SKSL
 import de.creaflect.actiondraw.ui.SILHOUETTE_SKSL
 import de.creaflect.actiondraw.ui.coolFilter
+import de.creaflect.actiondraw.ui.defractionRenderEffect
 import de.creaflect.actiondraw.ui.edgeRenderEffect
 import de.creaflect.actiondraw.ui.grayscaleFilter
+import de.creaflect.actiondraw.ui.invertRenderEffect
+import de.creaflect.actiondraw.ui.notanRenderEffect
 import de.creaflect.actiondraw.ui.pixelateRenderEffect
 import de.creaflect.actiondraw.ui.posterizeRenderEffect
 import de.creaflect.actiondraw.ui.sepiaFilter
@@ -24,7 +30,11 @@ import kotlin.test.assertNotNull
 class FiltersShaderTest {
     @Test
     fun allShadersCompile() {
-        for (sksl in listOf(EDGE_SKSL, SILHOUETTE_SKSL, POSTERIZE_SKSL, PIXELATE_SKSL)) {
+        val shaders = listOf(
+            EDGE_SKSL, SILHOUETTE_SKSL, POSTERIZE_SKSL, PIXELATE_SKSL,
+            NOTAN_SKSL, DEFRACTION_SKSL, INVERT_SKSL,
+        )
+        for (sksl in shaders) {
             RuntimeEffect.makeForShader(sksl).close()
         }
     }
@@ -47,6 +57,11 @@ class FiltersShaderTest {
         assertNotNull(pixelateRenderEffect(block = 48))
         assertNotNull(silhouetteRenderEffect(threshold = 0.05f))
         assertNotNull(silhouetteRenderEffect(threshold = 0.95f))
+        assertNotNull(notanRenderEffect(bands = 2, threshold = 0.05f))
+        assertNotNull(notanRenderEffect(bands = 3, threshold = 0.95f))
+        assertNotNull(defractionRenderEffect(seed = 0f, block = 32, strength = 0.1f))
+        assertNotNull(defractionRenderEffect(seed = 999f, block = 192, strength = 1f))
+        assertNotNull(invertRenderEffect())
     }
 
     @Test
