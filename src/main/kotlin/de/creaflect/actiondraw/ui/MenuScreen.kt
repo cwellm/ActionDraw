@@ -47,8 +47,8 @@ fun MenuScreen(state: AppState) {
 
             // ---- Folder ----
             SectionLabel("Reference folder")
-            Button(onClick = { chooseFolder()?.let { state.selectFolder(it) } }) {
-                Text("Select folder…")
+            Button(onClick = { chooseFolder(state.folder)?.let { state.selectFolder(it) } }) {
+                Text(if (state.folder == null) "Select folder…" else "Change folder…")
             }
             state.folder?.let { dir ->
                 Text(
@@ -133,11 +133,13 @@ private fun SectionLabel(text: String) {
     )
 }
 
-private fun chooseFolder(): File? {
+/** Opens the folder dialog, starting from [start] (the remembered folder) when there is one. */
+private fun chooseFolder(start: File?): File? {
     runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
     val chooser = JFileChooser().apply {
         fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
         dialogTitle = "Select image folder"
+        start?.takeIf { it.isDirectory }?.let { currentDirectory = it }
     }
     return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
 }

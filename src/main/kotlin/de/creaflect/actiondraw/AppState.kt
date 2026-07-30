@@ -18,8 +18,11 @@ enum class GridMode { OFF, THIRDS, PHI, DIAGONAL }
 /**
  * Single hoisted state holder for the whole app. Plain class backed by Compose state so the UI
  * recomposes on change; all mutations happen through the action methods below.
+ *
+ * [settings] persists app-level preferences (the last opened folder); inject a different one in
+ * tests so they never touch the real user config.
  */
-class AppState {
+class AppState(private val settings: Settings = Settings()) {
     var screen by mutableStateOf(Screen.Menu)
         private set
 
@@ -184,10 +187,22 @@ class AppState {
             return name in redo
         }
 
+    // Reopen the folder from the previous run. Declared after the state above so those properties
+    // are initialised before this runs.
+    init {
+        settings.lastFolder()?.let { loadFolder(it) }
+    }
+
     // ---- Menu ----
 
-    /** Called when the user picks a folder; loads the image list and the saved seen/redo sets. */
+    /** Called when the user picks a folder; also remembered for the next start. */
     fun selectFolder(dir: File) {
+        loadFolder(dir)
+        settings.setLastFolder(dir)
+    }
+
+    /** Loads the image list and the saved seen/redo sets for [dir]. */
+    private fun loadFolder(dir: File) {
         folder = dir
         allImages = ImageScanner.scan(dir)
         selection = null
