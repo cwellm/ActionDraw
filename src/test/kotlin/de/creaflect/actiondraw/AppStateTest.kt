@@ -6,11 +6,17 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** Behavioural tests for AppState against a real temp folder (empty files pass ImageScanner). */
 class AppStateTest {
     private val dir: File = Files.createTempDirectory("actiondraw-state").toFile()
+
+    /** Isolated config dir, so tests never read or clobber the real ~/.actiondraw. */
+    private val settingsDir: File = Files.createTempDirectory("actiondraw-config").toFile()
+
+    private fun newState() = AppState(Settings(settingsDir))
 
     private fun makeImages(vararg names: String) {
         names.forEach { File(dir, it).createNewFile() }
@@ -19,12 +25,13 @@ class AppStateTest {
     @AfterTest
     fun cleanup() {
         dir.deleteRecursively()
+        settingsDir.deleteRecursively()
     }
 
     @Test
     fun pickerSelectionLimitsThePool() {
         makeImages("a.jpg", "b.jpg", "c.jpg")
-        val state = AppState()
+        val state = newState()
         state.selectFolder(dir)
         state.toggleSelected("b.jpg") // deselect b -> selection = {a, c}
         assertEquals(2, state.selectedCount)
@@ -36,7 +43,7 @@ class AppStateTest {
     @Test
     fun togglingEverythingBackOnRestoresAllMode() {
         makeImages("a.jpg", "b.jpg")
-        val state = AppState()
+        val state = newState()
         state.selectFolder(dir)
         state.toggleSelected("a.jpg")
         assertEquals(1, state.selectedCount)
@@ -48,7 +55,7 @@ class AppStateTest {
     @Test
     fun manualModeCountsOvertimeInsteadOfSwitching() {
         makeImages("a.jpg", "b.jpg")
-        val state = AppState()
+        val state = newState()
         state.selectFolder(dir)
         state.intervalSeconds = 2
         state.autoAdvance = false
@@ -66,7 +73,7 @@ class AppStateTest {
     @Test
     fun autoAdvanceSwitchesAtTheInterval() {
         makeImages("a.jpg", "b.jpg")
-        val state = AppState()
+        val state = newState()
         state.selectFolder(dir)
         state.intervalSeconds = 2
         state.start()
@@ -79,7 +86,7 @@ class AppStateTest {
 
     @Test
     fun defractionRollsAFreshSeedOnEverySwitchOn() {
-        val state = AppState()
+        val state = newState()
         val seeds = mutableSetOf<Float>()
         repeat(4) {
             state.toggleDefraction() // on -> rolls a seed
@@ -96,7 +103,7 @@ class AppStateTest {
         // b was seen in some earlier session and is NOT part of the selection.
         SeenStore.write(dir, setOf("b.jpg"))
 
-        val state = AppState()
+        val state = newState()
         state.selectFolder(dir)
         state.toggleSelected("b.jpg") // selection = {a, c}
         state.start()
@@ -110,5 +117,24 @@ class AppStateTest {
         assertTrue("b.jpg" in seen, "unselected image must keep its seen state")
         assertTrue("a.jpg" !in seen && "c.jpg" !in seen, "selected images were reset for the new cycle")
         assertEquals(setOf("a.jpg", "c.jpg"), state.pool.map { it.name }.toSet())
+    }
+
+    @Test
+    fun lastFolderIsRememberedAcrossRestarts() {
+        makeImages("a.jpg", "b.jpg")
+        newState().selectFolder(dir) // "previous run"
+
+        val restarted = newState() // fresh app start, same config dir
+        assertEquals(dir.absolutePath, restarted.folder?.absolutePath)
+        assertEquals(2, restarted.totalCount) // images were scanned, so Start is usable right away
+    }
+
+    @Test
+    fun aLastFolderThatNoLongerExistsIsIgnored() {
+        Settings(settingsDir).setLastFolder(File(dir, "deleted-since-last-run"))
+
+        val restarted = newState()
+        assertNull(restarted.folder)
+        assertEquals(0, restarted.totalCount)
     }
 }

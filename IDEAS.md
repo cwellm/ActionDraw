@@ -38,6 +38,9 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
 - ✅ **Manual mode** — "Auto-advance" toggle (menu + session + `A`): off = the countdown is
   informational only, runs into "+overtime", and switching stays manual.
 
+- ✅ **Remembers the last folder** across restarts (`~/.actiondraw/settings.properties`); the folder
+  dialog also opens there. A folder that has moved/been deleted is silently forgotten.
+
 ## Other notes
 - Keyboard: Space play/pause · ←/→ prev/next · 1–0 view mode · N notan · A auto-advance · B blur ·
   I invert · D defraction · M mirror · U upside-down · G cycle grid · R redo flag · F fullscreen ·
