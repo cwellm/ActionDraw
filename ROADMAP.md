@@ -46,56 +46,56 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Open questions Q1–Q5 answered (shaping §10) → shape frozen: explicit membership,
   boards created first, tags pulled into Phase 1
 
-### ⬜ F1.1 Foundations
-- ⬜ Add `kotlinx-serialization-json` (first non-Compose dependency)
-- ⬜ Recursive `ImageScanner` (skip dot-dirs and `.actiondraw*`; relative-path aware)
-- ⬜ Thumbnail disk cache (`~/.actiondraw/thumbs/`, key = hash(path, size, mtime))
+### ✅ F1.1 Foundations
+- ✅ Add `kotlinx-serialization-json` (first non-Compose dependency)
+- ✅ Recursive `ImageScanner.scanTree` + `relKey` (skips dot-dirs; `/`-separated keys)
+- ✅ Thumbnail disk cache (`~/.actiondraw/thumbs/`, key = hash(path, size, mtime)) — also used by the picker
 
-### ⬜ F1.2 Board store
-- ⬜ Schema v1 (`BoardFile`, groups/items/theme, `ignoreUnknownKeys`)
-- ⬜ Load/save sidecar — atomic write + `.bak`, parse failure never crashes
-- ⬜ Validate membership (explicit — no auto-add; missing files → drop on save)
-- ⬜ Unit tests (store round-trip, reconcile, collision-safe import naming)
+### ✅ F1.2 Board store
+- ✅ Schema v1 (`BoardFile`, groups/items/theme, `ignoreUnknownKeys`)
+- ✅ Load/save sidecar — atomic write + `.bak`, parse failure falls back to the backup
+- ✅ Validate membership (explicit — no auto-add; missing files → drop on save)
+- ✅ Unit tests (store round-trip/backup/validation, importer, board-state behaviour)
 
-### ⬜ F1.3 Board screen
-- ⬜ Menu section: "New board…" (name + location, boards-home default) · "Open board…" · MRU chips
-- ⬜ Grouped grid with Inbox + collapsible sections (span headers)
-- ⬜ Explorer-style selection (click / Ctrl / Shift / Ctrl+A)
-- ⬜ Group CRUD: create, rename, colour, reorder, delete → items to Inbox
-- ⬜ Card actions: move to group, star, remove from board (file untouched)
-- ⬜ Quick-look overlay (`Space`) + keyboard navigation
+### ✅ F1.3 Board screen
+- ✅ Menu section: "New board…" (name + location, boards-home default) · "Open board…" · MRU chips
+- ✅ Grouped grid with Inbox + collapsible sections (span headers)
+- ✅ Explorer-style selection (click / Ctrl / Shift / Ctrl+A)
+- ✅ Group CRUD: create, rename, colour, reorder, delete → items to Inbox
+- ✅ Card actions: move to group, star, remove from board (file untouched)
+- ✅ Quick-look overlay (`Space`) + keyboard navigation (arrows step linearly, see shaping §12)
 
-### ⬜ F1.4 Notes, captions & tags
-- ⬜ Note cards (plain text): create, edit, place in groups
-- ⬜ One-line captions on image cards (`F2`)
-- ⬜ Tag editor (`T` / context menu), multi-select aware
-- ⬜ Tag filter bar (AND chips; notes visible only without filter)
+### ✅ F1.4 Notes, captions & tags
+- ✅ Note cards (plain text): create, edit, place in groups
+- ✅ One-line captions on image cards (`F2`)
+- ✅ Tag editor (`T` / context menu), multi-select aware
+- ✅ Tag filter bar (AND chips; notes visible only without filter)
 
-### ⬜ F1.5 Material in
-- ⬜ Drag & drop from Explorer → copy to `_imported/` (Compose DnD, AWT fallback)
-- ⬜ `Ctrl+V` file list → import
-- ⬜ `Ctrl+V` bitmap (browser "Copy image") → PNG in `_imported/`
-- ⬜ "Import…" file chooser (multi-select)
+### ✅ F1.5 Material in
+- ✅ Drag & drop from Explorer → copy to `_imported/` (drops land in the Inbox, shaping §12)
+- ✅ `Ctrl+V` file list → import
+- ✅ `Ctrl+V` bitmap (browser "Copy image") → PNG in `_imported/`
+- ✅ "Import…" file chooser (multi-select; in-root files referenced in place)
 
-### ⬜ F1.6 Material out
-- ⬜ `Ctrl+C` → `javaFileListFlavor` on the clipboard (paste in Explorer = duplicate)
-- ⬜ Notes-only selection copies as plain text
+### ✅ F1.6 Material out
+- ✅ `Ctrl+C` → `javaFileListFlavor` on the clipboard (paste in Explorer = duplicate)
+- ✅ Notes-only selection copies as plain text
 
-### ⬜ F1.7 The bridge
-- ⬜ Seen/redo keys: file names → relative paths (backward compatible for flat folders)
-- ⬜ `BoardHost.startSession(root, images)` — session pool from explicit file list
-- ⬜ "Draw selection" / "Draw group" · summary returns to the board
+### ✅ F1.7 The bridge
+- ✅ Seen/redo keys: file names → relative paths (backward compatible for flat folders)
+- ✅ `BoardHost.startSession(root, images)` — session pool from explicit file list
+- ✅ "Draw selection" / "Draw group" · summary returns to the board · "Go again" replays the pool
 
-### ⬜ F1.8 Look & themes
-- ⬜ Cork (default), papyrus, plain — per-board, stored in sidecar
-- ⬜ Tileable texture via Skia noise shader (fallback: `genTextures` tool)
-- ⬜ Paper-backed card styling on textured themes
+### ✅ F1.8 Look & themes
+- ✅ Cork (default), papyrus, plain — per-board, stored in sidecar
+- ✅ Tileable textures via SkSL value noise (generated at runtime, no bundled assets)
+- ✅ Paper-backed card styling + light paper palette on textured themes
 
-### ⬜ F1.9 Immersive mode
-- ⬜ `F` fullscreen board, chrome hidden, `Esc` convention as in sessions
+### ✅ F1.9 Immersive mode
+- ✅ `F` fullscreen board, chrome hidden, `Esc` convention as in sessions
 
-### ⬜ F1.10 Wrap-up
-- ⬜ README + IDEAS.md updated, shortcuts documented
+### 🔄 F1.10 Wrap-up
+- ⬜ README + IDEAS.md updated, shortcuts documented (after `fix/restore-readme` is merged)
 - ⬜ Manual test pass on Windows (definition of done, shaping §11)
 
 ---

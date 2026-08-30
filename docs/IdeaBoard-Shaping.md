@@ -254,3 +254,19 @@ Explorer as copies · select five wings and draw them as a 60-second session, re
 as always · flip to papyrus and plain, go immersive on the second monitor · close the app,
 reopen from the MRU chip: everything exactly as left, all of it in `.actiondraw_board.json` +
 `_imported/` · store/validation/import logic unit-tested, `./gradlew test` green on Windows.
+
+## 12. Realization notes (2026-08-30)
+
+Phase 1 is implemented as shaped, with these deliberate simplifications:
+
+1. **Drops land in the Inbox**, not in "the group under the cursor" (§3.4): the lazy grid's
+   group sections don't make practical per-group drop targets. Cards are moved via the context
+   menu; revisit hover targeting together with the freeform layout mode.
+2. **Arrow keys step linearly** through the visible order (the adaptive grid's column count
+   isn't known to the state, so ↑/↓ behave like ←/→).
+3. **New notes and pastes land in the Inbox**; assignment to a group is a second step via the
+   context menu.
+4. **"Draw group" draws the group's *visible* cards** — with an active tag filter that means
+   only the matching images, which doubles as "draw everything tagged X in this group".
+5. Textured themes flip the board to a **light paper Material palette** so controls stay
+   readable on cork/papyrus; `plain` keeps the app's dark palette.
