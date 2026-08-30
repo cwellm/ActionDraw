@@ -1,16 +1,22 @@
 package de.creaflect.actiondraw
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.ui.BoardDialogs
+import de.creaflect.actiondraw.board.ui.BoardMenuSection
+import de.creaflect.actiondraw.board.ui.BoardScreen
+import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.MenuScreen
 import de.creaflect.actiondraw.ui.PickerScreen
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
 
-enum class Screen { Menu, Picker, Session, Summary }
+enum class Screen { Menu, Picker, Session, Summary, Board }
 
 /** Calm, warm dark palette — easy on the eyes for long drawing sessions. */
 private val ActionDrawColors = darkColors(
@@ -26,14 +32,25 @@ private val ActionDrawColors = darkColors(
 )
 
 @Composable
-fun App(state: AppState, isFullscreen: Boolean, onToggleFullscreen: () -> Unit) {
+fun App(
+    state: AppState,
+    boardState: BoardState,
+    thumbs: ThumbCache,
+    isFullscreen: Boolean,
+    onToggleFullscreen: () -> Unit,
+) {
     MaterialTheme(colors = ActionDrawColors) {
         Surface {
-            when (state.screen) {
-                Screen.Menu -> MenuScreen(state)
-                Screen.Picker -> PickerScreen(state)
-                Screen.Session -> SessionScreen(state, onToggleFullscreen, isFullscreen)
-                Screen.Summary -> SummaryScreen(state)
+            Box {
+                when (state.screen) {
+                    Screen.Menu -> MenuScreen(state) { BoardMenuSection(boardState) }
+                    Screen.Picker -> PickerScreen(state, thumbs)
+                    Screen.Session -> SessionScreen(state, onToggleFullscreen, isFullscreen)
+                    Screen.Summary -> SummaryScreen(state)
+                    Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, onToggleFullscreen)
+                }
+                // Board dialogs float above every screen (New board… opens from the menu).
+                BoardDialogs(boardState)
             }
         }
     }

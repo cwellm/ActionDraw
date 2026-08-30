@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
+import de.creaflect.actiondraw.image.relKey
 import java.io.File
 import kotlin.random.Random
 
@@ -173,19 +174,37 @@ class AppState(private val settings: Settings = Settings()) {
 
     /** The images the next session will draw from: the picker selection, or the whole folder. */
     val candidates: List<File>
-        get() = selection?.let { sel -> allImages.filter { it.name in sel } } ?: allImages
+        get() = selection?.let { sel -> allImages.filter { key(it) in sel } } ?: allImages
 
     val totalCount: Int get() = allImages.size
     val selectedCount: Int get() = candidates.size
-    val unseenCount: Int get() = candidates.count { it.name !in seen }
+    val unseenCount: Int get() = candidates.count { key(it) !in seen }
 
     /** Whether the current image is flagged for redo (reads [redoTick] so the control recomposes). */
     val isCurrentRedo: Boolean
         get() {
             redoTick // snapshot read: recompose when flags change
-            val name = currentImage?.name ?: return false
-            return name in redo
+            val k = currentImage?.let(::key) ?: return false
+            return k in redo
         }
+
+    /**
+     * Store key for [f]: its path relative to the current folder (`/`-separated). Identical to the
+     * plain file name in the flat practice folders — existing seen/redo files stay valid — while
+     * board sessions bring subfolder files, where names alone could collide.
+     */
+    private fun key(f: File): String = folder?.let { relKey(it, f) } ?: f.name
+
+    // ---- Board-session bookkeeping ----
+
+    /** Where the summary returns to: the menu, or the board the session was started from. */
+    private var sessionOrigin: Screen = Screen.Menu
+
+    /** Root + pool of the active board session, so "Go again" replays the same set. */
+    private var boardSession: Pair<File, List<File>>? = null
+
+    /** Practice state to restore once a board session is over. */
+    private var practiceSnapshot: Triple<File?, List<File>, Set<String>?>? = null
 
     // Reopen the folder from the previous run. Declared after the state above so those properties
     // are initialised before this runs.
@@ -223,7 +242,7 @@ class AppState(private val settings: Settings = Settings()) {
     fun isSelected(name: String): Boolean = selection?.let { name in it } ?: true
 
     fun toggleSelected(name: String) {
-        val all = allImages.mapTo(mutableSetOf()) { it.name }
+        val all = allImages.mapTo(mutableSetOf(), ::key)
         val current = selection ?: all
         val next = if (name in current) current - name else current + name
         selection = if (next == all) null else next
@@ -240,11 +259,43 @@ class AppState(private val settings: Settings = Settings()) {
     // ---- Session lifecycle ----
 
     fun start() {
+        // "Go again" on a board session's summary replays the same board pool.
+        boardSession?.let { (root, images) ->
+            if (sessionOrigin == Screen.Board) {
+                startBoardSession(root, images)
+                return
+            }
+        }
         val dir = folder ?: return
+        sessionOrigin = Screen.Menu
         // Re-read in case the folder contents changed since it was selected.
         allImages = ImageScanner.scan(dir)
         seen = SeenStore.read(dir).toMutableSet()
         redo = RedoStore.read(dir).toMutableSet()
+        beginSession()
+    }
+
+    /**
+     * Session with an explicit pool (an Idea-Board selection): [images] are the candidates and
+     * seen/redo state lives in [root]. Practice state is snapshotted and restored afterwards, so
+     * the menu is unchanged when the board session is over.
+     */
+    fun startBoardSession(root: File, images: List<File>) {
+        if (images.isEmpty()) return
+        if (sessionOrigin != Screen.Board) {
+            practiceSnapshot = Triple(folder, allImages, selection)
+        }
+        sessionOrigin = Screen.Board
+        boardSession = root to images
+        folder = root // deliberately not persisted: the remembered practice folder stays untouched
+        allImages = images
+        selection = null
+        seen = SeenStore.read(root).toMutableSet()
+        redo = RedoStore.read(root).toMutableSet()
+        beginSession()
+    }
+
+    private fun beginSession() {
         rebuildPool()
         index = 0
         rampPose = 0
@@ -259,7 +310,7 @@ class AppState(private val settings: Settings = Settings()) {
     /** pool = redo-flagged first, then unseen — each group shuffled. If nothing is left, reshuffle. */
     private fun rebuildPool() {
         val cand = candidates
-        val (redoFirst, rest) = poolGroups(cand, seen, redo)
+        val (redoFirst, rest) = poolGroups(cand, seen, redo, ::key)
         pool = if (redoFirst.isEmpty() && rest.isEmpty()) {
             startFreshCycle(cand)
         } else {
@@ -273,7 +324,7 @@ class AppState(private val settings: Settings = Settings()) {
      */
     private fun startFreshCycle(cand: List<File>): List<File> {
         if (cand.isNotEmpty()) {
-            seen.removeAll(cand.mapTo(mutableSetOf()) { it.name })
+            seen.removeAll(cand.mapTo(mutableSetOf(), ::key))
             folder?.let { SeenStore.write(it, seen) }
         }
         return cand.shuffled()
@@ -300,15 +351,42 @@ class AppState(private val settings: Settings = Settings()) {
         screen = Screen.Summary
     }
 
+    /** Leaves the summary — to the menu, or back to the board the session came from. */
     fun backToMenu() {
+        val origin = sessionOrigin
+        if (origin == Screen.Board) restorePractice()
+        screen = origin
+    }
+
+    // ---- Board navigation (wired by the app shell; the practice side stays board-agnostic) ----
+
+    fun showBoard() {
+        screen = Screen.Board
+    }
+
+    fun leaveBoard() {
         screen = Screen.Menu
+    }
+
+    /** Undo what [startBoardSession] borrowed, so the menu shows the practice folder again. */
+    private fun restorePractice() {
+        practiceSnapshot?.let { (dir, images, sel) ->
+            folder = dir
+            allImages = images
+            selection = sel
+            seen = dir?.let { SeenStore.read(it).toMutableSet() } ?: mutableSetOf()
+            redo = dir?.let { RedoStore.read(it).toMutableSet() } ?: mutableSetOf()
+        }
+        practiceSnapshot = null
+        boardSession = null
+        sessionOrigin = Screen.Menu
     }
 
     /** Flag/unflag the current image for redo; persisted immediately. */
     fun toggleRedoCurrent() {
         val dir = folder ?: return
-        val name = currentImage?.name ?: return
-        if (!redo.add(name)) redo.remove(name)
+        val k = currentImage?.let(::key) ?: return
+        if (!redo.add(k)) redo.remove(k)
         RedoStore.write(dir, redo)
         redoTick++
     }
@@ -326,10 +404,10 @@ class AppState(private val settings: Settings = Settings()) {
 
     private fun markCurrentSeen() {
         val dir = folder ?: return
-        val current = currentImage ?: return
-        if (seen.add(current.name)) SeenStore.write(dir, seen)
+        val k = currentImage?.let(::key) ?: return
+        if (seen.add(k)) SeenStore.write(dir, seen)
         // Drawing a flagged image counts as having redone it -> clear the flag.
-        if (redo.remove(current.name)) {
+        if (redo.remove(k)) {
             RedoStore.write(dir, redo)
             redoTick++
         }
@@ -380,14 +458,16 @@ class AppState(private val settings: Settings = Settings()) {
 /**
  * Splits the play set into the next session's groups: images flagged for **redo** come first
  * (regardless of seen state), then the **unseen, un-flagged** images. Seen, un-flagged images are
- * dropped. Pure and deterministic (no shuffle) so the ordering rule is unit-testable.
+ * dropped. [keyOf] maps a file to its store key (plain name for flat folders, relative path for
+ * board sessions). Pure and deterministic (no shuffle) so the ordering rule is unit-testable.
  */
 fun poolGroups(
     all: List<File>,
     seen: Set<String>,
     redo: Set<String>,
+    keyOf: (File) -> String = { it.name },
 ): Pair<List<File>, List<File>> {
-    val redoFirst = all.filter { it.name in redo }
-    val rest = all.filter { it.name !in seen && it.name !in redo }
+    val redoFirst = all.filter { keyOf(it) in redo }
+    val rest = all.filter { keyOf(it) !in seen && keyOf(it) !in redo }
     return redoFirst to rest
 }

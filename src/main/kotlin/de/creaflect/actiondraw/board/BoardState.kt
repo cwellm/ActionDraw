@@ -1,0 +1,452 @@
+package de.creaflect.actiondraw.board
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import de.creaflect.actiondraw.Settings
+import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+
+/** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
+sealed class BoardEditor {
+    data object NewBoard : BoardEditor()
+    data object NewGroup : BoardEditor()
+    data class RenameGroup(val groupId: String) : BoardEditor()
+
+    /** `itemId == null` creates a new note. */
+    data class EditNote(val itemId: String?) : BoardEditor()
+    data class EditCaption(val itemId: String) : BoardEditor()
+    data class EditTags(val itemIds: Set<String>) : BoardEditor()
+}
+
+/**
+ * Hoisted state + actions for the Idea Board (mirrors [de.creaflect.actiondraw.AppState]'s style).
+ * Every mutation is written straight to the sidecar via [BoardStore] — there is no separate save
+ * step. Talks to the rest of the app only through [BoardHost].
+ */
+class BoardState(
+    private val settings: Settings = Settings(),
+    private val host: BoardHost,
+    private val timestamp: () -> String = {
+        LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
+    },
+) {
+    var root by mutableStateOf<File?>(null)
+        private set
+    var board by mutableStateOf<BoardFile?>(null)
+        private set
+
+    /** The main sidecar was corrupt and the `.bak` was used — shown as a banner. */
+    var openedFromBackup by mutableStateOf(false)
+        private set
+
+    /** Opening failed entirely (sidecar and backup unreadable) — shown next to the menu buttons. */
+    var openFailed by mutableStateOf(false)
+        private set
+
+    var recent by mutableStateOf(settings.recentBoards())
+        private set
+
+    /** Selected item ids — what Draw/Copy/Move/Delete operate on. */
+    var selection by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    /** Keyboard focus & shift-range anchor. */
+    var focusId by mutableStateOf<String?>(null)
+        private set
+
+    /** Active tag filter (AND semantics). */
+    var filterTags by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    var quickLookId by mutableStateOf<String?>(null)
+        private set
+
+    var editor by mutableStateOf<BoardEditor?>(null)
+        private set
+
+    val isOpen: Boolean get() = root != null && board != null
+    val theme: String get() = board?.theme ?: BoardThemes.CORK
+
+    fun boardsHome(): File = settings.boardsHome()
+
+    // ---- Derived views ----
+
+    val sortedGroups: List<BoardGroup> get() = board?.groups.orEmpty().sortedBy { it.order }
+
+    val allTags: List<String>
+        get() = board?.items.orEmpty().filterIsInstance<ImageItem>()
+            .flatMap { it.tags }.distinct().sortedBy { it.lowercase() }
+
+    fun tagCount(tag: String): Int =
+        board?.items.orEmpty().filterIsInstance<ImageItem>().count { tag in it.tags }
+
+    private fun visible(item: BoardItem): Boolean =
+        filterTags.isEmpty() || (item is ImageItem && filterTags.all { it in item.tags })
+
+    /** Items of one group (null = Inbox) that pass the tag filter, in stored order. */
+    fun itemsIn(groupId: String?): List<BoardItem> =
+        board?.items.orEmpty()
+            .filter { if (groupId == null) it.groups.isEmpty() else groupId in it.groups }
+            .filter(::visible)
+
+    /** Inbox first, then the groups by order — the board's display structure. */
+    val sections: List<Pair<BoardGroup?, List<BoardItem>>>
+        get() {
+            val result = mutableListOf<Pair<BoardGroup?, List<BoardItem>>>(null to itemsIn(null))
+            sortedGroups.forEach { result += it to itemsIn(it.id) }
+            return result
+        }
+
+    /** Flattened display order (collapsed groups excluded) — basis for range select and focus. */
+    val visibleOrder: List<BoardItem>
+        get() = sections.flatMap { (group, items) -> if (group?.collapsed == true) emptyList() else items }
+
+    fun item(id: String): BoardItem? = board?.items?.find { it.id == id }
+
+    fun fileOf(item: ImageItem): File? = root?.let { File(it, item.path) }
+
+    val selectedItems: List<BoardItem> get() = board?.items.orEmpty().filter { it.id in selection }
+
+    val selectedImageFiles: List<File>
+        get() = selectedItems.filterIsInstance<ImageItem>().mapNotNull(::fileOf)
+
+    // ---- Lifecycle ----
+
+    /** Creates `<parent>/<name>` as a fresh board. Returns an error message, or null on success. */
+    fun createBoard(parent: File, name: String): String? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return "Give the board a name."
+        val dir = File(parent, sanitizeName(trimmed))
+        if (BoardStore.exists(dir)) { // already a board -> just open it
+            openBoard(dir)
+            return null
+        }
+        if (dir.exists() && !dir.listFiles().isNullOrEmpty()) return "Folder exists and is not empty:\n$dir"
+        if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
+        settings.setBoardsHome(parent)
+        val created = BoardFile(name = trimmed)
+        if (!BoardStore.save(dir, created)) return "Couldn't write the board file in:\n$dir"
+        root = dir
+        board = created
+        openedFromBackup = false
+        openFailed = false
+        afterOpen(dir)
+        return null
+    }
+
+    fun openBoard(dir: File) {
+        when (val result = BoardStore.load(dir)) {
+            BoardStore.LoadResult.None -> {
+                // A folder without a sidecar becomes an (empty) board named after it.
+                val fresh = BoardFile(name = dir.name)
+                BoardStore.save(dir, fresh)
+                root = dir
+                board = fresh
+                openedFromBackup = false
+                openFailed = false
+            }
+
+            is BoardStore.LoadResult.Loaded -> {
+                root = dir
+                board = result.board.let { if (it.name.isBlank()) it.copy(name = dir.name) else it }
+                openedFromBackup = result.fromBackup
+                openFailed = false
+            }
+
+            BoardStore.LoadResult.Failed -> {
+                openFailed = true
+                return
+            }
+        }
+        afterOpen(dir)
+    }
+
+    private fun afterOpen(dir: File) {
+        selection = emptySet()
+        focusId = null
+        filterTags = emptySet()
+        quickLookId = null
+        editor = null
+        settings.addRecentBoard(dir)
+        recent = settings.recentBoards()
+        host.showBoard()
+    }
+
+    fun closeBoard() {
+        root = null
+        board = null
+        selection = emptySet()
+        focusId = null
+        quickLookId = null
+        editor = null
+        host.leaveBoard()
+    }
+
+    fun dismissOpenFailed() {
+        openFailed = false
+    }
+
+    // ---- Dialogs ----
+
+    fun openEditor(target: BoardEditor) {
+        editor = target
+    }
+
+    fun closeEditor() {
+        editor = null
+    }
+
+    // ---- Mutations (each one is persisted immediately) ----
+
+    private fun update(transform: (BoardFile) -> BoardFile) {
+        val dir = root ?: return
+        val next = transform(board ?: return)
+        board = next
+        BoardStore.save(dir, next)
+    }
+
+    // Groups
+
+    fun addGroup(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        update { b ->
+            val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
+            b.copy(groups = b.groups + BoardGroup(id = Importer.newId(), name = trimmed, order = order))
+        }
+    }
+
+    fun renameGroup(id: String, name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        update { b -> b.copy(groups = b.groups.map { if (it.id == id) it.copy(name = trimmed) else it }) }
+    }
+
+    fun cycleGroupColor(id: String) = update { b ->
+        b.copy(groups = b.groups.map { g ->
+            if (g.id == id) g.copy(color = GROUP_COLORS[(GROUP_COLORS.indexOf(g.color) + 1) % GROUP_COLORS.size])
+            else g
+        })
+    }
+
+    fun toggleCollapsed(id: String) = update { b ->
+        b.copy(groups = b.groups.map { if (it.id == id) it.copy(collapsed = !it.collapsed) else it })
+    }
+
+    fun moveGroup(id: String, delta: Int) = update { b ->
+        val ordered = b.groups.sortedBy { it.order }.toMutableList()
+        val idx = ordered.indexOfFirst { it.id == id }
+        val target = idx + delta
+        if (idx < 0 || target !in ordered.indices) return@update b
+        ordered.add(target, ordered.removeAt(idx))
+        b.copy(groups = ordered.mapIndexed { i, g -> g.copy(order = i + 1) })
+    }
+
+    /** Removes the group; its items simply lose the membership and fall back into the Inbox. */
+    fun deleteGroup(id: String) = update { b ->
+        b.copy(
+            groups = b.groups.filterNot { it.id == id },
+            items = b.items.map { if (id in it.groups) it.withGroups(it.groups - id) else it },
+        )
+    }
+
+    // Items
+
+    fun moveToGroup(ids: Set<String>, groupId: String?) = update { b ->
+        b.copy(items = b.items.map { if (it.id in ids) it.withGroups(listOfNotNull(groupId)) else it })
+    }
+
+    fun toggleStar(ids: Set<String>) = update { b ->
+        val images = b.items.filterIsInstance<ImageItem>().filter { it.id in ids }
+        if (images.isEmpty()) return@update b
+        val allStarred = images.all { it.starred }
+        b.copy(items = b.items.map { if (it is ImageItem && it.id in ids) it.copy(starred = !allStarred) else it })
+    }
+
+    fun setCaption(id: String, caption: String) = update { b ->
+        b.copy(items = b.items.map {
+            if (it is ImageItem && it.id == id) it.copy(caption = caption.trim().ifEmpty { null }) else it
+        })
+    }
+
+    /** Tags shared by every selected image — what the tag dialog starts from. */
+    fun commonTags(ids: Set<String>): Set<String> =
+        board?.items.orEmpty().filterIsInstance<ImageItem>().filter { it.id in ids }
+            .map { it.tags.toSet() }
+            .reduceOrNull { a, b -> a intersect b } ?: emptySet()
+
+    /** Applies a tag-dialog result to [ids]: what left the common set is removed, what's new is added. */
+    fun applyTags(ids: Set<String>, before: Set<String>, after: Set<String>) {
+        val added = after - before
+        val removed = before - after
+        if (added.isEmpty() && removed.isEmpty()) return
+        update { b ->
+            b.copy(items = b.items.map {
+                if (it is ImageItem && it.id in ids) it.copy(tags = (it.tags - removed + added).distinct())
+                else it
+            })
+        }
+        filterTags = filterTags.filter { it in allTags }.toSet() // a removed tag may be gone entirely
+    }
+
+    fun saveNote(itemId: String?, text: String) {
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        if (itemId == null) {
+            val note = NoteItem(id = Importer.newId(), text = trimmed)
+            update { it.copy(items = it.items + note) }
+            selection = setOf(note.id)
+            focusId = note.id
+        } else {
+            update { b ->
+                b.copy(items = b.items.map { if (it is NoteItem && it.id == itemId) it.copy(text = trimmed) else it })
+            }
+        }
+    }
+
+    /** Removes cards from the board — files on disk are never touched. */
+    fun removeItems(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        update { b -> b.copy(items = b.items.filterNot { it.id in ids }) }
+        selection = selection - ids
+        if (focusId?.let { it in ids } == true) focusId = null
+    }
+
+    // ---- Selection & focus ----
+
+    fun clickItem(id: String, ctrl: Boolean, shift: Boolean) {
+        val order = visibleOrder.map { it.id }
+        val anchor = focusId
+        selection = when {
+            shift && anchor != null && anchor in order && id in order -> {
+                val a = order.indexOf(anchor)
+                val b = order.indexOf(id)
+                order.subList(minOf(a, b), maxOf(a, b) + 1).toSet()
+            }
+
+            ctrl -> if (id in selection) selection - id else selection + id
+            else -> setOf(id)
+        }
+        if (!shift) focusId = id
+    }
+
+    /** Right-click selects the card underneath unless it is already part of the selection. */
+    fun rightClickItem(id: String) {
+        if (id !in selection) {
+            selection = setOf(id)
+            focusId = id
+        }
+    }
+
+    fun selectAll() {
+        selection = visibleOrder.map { it.id }.toSet()
+    }
+
+    fun clearSelection() {
+        selection = emptySet()
+    }
+
+    fun moveFocus(delta: Int) {
+        val order = visibleOrder.map { it.id }
+        if (order.isEmpty()) return
+        val idx = order.indexOf(focusId)
+        val next = if (idx < 0) 0 else (idx + delta).coerceIn(order.indices)
+        focusId = order[next]
+        selection = setOf(order[next])
+    }
+
+    fun toggleFilterTag(tag: String) {
+        filterTags = if (tag in filterTags) filterTags - tag else filterTags + tag
+        selection = emptySet()
+        focusId = null
+    }
+
+    fun clearFilter() {
+        filterTags = emptySet()
+    }
+
+    fun setTheme(theme: String) = update { it.copy(theme = theme) }
+
+    // ---- Quick look ----
+
+    fun toggleQuickLook() {
+        quickLookId = if (quickLookId != null) null
+        else (focusId?.let(::item) as? ImageItem)?.id
+            ?: selectedItems.filterIsInstance<ImageItem>().firstOrNull()?.id
+            ?: visibleOrder.filterIsInstance<ImageItem>().firstOrNull()?.id
+    }
+
+    fun closeQuickLook() {
+        quickLookId = null
+    }
+
+    fun quickLookStep(delta: Int) {
+        val images = visibleOrder.filterIsInstance<ImageItem>()
+        if (images.isEmpty()) return
+        val idx = images.indexOfFirst { it.id == quickLookId }
+        val next = if (idx < 0) 0 else (idx + delta).coerceIn(images.indices)
+        quickLookId = images[next].id
+        focusId = images[next].id
+    }
+
+    // ---- Material in / out / draw ----
+
+    fun importExternal(files: List<File>, groupId: String? = null) {
+        val dir = root ?: return
+        val existing = board?.items.orEmpty().filterIsInstance<ImageItem>().map { it.path }.toSet()
+        val items = Importer.importFiles(dir, files, groupId, existing)
+        if (items.isEmpty()) return
+        update { it.copy(items = it.items + items) }
+        selection = items.map { it.id }.toSet()
+        focusId = items.first().id
+    }
+
+    fun importPasted() {
+        val dir = root ?: return
+        when (val pasted = BoardClipboard.paste()) {
+            is BoardClipboard.Pasted.Files -> importExternal(pasted.files)
+
+            is BoardClipboard.Pasted.Bitmap -> {
+                val item = Importer.importBitmap(dir, pasted.image, null, timestamp()) ?: return
+                update { it.copy(items = it.items + item) }
+                selection = setOf(item.id)
+                focusId = item.id
+            }
+
+            null -> {}
+        }
+    }
+
+    /** Image selection → real files on the clipboard (Explorer paste duplicates them). */
+    fun copySelection() {
+        val files = selectedImageFiles
+        if (files.isNotEmpty()) {
+            BoardClipboard.copyFiles(files)
+            return
+        }
+        val notes = selectedItems.filterIsInstance<NoteItem>()
+        if (notes.isNotEmpty()) BoardClipboard.copyText(notes.joinToString("\n\n") { it.text })
+    }
+
+    fun drawSelection() = draw(selectedImageFiles)
+
+    fun drawGroup(groupId: String?) =
+        draw(itemsIn(groupId).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
+
+    private fun draw(files: List<File>) {
+        val dir = root ?: return
+        if (files.isNotEmpty()) host.startSession(dir, files)
+    }
+
+    companion object {
+        /** Colour accents a group cycles through (null = no accent). */
+        val GROUP_COLORS: List<String?> =
+            listOf(null, "#80CBC4", "#FFB74D", "#A5D6A7", "#EF9A9A", "#B39DDB")
+
+        /** Windows-safe folder name for a new board. */
+        fun sanitizeName(name: String): String =
+            name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
+    }
+}

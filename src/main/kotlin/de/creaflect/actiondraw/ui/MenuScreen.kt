@@ -25,12 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.SessionPlans
-import java.io.File
-import javax.swing.JFileChooser
-import javax.swing.UIManager
 
+/** The start menu; [boardSection] lets the app shell append the Idea-Boards entry point. */
 @Composable
-fun MenuScreen(state: AppState) {
+fun MenuScreen(state: AppState, boardSection: @Composable () -> Unit = {}) {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -119,6 +117,9 @@ fun MenuScreen(state: AppState) {
             ) {
                 Text("Start drawing", style = MaterialTheme.typography.h6)
             }
+
+            Spacer(Modifier.height(12.dp))
+            boardSection()
             Spacer(Modifier.height(16.dp))
         }
     }
@@ -133,13 +134,3 @@ private fun SectionLabel(text: String) {
     )
 }
 
-/** Opens the folder dialog, starting from [start] (the remembered folder) when there is one. */
-private fun chooseFolder(start: File?): File? {
-    runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
-    val chooser = JFileChooser().apply {
-        fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-        dialogTitle = "Select image folder"
-        start?.takeIf { it.isDirectory }?.let { currentDirectory = it }
-    }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
-}

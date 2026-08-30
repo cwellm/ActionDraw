@@ -6,24 +6,45 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
-import androidx.compose.ui.window.Window
+import de.creaflect.actiondraw.board.BoardHost
+import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.ui.handleBoardKey
+import de.creaflect.actiondraw.image.ThumbCache
+import java.io.File
 
 fun main() = application {
     val windowState = rememberWindowState()
-    val appState = remember { AppState() }
+    val settings = remember { Settings() }
+    val appState = remember { AppState(settings) }
+    // The board talks to the rest of the app only through this host (its "plugin" boundary).
+    val boardState = remember {
+        BoardState(settings, object : BoardHost {
+            override fun startSession(root: File, images: List<File>) = appState.startBoardSession(root, images)
+            override fun showBoard() = appState.showBoard()
+            override fun leaveBoard() = appState.leaveBoard()
+        })
+    }
+    val thumbs = remember { ThumbCache() }
     val isFullscreen = windowState.placement == WindowPlacement.Fullscreen
 
     Window(
         onCloseRequest = ::exitApplication,
         title = "ActionDraw",
         state = windowState,
-        onKeyEvent = { handleKey(it, appState, windowState) },
+        onKeyEvent = { handleKey(it, appState, boardState, windowState) },
     ) {
-        App(appState, isFullscreen = isFullscreen, onToggleFullscreen = { toggleFullscreen(windowState) })
+        App(
+            appState,
+            boardState,
+            thumbs,
+            isFullscreen = isFullscreen,
+            onToggleFullscreen = { toggleFullscreen(windowState) },
+        )
     }
 }
 
@@ -34,8 +55,22 @@ private fun toggleFullscreen(ws: WindowState) {
 }
 
 /** Window-level shortcuts. Keeps hands on the keyboard so the drawing stays in flow. */
-private fun handleKey(event: KeyEvent, state: AppState, windowState: WindowState): Boolean {
+private fun handleKey(
+    event: KeyEvent,
+    state: AppState,
+    boardState: BoardState,
+    windowState: WindowState,
+): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
+    // A board dialog may be open on any screen (New board… lives on the menu): Esc closes it,
+    // everything else stays with the dialog's text field.
+    if (boardState.editor != null) {
+        if (event.key == Key.Escape) {
+            boardState.closeEditor()
+            return true
+        }
+        return false
+    }
     return when (state.screen) {
         Screen.Summary -> when (event.key) {
             Key.Escape, Key.Enter -> { state.backToMenu(); true }
@@ -46,6 +81,14 @@ private fun handleKey(event: KeyEvent, state: AppState, windowState: WindowState
             Key.Escape, Key.Enter -> { state.closePicker(); true }
             else -> false
         }
+
+        Screen.Board -> handleBoardKey(
+            event,
+            boardState,
+            isFullscreen = windowState.placement == WindowPlacement.Fullscreen,
+            toggleFullscreen = { toggleFullscreen(windowState) },
+            exitFullscreen = { windowState.placement = WindowPlacement.Floating },
+        )
 
         Screen.Session -> when (event.key) {
             Key.Spacebar -> { state.togglePause(); true }

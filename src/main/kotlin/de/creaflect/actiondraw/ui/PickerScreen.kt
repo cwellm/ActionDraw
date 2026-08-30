@@ -36,14 +36,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
-import de.creaflect.actiondraw.image.Thumbnails
+import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Thumbnail grid for choosing which pictures of the folder take part in sessions. */
 @Composable
-fun PickerScreen(state: AppState) {
+fun PickerScreen(state: AppState, thumbs: ThumbCache) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(
             Modifier.fillMaxWidth(),
@@ -78,6 +78,7 @@ fun PickerScreen(state: AppState) {
                     file = file,
                     selected = state.isSelected(file.name),
                     onToggle = { state.toggleSelected(file.name) },
+                    thumbs = thumbs,
                 )
             }
         }
@@ -85,9 +86,9 @@ fun PickerScreen(state: AppState) {
 }
 
 @Composable
-private fun PickerCell(file: File, selected: Boolean, onToggle: () -> Unit) {
+private fun PickerCell(file: File, selected: Boolean, onToggle: () -> Unit, thumbs: ThumbCache) {
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { Thumbnails.load(file) }
+        value = withContext(Dispatchers.IO) { thumbs.load(file) }
     }
     val shape = RoundedCornerShape(6.dp)
     val border = if (selected) MaterialTheme.colors.primary else Color.Transparent
