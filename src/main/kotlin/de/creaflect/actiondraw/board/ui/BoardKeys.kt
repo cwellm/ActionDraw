@@ -3,6 +3,7 @@ package de.creaflect.actiondraw.board.ui
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardLayouts
@@ -33,15 +34,27 @@ fun handleBoardKey(
             else -> false
         }
     }
+    val free = state.layout == BoardLayouts.FREE
     if (event.isCtrlPressed) {
+        // Ctrl+↑/↓ reorders the focused card: grid = earlier/later in its group,
+        // free = one z-level; with Shift it goes all the way.
+        val focused = state.focusId
+        val all = event.isShiftPressed
         return when (event.key) {
             Key.A -> { state.selectAll(); true }
             Key.C -> { state.copySelection(); true }
             Key.V -> { state.importPasted(); true }
+            Key.DirectionUp -> {
+                if (focused != null) reorder(state, focused, free, raise = free, all = all)
+                true
+            }
+            Key.DirectionDown -> {
+                if (focused != null) reorder(state, focused, free, raise = !free, all = all)
+                true
+            }
             else -> false
         }
     }
-    val free = state.layout == BoardLayouts.FREE
     return when (event.key) {
         Key.Escape -> {
             // Immersive first; a windowed board closes back to the menu.
@@ -84,5 +97,19 @@ fun handleBoardKey(
         }
         Key.Delete -> { state.removeItems(state.selection); true }
         else -> false
+    }
+}
+
+/**
+ * Shared Ctrl+↑/↓ reorder. [raise] means "later in the items array": that is *up* in the
+ * freeform z-order but *later* (Ctrl+↓) in the grid's reading order — the caller maps the
+ * arrow direction per mode so both feel natural.
+ */
+private fun reorder(state: BoardState, id: String, free: Boolean, raise: Boolean, all: Boolean) {
+    when {
+        all && raise -> state.bringToFront(id)
+        all -> state.sendToBack(id)
+        free -> state.stepZ(id, forward = raise)
+        else -> state.stepInGroup(id, state.item(id)?.groups?.firstOrNull(), forward = raise)
     }
 }

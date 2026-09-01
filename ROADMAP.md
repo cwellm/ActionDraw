@@ -123,6 +123,11 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Image aspect ratio remembered in the sidecar for stable layout
 - ✅ "Move to ▾" dropdown in the action bar (Inbox → group discoverability in grid mode)
 
+### ✅ F2.5 Ordering (feedback round 1b)
+- ✅ Grid: reorder cards within a group — Move earlier/later, Move to group start/end (context menu; Ctrl+↑/↓, +Shift = start/end)
+- ✅ Free: z-order — Bring forward / Send backward / Bring to front / Send to back (context menu; Ctrl+↑/↓, +Shift = front/back)
+- ✅ One items array is both the grid order and the z-order; stepping skips filter-hidden cards
+
 ### ⬜ F2.4 Wrap-up
 - ⬜ Manual pass of the feedback round on Windows
 

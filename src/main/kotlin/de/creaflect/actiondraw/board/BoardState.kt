@@ -477,10 +477,51 @@ class BoardState(
         commitLayout()
     }
 
-    /** Raises the card to the top of the z-order (items render in list order). */
+    // ---- Ordering ----
+    // One items array is both the grid's display order (within each group) and the freeform
+    // z-order (last = frontmost). All reordering happens through these operations.
+
+    /** Raises the card to the top of the z-order / the end of every listing. */
     fun bringToFront(id: String) = update { b ->
         val item = b.items.find { it.id == id } ?: return@update b
         b.copy(items = b.items.filterNot { it.id == id } + item)
+    }
+
+    /** Sends the card to the bottom of the z-order / the start of every listing. */
+    fun sendToBack(id: String) = update { b ->
+        val item = b.items.find { it.id == id } ?: return@update b
+        b.copy(items = listOf(item) + b.items.filterNot { it.id == id })
+    }
+
+    /** Grid: one position earlier/later among the visible cards of [groupId] (null = Inbox). */
+    fun stepInGroup(id: String, groupId: String?, forward: Boolean) =
+        step(id, itemsIn(groupId).map { it.id }, forward)
+
+    /** Grid: to the start/end of [groupId]'s visible cards. */
+    fun toGroupEdge(id: String, groupId: String?, toEnd: Boolean) {
+        val siblings = itemsIn(groupId).map { it.id }.filterNot { it == id }
+        val neighbor = (if (toEnd) siblings.lastOrNull() else siblings.firstOrNull()) ?: return
+        moveRelative(id, neighbor, after = toEnd)
+    }
+
+    /** Freeform: one z-level up/down, skipping cards the tag filter hides. */
+    fun stepZ(id: String, forward: Boolean) = step(id, freeItems.map { it.id }, forward)
+
+    private fun step(id: String, displayOrder: List<String>, forward: Boolean) {
+        val i = displayOrder.indexOf(id)
+        if (i < 0) return
+        val neighbor = displayOrder.getOrNull(if (forward) i + 1 else i - 1) ?: return
+        moveRelative(id, neighbor, after = forward)
+    }
+
+    /** Re-inserts [id] directly after/before [neighborId] in the items array. */
+    private fun moveRelative(id: String, neighborId: String, after: Boolean) = update { b ->
+        val item = b.items.find { it.id == id } ?: return@update b
+        val rest = b.items.filterNot { it.id == id }
+        val idx = rest.indexOfFirst { it.id == neighborId }
+        if (idx < 0) return@update b
+        val insertAt = if (after) idx + 1 else idx
+        b.copy(items = rest.take(insertAt) + item + rest.drop(insertAt))
     }
 
     /** Remembers an image's aspect ratio after its first decode, so freeform layout is stable. */

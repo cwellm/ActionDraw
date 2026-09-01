@@ -51,16 +51,24 @@ import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** One board cell (image or note) with its right-click menu. */
+/** One board cell (image or note) with its right-click menu; [groupId] is the section it sits in. */
 @Composable
-fun BoardCard(state: BoardState, thumbs: ThumbCache, item: BoardItem, textured: Boolean) {
-    ContextMenuArea(items = { cardMenuItems(state, item) }) {
+fun BoardCard(state: BoardState, thumbs: ThumbCache, item: BoardItem, textured: Boolean, groupId: String?) {
+    ContextMenuArea(items = { gridOrderMenuItems(state, item, groupId) + cardMenuItems(state, item) }) {
         when (item) {
             is ImageItem -> ImageCard(state, thumbs, item, textured)
             is NoteItem -> NoteCard(state, item, textured)
         }
     }
 }
+
+/** Reordering within the group the card was clicked in (the array is the display order). */
+private fun gridOrderMenuItems(state: BoardState, item: BoardItem, groupId: String?): List<ContextMenuItem> = listOf(
+    ContextMenuItem("Move earlier") { state.stepInGroup(item.id, groupId, forward = false) },
+    ContextMenuItem("Move later") { state.stepInGroup(item.id, groupId, forward = true) },
+    ContextMenuItem("Move to group start") { state.toGroupEdge(item.id, groupId, toEnd = false) },
+    ContextMenuItem("Move to group end") { state.toGroupEdge(item.id, groupId, toEnd = true) },
+)
 
 internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenuItem> {
     // Right-clicking outside the selection retargets it (also done on press, belt and braces).

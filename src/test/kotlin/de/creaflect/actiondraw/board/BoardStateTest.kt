@@ -249,6 +249,71 @@ class BoardStateTest {
     }
 
     @Test
+    fun sendToBackMovesTheCardToTheStart() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveNote(null, "photo")
+        state.saveNote(null, "note on top") // created later -> in front
+        val lastId = state.board!!.items.last().id
+
+        state.sendToBack(lastId)
+        assertEquals(lastId, state.board!!.items.first().id)
+    }
+
+    @Test
+    fun stepInGroupReordersOnlyAmongTheGroupsOwnCards() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.addGroup("G")
+        val groupId = state.sortedGroups.single().id
+        // Array: A(G), X(inbox), B(G) — X sits between the two group members.
+        state.saveNote(null, "A")
+        val a = state.board!!.items.last().id
+        state.saveNote(null, "X")
+        state.saveNote(null, "B")
+        val b = state.board!!.items.last().id
+        state.moveToGroup(setOf(a, b), groupId)
+        state.moveToGroup(state.board!!.items.filterNot { it.id == a || it.id == b }.map { it.id }.toSet(), null)
+
+        state.stepInGroup(a, groupId, forward = true) // A moves past B, its group neighbour
+        assertEquals(listOf(b, a), state.itemsIn(groupId).map { it.id })
+
+        state.stepInGroup(a, groupId, forward = true) // already last in the group: no change
+        assertEquals(listOf(b, a), state.itemsIn(groupId).map { it.id })
+    }
+
+    @Test
+    fun stepZSkipsCardsHiddenByTheTagFilter() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        val root = state.root!!
+        val files = listOf("a.jpg", "b.jpg", "c.jpg").map { File(root, it).apply { createNewFile() } }
+        state.importExternal(files)
+        val (a, b, c) = state.board!!.items.map { it.id }
+        state.applyTags(setOf(a, c), before = emptySet(), after = setOf("wing"))
+        state.toggleFilterTag("wing") // visible: a, c — b is hidden between them
+
+        state.stepZ(a, forward = true) // one visible level up -> past c (and past hidden b)
+        assertEquals(listOf(b, c, a), state.board!!.items.map { it.id })
+    }
+
+    @Test
+    fun toGroupEdgeMovesToStartAndEnd() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveNote(null, "1")
+        state.saveNote(null, "2")
+        state.saveNote(null, "3")
+        val ids = state.board!!.items.map { it.id }
+
+        state.toGroupEdge(ids[2], null, toEnd = false) // last card to the Inbox's start
+        assertEquals(listOf(ids[2], ids[0], ids[1]), state.itemsIn(null).map { it.id })
+
+        state.toGroupEdge(ids[2], null, toEnd = true) // and back to its end
+        assertEquals(listOf(ids[0], ids[1], ids[2]), state.itemsIn(null).map { it.id })
+    }
+
+    @Test
     fun availableBoardsListsTheHomeAndRecentOnes() {
         val state = newState()
         state.createBoard(home, "Alpha")

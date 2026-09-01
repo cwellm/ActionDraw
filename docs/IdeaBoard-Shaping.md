@@ -292,3 +292,8 @@ The first hands-on pass reshaped the entry points and pulled the freeform canvas
   grid-mode concept (and still feed "Draw group"); the tag filter applies in both modes.
 - **Grid mode** additionally got a "Move to ▾" dropdown in the action bar, so getting cards out
   of the Inbox no longer depends on discovering the right-click menu.
+- **Ordering (round 1b)**: the items array doubles as the grid's display order and the freeform
+  z-order, and both are now controllable. Grid: *Move earlier/later* and *Move to group
+  start/end* per card. Free: *Bring forward / Send backward / Bring to front / Send to back*
+  (e.g. a note created after a photo can be pushed behind it). Keyboard in both modes:
+  `Ctrl+↑/↓` steps, `Ctrl+Shift+↑/↓` goes all the way; stepping skips cards the tag filter hides.

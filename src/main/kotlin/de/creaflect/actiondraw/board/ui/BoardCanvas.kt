@@ -151,8 +151,12 @@ private fun CanvasItem(
     val singleSelected = state.selection.size == 1 && item.id in state.selection
 
     ContextMenuArea(items = {
-        listOf(ContextMenuItem("Bring to front") { state.bringToFront(item.id) }) +
-            cardMenuItems(state, item)
+        listOf(
+            ContextMenuItem("Bring forward") { state.stepZ(item.id, forward = true) },
+            ContextMenuItem("Send backward") { state.stepZ(item.id, forward = false) },
+            ContextMenuItem("Bring to front") { state.bringToFront(item.id) },
+            ContextMenuItem("Send to back") { state.sendToBack(item.id) },
+        ) + cardMenuItems(state, item)
     }) {
         Box(
             Modifier

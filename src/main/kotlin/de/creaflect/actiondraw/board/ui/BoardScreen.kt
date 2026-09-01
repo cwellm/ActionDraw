@@ -205,7 +205,7 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
             }
             if (group?.collapsed != true) {
                 items(itemsInGroup, key = { "${group?.id ?: "inbox"}/${it.id}" }) { item ->
-                    BoardCard(state, thumbs, item, textured)
+                    BoardCard(state, thumbs, item, textured, groupId = group?.id)
                 }
             }
         }
@@ -254,8 +254,9 @@ private fun BoardActionBar(state: BoardState) {
                 }
             }
             Text(
-                "Click select · Ctrl/Shift multi · right-click menu · Ctrl+C/V copy/paste · Space quick-look · " +
-                    "Enter draw · N note · G group · S star · T tags · F2 caption · Del remove · F immersive",
+                "Click select · Ctrl/Shift multi · right-click menu · Ctrl+C/V copy/paste · Ctrl+↑/↓ reorder " +
+                    "(+Shift: all the way) · Space quick-look · Enter draw · N note · G group · S star · T tags · " +
+                    "F2 caption · Del remove · F immersive",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
