@@ -29,91 +29,20 @@ import de.creaflect.actiondraw.SessionPlans
 /** The start menu; [boardButton] lets the app shell add the Idea-Boards entry next to Draw. */
 @Composable
 fun MenuScreen(state: AppState, boardButton: @Composable RowScope.() -> Unit = {}) {
-    Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
+    Box(
+        Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 20.dp),
+        contentAlignment = Alignment.TopCenter,
+    ) {
         Column(
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Spacer(Modifier.height(8.dp))
-            Text("ActionDraw", style = MaterialTheme.typography.h2, color = MaterialTheme.colors.primary)
-            Text(
-                "Timed reference practice — get into the flow and draw.",
-                style = MaterialTheme.typography.subtitle1,
-                textAlign = TextAlign.Center,
-            )
+            // The settings scroll when the window is short; the two primary actions are pinned
+            // underneath them, so Draw and Boards are reachable at any window size.
+            SessionSettings(state, Modifier.weight(1f))
 
-            // ---- Folder ----
-            SectionLabel("Reference folder")
-            Button(onClick = { chooseFolder(state.folder)?.let { state.selectFolder(it) } }) {
-                Text(if (state.folder == null) "Select folder…" else "Change folder…")
-            }
-            state.folder?.let { dir ->
-                Text(
-                    dir.absolutePath,
-                    style = MaterialTheme.typography.body2,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    if (state.selection == null)
-                        "${state.unseenCount} unseen of ${state.totalCount} images"
-                    else
-                        "${state.unseenCount} unseen of ${state.selectedCount} selected (${state.totalCount} in folder)",
-                    style = MaterialTheme.typography.body2,
-                    color = MaterialTheme.colors.secondary,
-                )
-                OutlinedButton(onClick = { state.openPicker() }) {
-                    Text(
-                        if (state.selection == null) "Choose pictures… (all ${state.totalCount})"
-                        else "Choose pictures… (${state.selectedCount} of ${state.totalCount})",
-                    )
-                }
-            }
-
-            // ---- Session type ----
-            SectionLabel("Session")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                SelectChip("Fixed time", state.rampPlan == null) { state.rampPlan = null }
-                SessionPlans.ALL.forEach { plan ->
-                    SelectChip(plan.name, state.rampPlan == plan) { state.rampPlan = plan }
-                }
-            }
-
-            val plan = state.rampPlan
-            if (plan == null) {
-                IntervalSelector(seconds = state.intervalSeconds, onChange = { state.intervalSeconds = it })
-            } else {
-                Text(
-                    "${plan.totalPoses} poses · ${formatDuration(plan.totalSeconds)} total",
-                    style = MaterialTheme.typography.body1,
-                )
-                Text(
-                    plan.steps.joinToString("  →  ") { "${formatTime(it.seconds)}×${it.count}" },
-                    style = MaterialTheme.typography.body2,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center,
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(checked = state.autoAdvance, onCheckedChange = { state.autoAdvance = it })
-                Text("Auto-advance to the next picture (off = countdown only)")
-            }
-
-            if (state.lastSessionPoses > 0) {
-                Text(
-                    "Last session: ${state.lastSessionPoses} poses · ${formatDuration(state.lastSessionSeconds)}",
-                    style = MaterialTheme.typography.caption,
-                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
-                )
-            }
-
-            Spacer(Modifier.height(4.dp))
-            // Draw and Boards are equal citizens: two equally sized primary buttons.
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(
                     onClick = { state.start() },
                     enabled = state.selectedCount > 0,
@@ -123,7 +52,84 @@ fun MenuScreen(state: AppState, boardButton: @Composable RowScope.() -> Unit = {
                 }
                 boardButton()
             }
-            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Folder choice, session type and timing — everything that configures the next session. */
+@Composable
+private fun SessionSettings(state: AppState, modifier: Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text("ActionDraw", style = MaterialTheme.typography.h3, color = MaterialTheme.colors.primary)
+        Text(
+            "Timed reference practice — get into the flow and draw.",
+            style = MaterialTheme.typography.subtitle1,
+            textAlign = TextAlign.Center,
+        )
+
+        // ---- Folder ----
+        SectionLabel("Reference folder")
+        Button(onClick = { chooseFolder(state.folder)?.let { state.selectFolder(it) } }) {
+            Text(if (state.folder == null) "Select folder…" else "Change folder…")
+        }
+        state.folder?.let { dir ->
+            Text(dir.absolutePath, style = MaterialTheme.typography.body2, textAlign = TextAlign.Center)
+            Text(
+                if (state.selection == null)
+                    "${state.unseenCount} unseen of ${state.totalCount} images"
+                else
+                    "${state.unseenCount} unseen of ${state.selectedCount} selected (${state.totalCount} in folder)",
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.secondary,
+            )
+            OutlinedButton(onClick = { state.openPicker() }) {
+                Text(
+                    if (state.selection == null) "Choose pictures… (all ${state.totalCount})"
+                    else "Choose pictures… (${state.selectedCount} of ${state.totalCount})",
+                )
+            }
+        }
+
+        // ---- Session type ----
+        SectionLabel("Session")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            SelectChip("Fixed time", state.rampPlan == null) { state.rampPlan = null }
+            SessionPlans.ALL.forEach { plan ->
+                SelectChip(plan.name, state.rampPlan == plan) { state.rampPlan = plan }
+            }
+        }
+
+        val plan = state.rampPlan
+        if (plan == null) {
+            IntervalSelector(seconds = state.intervalSeconds, onChange = { state.intervalSeconds = it })
+        } else {
+            Text(
+                "${plan.totalPoses} poses · ${formatDuration(plan.totalSeconds)} total",
+                style = MaterialTheme.typography.body1,
+            )
+            Text(
+                plan.steps.joinToString("  →  ") { "${formatTime(it.seconds)}×${it.count}" },
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = state.autoAdvance, onCheckedChange = { state.autoAdvance = it })
+            Text("Auto-advance to the next picture (off = countdown only)")
+        }
+
+        if (state.lastSessionPoses > 0) {
+            Text(
+                "Last session: ${state.lastSessionPoses} poses · ${formatDuration(state.lastSessionSeconds)}",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+            )
         }
     }
 }
@@ -136,4 +142,3 @@ private fun SectionLabel(text: String) {
         color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
     )
 }
-

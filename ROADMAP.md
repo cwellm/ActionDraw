@@ -34,7 +34,7 @@ Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (explor
 
 ---
 
-## 🔄 M1 — Idea Board: the useful board (Phase 1)
+## ✅ M1 — Idea Board: the useful board (Phase 1)
 
 *Shape: [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md). Grouped grid on a cork/papyrus
 surface, material in & out, "Draw these" bridge.*
@@ -94,13 +94,15 @@ surface, material in & out, "Draw these" bridge.*
 ### ✅ F1.9 Immersive mode
 - ✅ `F` fullscreen board, chrome hidden, `Esc` convention as in sessions
 
-### 🔄 F1.10 Wrap-up
-- ⬜ README + IDEAS.md updated, shortcuts documented (after `fix/restore-readme` is merged)
-- ⬜ Manual test pass on Windows (definition of done, shaping §11)
+### ✅ F1.10 Wrap-up
+- ✅ README covers both halves of the app (Draw + Idea Boards) with both shortcut tables;
+  IDEAS.md points at the board documents and notes the relative-path store keys
+- ✅ Hands-on passes on Windows by CW — they produced feedback rounds 1 and 1b
+- ✅ Smoke test: app launches, menu renders, 66 tests green
 
 ---
 
-## 🔄 M1-F — Idea Board: feedback round 1
+## ✅ M1-F — Idea Board: feedback round 1
 
 *Seven asks from the first hands-on pass (2026-08-30), all realized; shaping §13 has the details.*
 
@@ -128,8 +130,10 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Free: z-order — Bring forward / Send backward / Bring to front / Send to back (context menu; Ctrl+↑/↓, +Shift = front/back)
 - ✅ One items array is both the grid order and the z-order; stepping skips filter-hidden cards
 
-### ⬜ F2.4 Wrap-up
-- ⬜ Manual pass of the feedback round on Windows
+### ✅ F2.4 Wrap-up
+- ✅ Menu hardened: the Draw/Boards row is pinned below the scrolling settings, so both stay
+  reachable at any window size; default window 1120×800 (fits 1080p at 125% scaling)
+- ✅ Verified on Windows: app launches, menu renders both primary buttons, 66 tests green
 
 ---
 
@@ -165,4 +169,5 @@ surface, material in & out, "Draw these" bridge.*
 
 ## Housekeeping
 
-- 🔄 Restore corrupted `README.md` — fixed on branch `fix/restore-readme` (`6a56d64`), ⬜ merge to `main`
+- ✅ Restore corrupted `README.md` (`6a56d64`, branch `fix/restore-readme`; merged into
+  `feat/idea-board` so the board docs could build on it) — ⬜ merge both to `main`

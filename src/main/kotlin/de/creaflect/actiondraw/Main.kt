@@ -8,6 +8,8 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
@@ -22,7 +24,8 @@ import de.creaflect.actiondraw.ui.SummaryScreen
 import java.io.File
 
 fun main() = application {
-    val windowState = rememberWindowState()
+    // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
+    val windowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
     val settings = remember { Settings() }
     val appState = remember { AppState(settings) }
     // The board talks to the rest of the app only through this host (its "plugin" boundary).
@@ -58,7 +61,7 @@ fun main() = application {
     // closing this window aborts the drawing and returns to the board.
     val boardWindow = appState.boardWindowScreen
     if (boardWindow != null) {
-        val sessionWindowState = rememberWindowState()
+        val sessionWindowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
         Window(
             onCloseRequest = { appState.abortBoardSession() },
             title = "ActionDraw — Session",

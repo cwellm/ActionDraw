@@ -1,11 +1,16 @@
 # ActionDraw
 
-A small desktop tool for **action drawing**: point it at a folder of reference images and it shows
-them one at a time, in random order, on a timer — to practice and improve your drawing skills.
+A small desktop tool for **action drawing**, in two halves:
+
+- **Draw** — point it at a folder of reference images and it shows them one at a time, in random
+  order, on a timer, to practice and improve your drawing skills.
+- **Idea Boards** — collect material (drawings, photos, studies) into boards with notes, groups
+  and tags, then draw from any selection.
+
 Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows and Linux
 (e.g. ArchLinux).
 
-## Features
+## Draw — timed reference practice
 
 ### Sessions & timing
 - Pick a folder; images are shown in **random order**. The folder is **remembered across
@@ -46,7 +51,53 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 - **Fullscreen** (`F`): the image fills the entire screen with only the remaining time in the
   bottom corner. `Esc` first leaves fullscreen; pressed again (windowed) it stops the session.
 
+## Idea Boards — collect your material
+
+A **board** is a folder raised to a curated collection: images and plain-text notes as cards,
+organised into groups (or placed freely), described by captions, stars and tags. Everything the
+board knows lives in one file next to the pictures — `.actiondraw_board.json`. Delete it and you
+still have an ordinary folder of images; the board never renames, moves or deletes your files.
+
+### Getting started
+- The menu offers **Draw** and **Boards** as equal entry points. **Boards** opens the board
+  picker: your existing boards, **New board…**, and **Explore…** for a board folder elsewhere.
+- New boards are created under the **boards home** (`~/ActionDraw Boards` by default), which the
+  picker lets you change.
+- Boards are made first and filled afterwards: a card exists because you put it there, never
+  because a file happened to be in the folder.
+
+### Collecting
+- **Drag & drop** files or folders from Explorer, **paste** with `Ctrl+V` (a file list, or an
+  image copied in a browser — it is written out as PNG), or use **Import…**.
+- Material from outside is copied into the board's `_imported/` folder, so a board is
+  self-contained; files that already live inside the board folder are referenced where they are.
+- **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
+  you get copies. A notes-only selection copies as plain text.
+
+### Organising
+- **Two layouts** per board, switchable in the header:
+  - **Grid** — cards in collapsible group sections (unassigned cards sit in the **Inbox**), with
+    colour accents and per-group ordering.
+  - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
+- **Note cards** (`N`), one-line **captions** (`F2`), **stars** (`S`) and **tags** (`T`) with an
+  AND-filter chip bar.
+- **Reordering** via right-click or `Ctrl`+`↑`/`↓` (`+Shift` goes all the way): in Grid this is
+  the position within the group, in Free the stacking order (send that note behind the photo).
+- **Themes** per board: **cork** (default), **papyrus**, **plain** — generated textures, no
+  bundled assets.
+- **Immersive** (`F` or ⛶): fullscreen with all chrome hidden, for browsing on a second monitor.
+  Whenever the window is not fullscreen, every menu stays visible.
+
+### Drawing from a board
+- **Draw selection** (`Enter`) or a group's **Draw** button starts an ordinary practice session
+  with exactly those pictures — every filter, ramp and grid applies as usual.
+- Board sessions open in **their own window**: the board stays visible behind them, closing the
+  window aborts the drawing, and the summary offers **Back to board**.
+- Seen/redo state for a board lives in the board folder, keyed by relative path.
+
 ## Keyboard shortcuts
+
+### Session
 
 | Key | Action |
 |---|---|
@@ -62,7 +113,28 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 | `Esc` | leave fullscreen · stop session · close picker/summary |
 | `Enter` | close picker/summary |
 
-More ideas and the filter backlog live in [IDEAS.md](IDEAS.md).
+### Board
+
+| Key | Action |
+|---|---|
+| click · `Ctrl`+click · `Shift`+click | select · toggle · range |
+| `Ctrl`+`A` / `C` / `V` | select all · copy · paste |
+| `←` `→` `↑` `↓` | move focus (Grid) · nudge the selected card (Free) |
+| `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way) |
+| `Space` | quick-look (large preview) |
+| `Enter` | draw the selection |
+| `N` / `G` | new note · new group |
+| `S` / `T` / `F2` | star · tags · caption |
+| `Del` | remove card from the board (the file stays) |
+| `F` | immersive mode |
+| `Esc` | leave immersive · close quick-look · close the board |
+
+In **Free** layout the mouse does the rest: drag a card to move it, drag the corner handle (or
+`Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag empty space to pan and
+use the wheel to zoom.
+
+More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's design notes are in
+[docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and planned work in [ROADMAP.md](ROADMAP.md).
 
 ## Requirements
 - JDK 17 (a `JAVA_HOME` pointing at a JDK 17 install) — only for running from source and
