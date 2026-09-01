@@ -270,3 +270,25 @@ Phase 1 is implemented as shaped, with these deliberate simplifications:
    only the matching images, which doubles as "draw everything tagged X in this group".
 5. Textured themes flip the board to a **light paper Material palette** so controls stay
    readable on cork/papyrus; `plain` keeps the app's dark palette.
+
+## 13. Feedback round 1 (2026-08-30)
+
+The first hands-on pass reshaped the entry points and pulled the freeform canvas forward:
+
+- **Menu**: "Draw" and "Boards" are two equally sized primary buttons. "Boards" opens the
+  **board picker** — a list of available boards (recent ∪ subfolders of the boards home with a
+  sidecar, names read from the sidecar), plus **New board…**, **Explore…** (the folder dialog
+  moved here) and the changeable **boards home**. No more board chips on the menu.
+- **Immersive ≠ fullscreen**: chrome is hidden only in explicit immersive mode (⛶ or `F`);
+  whenever the window is not fullscreen, every menu is visible.
+- **Sessions from the board run in their own window** ("ActionDraw — Session"): the board stays
+  visible, closing the window aborts the drawing back to the board, the summary reads
+  "Back to board", and "Go again" replays the same pool. Menu-started sessions are unchanged.
+- **Freeform layout mode** (was Phase 3): per-board Grid ⇄ Free toggle. In Free, every card has
+  position/scale/rotation (`pos` in the sidecar, exactly as designed in §5), the camera
+  (pan/zoom) is persisted, unplaced cards are auto-arranged, and cards are moved by dragging,
+  resized via the corner handle or Ctrl+wheel, rotated via the top handle or Shift+wheel;
+  "Bring to front" manages z-order; images remember their aspect ratio. Groups remain a
+  grid-mode concept (and still feed "Draw group"); the tag filter applies in both modes.
+- **Grid mode** additionally got a "Move to ▾" dropdown in the action bar, so getting cards out
+  of the Inbox no longer depends on discovering the right-click menu.

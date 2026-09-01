@@ -100,6 +100,34 @@ surface, material in & out, "Draw these" bridge.*
 
 ---
 
+## 🔄 M1-F — Idea Board: feedback round 1
+
+*Seven asks from the first hands-on pass (2026-08-30), all realized; shaping §13 has the details.*
+
+### ✅ F2.1 Menu & entry
+- ✅ "Draw" and "Boards" as equally sized primary buttons
+- ✅ Board picker dialog: a list of available boards (recent + boards home) instead of menu chips
+- ✅ "Explore…" opens the folder dialog only from the picker; "New board…" lives there too
+- ✅ Boards home (the root location for boards) shown and changeable in the picker
+
+### ✅ F2.2 Immersive & windows
+- ✅ Chrome hidden only in explicit immersive mode — all menus visible whenever not fullscreen
+- ✅ Board sessions open in their own window; closing it aborts the drawing, back to the board
+- ✅ Summary says "Back to board" and returns there; "Go again" replays the board pool
+
+### ✅ F2.3 Freeform canvas (pulled forward from M3)
+- ✅ Grid ⇄ Free layout toggle per board (persisted, camera included)
+- ✅ Cards movable (drag; arrows nudge), resizable (corner handle; Ctrl+wheel), rotatable (top handle; Shift+wheel)
+- ✅ Pan (drag empty space), zoom about the cursor (wheel), Fit-view button
+- ✅ Auto-placement of unpositioned cards · z-order with "Bring to front"
+- ✅ Image aspect ratio remembered in the sidecar for stable layout
+- ✅ "Move to ▾" dropdown in the action bar (Inbox → group discoverability in grid mode)
+
+### ⬜ F2.4 Wrap-up
+- ⬜ Manual pass of the feedback round on Windows
+
+---
+
 ## ⬜ M2 — Idea Board: the scaling board (Phase 2)
 
 - ⬜ Free-text search (filenames, captions, notes, tags)
@@ -114,7 +142,8 @@ surface, material in & out, "Draw these" bridge.*
 
 ## ⬜ M3 — Idea Board: the delightful board (Phase 3)
 
-- ⬜ Freeform canvas layout mode (pan/zoom, `pos` per item — same sidecar)
+- ✅ ~~Freeform canvas layout mode~~ — pulled forward into M1-F
+- ⬜ Freeform polish: multi-item marquee selection, per-group hover drop targets, snap/align
 - ⬜ Always-on-top reference strip (for Krita work)
 - ⬜ Contact-sheet export (for paper work)
 - ⬜ Rich note formatting (bold, colour, …) — per decision D4
