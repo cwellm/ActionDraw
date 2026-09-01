@@ -33,6 +33,9 @@ object BoardStore {
 
     fun exists(root: File): Boolean = File(root, FILE_NAME).isFile
 
+    /** Cheap look at a board (name etc.) without validation — for board lists. */
+    fun peek(root: File): BoardFile? = parse(File(root, FILE_NAME)) ?: parse(File(root, BAK_NAME))
+
     fun load(root: File): LoadResult {
         if (!exists(root)) return LoadResult.None
         parse(File(root, FILE_NAME))?.let { return LoadResult.Loaded(validate(it, root), fromBackup = false) }

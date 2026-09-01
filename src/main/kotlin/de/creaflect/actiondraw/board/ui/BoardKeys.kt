@@ -5,6 +5,7 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.isCtrlPressed
 import androidx.compose.ui.input.key.key
 import de.creaflect.actiondraw.board.BoardEditor
+import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.NoteItem
@@ -14,8 +15,7 @@ fun handleBoardKey(
     event: KeyEvent,
     state: BoardState,
     isFullscreen: Boolean,
-    toggleFullscreen: () -> Unit,
-    exitFullscreen: () -> Unit,
+    setFullscreen: (Boolean) -> Unit,
 ): Boolean {
     if (state.editor != null) {
         // Open dialogs own the keyboard; the window handler only closes them on Esc.
@@ -41,17 +41,31 @@ fun handleBoardKey(
             else -> false
         }
     }
+    val free = state.layout == BoardLayouts.FREE
     return when (event.key) {
         Key.Escape -> {
-            // Same convention as the session: Esc leaves immersive first, then the board.
-            if (isFullscreen) exitFullscreen() else state.closeBoard()
+            // Immersive first; a windowed board closes back to the menu.
+            if (state.immersive || isFullscreen) {
+                state.immersive = false
+                setFullscreen(false)
+            } else {
+                state.closeBoard()
+            }
             true
         }
-        Key.F -> { toggleFullscreen(); true }
+        Key.F -> {
+            // F = immersive (fullscreen + hidden chrome). Menus always show when windowed.
+            val on = !(state.immersive && isFullscreen)
+            state.immersive = on
+            setFullscreen(on)
+            true
+        }
         Key.Enter -> { state.drawSelection(); true }
         Key.Spacebar -> { state.toggleQuickLook(); true }
-        Key.DirectionLeft, Key.DirectionUp -> { state.moveFocus(-1); true }
-        Key.DirectionRight, Key.DirectionDown -> { state.moveFocus(1); true }
+        Key.DirectionLeft -> { if (free) state.nudgeSelection(-10f, 0f) else state.moveFocus(-1); true }
+        Key.DirectionRight -> { if (free) state.nudgeSelection(10f, 0f) else state.moveFocus(1); true }
+        Key.DirectionUp -> { if (free) state.nudgeSelection(0f, -10f) else state.moveFocus(-1); true }
+        Key.DirectionDown -> { if (free) state.nudgeSelection(0f, 10f) else state.moveFocus(1); true }
         Key.N -> { state.openEditor(BoardEditor.EditNote(null)); true }
         Key.G -> { state.openEditor(BoardEditor.NewGroup); true }
         Key.S -> { state.toggleStar(state.selection); true }

@@ -10,6 +10,9 @@ import java.time.format.DateTimeFormatter
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
+    /** The board list: pick one, create one, change the boards home, or explore for a folder. */
+    data object PickBoard : BoardEditor()
+
     data object NewBoard : BoardEditor()
     data object NewGroup : BoardEditor()
     data class RenameGroup(val groupId: String) : BoardEditor()
@@ -66,10 +69,48 @@ class BoardState(
     var editor by mutableStateOf<BoardEditor?>(null)
         private set
 
+    /** Chrome-less mode; only meaningful while the window is fullscreen. */
+    var immersive by mutableStateOf(false)
+
+    // ---- Freeform camera (board point at the view centre + zoom) ----
+    var camX by mutableStateOf(0f)
+        private set
+    var camY by mutableStateOf(0f)
+        private set
+    var zoom by mutableStateOf(1f)
+        private set
+
     val isOpen: Boolean get() = root != null && board != null
     val theme: String get() = board?.theme ?: BoardThemes.CORK
+    val layout: String get() = board?.layout ?: BoardLayouts.GRID
 
     fun boardsHome(): File = settings.boardsHome()
+
+    /** Bumped when the boards home changes so open board lists recompute. */
+    var boardsHomeTick by mutableStateOf(0)
+        private set
+
+    fun setBoardsHomeDir(dir: File) {
+        settings.setBoardsHome(dir)
+        boardsHomeTick++
+    }
+
+    /**
+     * Boards for the picker: the recently opened ones plus every direct subfolder of the boards
+     * home that has a sidecar — deduplicated, with the board's stored name.
+     */
+    fun availableBoards(): List<Pair<String, File>> {
+        val dirs = LinkedHashMap<String, File>()
+        settings.recentBoards().forEach { dirs.putIfAbsent(it.absolutePath.lowercase(), it.absoluteFile) }
+        settings.boardsHome().listFiles()
+            ?.filter { it.isDirectory && BoardStore.exists(it) }
+            ?.sortedBy { it.name.lowercase() }
+            ?.forEach { dirs.putIfAbsent(it.absolutePath.lowercase(), it.absoluteFile) }
+        return dirs.values.map { dir ->
+            (BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name) to dir
+        }
+    }
+
 
     // ---- Derived views ----
 
@@ -102,6 +143,10 @@ class BoardState(
     /** Flattened display order (collapsed groups excluded) — basis for range select and focus. */
     val visibleOrder: List<BoardItem>
         get() = sections.flatMap { (group, items) -> if (group?.collapsed == true) emptyList() else items }
+
+    /** The freeform canvas' items (tag filter applied), in z-order (last = frontmost). */
+    val freeItems: List<BoardItem>
+        get() = board?.items.orEmpty().filter(::visible)
 
     fun item(id: String): BoardItem? = board?.items?.find { it.id == id }
 
@@ -169,18 +214,26 @@ class BoardState(
         filterTags = emptySet()
         quickLookId = null
         editor = null
+        immersive = false
+        val camera = board?.camera ?: Camera()
+        camX = camera.x
+        camY = camera.y
+        zoom = camera.zoom
+        if (layout == BoardLayouts.FREE) update { placeMissing(it) }
         settings.addRecentBoard(dir)
         recent = settings.recentBoards()
         host.showBoard()
     }
 
     fun closeBoard() {
+        commitCamera()
         root = null
         board = null
         selection = emptySet()
         focusId = null
         quickLookId = null
         editor = null
+        immersive = false
         host.leaveBoard()
     }
 
@@ -369,6 +422,108 @@ class BoardState(
 
     fun setTheme(theme: String) = update { it.copy(theme = theme) }
 
+    // ---- Freeform layout ----
+
+    /** Switch grid ⇄ freeform; entering freeform places every card that has no position yet. */
+    fun setLayout(layout: String) {
+        update { it.copy(layout = layout) }
+        if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+    }
+
+    /**
+     * In-memory-only board change during a gesture (drag/resize/rotate) — recomposes without
+     * hitting the disk on every pointer move; [commitLayout] persists the result.
+     */
+    private fun updateTransient(transform: (BoardFile) -> BoardFile) {
+        board = transform(board ?: return)
+    }
+
+    fun commitLayout() {
+        val dir = root ?: return
+        BoardStore.save(dir, board ?: return)
+    }
+
+    /** Moves [id] (or the whole selection, if it is part of it) by a board-space delta. */
+    fun dragBy(id: String, dx: Float, dy: Float) {
+        val ids = if (id in selection) selection else setOf(id)
+        updateTransient { b ->
+            b.copy(items = b.items.map {
+                val pos = it.pos
+                if (it.id in ids && pos != null) it.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else it
+            })
+        }
+    }
+
+    fun resizeBy(id: String, factor: Float) = updateTransient { b ->
+        b.copy(items = b.items.map {
+            val pos = it.pos
+            if (it.id == id && pos != null) {
+                it.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.15f, 8f)))
+            } else it
+        })
+    }
+
+    fun rotateBy(id: String, degrees: Float) = updateTransient { b ->
+        b.copy(items = b.items.map {
+            val pos = it.pos
+            if (it.id == id && pos != null) it.withPos(pos.copy(rotation = (pos.rotation + degrees) % 360f)) else it
+        })
+    }
+
+    /** Arrow keys in freeform: move the selection and persist right away. */
+    fun nudgeSelection(dx: Float, dy: Float) {
+        val id = selection.firstOrNull() ?: focusId ?: return
+        dragBy(id, dx, dy)
+        commitLayout()
+    }
+
+    /** Raises the card to the top of the z-order (items render in list order). */
+    fun bringToFront(id: String) = update { b ->
+        val item = b.items.find { it.id == id } ?: return@update b
+        b.copy(items = b.items.filterNot { it.id == id } + item)
+    }
+
+    /** Remembers an image's aspect ratio after its first decode, so freeform layout is stable. */
+    fun recordAspect(id: String, aspect: Float) {
+        val item = item(id) as? ImageItem ?: return
+        if (item.aspect != null) return
+        update { b -> b.copy(items = b.items.map { if (it.id == id && it is ImageItem) it.copy(aspect = aspect) else it }) }
+    }
+
+    // ---- Camera ----
+
+    fun pan(dx: Float, dy: Float) {
+        camX += dx
+        camY += dy
+    }
+
+    fun setZoom(newZoom: Float, newCamX: Float, newCamY: Float) {
+        zoom = newZoom.coerceIn(0.1f, 5f)
+        camX = newCamX
+        camY = newCamY
+    }
+
+    fun commitCamera() {
+        if (root == null || board == null) return
+        update { it.copy(camera = Camera(camX, camY, zoom)) }
+    }
+
+    /** Centres the camera on all placed cards and zooms to fit them into [viewW]×[viewH] px. */
+    fun fitAll(viewW: Float, viewH: Float) {
+        val positions = board?.items.orEmpty().mapNotNull { it.pos }
+        if (positions.isEmpty() || viewW <= 0f || viewH <= 0f) return
+        val half = positions.map { BASE_SIZE * it.scale / 2 }
+        val minX = positions.mapIndexed { i, p -> p.x - half[i] }.min()
+        val maxX = positions.mapIndexed { i, p -> p.x + half[i] }.max()
+        val minY = positions.mapIndexed { i, p -> p.y - half[i] }.min()
+        val maxY = positions.mapIndexed { i, p -> p.y + half[i] }.max()
+        camX = (minX + maxX) / 2
+        camY = (minY + maxY) / 2
+        zoom = (minOf(viewW / (maxX - minX + BASE_SIZE), viewH / (maxY - minY + BASE_SIZE)))
+            .coerceIn(0.1f, 2f)
+        commitCamera()
+    }
+
     // ---- Quick look ----
 
     fun toggleQuickLook() {
@@ -399,6 +554,7 @@ class BoardState(
         val items = Importer.importFiles(dir, files, groupId, existing)
         if (items.isEmpty()) return
         update { it.copy(items = it.items + items) }
+        if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
         selection = items.map { it.id }.toSet()
         focusId = items.first().id
     }
@@ -411,6 +567,7 @@ class BoardState(
             is BoardClipboard.Pasted.Bitmap -> {
                 val item = Importer.importBitmap(dir, pasted.image, null, timestamp()) ?: return
                 update { it.copy(items = it.items + item) }
+                if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
                 selection = setOf(item.id)
                 focusId = item.id
             }
@@ -445,8 +602,29 @@ class BoardState(
         val GROUP_COLORS: List<String?> =
             listOf(null, "#80CBC4", "#FFB74D", "#A5D6A7", "#EF9A9A", "#B39DDB")
 
+        /** Base edge length of a freeform card at scale 1, in board units. */
+        const val BASE_SIZE = 220f
+
         /** Windows-safe folder name for a new board. */
         fun sanitizeName(name: String): String =
             name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
+
+        /**
+         * Gives every card without a position one, cascading in rows of five around
+         * ([originX], [originY]) — below everything already placed. Pure, so it's testable.
+         */
+        fun placeMissing(board: BoardFile, originX: Float = 0f, originY: Float = 0f): BoardFile {
+            val unplaced = board.items.count { it.pos == null }
+            if (unplaced == 0) return board
+            val gap = BASE_SIZE * 1.2f
+            val perRow = 5
+            val startY = (board.items.mapNotNull { it.pos }.maxOfOrNull { it.y + BASE_SIZE } ?: originY)
+            val startX = originX - (perRow - 1) * gap / 2
+            var i = 0
+            return board.copy(items = board.items.map { item ->
+                if (item.pos != null) item
+                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * gap)).also { i++ }
+            })
+        }
     }
 }

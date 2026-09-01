@@ -165,4 +165,102 @@ class BoardStateTest {
         assertEquals(1, host.left)
         assertNull(state.board)
     }
+
+    @Test
+    fun placeMissingCascadesInRowsBelowExistingCards() {
+        val placed = NoteItem(id = "p", text = "x", pos = ItemPos(0f, 0f))
+        val unplaced = (1..6).map { NoteItem(id = "n$it", text = "x") }
+        val board = BoardState.placeMissing(BoardFile(items = listOf(placed) + unplaced))
+
+        assertTrue(board.items.all { it.pos != null }, "every card must get a position")
+        val newYs = board.items.filter { it.id != "p" }.map { it.pos!!.y }.distinct().sorted()
+        assertEquals(2, newYs.size, "6 cards in rows of 5 -> two rows")
+        assertTrue(newYs.all { it > 0f }, "new rows start below the already placed card")
+    }
+
+    @Test
+    fun switchingToFreeformPlacesCardsAndPersists() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        val file = File(state.root!!, "a.jpg").apply { createNewFile() }
+        state.importExternal(listOf(file))
+        assertNull(state.board!!.items.single().pos)
+
+        state.setLayout(BoardLayouts.FREE)
+        assertTrue(state.board!!.items.single().pos != null)
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        assertEquals(BoardLayouts.FREE, reopened.layout)
+        assertTrue(reopened.board!!.items.single().pos != null)
+    }
+
+    @Test
+    fun moveResizeRotateSurviveCommitAndReopen() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        val file = File(state.root!!, "a.jpg").apply { createNewFile() }
+        state.importExternal(listOf(file))
+        state.setLayout(BoardLayouts.FREE)
+        val id = state.board!!.items.single().id
+        val before = state.board!!.items.single().pos!!
+
+        state.clearSelection() // dragBy without selection moves just the given card
+        state.dragBy(id, 40f, -20f)
+        state.resizeBy(id, 2f)
+        state.rotateBy(id, 30f)
+        state.commitLayout()
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        val pos = reopened.board!!.items.single().pos!!
+        assertEquals(before.x + 40f, pos.x)
+        assertEquals(before.y - 20f, pos.y)
+        assertEquals(before.scale * 2f, pos.scale)
+        assertEquals(30f, pos.rotation)
+    }
+
+    @Test
+    fun cameraIsRememberedAcrossReopen() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.pan(100f, 50f)
+        state.setZoom(2f, state.camX, state.camY)
+        val root = state.root!!
+        state.closeBoard() // commits the camera
+
+        val reopened = newState()
+        reopened.openBoard(root)
+        assertEquals(100f, reopened.camX)
+        assertEquals(50f, reopened.camY)
+        assertEquals(2f, reopened.zoom)
+    }
+
+    @Test
+    fun bringToFrontMovesTheCardToTheEndOfTheZOrder() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveNote(null, "first")
+        state.saveNote(null, "second")
+        val firstId = state.board!!.items.first().id
+
+        state.bringToFront(firstId)
+        assertEquals(firstId, state.board!!.items.last().id)
+    }
+
+    @Test
+    fun availableBoardsListsTheHomeAndRecentOnes() {
+        val state = newState()
+        state.createBoard(home, "Alpha")
+        state.closeBoard()
+        state.createBoard(home, "Beta")
+        state.closeBoard()
+        // A board outside the home is known only through the recent list.
+        val elsewhere = File(outside, "Gamma").apply { mkdirs() }
+        state.openBoard(elsewhere)
+        state.closeBoard()
+
+        val names = state.availableBoards().map { it.first }.toSet()
+        assertEquals(setOf("Alpha", "Beta", "Gamma"), names)
+    }
 }

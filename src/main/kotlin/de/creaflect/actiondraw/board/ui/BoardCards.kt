@@ -62,7 +62,7 @@ fun BoardCard(state: BoardState, thumbs: ThumbCache, item: BoardItem, textured: 
     }
 }
 
-private fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenuItem> {
+internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenuItem> {
     // Right-clicking outside the selection retargets it (also done on press, belt and braces).
     val ids = if (item.id in state.selection) state.selection else setOf(item.id)
     val menu = mutableListOf<ContextMenuItem>()
@@ -88,7 +88,7 @@ private fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenuI
 
 /** Explorer-style selection: click, Ctrl+click, Shift+click; right-click retargets. */
 @OptIn(ExperimentalComposeUiApi::class)
-private fun Modifier.cardClicks(state: BoardState, id: String): Modifier =
+internal fun Modifier.cardClicks(state: BoardState, id: String): Modifier =
     onPointerEvent(PointerEventType.Press) { event ->
         when {
             event.buttons.isSecondaryPressed -> state.rightClickItem(id)
@@ -101,7 +101,7 @@ private fun Modifier.cardClicks(state: BoardState, id: String): Modifier =
     }
 
 @Composable
-private fun selectionBorder(state: BoardState, id: String): Color = when {
+internal fun selectionBorder(state: BoardState, id: String): Color = when {
     id in state.selection -> MaterialTheme.colors.secondary
     state.focusId == id -> MaterialTheme.colors.secondary.copy(alpha = 0.45f)
     else -> Color.Transparent

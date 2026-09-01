@@ -197,8 +197,17 @@ class AppState(private val settings: Settings = Settings()) {
 
     // ---- Board-session bookkeeping ----
 
-    /** Where the summary returns to: the menu, or the board the session was started from. */
-    private var sessionOrigin: Screen = Screen.Menu
+    /** Where the session was started from: the menu, or a board (drives labels and navigation). */
+    var sessionOrigin by mutableStateOf(Screen.Menu)
+        private set
+
+    /**
+     * Board sessions run in their own window so the board stays visible and closing the window
+     * aborts back to it. null = no session window; otherwise the window shows this screen
+     * (Session or Summary).
+     */
+    var boardWindowScreen by mutableStateOf<Screen?>(null)
+        private set
 
     /** Root + pool of the active board session, so "Go again" replays the same set. */
     private var boardSession: Pair<File, List<File>>? = null
@@ -273,12 +282,13 @@ class AppState(private val settings: Settings = Settings()) {
         seen = SeenStore.read(dir).toMutableSet()
         redo = RedoStore.read(dir).toMutableSet()
         beginSession()
+        screen = Screen.Session
     }
 
     /**
      * Session with an explicit pool (an Idea-Board selection): [images] are the candidates and
-     * seen/redo state lives in [root]. Practice state is snapshotted and restored afterwards, so
-     * the menu is unchanged when the board session is over.
+     * seen/redo state lives in [root]. It opens in its own window (the board stays visible in
+     * the main one); practice state is snapshotted and restored when that window closes.
      */
     fun startBoardSession(root: File, images: List<File>) {
         if (images.isEmpty()) return
@@ -293,6 +303,7 @@ class AppState(private val settings: Settings = Settings()) {
         seen = SeenStore.read(root).toMutableSet()
         redo = RedoStore.read(root).toMutableSet()
         beginSession()
+        boardWindowScreen = Screen.Session
     }
 
     private fun beginSession() {
@@ -304,7 +315,6 @@ class AppState(private val settings: Settings = Settings()) {
         sessionPoses = if (pool.isEmpty()) 0 else 1
         sessionSeconds = 0
         redoTick++
-        screen = Screen.Session
     }
 
     /** pool = redo-flagged first, then unseen — each group shuffled. If nothing is left, reshuffle. */
@@ -348,14 +358,28 @@ class AppState(private val settings: Settings = Settings()) {
         lastSessionPoses = sessionPoses
         lastSessionSeconds = sessionSeconds
         lastSessionCompleted = completed
-        screen = Screen.Summary
+        if (sessionOrigin == Screen.Board) {
+            boardWindowScreen = Screen.Summary // summary shows inside the session window
+        } else {
+            screen = Screen.Summary
+        }
     }
 
-    /** Leaves the summary — to the menu, or back to the board the session came from. */
+    /** Leaves the summary — to the menu, or (board flow) by closing the session window. */
     fun backToMenu() {
-        val origin = sessionOrigin
-        if (origin == Screen.Board) restorePractice()
-        screen = origin
+        if (sessionOrigin == Screen.Board) {
+            restorePractice()
+            boardWindowScreen = null // the board is still on the main window
+        } else {
+            screen = Screen.Menu
+        }
+    }
+
+    /** The session window was closed (X): abort the drawing and return to the board. */
+    fun abortBoardSession() {
+        if (boardWindowScreen == Screen.Session) markCurrentSeen()
+        restorePractice()
+        boardWindowScreen = null
     }
 
     // ---- Board navigation (wired by the app shell; the practice side stays board-agnostic) ----

@@ -23,14 +23,19 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.Button
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -47,6 +52,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
+import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardThemes
 import de.creaflect.actiondraw.board.ImageItem
@@ -65,10 +71,15 @@ import java.net.URI
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
-fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, onToggleFullscreen: () -> Unit) {
+fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, setFullscreen: (Boolean) -> Unit) {
     val board = state.board ?: return
     val textured = Themes.isTextured(board.theme)
     val colors = if (textured) Themes.paperColors else MaterialTheme.colors
+
+    // Chrome disappears only in explicit immersive mode; leaving fullscreen by any means
+    // (Esc, OS controls) always brings every menu back.
+    LaunchedEffect(isFullscreen) { if (!isFullscreen) state.immersive = false }
+    val hideChrome = state.immersive && isFullscreen
 
     // Explorer drops land on the board as imported cards (Inbox).
     val dropTarget = remember(state) {
@@ -97,8 +108,11 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, on
                 .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = dropTarget),
         ) {
             Column(Modifier.fillMaxSize()) {
-                if (!isFullscreen) {
-                    BoardHeader(state, board.name, board.theme, onToggleFullscreen)
+                if (!hideChrome) {
+                    BoardHeader(state, board.name, board.theme, onImmersive = {
+                        state.immersive = true
+                        setFullscreen(true)
+                    })
                     if (state.openedFromBackup) {
                         Text(
                             "Board file was unreadable — restored from its backup.",
@@ -109,8 +123,12 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, on
                     }
                     if (state.allTags.isNotEmpty()) TagFilterBar(state)
                 }
-                BoardGrid(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
-                if (!isFullscreen) BoardActionBar(state)
+                if (state.layout == BoardLayouts.FREE) {
+                    BoardCanvas(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
+                } else {
+                    BoardGrid(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
+                }
+                if (!hideChrome) BoardActionBar(state)
             }
             state.quickLookId
                 ?.let { state.item(it) as? ImageItem }
@@ -120,7 +138,7 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, on
 }
 
 @Composable
-private fun BoardHeader(state: BoardState, name: String, theme: String, onToggleFullscreen: () -> Unit) {
+private fun BoardHeader(state: BoardState, name: String, theme: String, onImmersive: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -128,11 +146,14 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onToggle
     ) {
         Text(name, style = MaterialTheme.typography.h5, color = MaterialTheme.colors.primary)
         Spacer(Modifier.weight(1f))
+        SelectChip("Grid", state.layout == BoardLayouts.GRID) { state.setLayout(BoardLayouts.GRID) }
+        SelectChip("Free", state.layout == BoardLayouts.FREE) { state.setLayout(BoardLayouts.FREE) }
+        Spacer(Modifier.width(8.dp))
         BoardThemes.ALL.forEach { id ->
             SelectChip(id.replaceFirstChar { it.uppercase() }, theme == id) { state.setTheme(id) }
         }
         Spacer(Modifier.width(8.dp))
-        OutlinedButton(onClick = onToggleFullscreen) { Text("⛶ Immersive") }
+        OutlinedButton(onClick = onImmersive) { Text("⛶ Immersive") }
         OutlinedButton(onClick = { state.closeBoard() }) { Text("Close") }
     }
 }
@@ -212,6 +233,24 @@ private fun BoardActionBar(state: BoardState) {
                 OutlinedButton(onClick = { state.importPasted() }) { Text("Paste") }
                 OutlinedButton(onClick = { state.copySelection() }, enabled = state.selection.isNotEmpty()) {
                     Text("Copy")
+                }
+                if (state.selection.isNotEmpty()) {
+                    var moveOpen by remember { mutableStateOf(false) }
+                    Box {
+                        OutlinedButton(onClick = { moveOpen = true }) { Text("Move to ▾") }
+                        DropdownMenu(expanded = moveOpen, onDismissRequest = { moveOpen = false }) {
+                            DropdownMenuItem(onClick = {
+                                state.moveToGroup(state.selection, null)
+                                moveOpen = false
+                            }) { Text("Inbox") }
+                            state.sortedGroups.forEach { group ->
+                                DropdownMenuItem(onClick = {
+                                    state.moveToGroup(state.selection, group.id)
+                                    moveOpen = false
+                                }) { Text(group.name) }
+                            }
+                        }
+                    }
                 }
             }
             Text(

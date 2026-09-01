@@ -132,7 +132,9 @@ class AppStateTest {
             val w2 = File(sub, "w2.jpg").apply { createNewFile() }
 
             state.startBoardSession(boardRoot, listOf(w1, w2))
-            assertEquals(Screen.Session, state.screen)
+            // Board sessions run in their own window; the main screen is left alone.
+            assertEquals(Screen.Session, state.boardWindowScreen)
+            assertEquals(Screen.Menu, state.screen)
             assertEquals(setOf("w1.jpg", "w2.jpg"), state.pool.map { it.name }.toSet())
 
             state.next() // marks the first pose seen -> key must be the relative path
@@ -140,14 +142,15 @@ class AppStateTest {
             assertTrue(seen.isNotEmpty() && seen.all { it.startsWith("wings/") }, "expected relative keys, got $seen")
 
             state.stop()
-            assertEquals(Screen.Summary, state.screen)
+            assertEquals(Screen.Summary, state.boardWindowScreen)
 
             state.start() // "Go again" replays the board pool, not the practice folder
+            assertEquals(Screen.Session, state.boardWindowScreen)
             assertEquals(setOf("w1.jpg", "w2.jpg"), state.pool.map { it.name }.toSet())
             state.stop()
 
-            state.backToMenu()
-            assertEquals(Screen.Board, state.screen)
+            state.backToMenu() // closes the session window and restores practice state
+            assertEquals(null, state.boardWindowScreen)
             assertEquals(dir.absolutePath, state.folder?.absolutePath, "practice folder restored")
         } finally {
             boardRoot.deleteRecursively()

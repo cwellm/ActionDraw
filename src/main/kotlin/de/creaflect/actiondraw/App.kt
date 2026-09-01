@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardDialogs
-import de.creaflect.actiondraw.board.ui.BoardMenuSection
+import de.creaflect.actiondraw.board.ui.BoardMenuButton
 import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.MenuScreen
@@ -19,7 +19,7 @@ import de.creaflect.actiondraw.ui.SummaryScreen
 enum class Screen { Menu, Picker, Session, Summary, Board }
 
 /** Calm, warm dark palette — easy on the eyes for long drawing sessions. */
-private val ActionDrawColors = darkColors(
+internal val ActionDrawColors = darkColors(
     primary = Color(0xFFFFB74D),
     primaryVariant = Color(0xFFFFA726),
     secondary = Color(0xFF80CBC4),
@@ -38,18 +38,19 @@ fun App(
     thumbs: ThumbCache,
     isFullscreen: Boolean,
     onToggleFullscreen: () -> Unit,
+    setFullscreen: (Boolean) -> Unit,
 ) {
     MaterialTheme(colors = ActionDrawColors) {
         Surface {
             Box {
                 when (state.screen) {
-                    Screen.Menu -> MenuScreen(state) { BoardMenuSection(boardState) }
+                    Screen.Menu -> MenuScreen(state) { BoardMenuButton(boardState) }
                     Screen.Picker -> PickerScreen(state, thumbs)
                     Screen.Session -> SessionScreen(state, onToggleFullscreen, isFullscreen)
                     Screen.Summary -> SummaryScreen(state)
-                    Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, onToggleFullscreen)
+                    Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen)
                 }
-                // Board dialogs float above every screen (New board… opens from the menu).
+                // Board dialogs float above every screen (the board picker opens from the menu).
                 BoardDialogs(boardState)
             }
         }

@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
@@ -41,6 +44,8 @@ import java.io.File
 fun BoardDialogs(state: BoardState) {
     when (val editor = state.editor) {
         null -> {}
+
+        BoardEditor.PickBoard -> BoardPickerDialog(state)
 
         BoardEditor.NewBoard -> NewBoardDialog(state)
 
@@ -95,6 +100,75 @@ fun BoardDialogs(state: BoardState) {
 
 fun parseTags(text: String): Set<String> =
     text.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+
+/** The board list: every known board to click open, the boards home, New board… and Explore…. */
+@Composable
+private fun BoardPickerDialog(state: BoardState) {
+    val boards = remember(state.boardsHomeTick, state.recent) { state.availableBoards() }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Idea Boards", style = MaterialTheme.typography.h6)
+
+        // Boards home: where new boards are created and boards are listed from.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Home: ${state.boardsHome().path}",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.weight(1f),
+            )
+            OutlinedButton(onClick = {
+                chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Boards home")
+                    ?.let { state.setBoardsHomeDir(it) }
+            }) { Text("Change…") }
+        }
+
+        if (boards.isEmpty()) {
+            Text(
+                "No boards yet — create one, or explore for an existing board folder.",
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+            )
+        } else {
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
+                items(boards, key = { it.second.absolutePath }) { (name, dir) ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { state.openBoard(dir) }
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                    ) {
+                        Text(name, style = MaterialTheme.typography.subtitle1)
+                        Text(
+                            dir.path,
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f),
+                        )
+                    }
+                }
+            }
+        }
+
+        if (state.openFailed) {
+            Text(
+                "Couldn't read that board file (and no usable backup).",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.error,
+            )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            OutlinedButton(onClick = state::closeEditor) { Text("Cancel") }
+            OutlinedButton(onClick = {
+                chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Open board folder")
+                    ?.let(state::openBoard)
+            }) { Text("Explore…") }
+            Button(onClick = { state.openEditor(BoardEditor.NewBoard) }) { Text("New board…") }
+        }
+    }
+}
 
 @Composable
 private fun NewBoardDialog(state: BoardState) {

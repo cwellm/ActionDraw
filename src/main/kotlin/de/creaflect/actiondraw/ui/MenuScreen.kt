@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Checkbox
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
@@ -26,9 +26,9 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.SessionPlans
 
-/** The start menu; [boardSection] lets the app shell append the Idea-Boards entry point. */
+/** The start menu; [boardButton] lets the app shell add the Idea-Boards entry next to Draw. */
 @Composable
-fun MenuScreen(state: AppState, boardSection: @Composable () -> Unit = {}) {
+fun MenuScreen(state: AppState, boardButton: @Composable RowScope.() -> Unit = {}) {
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -109,17 +109,20 @@ fun MenuScreen(state: AppState, boardSection: @Composable () -> Unit = {}) {
             }
 
             Spacer(Modifier.height(4.dp))
-            Button(
-                onClick = { state.start() },
-                enabled = state.selectedCount > 0,
-                colors = ButtonDefaults.buttonColors(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 36.dp, vertical = 12.dp),
+            // Draw and Boards are equal citizens: two equally sized primary buttons.
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Start drawing", style = MaterialTheme.typography.h6)
+                Button(
+                    onClick = { state.start() },
+                    enabled = state.selectedCount > 0,
+                    modifier = Modifier.weight(1f).height(56.dp),
+                ) {
+                    Text("Draw", style = MaterialTheme.typography.h6)
+                }
+                boardButton()
             }
-
-            Spacer(Modifier.height(12.dp))
-            boardSection()
             Spacer(Modifier.height(16.dp))
         }
     }

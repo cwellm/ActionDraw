@@ -93,4 +93,38 @@ class BoardStoreTest {
     fun aFolderWithoutASidecarIsNone() {
         assertIs<BoardStore.LoadResult.None>(BoardStore.load(root))
     }
+
+    @Test
+    fun freeformFieldsRoundTrip() {
+        val board = sampleBoard().let {
+            it.copy(
+                layout = BoardLayouts.FREE,
+                camera = Camera(x = 12f, y = -30f, zoom = 1.5f),
+                items = it.items.map { item ->
+                    item.withPos(ItemPos(x = 100f, y = 50f, scale = 1.4f, rotation = -12f))
+                },
+            )
+        }
+        BoardStore.save(root, board)
+        val loaded = BoardStore.load(root)
+        assertIs<BoardStore.LoadResult.Loaded>(loaded)
+        assertEquals(board, loaded.board)
+    }
+
+    @Test
+    fun phaseOneSidecarsWithoutFreeformFieldsStillLoad() {
+        File(root, "a.jpg").createNewFile()
+        File(root, BoardStore.FILE_NAME).writeText(
+            """
+            {"version": 1, "name": "Old", "theme": "cork", "groups": [],
+             "items": [{"type": "image", "id": "i1", "path": "a.jpg", "groups": [],
+                        "caption": null, "starred": false, "tags": []}]}
+            """.trimIndent(),
+        )
+        val loaded = BoardStore.load(root)
+        assertIs<BoardStore.LoadResult.Loaded>(loaded)
+        assertEquals(BoardLayouts.GRID, loaded.board.layout)
+        assertEquals(null, loaded.board.camera)
+        assertEquals(null, loaded.board.items.single().pos)
+    }
 }
