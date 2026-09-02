@@ -21,7 +21,7 @@ class ImporterTest {
     @Test
     fun filesInsideTheBoardFolderAreReferencedInPlace() {
         val inner = File(root, "wings").apply { mkdirs() }.let { File(it, "a.jpg").apply { createNewFile() } }
-        val items = Importer.importFiles(root, listOf(inner), groupId = "g1", existingPaths = emptySet())
+        val items = Importer.importFiles(root, listOf(inner), groupId = "g1", existingPaths = emptySet()).items
         assertEquals(listOf("wings/a.jpg"), items.map { it.path })
         assertEquals(listOf("g1"), items.single().groups)
         assertFalse(File(root, Importer.IMPORT_DIR).exists(), "in-root files must not be copied")
@@ -30,7 +30,7 @@ class ImporterTest {
     @Test
     fun externalFilesAreCopiedIntoImported() {
         val src = File(outside, "b.jpg").apply { writeText("data") }
-        val items = Importer.importFiles(root, listOf(src), groupId = null, existingPaths = emptySet())
+        val items = Importer.importFiles(root, listOf(src), groupId = null, existingPaths = emptySet()).items
         assertEquals(listOf("${Importer.IMPORT_DIR}/b.jpg"), items.map { it.path })
         assertTrue(File(root, "${Importer.IMPORT_DIR}/b.jpg").isFile)
         assertTrue(src.isFile, "the original stays untouched")
@@ -43,7 +43,7 @@ class ImporterTest {
         File(root, "${Importer.IMPORT_DIR}/b (2).jpg").createNewFile()
         val src = File(outside, "b.jpg").apply { writeText("data") }
 
-        val items = Importer.importFiles(root, listOf(src), null, emptySet())
+        val items = Importer.importFiles(root, listOf(src), null, emptySet()).items
         assertEquals(listOf("${Importer.IMPORT_DIR}/b (3).jpg"), items.map { it.path })
     }
 
@@ -52,14 +52,30 @@ class ImporterTest {
         File(outside, "sub").mkdirs()
         File(outside, "sub/c.png").createNewFile()
         File(outside, "sub/notes.txt").createNewFile()
-        val items = Importer.importFiles(root, listOf(outside), null, emptySet())
+        val items = Importer.importFiles(root, listOf(outside), null, emptySet()).items
         assertEquals(listOf("${Importer.IMPORT_DIR}/c.png"), items.map { it.path })
     }
 
     @Test
     fun pathsAlreadyOnTheBoardAreSkipped() {
         val inner = File(root, "a.jpg").apply { createNewFile() }
-        val items = Importer.importFiles(root, listOf(inner), null, existingPaths = setOf("a.jpg"))
-        assertTrue(items.isEmpty())
+        val outcome = Importer.importFiles(root, listOf(inner), null, existingPaths = setOf("a.jpg"))
+        assertTrue(outcome.items.isEmpty())
+        assertEquals(1, outcome.duplicates, "a duplicate is reported, not silently dropped")
+    }
+
+    @Test
+    fun droppedFilesOfAnUnreadableFormatAreReported() {
+        val good = File(outside, "a.jpg").apply { writeText("x") }
+        val bad = File(outside, "notes.txt").apply { writeText("x") }
+        val alsoBad = File(outside, "clip.mp4").apply { writeText("x") }
+
+        val outcome = Importer.importFiles(root, listOf(good, bad, alsoBad), null, emptySet())
+        assertEquals(1, outcome.items.size)
+        assertEquals(
+            listOf("clip.mp4", "notes.txt"),
+            outcome.unsupported.map { it.name }.sorted(),
+            "everything that could not be imported comes back so the board can say so",
+        )
     }
 }

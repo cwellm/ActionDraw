@@ -299,8 +299,9 @@ The first hands-on pass reshaped the entry points and pulled the freeform canvas
   replaces the single-image quick-look.
 - **Formats (round 1c)**: decoding moved behind `ImageDecoder` — Skia first (JPEG/PNG/GIF/BMP/
   WebP), ImageIO as a fallback. AVIF and HEIC are only advertised by `ImageScanner` when an
-  ImageIO reader is actually installed, so the board never shows a card it cannot draw; adding an
-  AVIF plugin to the classpath is all that is needed to switch them on. The bundled Skia cannot
+  ImageIO reader is installed, so the board never shows a card it cannot draw. AVIF is switched on
+  by shipping such a plugin (round 1d, after a drag-and-drop of an .avif silently did nothing); an
+  import that skips files now says so on the board. The bundled Skia cannot
   decode AVIF — verified against real files.
 - **Ordering (round 1b)**: the items array doubles as the grid's display order and the freeform
   z-order, and both are now controllable. Grid: *Move earlier/later* and *Move to group

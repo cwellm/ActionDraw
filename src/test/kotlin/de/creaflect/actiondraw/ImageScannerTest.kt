@@ -45,12 +45,19 @@ class ImageScannerTest {
     }
 
     @Test
-    fun webpIsAlwaysRecognisedAndPluginFormatsOnlyWithADecoder() {
-        // Skia decodes WebP itself, so it is always in.
+    fun webpAndAvifAreRecognised() {
+        // Skia decodes WebP itself; AVIF comes from the bundled ImageIO plugin, which must stay
+        // on the runtime classpath for .avif files to be importable at all.
         assertTrue("webp" in ImageScanner.IMAGE_EXTENSIONS)
-        // AVIF/HEIC need an ImageIO plugin: advertised exactly when a reader is installed, so a
-        // board never shows a card whose picture cannot be drawn.
-        listOf("avif", "heic", "heif").forEach { ext ->
+        assertTrue(ImageDecoder.imageIoCanRead("avif"), "the AVIF ImageIO plugin must be present")
+        assertTrue("avif" in ImageScanner.IMAGE_EXTENSIONS)
+    }
+
+    @Test
+    fun formatsWithoutAReaderAreNotAdvertised() {
+        // Anything plugin-only is listed exactly when a reader exists, so a board never shows a
+        // card whose picture cannot be drawn.
+        listOf("heic", "heif").forEach { ext ->
             assertEquals(
                 ImageDecoder.imageIoCanRead(ext),
                 ext in ImageScanner.IMAGE_EXTENSIONS,

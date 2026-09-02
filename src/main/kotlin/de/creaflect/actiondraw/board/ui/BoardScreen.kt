@@ -2,6 +2,7 @@ package de.creaflect.actiondraw.board.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -108,6 +109,16 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                             style = MaterialTheme.typography.caption,
                             color = MaterialTheme.colors.error,
                             modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                    state.importNotice?.let { notice ->
+                        Text(
+                            "$notice  (click to dismiss)",
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.error,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 2.dp)
+                                .clickable { state.dismissImportNotice() },
                         )
                     }
                     if (state.allTags.isNotEmpty()) TagFilterBar(state)

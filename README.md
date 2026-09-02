@@ -141,22 +141,18 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 
 ## Image formats
 
-JPEG, PNG, GIF, BMP and **WebP** work out of the box — the bundled Skia decodes them.
+JPEG, PNG, GIF, BMP and **WebP** are decoded by the bundled Skia. **AVIF** works too, through an
+ImageIO plugin that ships with the app (`io.github.nemanjastokuca:avif-imageio-native-reader`,
+libavif/libdav1d as prebuilt JNI binaries, ~7 MB, x86-64 Windows/macOS/Linux).
 
-**AVIF (and HEIC) need an ImageIO plugin**, which neither the JDK nor Skia provides. ActionDraw
-only advertises those formats when a reader is actually installed, so a board never shows a card
-whose picture cannot be drawn. To enable AVIF, put an AVIF ImageIO plugin on the runtime
-classpath — for example by adding to [build.gradle.kts](build.gradle.kts):
+Decoding runs through `ImageDecoder`: Skia first, ImageIO as a fallback. Formats that need a
+plugin are only advertised when a reader is actually installed, so a board never shows a card
+whose picture cannot be drawn — drop in a HEIC reader and `.heic` files start working with no code
+change. Remove the AVIF line from [build.gradle.kts](build.gradle.kts) and `.avif` files simply
+stop being offered; nothing else breaks.
 
-```kotlin
-implementation("io.github.nemanjastokuca:avif-imageio-native-reader:0.1.0")
-```
-
-That artifact bundles libavif/libdav1d as prebuilt JNI binaries (~7 MB, x86-64 Windows/macOS/Linux).
-Verified to decode AVIF here, but note it is a young (0.1.0) third-party republication of
-[ustc-zzzz/avif-imageio-native-reader](https://github.com/ustc-zzzz/avif-imageio-native-reader) —
-worth a look before shipping it in an installer. No code change is needed either way:
-`ImageDecoder` falls back to ImageIO whenever Skia cannot read a file.
+An import that leaves something out (unreadable format, or a picture already on the board) says so
+on the board instead of silently ignoring the drop.
 
 ## Requirements
 - JDK 17 (a `JAVA_HOME` pointing at a JDK 17 install) — only for running from source and

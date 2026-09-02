@@ -16,6 +16,18 @@ object Importer {
     const val IMPORT_DIR = "_imported"
 
     /**
+     * What an import produced: the new cards, plus whatever was left out — so the board can say
+     * why a dropped file did not appear instead of swallowing it.
+     */
+    data class Outcome(
+        val items: List<ImageItem> = emptyList(),
+        /** Files of a format this build cannot decode (see [ImageScanner.IMAGE_EXTENSIONS]). */
+        val unsupported: List<File> = emptyList(),
+        /** Pictures that are already on the board. */
+        val duplicates: Int = 0,
+    )
+
+    /**
      * Files and/or directories (expanded recursively) → image items. Non-images and paths already
      * on the board ([existingPaths]) are skipped. Each item lands in [groupId] (null = Inbox).
      */
@@ -24,17 +36,22 @@ object Importer {
         files: List<File>,
         groupId: String?,
         existingPaths: Set<String>,
-    ): List<ImageItem> {
+    ): Outcome {
         val flat = files.flatMap { if (it.isDirectory) ImageScanner.scanTree(it) else listOf(it) }
-            .filter { ImageScanner.isImage(it) }
+        val (images, rest) = flat.partition { ImageScanner.isImage(it) }
         val taken = existingPaths.toMutableSet()
-        return flat.mapNotNull { file ->
+        var duplicates = 0
+        val items = images.mapNotNull { file ->
             val path =
                 if (isUnder(root, file)) relKey(root, file)
                 else copyIn(root, file)?.let { relKey(root, it) } ?: return@mapNotNull null
-            if (!taken.add(path)) return@mapNotNull null
+            if (!taken.add(path)) {
+                duplicates++
+                return@mapNotNull null
+            }
             ImageItem(id = newId(), path = path, groups = listOfNotNull(groupId))
         }
+        return Outcome(items, rest.filter { it.isFile }, duplicates)
     }
 
     /** A pasted bitmap (e.g. browser → "Copy image") → PNG in `_imported/` + its item. */

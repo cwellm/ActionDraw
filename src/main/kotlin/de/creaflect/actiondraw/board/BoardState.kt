@@ -74,6 +74,10 @@ class BoardState(
     var editor by mutableStateOf<BoardEditor?>(null)
         private set
 
+    /** Why the last import left something out (unsupported format, duplicate); null = all fine. */
+    var importNotice by mutableStateOf<String?>(null)
+        private set
+
     /** Chrome-less mode; only meaningful while the window is fullscreen. */
     var immersive by mutableStateOf(false)
 
@@ -637,12 +641,32 @@ class BoardState(
     fun importExternal(files: List<File>, groupId: String? = null) {
         val dir = root ?: return
         val existing = board?.items.orEmpty().filterIsInstance<ImageItem>().map { it.path }.toSet()
-        val items = Importer.importFiles(dir, files, groupId, existing)
+        val outcome = Importer.importFiles(dir, files, groupId, existing)
+        importNotice = describeImport(outcome)
+        val items = outcome.items
         if (items.isEmpty()) return
         update { it.copy(items = it.items + items) }
         if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
         selection = items.map { it.id }.toSet()
         focusId = items.first().id
+    }
+
+    /** A one-line report of what an import did — shown on the board, `null` when all went in. */
+    private fun describeImport(outcome: Importer.Outcome): String? {
+        val parts = mutableListOf<String>()
+        if (outcome.unsupported.isNotEmpty()) {
+            val kinds = outcome.unsupported.map { it.extension.lowercase().ifEmpty { "?" } }
+                .distinct().sorted().joinToString(", ") { ".$it" }
+            parts += "${outcome.unsupported.size} file(s) this build cannot read ($kinds)"
+        }
+        if (outcome.duplicates > 0) parts += "${outcome.duplicates} already on the board"
+        if (parts.isEmpty()) return null
+        val added = if (outcome.items.isEmpty()) "Nothing added" else "Added ${outcome.items.size}"
+        return "$added — skipped ${parts.joinToString(" · ")}."
+    }
+
+    fun dismissImportNotice() {
+        importNotice = null
     }
 
     fun importPasted() {
@@ -652,6 +676,7 @@ class BoardState(
 
             is BoardClipboard.Pasted.Bitmap -> {
                 val item = Importer.importBitmap(dir, pasted.image, null, timestamp()) ?: return
+                importNotice = null
                 update { it.copy(items = it.items + item) }
                 if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
                 selection = setOf(item.id)
