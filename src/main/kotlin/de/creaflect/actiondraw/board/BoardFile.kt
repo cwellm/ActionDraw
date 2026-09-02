@@ -18,8 +18,24 @@ data class BoardFile(
     val layout: String = BoardLayouts.GRID,
     /** Last freeform camera, so the board reopens where you left it. */
     val camera: Camera? = null,
+    /** How this board likes to be drawn; null = whatever the menu is set to. */
+    val session: SessionRecipe? = null,
     val groups: List<BoardGroup> = emptyList(),
     val items: List<BoardItem> = emptyList(),
+)
+
+/**
+ * A board's remembered session settings ("Drachenbuch is always 60 s in Notan"). Stored as plain
+ * names so the sidecar stays readable and survives renames of the practice enums.
+ */
+@Serializable
+data class SessionRecipe(
+    /** Gesture-ramp name, or null for a fixed time per picture. */
+    val plan: String? = null,
+    val intervalSeconds: Int = 120,
+    val autoAdvance: Boolean = true,
+    val viewMode: String = "NONE",
+    val grid: String = "OFF",
 )
 
 /** Freeform placement of one card, in board units; [scale] and [rotation] (degrees) around its centre. */
@@ -86,6 +102,8 @@ data class ImageItem(
     override val pos: ItemPos? = null,
     /** Width/height, remembered after the first decode so freeform layout is stable. */
     val aspect: Float? = null,
+    /** Content identity ([ContentId]) — lets a renamed or moved file be recognised again. */
+    val contentId: String? = null,
 ) : BoardItem()
 
 @Serializable

@@ -308,3 +308,27 @@ The first hands-on pass reshaped the entry points and pulled the freeform canvas
   start/end* per card. Free: *Bring forward / Send backward / Bring to front / Send to back*
   (e.g. a note created after a photo can be pushed behind it). Keyboard in both modes:
   `Ctrl+↑/↓` steps, `Ctrl+Shift+↑/↓` goes all the way; stepping skips cards the tag filter hides.
+
+## 14. M2 — the scaling board (2026-09-03)
+
+Everything that keeps a board usable past a screenful, built on the Phase-1 shape without
+changing it:
+
+- **Search** joins the tag chips as a second filter; both feed the one `visible()` predicate, so
+  every view (grid, canvas, viewer, "Draw these") narrows consistently.
+- **Practice comes back onto the board.** `BoardState` reads the board folder's seen/redo stores
+  — the same files the session writes, keyed by relative path — and shows `✓`/`⟳` badges. The
+  rule-based sections *⟳ Redo* and *Never drawn* are views over those keys, not groups, and only
+  appear once a board has practice history. They refresh when the session window closes.
+- **Session recipes** live in the sidecar as plain names and are translated into the practice
+  side's vocabulary (`SessionSetup`) at the boundary — the board keeps depending on the host, not
+  the other way round.
+- **Pinning** is the first flow that runs *from* practice *to* a board, so it goes through a
+  `PinTargets` handle the shell supplies: the session lists boards and hands over files without
+  ever importing a board type. Pinning writes the target's sidecar directly, without opening it.
+- **Drag-reordering** hit-tests the lazy grid's `layoutInfo` (there is nothing else to test
+  against) and commits on release; cell keys carry the section, so smart sections stay read-only.
+- **Rename-proof identity**: cards store `<length>-<sampled sha1>`. `BoardStore.validate` only
+  indexes the folder by content when something is actually missing, then lets the card follow its
+  file. This retires the Phase-1 tradeoff recorded in A4.
+- **Board list screen** replaces the picker dialog: a tile per board with cover, counts and path.

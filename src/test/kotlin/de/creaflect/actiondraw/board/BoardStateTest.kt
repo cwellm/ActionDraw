@@ -1,6 +1,12 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.SessionPlans
+import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.image.RedoStore
+import de.creaflect.actiondraw.image.SeenStore
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -18,18 +24,31 @@ class BoardStateTest {
     private class FakeHost : BoardHost {
         var shown = 0
         var left = 0
+        var listShown = 0
         var lastSession: Pair<File, List<File>>? = null
-        override fun startSession(root: File, images: List<File>) {
+        var lastSetup: SessionSetup? = null
+
+        /** What the practice side would report as "current settings" for `Use current`. */
+        var setup = SessionSetup(null, 120, true, ViewMode.NONE, GridMode.OFF)
+
+        override fun startSession(root: File, images: List<File>, setup: SessionSetup?) {
             lastSession = root to images
+            lastSetup = setup
         }
 
         override fun showBoard() {
             shown++
         }
 
+        override fun showBoardList() {
+            listShown++
+        }
+
         override fun leaveBoard() {
             left++
         }
+
+        override fun currentSetup(): SessionSetup = setup
     }
 
     private val host = FakeHost()
@@ -401,6 +420,144 @@ class BoardStateTest {
         state.closeViewer()
         assertTrue(!state.viewerOpen && state.viewerIds.isEmpty())
         assertEquals(0, state.viewerIndex)
+    }
+
+    // ---- M2: search, practice, recipe, pinning, reordering ----
+
+    @Test
+    fun searchMatchesFileNamesCaptionsTagsAndNoteText() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setCaption(ids[1], "membrane folds")
+        state.applyTags(setOf(ids[2]), before = emptySet(), after = setOf("wing"))
+        state.saveNote(null, "collect more dragons")
+        state.clearSelection()
+
+        state.search("a.jpg")
+        assertEquals(listOf(ids[0]), state.visibleOrder.map { it.id }, "matches the file name")
+
+        state.search("membrane")
+        assertEquals(listOf(ids[1]), state.visibleOrder.map { it.id }, "matches the caption")
+
+        state.search("wing")
+        assertEquals(listOf(ids[2]), state.visibleOrder.map { it.id }, "matches a tag")
+
+        state.search("dragons")
+        assertEquals(1, state.visibleOrder.size, "matches note text")
+
+        state.clearFilter()
+        assertEquals(4, state.visibleOrder.size)
+    }
+
+    @Test
+    fun practiceBadgesAndSmartSectionsFollowTheSeenAndRedoStores() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        val root = state.root!!
+        assertTrue(state.smartSections.isEmpty(), "a board without history has no smart sections")
+
+        SeenStore.write(root, setOf("a.jpg"))
+        RedoStore.write(root, setOf("b.jpg"))
+        state.refreshPractice()
+
+        val byPath = state.board!!.items.filterIsInstance<ImageItem>().associateBy { it.path }
+        assertEquals(BoardState.Practice.SEEN, state.practiceOf(byPath.getValue("a.jpg")))
+        assertEquals(BoardState.Practice.REDO, state.practiceOf(byPath.getValue("b.jpg")))
+        assertEquals(BoardState.Practice.UNSEEN, state.practiceOf(byPath.getValue("c.jpg")))
+
+        val sections = state.smartSections.toMap()
+        assertEquals(listOf(ids[1]), sections.getValue("⟳ Redo").map { it.id })
+        assertEquals(listOf(ids[2]), sections.getValue("Never drawn").map { it.id })
+    }
+
+    @Test
+    fun aBoardsSessionRecipeIsStoredAndHandedToTheSession() {
+        val state = newState()
+        boardWithThreeImages(state)
+        state.saveRecipe(SessionRecipe(plan = null, intervalSeconds = 60, autoAdvance = false, viewMode = "NOTAN"))
+
+        state.drawGroup(null)
+        val setup = host.lastSetup!!
+        assertEquals(60, setup.intervalSeconds)
+        assertEquals(false, setup.autoAdvance)
+        assertEquals(ViewMode.NOTAN, setup.viewMode)
+        assertNull(setup.plan)
+
+        // And it survives a reopen.
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        assertEquals(60, reopened.recipe?.intervalSeconds)
+    }
+
+    @Test
+    fun rememberCurrentSetupTakesWhateverThePracticeSideIsSetTo() {
+        val state = newState()
+        boardWithThreeImages(state)
+        host.setup = SessionSetup(SessionPlans.ALL.first(), 30, false, ViewMode.SQUINT, GridMode.PHI)
+
+        state.rememberCurrentSetup()
+        val recipe = state.recipe!!
+        assertEquals(SessionPlans.ALL.first().name, recipe.plan)
+        assertEquals("SQUINT", recipe.viewMode)
+        assertEquals("PHI", recipe.grid)
+    }
+
+    @Test
+    fun withoutARecipeTheSessionKeepsTheMenusSettings() {
+        val state = newState()
+        boardWithThreeImages(state)
+        state.drawGroup(null)
+        assertNull(host.lastSetup, "no recipe means the menu's settings are left alone")
+    }
+
+    @Test
+    fun pinningCopiesAPictureOntoAnotherBoardWithoutOpeningIt() {
+        val state = newState()
+        state.createBoard(home, "Target")
+        val target = state.root!!
+        state.closeBoard()
+        val loose = File(outside, "pinned.jpg").apply { writeText("x") }
+
+        val message = state.pinTo(target, listOf(loose))
+
+        assertTrue(message.startsWith("Pinned 1"), "got: $message")
+        assertTrue(File(target, "${Importer.IMPORT_DIR}/pinned.jpg").isFile)
+        val stored = BoardStore.peek(target)!!
+        assertEquals(listOf("${Importer.IMPORT_DIR}/pinned.jpg"), stored.items.filterIsInstance<ImageItem>().map { it.path })
+        assertNull(state.board, "pinning must not open the target board")
+    }
+
+    @Test
+    fun pinningTheSamePictureTwiceIsReported() {
+        val state = newState()
+        state.createBoard(home, "Target")
+        val target = state.root!!
+        val loose = File(outside, "pinned.jpg").apply { writeText("x") }
+
+        state.pinTo(target, listOf(loose))
+        val second = state.pinTo(target, listOf(loose))
+        // The copy lands under a fresh name, so this is a second card rather than a duplicate.
+        assertTrue(second.startsWith("Pinned 1"), "got: $second")
+        assertEquals(2, BoardStore.peek(target)!!.items.size)
+    }
+
+    @Test
+    fun dropOnMovesACardToTheTargetsPlaceInBothDirections() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+
+        state.dropOn(ids[0], ids[2], groupId = null) // drag the first onto the last
+        assertEquals(listOf(ids[1], ids[2], ids[0]), state.itemsIn(null).map { it.id })
+
+        state.dropOn(ids[0], ids[1], groupId = null) // and back to the front
+        assertEquals(listOf(ids[0], ids[1], ids[2]), state.itemsIn(null).map { it.id })
+    }
+
+    @Test
+    fun openingTheBoardListGoesThroughTheHost() {
+        val state = newState()
+        state.openBoardList()
+        assertEquals(1, host.listShown)
     }
 
     @Test

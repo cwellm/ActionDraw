@@ -2,6 +2,7 @@ package de.creaflect.actiondraw
 
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -31,13 +32,28 @@ fun main() = application {
     // The board talks to the rest of the app only through this host (its "plugin" boundary).
     val boardState = remember {
         BoardState(settings, object : BoardHost {
-            override fun startSession(root: File, images: List<File>) = appState.startBoardSession(root, images)
+            override fun startSession(root: File, images: List<File>, setup: SessionSetup?) =
+                appState.startBoardSession(root, images, setup)
+
             override fun showBoard() = appState.showBoard()
+            override fun showBoardList() = appState.showBoardList()
             override fun leaveBoard() = appState.leaveBoard()
+            override fun currentSetup(): SessionSetup = appState.currentSetup()
         })
+    }
+    // Lets a running session file pictures away on a board, without the session knowing what a
+    // board is (see PinTargets).
+    val pinTargets = remember {
+        PinTargets(boards = { boardState.availableBoards() }, pin = boardState::pinTo)
     }
     val thumbs = remember { ThumbCache() }
     val isFullscreen = windowState.placement == WindowPlacement.Fullscreen
+
+    // A session started from a board changes its seen/redo state; refresh the badges when the
+    // session window closes.
+    LaunchedEffect(appState.boardWindowScreen) {
+        if (appState.boardWindowScreen == null) boardState.refreshPractice()
+    }
 
     Window(
         onCloseRequest = ::exitApplication,
@@ -49,6 +65,7 @@ fun main() = application {
             appState,
             boardState,
             thumbs,
+            pinTargets,
             isFullscreen = isFullscreen,
             onToggleFullscreen = { toggleFullscreen(windowState) },
             setFullscreen = { on ->
@@ -71,11 +88,12 @@ fun main() = application {
             MaterialTheme(colors = ActionDrawColors) {
                 Surface {
                     when (boardWindow) {
-                        Screen.Summary -> SummaryScreen(appState)
+                        Screen.Summary -> SummaryScreen(appState, pinTargets)
                         else -> SessionScreen(
                             appState,
                             onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
                             isFullscreen = sessionWindowState.placement == WindowPlacement.Fullscreen,
+                            pinTargets = pinTargets,
                         )
                     }
                 }

@@ -20,11 +20,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.Button
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -46,11 +48,14 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
+import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardThemes
+import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.SelectChip
+import de.creaflect.actiondraw.ui.formatTime
 import de.creaflect.actiondraw.ui.chooseImages
 import java.io.File
 import java.net.URI
@@ -121,7 +126,7 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                                 .clickable { state.dismissImportNotice() },
                         )
                     }
-                    if (state.allTags.isNotEmpty()) TagFilterBar(state)
+                    FilterBar(state)
                 }
                 if (state.layout == BoardLayouts.FREE) {
                     BoardCanvas(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
@@ -156,14 +161,22 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onImmers
     }
 }
 
+/** Free-text search plus the tag chips — everything that narrows what the board shows. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TagFilterBar(state: BoardState) {
+private fun FilterBar(state: BoardState) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
     ) {
+        OutlinedTextField(
+            value = state.query,
+            onValueChange = state::search,
+            singleLine = true,
+            label = { Text("Search", style = MaterialTheme.typography.caption) },
+            modifier = Modifier.width(240.dp),
+        )
         state.allTags.forEach { tag ->
             SelectChip("#$tag (${state.tagCount(tag)})", tag in state.filterTags) { state.toggleFilterTag(tag) }
         }
@@ -176,7 +189,10 @@ private fun TagFilterBar(state: BoardState) {
 @Composable
 private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifier: Modifier) {
     val empty = state.board?.items.orEmpty().isEmpty()
+    val gridState = rememberLazyGridState()
+    val reorder = remember(state, gridState) { GridReorder(gridState, state) }
     LazyVerticalGrid(
+        state = gridState,
         columns = GridCells.Adaptive(minSize = 140.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -195,6 +211,14 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
                 )
             }
         }
+        state.smartSections.forEach { (title, smartItems) ->
+            item(key = "smart-$title", span = { GridItemSpan(maxLineSpan) }) {
+                SmartHeader(state, title, smartItems)
+            }
+            items(smartItems, key = { "smart-$title/${it.id}" }) { item ->
+                BoardCard(state, thumbs, item, textured, groupId = null)
+            }
+        }
         state.sections.forEach { (group, itemsInGroup) ->
             if (group != null || itemsInGroup.isNotEmpty()) {
                 item(key = "header-${group?.id ?: "inbox"}", span = { GridItemSpan(maxLineSpan) }) {
@@ -202,8 +226,14 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
                 }
             }
             if (group?.collapsed != true) {
-                items(itemsInGroup, key = { "${group?.id ?: "inbox"}/${it.id}" }) { item ->
-                    BoardCard(state, thumbs, item, textured, groupId = group?.id)
+                val section = group?.id ?: "inbox"
+                items(itemsInGroup, key = { GridReorder.cellKey(section, it.id) }) { item ->
+                    BoardCard(
+                        state, thumbs, item, textured,
+                        groupId = group?.id,
+                        reorder = reorder,
+                        cellKey = GridReorder.cellKey(section, item.id),
+                    )
                 }
             }
         }
@@ -226,6 +256,9 @@ private fun BoardActionBar(state: BoardState) {
                 val viewable = state.viewableIds.size
                 OutlinedButton(onClick = { state.openViewer() }, enabled = viewable > 0) {
                     Text(if (state.selection.isEmpty()) "View all ($viewable)" else "View ($viewable)")
+                }
+                OutlinedButton(onClick = { state.openEditor(BoardEditor.EditSession) }) {
+                    Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
                 }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.NewGroup) }) { Text("New group") }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(null)) }) { Text("New note") }
@@ -265,4 +298,28 @@ private fun BoardActionBar(state: BoardState) {
             )
         }
     }
+}
+
+/** Header of a rule-based section: what to redo, what has never been drawn. */
+@Composable
+private fun SmartHeader(state: BoardState, title: String, items: List<BoardItem>) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp),
+    ) {
+        Text(
+            "$title (${items.size})",
+            style = MaterialTheme.typography.subtitle1,
+            color = MaterialTheme.colors.secondary,
+        )
+        Spacer(Modifier.weight(1f))
+        OutlinedButton(onClick = { state.drawItems(items) }) { Text("Draw ${items.size}") }
+    }
+}
+
+/** One-line form of a board's session recipe, for the action-bar button. */
+private fun recipeSummary(recipe: SessionRecipe): String {
+    val timing = recipe.plan ?: formatTime(recipe.intervalSeconds)
+    val view = recipe.viewMode.lowercase().replaceFirstChar { it.uppercase() }
+    return if (recipe.viewMode == "NONE") timing else "$timing · $view"
 }

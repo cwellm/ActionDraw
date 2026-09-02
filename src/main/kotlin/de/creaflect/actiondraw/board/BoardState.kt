@@ -3,17 +3,23 @@ package de.creaflect.actiondraw.board
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.SessionPlans
+import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.image.RedoStore
+import de.creaflect.actiondraw.image.SeenStore
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
-    /** The board list: pick one, create one, change the boards home, or explore for a folder. */
-    data object PickBoard : BoardEditor()
-
     data object NewBoard : BoardEditor()
+
+    /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
+    data object EditSession : BoardEditor()
     data object NewGroup : BoardEditor()
     data class RenameGroup(val groupId: String) : BoardEditor()
 
@@ -61,6 +67,18 @@ class BoardState(
 
     /** Active tag filter (AND semantics). */
     var filterTags by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    /** Free-text filter over file names, captions, tags and note text. */
+    var query by mutableStateOf("")
+        private set
+
+    // ---- Practice state, read from the board folder's seen/redo stores ----
+    private var seen: Set<String> = emptySet()
+    private var redo: Set<String> = emptySet()
+
+    /** Bumped when seen/redo are re-read, so badges and smart groups recompose. */
+    var practiceTick by mutableStateOf(0)
         private set
 
     /** Pictures the large viewer is showing (ids, in display order); empty = the viewer is closed. */
@@ -132,8 +150,71 @@ class BoardState(
     fun tagCount(tag: String): Int =
         board?.items.orEmpty().filterIsInstance<ImageItem>().count { tag in it.tags }
 
-    private fun visible(item: BoardItem): Boolean =
-        filterTags.isEmpty() || (item is ImageItem && filterTags.all { it in item.tags })
+    private fun visible(item: BoardItem): Boolean {
+        if (filterTags.isNotEmpty() && !(item is ImageItem && filterTags.all { it in item.tags })) return false
+        val needle = query.trim().lowercase()
+        if (needle.isEmpty()) return true
+        return when (item) {
+            is ImageItem ->
+                item.path.lowercase().contains(needle) ||
+                    item.caption?.lowercase()?.contains(needle) == true ||
+                    item.tags.any { it.lowercase().contains(needle) }
+
+            is NoteItem -> item.text.lowercase().contains(needle)
+        }
+    }
+
+    /** Sets the free-text filter. */
+    fun search(text: String) {
+        query = text
+        selection = emptySet()
+        focusId = null
+    }
+
+    // ---- Practice state ----
+
+    /** How often a card has been through a session, as far as the board folder's stores know. */
+    enum class Practice { UNSEEN, SEEN, REDO }
+
+    /** Re-reads the seen/redo stores — call after a session started from this board ends. */
+    fun refreshPractice() {
+        val dir = root ?: return
+        seen = SeenStore.read(dir)
+        redo = RedoStore.read(dir)
+        practiceTick++
+    }
+
+    fun practiceOf(item: ImageItem): Practice {
+        practiceTick // snapshot read: recompose when the stores are re-read
+        return when {
+            item.path in redo -> Practice.REDO
+            item.path in seen -> Practice.SEEN
+            else -> Practice.UNSEEN
+        }
+    }
+
+    /** True once this board has any practice history — smart groups stay hidden until then. */
+    val hasPracticeHistory: Boolean
+        get() {
+            practiceTick
+            return seen.isNotEmpty() || redo.isNotEmpty()
+        }
+
+    /**
+     * Rule-based sections shown above the real groups: what to redo, and what has never been
+     * drawn. They are views, not groups — a card keeps its own group membership.
+     */
+    val smartSections: List<Pair<String, List<BoardItem>>>
+        get() {
+            if (!hasPracticeHistory) return emptyList()
+            val images = displayItems.filterIsInstance<ImageItem>()
+            val flagged = images.filter { practiceOf(it) == Practice.REDO }
+            val never = images.filter { practiceOf(it) == Practice.UNSEEN }
+            return buildList {
+                if (flagged.isNotEmpty()) add("⟳ Redo" to flagged)
+                if (never.isNotEmpty()) add("Never drawn" to never)
+            }
+        }
 
     /** Items of one group (null = Inbox) that pass the tag filter, in stored order. */
     fun itemsIn(groupId: String?): List<BoardItem> =
@@ -235,6 +316,7 @@ class BoardState(
         selection = emptySet()
         focusId = null
         filterTags = emptySet()
+        query = ""
         closeViewer()
         editor = null
         immersive = false
@@ -243,6 +325,7 @@ class BoardState(
         camY = camera.y
         zoom = camera.zoom
         if (layout == BoardLayouts.FREE) update { placeMissing(it) }
+        refreshPractice()
         settings.addRecentBoard(dir)
         recent = settings.recentBoards()
         host.showBoard()
@@ -446,6 +529,7 @@ class BoardState(
 
     fun clearFilter() {
         filterTags = emptySet()
+        query = ""
     }
 
     fun setTheme(theme: String) = update { it.copy(theme = theme) }
@@ -540,6 +624,19 @@ class BoardState(
         if (i < 0) return
         val neighbor = displayOrder.getOrNull(if (forward) i + 1 else i - 1) ?: return
         moveRelative(id, neighbor, after = forward)
+    }
+
+    /**
+     * Drops the dragged card [id] onto [targetId] within group [groupId]: it takes the target's
+     * place, pushing it aside in the direction the card came from.
+     */
+    fun dropOn(id: String, targetId: String, groupId: String?) {
+        if (id == targetId) return
+        val order = itemsIn(groupId).map { it.id }
+        val from = order.indexOf(id)
+        val to = order.indexOf(targetId)
+        if (from < 0 || to < 0) return
+        moveRelative(id, targetId, after = to > from)
     }
 
     /** Re-inserts [id] directly after/before [neighborId] in the items array. */
@@ -703,9 +800,81 @@ class BoardState(
     fun drawGroup(groupId: String?) =
         draw(itemsIn(groupId).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
 
+    /** Draw exactly these cards — used by the smart sections' Draw buttons. */
+    fun drawItems(items: List<BoardItem>) =
+        draw(items.filterIsInstance<ImageItem>().mapNotNull(::fileOf))
+
     private fun draw(files: List<File>) {
         val dir = root ?: return
-        if (files.isNotEmpty()) host.startSession(dir, files)
+        if (files.isNotEmpty()) host.startSession(dir, files, sessionSetup())
+    }
+
+    // ---- Session recipe ----
+
+    val recipe: SessionRecipe? get() = board?.session
+
+    /** The stored recipe translated into the practice side's vocabulary; null = keep the menu's. */
+    private fun sessionSetup(): SessionSetup? {
+        val stored = recipe ?: return null
+        return SessionSetup(
+            plan = SessionPlans.ALL.find { it.name == stored.plan },
+            intervalSeconds = stored.intervalSeconds,
+            autoAdvance = stored.autoAdvance,
+            viewMode = runCatching { ViewMode.valueOf(stored.viewMode) }.getOrDefault(ViewMode.NONE),
+            gridMode = runCatching { GridMode.valueOf(stored.grid) }.getOrDefault(GridMode.OFF),
+        )
+    }
+
+    fun saveRecipe(recipe: SessionRecipe?) = update { it.copy(session = recipe) }
+
+    /** Stores whatever the practice side is set to right now as this board's recipe. */
+    fun rememberCurrentSetup() {
+        val setup = host.currentSetup()
+        saveRecipe(
+            SessionRecipe(
+                plan = setup.plan?.name,
+                intervalSeconds = setup.intervalSeconds,
+                autoAdvance = setup.autoAdvance,
+                viewMode = setup.viewMode.name,
+                grid = setup.gridMode.name,
+            ),
+        )
+    }
+
+    // ---- Pinning from a session ----
+
+    /**
+     * Files a picture away on another board without opening it: the file is copied into that
+     * board's folder and a card is appended. Returns a line to show the user.
+     */
+    fun pinTo(dir: File, files: List<File>): String {
+        val target = when (val loaded = BoardStore.load(dir)) {
+            is BoardStore.LoadResult.Loaded -> loaded.board
+            BoardStore.LoadResult.None -> BoardFile(name = dir.name)
+            BoardStore.LoadResult.Failed -> return "Couldn't read the board in ${dir.name}."
+        }
+        val existing = target.items.filterIsInstance<ImageItem>().map { it.path }.toSet()
+        val outcome = Importer.importFiles(dir, files, null, existing)
+        if (outcome.items.isEmpty()) {
+            return if (outcome.duplicates > 0) "Already on ${target.name}." else "Nothing to pin."
+        }
+        var next = target.copy(items = target.items + outcome.items)
+        if (next.layout == BoardLayouts.FREE) next = placeMissing(next)
+        if (!BoardStore.save(dir, next)) return "Couldn't write the board in ${dir.name}."
+        // Pinning into the board that is currently open must show up straight away.
+        if (root?.absolutePath.equals(dir.absolutePath, ignoreCase = true)) board = next
+        return "Pinned ${outcome.items.size} to ${next.name}."
+    }
+
+    fun openBoardList() {
+        openFailed = false
+        host.showBoardList()
+    }
+
+    /** Leaves the board list without opening anything. */
+    fun leaveList() {
+        openFailed = false
+        host.leaveBoard()
     }
 
     companion object {

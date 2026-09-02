@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,6 +29,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -37,6 +40,7 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,13 +55,47 @@ import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** One board cell (image or note) with its right-click menu; [groupId] is the section it sits in. */
+/**
+ * One board cell (image or note) with its right-click menu; [groupId] is the section it sits in.
+ * With a [reorder] handle the card can also be dragged to a new place within its section.
+ */
 @Composable
-fun BoardCard(state: BoardState, thumbs: ThumbCache, item: BoardItem, textured: Boolean, groupId: String?) {
-    ContextMenuArea(items = { gridOrderMenuItems(state, item, groupId) + cardMenuItems(state, item) }) {
-        when (item) {
-            is ImageItem -> ImageCard(state, thumbs, item, textured)
-            is NoteItem -> NoteCard(state, item, textured)
+fun BoardCard(
+    state: BoardState,
+    thumbs: ThumbCache,
+    item: BoardItem,
+    textured: Boolean,
+    groupId: String?,
+    reorder: GridReorder? = null,
+    cellKey: String? = null,
+) {
+    val dragging = reorder != null && cellKey != null && reorder.draggingKey == cellKey
+    val isTarget = reorder != null && cellKey != null && reorder.targetKey == cellKey
+    val modifier = if (reorder != null && cellKey != null) {
+        Modifier
+            .alpha(if (dragging) 0.4f else 1f)
+            .border(
+                2.dp,
+                if (isTarget) MaterialTheme.colors.primary else Color.Transparent,
+                RoundedCornerShape(6.dp),
+            )
+            .pointerInput(cellKey, groupId) {
+                detectDragGestures(
+                    onDragStart = { reorder.start(cellKey) },
+                    onDrag = { change, _ -> change.consume(); reorder.drag(cellKey, change.position) },
+                    onDragEnd = { reorder.drop() },
+                    onDragCancel = { reorder.cancel() },
+                )
+            }
+    } else {
+        Modifier
+    }
+    Box(modifier) {
+        ContextMenuArea(items = { gridOrderMenuItems(state, item, groupId) + cardMenuItems(state, item) }) {
+            when (item) {
+                is ImageItem -> ImageCard(state, thumbs, item, textured)
+                is NoteItem -> NoteCard(state, item, textured)
+            }
         }
     }
 }
@@ -150,6 +188,7 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
             if (item.starred) {
                 Text("★", color = Color(0xFFFFB300), modifier = Modifier.align(Alignment.TopEnd).padding(4.dp))
             }
+            PracticeBadge(state.practiceOf(item), Modifier.align(Alignment.BottomStart).padding(4.dp))
         }
         Text(
             item.caption ?: file?.name ?: item.path,
@@ -239,3 +278,21 @@ private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMe
     ContextMenuItem("Move down") { state.moveGroup(group.id, +1) },
     ContextMenuItem("Delete group (cards → Inbox)") { state.deleteGroup(group.id) },
 )
+
+/** Shows how a picture stands with the practice side: flagged to redo, drawn, or never drawn. */
+@Composable
+internal fun PracticeBadge(practice: BoardState.Practice, modifier: Modifier) {
+    val (glyph, color) = when (practice) {
+        BoardState.Practice.REDO -> "⟳" to Color(0xFFEF9A9A)
+        BoardState.Practice.SEEN -> "✓" to Color(0xFF80CBC4)
+        BoardState.Practice.UNSEEN -> return
+    }
+    Surface(color = Color(0x99000000), shape = RoundedCornerShape(3.dp), modifier = modifier) {
+        Text(
+            glyph,
+            color = color,
+            style = MaterialTheme.typography.caption,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+        )
+    }
+}

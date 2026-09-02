@@ -146,15 +146,43 @@ surface, material in & out, "Draw these" bridge.*
 
 ---
 
-## ⬜ M2 — Idea Board: the scaling board (Phase 2)
+## ✅ M2 — Idea Board: the scaling board (Phase 2)
 
-- ⬜ Free-text search (filenames, captions, notes, tags)
-- ⬜ Practice badges on cards (unseen/seen/redo) + smart groups (Redo, Never drawn)
-- ⬜ Per-board session recipe (interval/ramp/filters remembered)
-- ⬜ Pin-from-session ("add current image to board …") + summary → pin to board
-- ⬜ Drag-reordering inside groups
-- ⬜ Rename-proof identity (content hash) — fixes the missing-file tradeoff
-- ⬜ Board list screen (beyond MRU chips)
+*Everything that keeps a board usable once it holds more than a screenful.*
+
+### ✅ F3.1 Finding things
+- ✅ Free-text search over file names, captions, tags and note text, next to the tag chips
+- ✅ "Clear filter" clears both the search box and the active tags
+
+### ✅ F3.2 Practice on the board
+- ✅ Badges on cards: ✓ drawn, ⟳ flagged to redo (read from the board folder's seen/redo stores)
+- ✅ Smart sections above the groups — "⟳ Redo" and "Never drawn", each with its own Draw button;
+  they are views, so a card keeps its group
+- ✅ Badges refresh when a session started from the board closes
+
+### ✅ F3.3 Per-board session recipe
+- ✅ Interval or gesture ramp, auto-advance, view mode and grid stored in the sidecar
+- ✅ Applied to every session started from that board; "Use current" captures the menu's settings
+- ✅ Without a recipe the menu's settings are left untouched
+
+### ✅ F3.4 Pin from a session
+- ✅ "Pin ▾" in the session control bar files the picture on screen onto any board
+- ✅ The summary offers to pin the session's redo-flagged pictures
+- ✅ Practice code stays board-agnostic — it only sees a `PinTargets` handle
+
+### ✅ F3.5 Drag-reordering
+- ✅ Drag a card onto another within its group to reorder (hit-tested against the lazy grid);
+  the drop target is outlined and the move happens on release
+- ✅ Smart sections stay read-only
+
+### ✅ F3.6 Rename-proof identity
+- ✅ Cards carry a content id (length + sampled SHA-1); a picture renamed or moved outside the app
+  is found again in the board folder, keeping caption, tags, groups and position
+- ✅ Only pictures that are really gone drop off; existing sidecars gain ids on next load
+
+### ✅ F3.7 Board list screen
+- ✅ "Boards" opens a real screen: a tile per board with cover picture, counts and path
+- ✅ Boards home shown and changeable there, with New board… and Explore…
 
 ---
 

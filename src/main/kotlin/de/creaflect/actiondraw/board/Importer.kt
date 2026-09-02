@@ -49,7 +49,12 @@ object Importer {
                 duplicates++
                 return@mapNotNull null
             }
-            ImageItem(id = newId(), path = path, groups = listOfNotNull(groupId))
+            ImageItem(
+                id = newId(),
+                path = path,
+                groups = listOfNotNull(groupId),
+                contentId = ContentId.of(File(root, path)),
+            )
         }
         return Outcome(items, rest.filter { it.isFile }, duplicates)
     }
@@ -60,7 +65,13 @@ object Importer {
             val dir = File(root, IMPORT_DIR).apply { mkdirs() }
             val target = collisionFree(File(dir, "pasted-$timestamp.png"))
             check(ImageIO.write(image, "png", target))
-            ImageItem(id = newId(), path = relKey(root, target), groups = listOfNotNull(groupId))
+            val rel = relKey(root, target)
+            ImageItem(
+                id = newId(),
+                path = rel,
+                groups = listOfNotNull(groupId),
+                contentId = ContentId.of(File(root, rel)),
+            )
         }.getOrNull()
 
     private fun copyIn(root: File, file: File): File? = runCatching {

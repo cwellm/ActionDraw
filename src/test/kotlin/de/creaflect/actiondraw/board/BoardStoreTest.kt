@@ -6,6 +6,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class BoardStoreTest {
@@ -33,14 +34,62 @@ class BoardStoreTest {
         )
     }
 
+    /** Loading fills in content ids, so compare what the author actually wrote. */
+    private fun BoardFile.withoutContentIds() =
+        copy(items = items.map { if (it is ImageItem) it.copy(contentId = null) else it })
+
     @Test
     fun roundTripPreservesEverything() {
         val board = sampleBoard()
         assertTrue(BoardStore.save(root, board))
         val loaded = BoardStore.load(root)
         assertIs<BoardStore.LoadResult.Loaded>(loaded)
-        assertEquals(board, loaded.board)
+        assertEquals(board, loaded.board.withoutContentIds())
         assertEquals(false, loaded.fromBackup)
+    }
+
+    @Test
+    fun loadingGivesEveryPictureAContentId() {
+        BoardStore.save(root, sampleBoard())
+        val loaded = BoardStore.load(root)
+        assertIs<BoardStore.LoadResult.Loaded>(loaded)
+        val image = loaded.board.items.filterIsInstance<ImageItem>().single()
+        assertNotNull(image.contentId, "cards need an identity to survive a rename")
+    }
+
+    @Test
+    fun aRenamedPictureKeepsItsCardAndItsMetadata() {
+        // Give the file some content so its identity is not just its length.
+        File(root, "wings").mkdirs()
+        File(root, "wings/a.jpg").writeText("a real picture would go here")
+        BoardStore.save(root, sampleBoard())
+        BoardStore.load(root) // first load records the content id
+        val withIds = BoardStore.peek(root)!!.let { BoardStore.validate(it, root) }
+        BoardStore.save(root, withIds)
+
+        // Rename it outside the app, into another folder for good measure.
+        File(root, "renamed").mkdirs()
+        assertTrue(File(root, "wings/a.jpg").renameTo(File(root, "renamed/b.jpg")))
+
+        val loaded = BoardStore.load(root)
+        assertIs<BoardStore.LoadResult.Loaded>(loaded)
+        val image = loaded.board.items.filterIsInstance<ImageItem>().single()
+        assertEquals("renamed/b.jpg", image.path, "the card follows the file")
+        assertEquals("membrane folds", image.caption, "and keeps everything it knew")
+        assertEquals(listOf("wing", "anatomy"), image.tags)
+        assertEquals(listOf("g1"), image.groups)
+    }
+
+    @Test
+    fun aPictureThatIsReallyGoneStillDisappears() {
+        File(root, "wings").mkdirs()
+        File(root, "wings/a.jpg").writeText("content")
+        BoardStore.save(root, BoardStore.validate(sampleBoard(), root))
+        assertTrue(File(root, "wings/a.jpg").delete())
+
+        val loaded = BoardStore.load(root)
+        assertIs<BoardStore.LoadResult.Loaded>(loaded)
+        assertEquals(listOf("n1"), loaded.board.items.map { it.id }, "only the note is left")
     }
 
     @Test
@@ -108,7 +157,7 @@ class BoardStoreTest {
         BoardStore.save(root, board)
         val loaded = BoardStore.load(root)
         assertIs<BoardStore.LoadResult.Loaded>(loaded)
-        assertEquals(board, loaded.board)
+        assertEquals(board, loaded.board.withoutContentIds())
     }
 
     @Test

@@ -7,17 +7,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
+import androidx.compose.material.Checkbox
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.OutlinedTextField
@@ -32,10 +32,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.SessionPlans
+import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.NoteItem
+import de.creaflect.actiondraw.board.SessionRecipe
+import de.creaflect.actiondraw.ui.IntervalSelector
+import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
 import java.io.File
 
@@ -45,9 +51,9 @@ fun BoardDialogs(state: BoardState) {
     when (val editor = state.editor) {
         null -> {}
 
-        BoardEditor.PickBoard -> BoardPickerDialog(state)
-
         BoardEditor.NewBoard -> NewBoardDialog(state)
+
+        BoardEditor.EditSession -> SessionRecipeDialog(state)
 
         BoardEditor.NewGroup -> TextPromptDialog(
             title = "New group",
@@ -101,73 +107,76 @@ fun BoardDialogs(state: BoardState) {
 fun parseTags(text: String): Set<String> =
     text.split(',', ';').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
-/** The board list: every known board to click open, the boards home, New board… and Explore…. */
+/**
+ * How this board wants to be drawn. Saved in the sidecar, so "Drachenbuch is always 60 s in
+ * Notan" survives restarts and is applied to every session started from the board.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BoardPickerDialog(state: BoardState) {
-    val boards = remember(state.boardsHomeTick, state.recent) { state.availableBoards() }
-    DialogScrim(onDismiss = state::closeEditor) {
-        Text("Idea Boards", style = MaterialTheme.typography.h6)
+private fun SessionRecipeDialog(state: BoardState) {
+    val stored = state.recipe
+    var plan by remember { mutableStateOf(stored?.plan) }
+    var seconds by remember { mutableStateOf(stored?.intervalSeconds ?: 120) }
+    var auto by remember { mutableStateOf(stored?.autoAdvance ?: true) }
+    var view by remember { mutableStateOf(stored?.viewMode ?: ViewMode.NONE.name) }
+    var grid by remember { mutableStateOf(stored?.grid ?: GridMode.OFF.name) }
 
-        // Boards home: where new boards are created and boards are listed from.
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                "Home: ${state.boardsHome().path}",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
-                modifier = Modifier.weight(1f),
-            )
-            OutlinedButton(onClick = {
-                chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Boards home")
-                    ?.let { state.setBoardsHomeDir(it) }
-            }) { Text("Change…") }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Session for this board", style = MaterialTheme.typography.h6)
+        Text(
+            "Used whenever you draw from this board. Without one, the menu's settings apply.",
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+        )
+
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SelectChip("Fixed time", plan == null) { plan = null }
+            SessionPlans.ALL.forEach { p -> SelectChip(p.name, plan == p.name) { plan = p.name } }
+        }
+        if (plan == null) IntervalSelector(seconds = seconds, onChange = { seconds = it })
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = auto, onCheckedChange = { auto = it })
+            Text("Auto-advance", style = MaterialTheme.typography.body2)
         }
 
-        if (boards.isEmpty()) {
-            Text(
-                "No boards yet — create one, or explore for an existing board folder.",
-                style = MaterialTheme.typography.body2,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
-            )
-        } else {
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 300.dp)) {
-                items(boards, key = { it.second.absolutePath }) { (name, dir) ->
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { state.openBoard(dir) }
-                            .padding(vertical = 6.dp, horizontal = 4.dp),
-                    ) {
-                        Text(name, style = MaterialTheme.typography.subtitle1)
-                        Text(
-                            dir.path,
-                            style = MaterialTheme.typography.caption,
-                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f),
-                        )
-                    }
-                }
+        Text("View", style = MaterialTheme.typography.overline)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            ViewMode.entries.forEach { mode ->
+                SelectChip(mode.label(), view == mode.name) { view = mode.name }
             }
         }
 
-        if (state.openFailed) {
-            Text(
-                "Couldn't read that board file (and no usable backup).",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.error,
-            )
+        Text("Grid", style = MaterialTheme.typography.overline)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            GridMode.entries.forEach { mode ->
+                SelectChip(mode.name.lowercase().replaceFirstChar { it.uppercase() }, grid == mode.name) {
+                    grid = mode.name
+                }
+            }
         }
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            OutlinedButton(onClick = state::closeEditor) { Text("Cancel") }
-            OutlinedButton(onClick = {
-                chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Open board folder")
-                    ?.let(state::openBoard)
-            }) { Text("Explore…") }
-            Button(onClick = { state.openEditor(BoardEditor.NewBoard) }) { Text("New board…") }
+            OutlinedButton(onClick = { state.saveRecipe(null); state.closeEditor() }) { Text("Forget") }
+            OutlinedButton(onClick = { state.rememberCurrentSetup(); state.closeEditor() }) {
+                Text("Use current")
+            }
+            Button(onClick = {
+                state.saveRecipe(SessionRecipe(plan, seconds, auto, view, grid))
+                state.closeEditor()
+            }) { Text("Save") }
         }
     }
+}
+
+/** Short label for a view mode chip — the enum names read badly in a row of chips. */
+private fun ViewMode.label(): String = when (this) {
+    ViewMode.NONE -> "None"
+    ViewMode.GRAYSCALE -> "B&W"
+    else -> name.lowercase().replaceFirstChar { it.uppercase() }
 }
 
 @Composable
