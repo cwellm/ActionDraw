@@ -17,9 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
+import de.creaflect.actiondraw.Screen
 
 @Composable
 fun SummaryScreen(state: AppState) {
+    val fromBoard = state.sessionOrigin == Screen.Board
     Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -47,9 +49,11 @@ fun SummaryScreen(state: AppState) {
             Spacer(Modifier.height(12.dp))
 
             Button(onClick = { state.start() }) { Text("Go again") }
-            OutlinedButton(onClick = { state.backToMenu() }) { Text("Back to menu") }
+            OutlinedButton(onClick = { state.backToMenu() }) {
+                Text(if (fromBoard) "Back to board" else "Back to menu")
+            }
             Text(
-                "Enter or Esc → menu",
+                if (fromBoard) "Enter or Esc → board" else "Enter or Esc → menu",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
             )

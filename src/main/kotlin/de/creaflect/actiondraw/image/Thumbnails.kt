@@ -15,14 +15,18 @@ import kotlin.math.roundToInt
  * Call off the main thread; returns null for unreadable files.
  */
 object Thumbnails {
-    fun load(file: File, maxSize: Int = 192): ImageBitmap? = runCatching {
-        val img = Image.makeFromEncoded(file.readBytes())
+    fun load(file: File, maxSize: Int = 192): ImageBitmap? =
+        loadSkia(file, maxSize)?.toComposeImageBitmap()
+
+    /** Skia-level variant, so callers (the disk cache) can re-encode the downscaled result. */
+    fun loadSkia(file: File, maxSize: Int = 192): Image? = runCatching {
+        val img = ImageDecoder.decode(file) ?: return@runCatching null
         val scale = maxSize.toFloat() / max(img.width, img.height)
-        if (scale >= 1f) return@runCatching img.toComposeImageBitmap() // already small
+        if (scale >= 1f) return@runCatching img // already small
         val w = (img.width * scale).roundToInt().coerceAtLeast(1)
         val h = (img.height * scale).roundToInt().coerceAtLeast(1)
         val surface = Surface.makeRasterN32Premul(w, h)
         surface.canvas.drawImageRect(img, Rect.makeWH(w.toFloat(), h.toFloat()))
-        surface.makeImageSnapshot().toComposeImageBitmap()
+        surface.makeImageSnapshot()
     }.getOrNull()
 }

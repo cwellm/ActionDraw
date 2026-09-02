@@ -2,6 +2,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
     kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
     id("org.jetbrains.compose") version "1.7.3"
 }
@@ -17,6 +18,11 @@ repositories {
 
 dependencies {
     implementation(compose.desktop.currentOs)
+    // Idea-Board sidecar files (.actiondraw_board.json)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    // AVIF decoding: an ImageIO plugin (libavif/libdav1d JNI). Neither the JDK nor the bundled
+    // Skia can read AVIF; ImageDecoder falls back to ImageIO, so this is all that is needed.
+    implementation("io.github.nemanjastokuca:avif-imageio-native-reader:0.1.0")
     testImplementation(kotlin("test"))
 }
 

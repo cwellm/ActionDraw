@@ -27,6 +27,38 @@ class Settings(private val dir: File = defaultDir()) {
         write(props)
     }
 
+    // ---- Idea Boards ----
+
+    /** Default parent directory for newly created boards. Doesn't have to exist yet. */
+    fun boardsHome(): File = runCatching {
+        read().getProperty(KEY_BOARDS_HOME)?.takeIf { it.isNotBlank() }?.let(::File)
+    }.getOrNull() ?: File(System.getProperty("user.home") ?: ".", "ActionDraw Boards")
+
+    fun setBoardsHome(dir: File) {
+        val props = read()
+        props.setProperty(KEY_BOARDS_HOME, dir.absolutePath)
+        write(props)
+    }
+
+    /** Recently opened board folders, most recent first; vanished folders are filtered out. */
+    fun recentBoards(): List<File> = runCatching {
+        val props = read()
+        (0 until MAX_RECENT_BOARDS)
+            .mapNotNull { props.getProperty("$KEY_RECENT_BOARD.$it")?.takeIf { p -> p.isNotBlank() } }
+            .map(::File)
+            .filter { it.isDirectory }
+    }.getOrDefault(emptyList())
+
+    fun addRecentBoard(dir: File) {
+        val next = (listOf(dir.absoluteFile) +
+            recentBoards().filter { !it.absolutePath.equals(dir.absolutePath, ignoreCase = true) })
+            .take(MAX_RECENT_BOARDS)
+        val props = read()
+        (0 until MAX_RECENT_BOARDS).forEach { props.remove("$KEY_RECENT_BOARD.$it") }
+        next.forEachIndexed { i, f -> props.setProperty("$KEY_RECENT_BOARD.$i", f.absolutePath) }
+        write(props)
+    }
+
     private fun read(): Properties = Properties().also { props ->
         runCatching { file.takeIf { it.isFile }?.inputStream()?.use(props::load) }
     }
@@ -41,6 +73,9 @@ class Settings(private val dir: File = defaultDir()) {
     companion object {
         const val FILE_NAME = "settings.properties"
         private const val KEY_LAST_FOLDER = "lastFolder"
+        private const val KEY_BOARDS_HOME = "boardsHome"
+        private const val KEY_RECENT_BOARD = "recentBoard"
+        private const val MAX_RECENT_BOARDS = 5
 
         private fun defaultDir(): File =
             File(System.getProperty("user.home") ?: ".", ".actiondraw")

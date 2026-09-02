@@ -1,11 +1,15 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.image.ImageDecoder
 import de.creaflect.actiondraw.image.ImageScanner
+import de.creaflect.actiondraw.image.relKey
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ImageScannerTest {
     private val dir: File = Files.createTempDirectory("actiondraw-scan").toFile()
@@ -26,5 +30,53 @@ class ImageScannerTest {
 
         val names = ImageScanner.scan(dir).map { it.name }.toSet()
         assertEquals(setOf("a.jpg", "b.PNG"), names)
+    }
+
+    @Test
+    fun scanTreeFindsNestedImagesAndSkipsDotDirectories() {
+        File(dir, "a.jpg").writeText("x")
+        File(dir, "wings").apply { mkdir() }.let { File(it, "b.png").writeText("x") }
+        File(dir, "wings/deep").apply { mkdirs() }.let { File(it, "c.webp").writeText("x") }
+        File(dir, ".thumbs").apply { mkdir() }.let { File(it, "hidden.jpg").writeText("x") }
+        File(dir, "notes.txt").writeText("x")
+
+        val keys = ImageScanner.scanTree(dir).map { relKey(dir, it) }
+        assertEquals(listOf("a.jpg", "wings/b.png", "wings/deep/c.webp"), keys)
+    }
+
+    @Test
+    fun webpAndAvifAreRecognised() {
+        // Skia decodes WebP itself; AVIF comes from the bundled ImageIO plugin, which must stay
+        // on the runtime classpath for .avif files to be importable at all.
+        assertTrue("webp" in ImageScanner.IMAGE_EXTENSIONS)
+        assertTrue(ImageDecoder.imageIoCanRead("avif"), "the AVIF ImageIO plugin must be present")
+        assertTrue("avif" in ImageScanner.IMAGE_EXTENSIONS)
+    }
+
+    @Test
+    fun formatsWithoutAReaderAreNotAdvertised() {
+        // Anything plugin-only is listed exactly when a reader exists, so a board never shows a
+        // card whose picture cannot be drawn.
+        listOf("heic", "heif").forEach { ext ->
+            assertEquals(
+                ImageDecoder.imageIoCanRead(ext),
+                ext in ImageScanner.IMAGE_EXTENSIONS,
+                "$ext must be listed if and only if a reader exists",
+            )
+        }
+    }
+
+    @Test
+    fun unreadableFilesDecodeToNullInsteadOfThrowing() {
+        val bogus = File(dir, "broken.png").apply { writeText("not an image") }
+        assertNull(ImageDecoder.decode(bogus))
+    }
+
+    @Test
+    fun relKeyIsSlashSeparatedAndEqualsTheNameAtTopLevel() {
+        val top = File(dir, "a.jpg")
+        val nested = File(File(dir, "wings"), "b.png")
+        assertEquals("a.jpg", relKey(dir, top))
+        assertEquals("wings/b.png", relKey(dir, nested))
     }
 }
