@@ -20,7 +20,7 @@ object Thumbnails {
 
     /** Skia-level variant, so callers (the disk cache) can re-encode the downscaled result. */
     fun loadSkia(file: File, maxSize: Int = 192): Image? = runCatching {
-        val img = Image.makeFromEncoded(file.readBytes())
+        val img = ImageDecoder.decode(file) ?: return@runCatching null
         val scale = maxSize.toFloat() / max(img.width, img.height)
         if (scale >= 1f) return@runCatching img // already small
         val w = (img.width * scale).roundToInt().coerceAtLeast(1)

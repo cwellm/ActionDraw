@@ -81,6 +81,9 @@ still have an ordinary folder of images; the board never renames, moves or delet
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
 - **Note cards** (`N`), one-line **captions** (`F2`), **stars** (`S`) and **tags** (`T`) with an
   AND-filter chip bar.
+- **View large** (`Space`, or the View button): the selected pictures fill the screen. With more
+  than one it is a **carousel** — drag sideways, use the chevrons, the wheel, `←`/`→`, or click a
+  thumbnail in the filmstrip. With nothing selected it shows everything on the board.
 - **Reordering** via right-click or `Ctrl`+`↑`/`↓` (`+Shift` goes all the way): in Grid this is
   the position within the group, in Free the stacking order (send that note behind the photo).
 - **Themes** per board: **cork** (default), **papyrus**, **plain** — generated textures, no
@@ -121,13 +124,13 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `Ctrl`+`A` / `C` / `V` | select all · copy · paste |
 | `←` `→` `↑` `↓` | move focus (Grid) · nudge the selected card (Free) |
 | `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way) |
-| `Space` | quick-look (large preview) |
+| `Space` | view the selection large (carousel) |
 | `Enter` | draw the selection |
 | `N` / `G` | new note · new group |
 | `S` / `T` / `F2` | star · tags · caption |
 | `Del` | remove card from the board (the file stays) |
 | `F` | immersive mode |
-| `Esc` | leave immersive · close quick-look · close the board |
+| `Esc` | leave immersive · close the large view · close the board |
 
 In **Free** layout the mouse does the rest: drag a card to move it, drag the corner handle (or
 `Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag empty space to pan and
@@ -135,6 +138,25 @@ use the wheel to zoom.
 
 More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's design notes are in
 [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and planned work in [ROADMAP.md](ROADMAP.md).
+
+## Image formats
+
+JPEG, PNG, GIF, BMP and **WebP** work out of the box — the bundled Skia decodes them.
+
+**AVIF (and HEIC) need an ImageIO plugin**, which neither the JDK nor Skia provides. ActionDraw
+only advertises those formats when a reader is actually installed, so a board never shows a card
+whose picture cannot be drawn. To enable AVIF, put an AVIF ImageIO plugin on the runtime
+classpath — for example by adding to [build.gradle.kts](build.gradle.kts):
+
+```kotlin
+implementation("io.github.nemanjastokuca:avif-imageio-native-reader:0.1.0")
+```
+
+That artifact bundles libavif/libdav1d as prebuilt JNI binaries (~7 MB, x86-64 Windows/macOS/Linux).
+Verified to decode AVIF here, but note it is a young (0.1.0) third-party republication of
+[ustc-zzzz/avif-imageio-native-reader](https://github.com/ustc-zzzz/avif-imageio-native-reader) —
+worth a look before shipping it in an installer. No code change is needed either way:
+`ImageDecoder` falls back to ImageIO whenever Skia cannot read a file.
 
 ## Requirements
 - JDK 17 (a `JAVA_HOME` pointing at a JDK 17 install) — only for running from source and

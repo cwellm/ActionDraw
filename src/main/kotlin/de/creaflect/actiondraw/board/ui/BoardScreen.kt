@@ -1,11 +1,8 @@
 package de.creaflect.actiondraw.board.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,25 +39,18 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardThemes
-import de.creaflect.actiondraw.board.ImageItem
-import de.creaflect.actiondraw.image.ImageLoader
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseImages
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URI
 
@@ -130,9 +119,7 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                 }
                 if (!hideChrome) BoardActionBar(state)
             }
-            state.quickLookId
-                ?.let { state.item(it) as? ImageItem }
-                ?.let { QuickLook(state, it) }
+            if (state.viewerOpen) BoardViewer(state, thumbs)
         }
     }
 }
@@ -225,6 +212,10 @@ private fun BoardActionBar(state: BoardState) {
                 Button(onClick = { state.drawSelection() }, enabled = drawable > 0) {
                     Text("Draw selection ($drawable)")
                 }
+                val viewable = state.viewableIds.size
+                OutlinedButton(onClick = { state.openViewer() }, enabled = viewable > 0) {
+                    Text(if (state.selection.isEmpty()) "View all ($viewable)" else "View ($viewable)")
+                }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.NewGroup) }) { Text("New group") }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(null)) }) { Text("New note") }
                 OutlinedButton(onClick = {
@@ -255,47 +246,12 @@ private fun BoardActionBar(state: BoardState) {
             }
             Text(
                 "Click select · Ctrl/Shift multi · right-click menu · Ctrl+C/V copy/paste · Ctrl+↑/↓ reorder " +
-                    "(+Shift: all the way) · Space quick-look · Enter draw · N note · G group · S star · T tags · " +
+                    "(+Shift: all the way) · Space view large · Enter draw · N note · G group · S star · T tags · " +
                     "F2 caption · Del remove · F immersive",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
             )
         }
-    }
-}
-
-/** Large preview overlay (`Space`); ←/→ steps through the visible images. */
-@Composable
-private fun QuickLook(state: BoardState, item: ImageItem) {
-    val file = state.fileOf(item)
-    val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = file?.let { withContext(Dispatchers.IO) { runCatching { ImageLoader.load(it) }.getOrNull() } }
-    }
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Color(0xE6000000))
-            .clickable(remember { MutableInteractionSource() }, indication = null) { state.closeQuickLook() },
-        contentAlignment = Alignment.Center,
-    ) {
-        val bmp = bitmap
-        if (bmp != null) {
-            Image(
-                bitmap = bmp,
-                contentDescription = item.path,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize().padding(24.dp),
-            )
-        } else {
-            Text("Loading…", color = Color.White)
-        }
-        Text(
-            listOfNotNull(item.caption ?: file?.name, item.tags.takeIf { it.isNotEmpty() }?.joinToString(" ") { "#$it" })
-                .joinToString("   "),
-            color = Color.White.copy(alpha = 0.85f),
-            style = MaterialTheme.typography.body2,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
-        )
     }
 }

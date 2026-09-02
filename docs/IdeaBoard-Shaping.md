@@ -292,6 +292,16 @@ The first hands-on pass reshaped the entry points and pulled the freeform canvas
   grid-mode concept (and still feed "Draw group"); the tag filter applies in both modes.
 - **Grid mode** additionally got a "Move to ▾" dropdown in the action bar, so getting cards out
   of the Inbox no longer depends on discovering the right-click menu.
+- **Large view (round 1c)**: selecting cards and pressing `Space` (or *View*, or a card's *View
+  large*) opens a full-screen viewer over the selection — a carousel when there is more than one,
+  with drag-to-swipe, chevrons, wheel, arrow keys, a filmstrip and a counter. It wraps around, it
+  follows the tag filter, and with nothing selected it shows every picture on the board. This
+  replaces the single-image quick-look.
+- **Formats (round 1c)**: decoding moved behind `ImageDecoder` — Skia first (JPEG/PNG/GIF/BMP/
+  WebP), ImageIO as a fallback. AVIF and HEIC are only advertised by `ImageScanner` when an
+  ImageIO reader is actually installed, so the board never shows a card it cannot draw; adding an
+  AVIF plugin to the classpath is all that is needed to switch them on. The bundled Skia cannot
+  decode AVIF — verified against real files.
 - **Ordering (round 1b)**: the items array doubles as the grid's display order and the freeform
   z-order, and both are now controllable. Grid: *Move earlier/later* and *Move to group
   start/end* per card. Free: *Bring forward / Send backward / Bring to front / Send to back*

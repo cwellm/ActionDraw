@@ -26,11 +26,13 @@ fun handleBoardKey(
         }
         return false
     }
-    if (state.quickLookId != null) {
+    if (state.viewerOpen) {
         return when (event.key) {
-            Key.Escape, Key.Spacebar -> { state.closeQuickLook(); true }
-            Key.DirectionLeft -> { state.quickLookStep(-1); true }
-            Key.DirectionRight -> { state.quickLookStep(1); true }
+            Key.Escape, Key.Spacebar -> { state.closeViewer(); true }
+            Key.DirectionLeft, Key.DirectionUp -> { state.viewerStep(-1); true }
+            Key.DirectionRight, Key.DirectionDown -> { state.viewerStep(1); true }
+            Key.Home -> { state.viewerGoTo(0); true }
+            Key.MoveEnd -> { state.viewerGoTo(state.viewerIds.lastIndex); true }
             else -> false
         }
     }
@@ -74,7 +76,7 @@ fun handleBoardKey(
             true
         }
         Key.Enter -> { state.drawSelection(); true }
-        Key.Spacebar -> { state.toggleQuickLook(); true }
+        Key.Spacebar -> { state.toggleViewer(); true }
         Key.DirectionLeft -> { if (free) state.nudgeSelection(-10f, 0f) else state.moveFocus(-1); true }
         Key.DirectionRight -> { if (free) state.nudgeSelection(10f, 0f) else state.moveFocus(1); true }
         Key.DirectionUp -> { if (free) state.nudgeSelection(0f, -10f) else state.moveFocus(-1); true }

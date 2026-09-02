@@ -4,7 +4,18 @@ import java.io.File
 
 /** Collects the drawable images of a folder — flat for practice, recursive for Idea Boards. */
 object ImageScanner {
-    val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "bmp", "webp")
+    /** Formats the bundled Skia decodes on its own. */
+    private val BUILT_IN = setOf("jpg", "jpeg", "png", "gif", "bmp", "webp")
+
+    /**
+     * Formats that need an ImageIO plugin (neither the JDK nor Skia decodes them). They are only
+     * advertised when a reader is actually installed, so a board never shows a card whose picture
+     * can't be drawn. Add `io.github.nemanjastokuca:avif-imageio-native-reader` (or any other AVIF
+     * ImageIO plugin) to the runtime classpath and `.avif` files start working with no code change.
+     */
+    private val PLUGIN_ONLY = setOf("avif", "heic", "heif")
+
+    val IMAGE_EXTENSIONS: Set<String> = BUILT_IN + PLUGIN_ONLY.filter(ImageDecoder::imageIoCanRead)
 
     fun isImage(file: File): Boolean = file.isFile && file.extension.lowercase() in IMAGE_EXTENSIONS
 

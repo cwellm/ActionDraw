@@ -125,6 +125,14 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Image aspect ratio remembered in the sidecar for stable layout
 - ✅ "Move to ▾" dropdown in the action bar (Inbox → group discoverability in grid mode)
 
+### ✅ F2.6 Large view & formats (feedback round 1c)
+- ✅ Viewer: the selection shown big, as a swipeable carousel (drag, chevrons, wheel, `←`/`→`,
+  filmstrip, counter); nothing selected = everything on the board; replaces the old quick-look
+- ✅ Opened by `Space`, the *View* button, or a card's *View large* menu entry
+- ✅ Decoding goes through `ImageDecoder`: Skia first, ImageIO as fallback
+- ✅ AVIF/HEIC advertised only when an ImageIO reader is installed (no cards that cannot render)
+- ⬜ Decide whether to ship an AVIF plugin dependency (see README → Image formats)
+
 ### ✅ F2.5 Ordering (feedback round 1b)
 - ✅ Grid: reorder cards within a group — Move earlier/later, Move to group start/end (context menu; Ctrl+↑/↓, +Shift = start/end)
 - ✅ Free: z-order — Bring forward / Send backward / Bring to front / Send to back (context menu; Ctrl+↑/↓, +Shift = front/back)

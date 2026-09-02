@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.image.ImageDecoder
 import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.relKey
 import java.io.File
@@ -7,6 +8,8 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ImageScannerTest {
     private val dir: File = Files.createTempDirectory("actiondraw-scan").toFile()
@@ -39,6 +42,27 @@ class ImageScannerTest {
 
         val keys = ImageScanner.scanTree(dir).map { relKey(dir, it) }
         assertEquals(listOf("a.jpg", "wings/b.png", "wings/deep/c.webp"), keys)
+    }
+
+    @Test
+    fun webpIsAlwaysRecognisedAndPluginFormatsOnlyWithADecoder() {
+        // Skia decodes WebP itself, so it is always in.
+        assertTrue("webp" in ImageScanner.IMAGE_EXTENSIONS)
+        // AVIF/HEIC need an ImageIO plugin: advertised exactly when a reader is installed, so a
+        // board never shows a card whose picture cannot be drawn.
+        listOf("avif", "heic", "heif").forEach { ext ->
+            assertEquals(
+                ImageDecoder.imageIoCanRead(ext),
+                ext in ImageScanner.IMAGE_EXTENSIONS,
+                "$ext must be listed if and only if a reader exists",
+            )
+        }
+    }
+
+    @Test
+    fun unreadableFilesDecodeToNullInsteadOfThrowing() {
+        val bogus = File(dir, "broken.png").apply { writeText("not an image") }
+        assertNull(ImageDecoder.decode(bogus))
     }
 
     @Test

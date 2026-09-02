@@ -313,6 +313,96 @@ class BoardStateTest {
         assertEquals(listOf(ids[0], ids[1], ids[2]), state.itemsIn(null).map { it.id })
     }
 
+    /** Board with three pictures a.jpg/b.jpg/c.jpg, returned with their ids in display order. */
+    private fun boardWithThreeImages(state: BoardState): List<String> {
+        state.createBoard(home, "Test")
+        val root = state.root!!
+        val files = listOf("a.jpg", "b.jpg", "c.jpg").map { File(root, it).apply { createNewFile() } }
+        state.importExternal(files)
+        state.clearSelection()
+        return state.board!!.items.map { it.id }
+    }
+
+    @Test
+    fun viewerShowsTheSelectionStartingAtTheClickedPicture() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[2], ctrl = true, shift = false) // selection = a + c
+
+        state.openViewer(ids[2])
+        assertEquals(listOf(ids[0], ids[2]), state.viewerIds, "only the selected pictures")
+        assertEquals(1, state.viewerIndex, "opens on the picture that was clicked")
+        assertTrue(state.viewerOpen)
+    }
+
+    @Test
+    fun viewerWithoutASelectionShowsEverythingOnScreen() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.openViewer()
+        assertEquals(ids, state.viewerIds)
+    }
+
+    @Test
+    fun viewerCarouselWrapsAroundInBothDirections() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.openViewer(ids[0])
+
+        state.viewerStep(-1)
+        assertEquals(2, state.viewerIndex, "stepping back from the first wraps to the last")
+        state.viewerStep(1)
+        assertEquals(0, state.viewerIndex, "and forward from the last wraps to the first")
+        assertEquals(ids[0], state.focusId, "the board follows the carousel")
+    }
+
+    @Test
+    fun viewerNotesAreNeverIncluded() {
+        val state = newState()
+        boardWithThreeImages(state)
+        state.saveNote(null, "just a note")
+        state.clearSelection()
+
+        state.openViewer()
+        assertEquals(3, state.viewerIds.size)
+        assertTrue(state.viewerIds.all { state.item(it) is ImageItem })
+    }
+
+    @Test
+    fun removingTheViewedCardKeepsTheViewerConsistent() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.openViewer(ids[2])
+        assertEquals(2, state.viewerIndex)
+
+        state.removeItems(setOf(ids[2]))
+        assertEquals(listOf(ids[0], ids[1]), state.viewerIds)
+        assertEquals(1, state.viewerIndex, "index clamps into the shortened carousel")
+        assertTrue(state.viewerItem != null)
+    }
+
+    @Test
+    fun viewerRespectsTheTagFilter() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.applyTags(setOf(ids[1]), before = emptySet(), after = setOf("wing"))
+        state.toggleFilterTag("wing")
+
+        state.openViewer()
+        assertEquals(listOf(ids[1]), state.viewerIds, "hidden pictures stay out of the carousel")
+    }
+
+    @Test
+    fun closingTheViewerLeavesNothingBehind() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.openViewer(ids[1])
+        state.closeViewer()
+        assertTrue(!state.viewerOpen && state.viewerIds.isEmpty())
+        assertEquals(0, state.viewerIndex)
+    }
+
     @Test
     fun availableBoardsListsTheHomeAndRecentOnes() {
         val state = newState()

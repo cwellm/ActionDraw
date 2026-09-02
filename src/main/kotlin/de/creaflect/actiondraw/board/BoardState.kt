@@ -63,7 +63,12 @@ class BoardState(
     var filterTags by mutableStateOf<Set<String>>(emptySet())
         private set
 
-    var quickLookId by mutableStateOf<String?>(null)
+    /** Pictures the large viewer is showing (ids, in display order); empty = the viewer is closed. */
+    var viewerIds by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    /** Position within [viewerIds]. */
+    var viewerIndex by mutableStateOf(0)
         private set
 
     var editor by mutableStateOf<BoardEditor?>(null)
@@ -148,6 +153,20 @@ class BoardState(
     val freeItems: List<BoardItem>
         get() = board?.items.orEmpty().filter(::visible)
 
+    /** Whatever the current layout puts on screen, in the order it shows it. */
+    private val displayItems: List<BoardItem>
+        get() = if (layout == BoardLayouts.FREE) freeItems else visibleOrder
+
+    /**
+     * What the large viewer would show right now: the selected pictures, or — with nothing
+     * selected — every picture currently on screen. Always in display order.
+     */
+    val viewableIds: List<String>
+        get() {
+            val shown = displayItems.filterIsInstance<ImageItem>()
+            return (shown.filter { it.id in selection }.ifEmpty { shown }).map { it.id }
+        }
+
     fun item(id: String): BoardItem? = board?.items?.find { it.id == id }
 
     fun fileOf(item: ImageItem): File? = root?.let { File(it, item.path) }
@@ -212,7 +231,7 @@ class BoardState(
         selection = emptySet()
         focusId = null
         filterTags = emptySet()
-        quickLookId = null
+        closeViewer()
         editor = null
         immersive = false
         val camera = board?.camera ?: Camera()
@@ -231,7 +250,7 @@ class BoardState(
         board = null
         selection = emptySet()
         focusId = null
-        quickLookId = null
+        closeViewer()
         editor = null
         immersive = false
         host.leaveBoard()
@@ -365,6 +384,11 @@ class BoardState(
         update { b -> b.copy(items = b.items.filterNot { it.id in ids }) }
         selection = selection - ids
         if (focusId?.let { it in ids } == true) focusId = null
+        // Keep the viewer honest when a card it is showing disappears.
+        if (viewerOpen) {
+            viewerIds = viewerIds - ids
+            viewerIndex = viewerIndex.coerceIn(0, (viewerIds.size - 1).coerceAtLeast(0))
+        }
     }
 
     // ---- Selection & focus ----
@@ -565,26 +589,47 @@ class BoardState(
         commitCamera()
     }
 
-    // ---- Quick look ----
+    // ---- Large viewer (carousel) ----
 
-    fun toggleQuickLook() {
-        quickLookId = if (quickLookId != null) null
-        else (focusId?.let(::item) as? ImageItem)?.id
-            ?: selectedItems.filterIsInstance<ImageItem>().firstOrNull()?.id
-            ?: visibleOrder.filterIsInstance<ImageItem>().firstOrNull()?.id
+    val viewerOpen: Boolean get() = viewerIds.isNotEmpty()
+
+    fun viewerItemAt(index: Int): ImageItem? = viewerIds.getOrNull(index)?.let { item(it) as? ImageItem }
+
+    val viewerItem: ImageItem? get() = viewerItemAt(viewerIndex)
+
+    /**
+     * Opens the large view over [viewableIds], starting at [startId] — or at the focused card
+     * when it is part of them, else at the first one. Does nothing when there is no picture.
+     */
+    fun openViewer(startId: String? = null) {
+        val ids = viewableIds
+        if (ids.isEmpty()) return
+        val start = startId?.takeIf { it in ids } ?: focusId?.takeIf { it in ids } ?: ids.first()
+        viewerIds = ids
+        viewerIndex = ids.indexOf(start)
     }
 
-    fun closeQuickLook() {
-        quickLookId = null
+    fun toggleViewer() {
+        if (viewerOpen) closeViewer() else openViewer()
     }
 
-    fun quickLookStep(delta: Int) {
-        val images = visibleOrder.filterIsInstance<ImageItem>()
-        if (images.isEmpty()) return
-        val idx = images.indexOfFirst { it.id == quickLookId }
-        val next = if (idx < 0) 0 else (idx + delta).coerceIn(images.indices)
-        quickLookId = images[next].id
-        focusId = images[next].id
+    fun closeViewer() {
+        viewerIds = emptyList()
+        viewerIndex = 0
+    }
+
+    /** Carousel step; wraps around so flipping never dead-ends. */
+    fun viewerStep(delta: Int) {
+        val n = viewerIds.size
+        if (n == 0) return
+        viewerIndex = ((viewerIndex + delta) % n + n) % n
+        focusId = viewerIds[viewerIndex]
+    }
+
+    fun viewerGoTo(index: Int) {
+        if (index !in viewerIds.indices) return
+        viewerIndex = index
+        focusId = viewerIds[index]
     }
 
     // ---- Material in / out / draw ----

@@ -76,6 +76,7 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
     val menu = mutableListOf<ContextMenuItem>()
     when (item) {
         is ImageItem -> {
+            menu += ContextMenuItem("View large") { state.openViewer(item.id) }
             menu += ContextMenuItem("Caption…") { state.openEditor(BoardEditor.EditCaption(item.id)) }
             menu += ContextMenuItem("Tags…") { state.openEditor(BoardEditor.EditTags(ids)) }
             menu += ContextMenuItem(if (item.starred) "Unstar" else "Star") { state.toggleStar(ids) }
