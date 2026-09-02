@@ -18,7 +18,7 @@ import de.creaflect.actiondraw.board.BoardState
 @Composable
 fun RowScope.BoardMenuButton(state: BoardState) {
     Button(
-        onClick = { state.openEditor(BoardEditor.PickBoard) },
+        onClick = { state.openBoardList() },
         modifier = Modifier.weight(1f).height(56.dp),
     ) {
         Text("Boards", style = MaterialTheme.typography.h6)

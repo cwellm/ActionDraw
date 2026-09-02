@@ -290,11 +290,12 @@ class AppState(private val settings: Settings = Settings()) {
      * seen/redo state lives in [root]. It opens in its own window (the board stays visible in
      * the main one); practice state is snapshotted and restored when that window closes.
      */
-    fun startBoardSession(root: File, images: List<File>) {
+    fun startBoardSession(root: File, images: List<File>, setup: SessionSetup? = null) {
         if (images.isEmpty()) return
         if (sessionOrigin != Screen.Board) {
             practiceSnapshot = Triple(folder, allImages, selection)
         }
+        setup?.let { apply(it) }
         sessionOrigin = Screen.Board
         boardSession = root to images
         folder = root // deliberately not persisted: the remembered practice folder stays untouched
@@ -305,6 +306,29 @@ class AppState(private val settings: Settings = Settings()) {
         beginSession()
         boardWindowScreen = Screen.Session
     }
+
+    /** Takes over a board's remembered session settings for the run that is about to start. */
+    private fun apply(setup: SessionSetup) {
+        rampPlan = setup.plan
+        intervalSeconds = setup.intervalSeconds
+        autoAdvance = setup.autoAdvance
+        viewMode = setup.viewMode
+        gridMode = setup.gridMode
+    }
+
+    /** The current settings, so a board can remember exactly what is on screen. */
+    fun currentSetup(): SessionSetup =
+        SessionSetup(rampPlan, intervalSeconds, autoAdvance, viewMode, gridMode)
+
+    /** Files of this session's pool that are flagged for redo — what the summary offers to pin. */
+    val sessionFlaggedFiles: List<File>
+        get() {
+            redoTick
+            return pool.filter { key(it) in redo }
+        }
+
+    /** Result of the last pin from a session, shown briefly in the session/summary chrome. */
+    var pinNotice by mutableStateOf<String?>(null)
 
     private fun beginSession() {
         rebuildPool()
@@ -383,6 +407,10 @@ class AppState(private val settings: Settings = Settings()) {
     }
 
     // ---- Board navigation (wired by the app shell; the practice side stays board-agnostic) ----
+
+    fun showBoardList() {
+        screen = Screen.BoardList
+    }
 
     fun showBoard() {
         screen = Screen.Board

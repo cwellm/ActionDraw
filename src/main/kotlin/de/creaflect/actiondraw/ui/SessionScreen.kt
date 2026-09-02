@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Slider
@@ -26,8 +28,10 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -40,6 +44,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
+import de.creaflect.actiondraw.PinTargets
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.image.ImageLoader
@@ -53,7 +58,12 @@ import kotlin.math.roundToInt
 private val LowTimeColor = Color(0xFFEF5350)
 
 @Composable
-fun SessionScreen(state: AppState, onToggleFullscreen: () -> Unit, isFullscreen: Boolean) {
+fun SessionScreen(
+    state: AppState,
+    onToggleFullscreen: () -> Unit,
+    isFullscreen: Boolean,
+    pinTargets: PinTargets? = null,
+) {
     // Per-second countdown. Restarts on navigation (index/pose) and suspends while paused.
     LaunchedEffect(state.index, state.rampPose, state.isPaused) {
         while (!state.isPaused) {
@@ -89,7 +99,32 @@ fun SessionScreen(state: AppState, onToggleFullscreen: () -> Unit, isFullscreen:
     } else {
         Column(Modifier.fillMaxSize()) {
             ImageArea(state, bitmap, current, Modifier.weight(1f).fillMaxWidth())
-            ControlBar(state, onToggleFullscreen)
+            ControlBar(state, onToggleFullscreen, pinTargets)
+        }
+    }
+}
+
+/**
+ * "Pin ▾" — files the picture on screen away on an Idea Board. The session itself knows nothing
+ * about boards; [PinTargets] supplies both the list and the action.
+ */
+@Composable
+private fun PinMenu(state: AppState, pinTargets: PinTargets) {
+    var open by remember { mutableStateOf(false) }
+    val current = state.currentImage
+    Box {
+        Button(onClick = { open = true }, enabled = current != null) { Text("Pin ▾") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            val boards = pinTargets.boards()
+            if (boards.isEmpty()) {
+                DropdownMenuItem(onClick = { open = false }) { Text("No boards yet") }
+            }
+            boards.forEach { (name, dir) ->
+                DropdownMenuItem(onClick = {
+                    open = false
+                    current?.let { state.pinNotice = pinTargets.pin(dir, listOf(it)) }
+                }) { Text(name) }
+            }
         }
     }
 }
@@ -180,7 +215,7 @@ private fun ProportionOverlay(bitmap: ImageBitmap, mode: GridMode, modifier: Mod
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
+private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTargets: PinTargets?) {
     Surface(elevation = 8.dp) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
             val low = state.remainingSeconds <= 5
@@ -224,6 +259,17 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit) {
                 Button(onClick = { state.next() }) { Text("Next ▶") }
                 Spacer(Modifier.width(16.dp))
                 Button(onClick = onToggleFullscreen) { Text("Fullscreen") }
+                pinTargets?.let { PinMenu(state, it) }
+            }
+
+            // What the last pin did, until the next one.
+            state.pinNotice?.let { notice ->
+                Text(
+                    notice,
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.secondary,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                )
             }
 
             Spacer(Modifier.height(8.dp))

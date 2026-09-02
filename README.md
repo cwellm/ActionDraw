@@ -59,8 +59,9 @@ board knows lives in one file next to the pictures — `.actiondraw_board.json`.
 still have an ordinary folder of images; the board never renames, moves or deletes your files.
 
 ### Getting started
-- The menu offers **Draw** and **Boards** as equal entry points. **Boards** opens the board
-  picker: your existing boards, **New board…**, and **Explore…** for a board folder elsewhere.
+- The menu offers **Draw** and **Boards** as equal entry points. **Boards** opens the board list:
+  a tile per board with its cover picture, counts and path, plus **New board…** and **Explore…**
+  for a board folder elsewhere.
 - New boards are created under the **boards home** (`~/ActionDraw Boards` by default), which the
   picker lets you change.
 - Boards are made first and filled afterwards: a card exists because you put it there, never
@@ -80,7 +81,9 @@ still have an ordinary folder of images; the board never renames, moves or delet
     colour accents and per-group ordering.
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
 - **Note cards** (`N`), one-line **captions** (`F2`), **stars** (`S`) and **tags** (`T`) with an
-  AND-filter chip bar.
+  AND-filter chip bar, and a **search box** that matches file names, captions, tags and note text.
+- **Reorder by dragging** a card onto another within its group, or with the menu and keyboard
+  below.
 - **View large** (`Space`, or the View button): the selected pictures fill the screen. With more
   than one it is a **carousel** — drag sideways, use the chevrons, the wheel, `←`/`→`, or click a
   thumbnail in the filmstrip. With nothing selected it shows everything on the board.
@@ -94,9 +97,19 @@ still have an ordinary folder of images; the board never renames, moves or delet
 ### Drawing from a board
 - **Draw selection** (`Enter`) or a group's **Draw** button starts an ordinary practice session
   with exactly those pictures — every filter, ramp and grid applies as usual.
+- **Practice badges** mark what you have drawn (`✓`) and what you flagged to redo (`⟳`), and two
+  **smart sections** — *⟳ Redo* and *Never drawn* — sit above the groups with their own Draw
+  buttons. They are views: a card stays in its own group.
+- A **session recipe** per board ("Drachenbuch is always 60 s in Notan") remembers interval or
+  ramp, auto-advance, view mode and grid, and applies to every session started from that board.
+  Without one, the menu's settings are used.
+- **Pin ▾** during any session files the picture on screen onto a board; the summary offers to pin
+  the pictures you flagged for redo.
 - Board sessions open in **their own window**: the board stays visible behind them, closing the
   window aborts the drawing, and the summary offers **Back to board**.
 - Seen/redo state for a board lives in the board folder, keyed by relative path.
+- Cards remember their picture by content as well as by path, so renaming or moving a file
+  outside the app keeps its caption, tags, group and position.
 
 ## Keyboard shortcuts
 
@@ -123,7 +136,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | click · `Ctrl`+click · `Shift`+click | select · toggle · range |
 | `Ctrl`+`A` / `C` / `V` | select all · copy · paste |
 | `←` `→` `↑` `↓` | move focus (Grid) · nudge the selected card (Free) |
-| `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way) |
+| `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way); drag a card for free placing |
 | `Space` | view the selection large (carousel) |
 | `Enter` | draw the selection |
 | `N` / `G` | new note · new group |
