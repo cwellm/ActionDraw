@@ -3,11 +3,13 @@ package de.creaflect.actiondraw.board.ui
 import androidx.compose.foundation.ContextMenuArea
 import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,14 +32,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -47,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
@@ -64,21 +70,49 @@ import kotlin.math.sin
 @Composable
 fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifier: Modifier) {
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
+    var shiftHeld by remember { mutableStateOf(false) }
 
     Box(
         modifier
             .clipToBounds()
             .onSizeChanged { viewSize = it }
             .pointerInput(state) {
+                // Plain drag pans the board; Shift+drag pulls a rubber band over the cards.
+                var marqueeing = false
                 detectDragGestures(
+                    onDragStart = { start ->
+                        marqueeing = shiftHeld
+                        if (marqueeing) {
+                            val (bx, by) = boardPoint(start, viewSize, state)
+                            state.startMarquee(bx, by)
+                        }
+                    },
                     onDrag = { change, drag ->
                         change.consume()
-                        state.pan(-drag.x / state.zoom, -drag.y / state.zoom)
+                        if (marqueeing) {
+                            val (bx, by) = boardPoint(change.position, viewSize, state)
+                            state.updateMarquee(bx, by)
+                        } else {
+                            state.pan(-drag.x / state.zoom, -drag.y / state.zoom)
+                        }
                     },
-                    onDragEnd = { state.commitCamera() },
+                    onDragEnd = {
+                        if (marqueeing) state.commitMarquee() else state.commitCamera()
+                        marqueeing = false
+                    },
+                    onDragCancel = {
+                        if (marqueeing) state.cancelMarquee() else state.commitCamera()
+                        marqueeing = false
+                    },
                 )
             }
             .pointerInput(state) { detectTapGestures(onTap = { state.clearSelection() }) }
+            .onPointerEvent(PointerEventType.Move) { event ->
+                shiftHeld = event.keyboardModifiers.isShiftPressed
+            }
+            .onPointerEvent(PointerEventType.Press) { event ->
+                shiftHeld = event.keyboardModifiers.isShiftPressed
+            }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
                 val delta = change.scrollDelta.y
@@ -114,6 +148,32 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
     ) {
         state.freeItems.forEach { item ->
             key(item.id) { CanvasItem(state, thumbs, item, textured, viewSize) }
+        }
+
+        // Alignment guides and the rubber band, drawn over the cards.
+        Canvas(Modifier.fillMaxSize()) {
+            val guideColor = Color(0x99FFB74D)
+            state.snapGuideX?.let { gx ->
+                val x = (gx - state.camX) * state.zoom + size.width / 2
+                drawLine(guideColor, Offset(x, 0f), Offset(x, size.height), 1f)
+            }
+            state.snapGuideY?.let { gy ->
+                val y = (gy - state.camY) * state.zoom + size.height / 2
+                drawLine(guideColor, Offset(0f, y), Offset(size.width, y), 1f)
+            }
+            state.marquee?.let { rect ->
+                val x1 = (minOf(rect[0], rect[2]) - state.camX) * state.zoom + size.width / 2
+                val x2 = (maxOf(rect[0], rect[2]) - state.camX) * state.zoom + size.width / 2
+                val y1 = (minOf(rect[1], rect[3]) - state.camY) * state.zoom + size.height / 2
+                val y2 = (maxOf(rect[1], rect[3]) - state.camY) * state.zoom + size.height / 2
+                drawRect(Color(0x2280CBC4), topLeft = Offset(x1, y1), size = Size(x2 - x1, y2 - y1))
+                drawRect(
+                    Color(0xCC80CBC4),
+                    topLeft = Offset(x1, y1),
+                    size = Size(x2 - x1, y2 - y1),
+                    style = Stroke(1f),
+                )
+            }
         }
 
         if (state.freeItems.isEmpty()) {
@@ -181,14 +241,23 @@ private fun CanvasItem(
                             val wx = drag.x * cos(rad).toFloat() - drag.y * sin(rad).toFloat()
                             val wy = drag.x * sin(rad).toFloat() + drag.y * cos(rad).toFloat()
                             state.dragBy(item.id, wx / state.zoom, wy / state.zoom)
+                            // Line the card up with its neighbours while it moves.
+                            state.item(item.id)?.pos?.let { moved ->
+                                val (sx, sy) = state.snapPosition(item.id, moved.x, moved.y, 10f / state.zoom)
+                                if (sx != moved.x || sy != moved.y) {
+                                    state.dragBy(item.id, sx - moved.x, sy - moved.y)
+                                }
+                            }
                         },
-                        onDragEnd = { state.commitLayout() },
+                        onDragEnd = { state.clearSnapGuides(); state.commitLayout() },
+                        onDragCancel = { state.clearSnapGuides() },
                     )
                 },
         ) {
             when (item) {
                 is ImageItem -> CanvasImage(state, thumbs, item, textured)
                 is NoteItem -> CanvasNote(state, item, textured)
+                is LinkItem -> CanvasLink(state, item, textured)
             }
             if (singleSelected) {
                 RotateHandle(state, item.id, Modifier.align(Alignment.TopCenter))
@@ -293,4 +362,32 @@ private fun ScaleHandle(state: BoardState, id: String, modifier: Modifier) {
                 )
             },
     )
+}
+
+/** Screen point -> board point, for the marquee. */
+private fun boardPoint(point: Offset, viewSize: IntSize, state: BoardState): Pair<Float, Float> =
+    ((point.x - viewSize.width / 2f) / state.zoom + state.camX) to
+        ((point.y - viewSize.height / 2f) / state.zoom + state.camY)
+
+/** A link card on the canvas — the same look as in the grid, sized to its cell. */
+@Composable
+private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
+    val shape = RoundedCornerShape(3.dp)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .shadow(if (textured) 4.dp else 1.dp, shape)
+            .clip(shape)
+            .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
+            .border(2.dp, selectionBorder(state, item.id), shape)
+            .padding(8.dp),
+    ) {
+        Text("\uD83D\uDD17", style = MaterialTheme.typography.body1)
+        Text(
+            item.title.ifBlank { item.url },
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.onSurface,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }

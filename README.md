@@ -80,8 +80,13 @@ still have an ordinary folder of images; the board never renames, moves or delet
   - **Grid** — cards in collapsible group sections (unassigned cards sit in the **Inbox**), with
     colour accents and per-group ordering.
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
-- **Note cards** (`N`), one-line **captions** (`F2`), **stars** (`S`) and **tags** (`T`) with an
-  AND-filter chip bar, and a **search box** that matches file names, captions, tags and note text.
+    `Shift`+drag pulls a rubber band over several cards, and dragged cards snap to their
+    neighbours' centre lines (toggle with the **Snap** chip).
+- **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
+  **link cards** (`L`) that open in your browser; one-line **captions** (`F2`), **stars** (`S`)
+  and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
+  captions, tags, note text and link addresses.
+- **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Reorder by dragging** a card onto another within its group, or with the menu and keyboard
   below.
 - **View large** (`Space`, or the View button): the selected pictures fill the screen. With more
@@ -93,6 +98,11 @@ still have an ordinary folder of images; the board never renames, moves or delet
   bundled assets.
 - **Immersive** (`F` or ⛶): fullscreen with all chrome hidden, for browsing on a second monitor.
   Whenever the window is not fullscreen, every menu stays visible.
+- **Float strip**: a small always-on-top window showing the selection — one picture big with a
+  filmstrip underneath — so a reference stays visible while you paint in another program.
+- **Contact sheet…**: renders the selection (or the whole board) as one printable PNG.
+- New boards can start from a **template** (Creature design, Character sheet, Environment,
+  Anatomy practice) instead of empty.
 
 ### Drawing from a board
 - **Draw selection** (`Enter`) or a group's **Draw** button starts an ordinary practice session
@@ -139,15 +149,16 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way); drag a card for free placing |
 | `Space` | view the selection large (carousel) |
 | `Enter` | draw the selection |
-| `N` / `G` | new note · new group |
-| `S` / `T` / `F2` | star · tags · caption |
+| `N` / `L` / `G` | new note · new link · new group |
+| `S` / `T` / `P` / `F2` | star · tags · palette · caption |
 | `Del` | remove card from the board (the file stays) |
 | `F` | immersive mode |
 | `Esc` | leave immersive · close the large view · close the board |
 
 In **Free** layout the mouse does the rest: drag a card to move it, drag the corner handle (or
-`Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag empty space to pan and
-use the wheel to zoom.
+`Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag empty space to pan,
+`Shift`+drag it to rubber-band a selection, and use the wheel to zoom. In **Grid** layout a card
+can be dragged onto another to reorder it, or onto a group header to file it there.
 
 More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's design notes are in
 [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and planned work in [ROADMAP.md](ROADMAP.md).

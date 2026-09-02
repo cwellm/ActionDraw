@@ -13,6 +13,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Behavioural tests for BoardState against real temp folders, with a recording fake host. */
@@ -558,6 +559,125 @@ class BoardStateTest {
         val state = newState()
         state.openBoardList()
         assertEquals(1, host.listShown)
+    }
+
+    // ---- M3: links, note styling, templates, marquee, snapping, strip ----
+
+    @Test
+    fun aTemplateGivesANewBoardItsStarterGroups() {
+        val state = newState()
+        val creature = BoardTemplate.ALL.first { it.name == "Creature design" }
+        state.createBoard(home, "Drachen", creature)
+        assertEquals(creature.groups, state.sortedGroups.map { it.name })
+    }
+
+    @Test
+    fun linkCardsAreStoredSearchableAndEditable() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveLink(null, "https://example.com/wings", "Bat wings")
+        val link = state.board!!.items.filterIsInstance<LinkItem>().single()
+        assertEquals("https://example.com/wings", link.url)
+
+        state.search("bat")
+        assertEquals(listOf(link.id), state.visibleOrder.map { it.id }, "matches the title")
+        state.search("example.com")
+        assertEquals(listOf(link.id), state.visibleOrder.map { it.id }, "matches the address")
+        state.clearFilter()
+
+        state.saveLink(link.id, "https://example.com/other", "Other")
+        assertEquals("Other", (state.item(link.id) as LinkItem).title)
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        assertEquals(1, reopened.board!!.items.filterIsInstance<LinkItem>().size)
+    }
+
+    @Test
+    fun aLinkWithoutAnAddressIsNotCreated() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveLink(null, "   ", "nothing")
+        assertTrue(state.board!!.items.isEmpty())
+    }
+
+    @Test
+    fun notesRememberTheirPaperColourAndHeading() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveNote(null, "Wings **from behind**")
+        val id = state.board!!.items.single().id
+
+        state.setNoteColor(id, "#FFE082")
+        state.toggleNoteHeading(id)
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        val note = reopened.board!!.items.filterIsInstance<NoteItem>().single()
+        assertEquals("#FFE082", note.color)
+        assertTrue(note.heading)
+        assertEquals("Wings **from behind**", note.text, "the markers stay in the file")
+    }
+
+    @Test
+    fun theMarqueeSelectsEveryCardItTouches() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        val positions = state.board!!.items.associate { it.id to it.pos!! }
+
+        // A band around the first two cards only.
+        val first = positions.getValue(ids[0])
+        val second = positions.getValue(ids[1])
+        state.startMarquee(first.x - 10f, first.y - 10f)
+        state.updateMarquee(second.x + 10f, second.y + 10f)
+        state.commitMarquee()
+
+        assertEquals(setOf(ids[0], ids[1]), state.selection)
+        assertNull(state.marquee, "the band disappears once it has selected")
+    }
+
+    @Test
+    fun snappingLinesACardUpWithItsNeighbourAndCanBeTurnedOff() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.clearSelection()
+        val anchor = state.board!!.items.first { it.id == ids[0] }.pos!!
+
+        // Almost aligned: snapping should pull it onto the neighbour's centre line.
+        val (x, y) = state.snapPosition(ids[1], anchor.x + 4f, anchor.y + 400f, threshold = 10f)
+        assertEquals(anchor.x, x, "x snapped to the neighbour")
+        assertEquals(anchor.y + 400f, y, "y was too far to snap")
+        assertEquals(anchor.x, state.snapGuideX, "and a guide is drawn where it snapped")
+
+        state.snapping = false
+        val (freeX, _) = state.snapPosition(ids[1], anchor.x + 4f, anchor.y + 400f, threshold = 10f)
+        assertEquals(anchor.x + 4f, freeX, "with snapping off the card goes where it is dragged")
+        assertNull(state.snapGuideX)
+    }
+
+    @Test
+    fun theFloatingStripFollowsTheSelectionAndWrapsAround() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+
+        state.openStrip()
+        assertTrue(state.stripOpen)
+        assertEquals(listOf(ids[0], ids[1]), state.stripIds, "only the selected pictures")
+        assertEquals(1, state.stripIndex, "opens on the card that has focus")
+
+        state.stripStep(-1)
+        assertEquals(0, state.stripIndex)
+        state.stripStep(-1)
+        assertEquals(1, state.stripIndex, "stepping back from the first wraps to the last")
+        state.stripGoTo(ids[0])
+        assertEquals(0, state.stripIndex)
+
+        state.closeStrip()
+        assertFalse(state.stripOpen)
     }
 
     @Test

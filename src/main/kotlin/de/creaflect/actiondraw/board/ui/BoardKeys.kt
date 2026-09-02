@@ -9,6 +9,7 @@ import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 
 /** Board-screen shortcuts, wired from the window-level key handler in Main. */
@@ -82,6 +83,12 @@ fun handleBoardKey(
         Key.DirectionUp -> { if (free) state.nudgeSelection(0f, -10f) else state.moveFocus(-1); true }
         Key.DirectionDown -> { if (free) state.nudgeSelection(0f, 10f) else state.moveFocus(1); true }
         Key.N -> { state.openEditor(BoardEditor.EditNote(null)); true }
+        Key.L -> { state.openEditor(BoardEditor.EditLink(null)); true }
+        Key.P -> {
+            val ids = state.selection.ifEmpty { setOfNotNull(state.focusId) }
+            if (ids.isNotEmpty()) state.openEditor(BoardEditor.ShowPalette(ids))
+            true
+        }
         Key.G -> { state.openEditor(BoardEditor.NewGroup); true }
         Key.S -> { state.toggleStar(state.selection); true }
         Key.T -> {
@@ -93,6 +100,7 @@ fun handleBoardKey(
             when (val focused = state.focusId?.let(state::item)) {
                 is ImageItem -> state.openEditor(BoardEditor.EditCaption(focused.id))
                 is NoteItem -> state.openEditor(BoardEditor.EditNote(focused.id))
+                is LinkItem -> state.openEditor(BoardEditor.EditLink(focused.id))
                 null -> {}
             }
             true

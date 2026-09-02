@@ -18,6 +18,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.ui.ReferenceStrip
 import de.creaflect.actiondraw.board.ui.handleBoardKey
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.SessionScreen
@@ -72,6 +73,22 @@ fun main() = application {
                 windowState.placement = if (on) WindowPlacement.Fullscreen else WindowPlacement.Floating
             },
         )
+    }
+
+    // The reference strip floats above every other application, so a board can sit in the corner
+    // of the screen while you paint somewhere else.
+    if (boardState.stripOpen) {
+        val stripState = rememberWindowState(size = DpSize(360.dp, 520.dp))
+        Window(
+            onCloseRequest = { boardState.closeStrip() },
+            title = "ActionDraw — Reference",
+            state = stripState,
+            alwaysOnTop = true,
+        ) {
+            MaterialTheme(colors = ActionDrawColors) {
+                Surface { ReferenceStrip(boardState, thumbs) }
+            }
+        }
     }
 
     // Board sessions run in their own window: the board stays visible in the main one, and

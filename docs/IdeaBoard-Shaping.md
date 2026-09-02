@@ -332,3 +332,23 @@ changing it:
   indexes the folder by content when something is actually missing, then lets the card follow its
   file. This retires the Phase-1 tradeoff recorded in A4.
 - **Board list screen** replaces the picker dialog: a tile per board with cover, counts and path.
+
+## 15. M3 — the delightful board (2026-09-03)
+
+The last planned milestone, and the one where the board stops being only functional:
+
+- **Freeform polish.** Shift+drag rubber-bands a selection (plain drag keeps panning, so the
+  gesture people already learned still works), dragged cards snap to their neighbours' centre
+  lines with guides drawn over the canvas, and in the grid a card dropped on a *group header*
+  files itself into that group — the drop targeting that M2's reorder left out.
+- **Always-on-top strip** is a third window (`alwaysOnTop = true`) showing the selection: one
+  picture big, a filmstrip under it. This is the answer to decision D5's "and then in Krita" half.
+- **Contact sheet** is the paper half of D5: Skia draws the cards into one printable PNG.
+- **Rich notes** stay honest to D4 — `**bold**`/`*italic*` markers are parsed for display but the
+  file keeps plain text, so a board file is still readable in any editor. Paper colour and a
+  heading style are separate fields.
+- **Palettes** quantise a small decode into a 4×4×4 colour cube and average each bucket: cheap,
+  deterministic, and enough to read a scheme off a photograph.
+- **Templates** are plain starter groups, nothing more — a new board is an ordinary board.
+- **Link cards** store a url and open it in the system browser. ActionDraw still never goes
+  online; fetching web thumbnails remains the open networked decision from the ideation.

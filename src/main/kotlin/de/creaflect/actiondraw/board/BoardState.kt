@@ -25,6 +25,12 @@ sealed class BoardEditor {
 
     /** `itemId == null` creates a new note. */
     data class EditNote(val itemId: String?) : BoardEditor()
+
+    /** `itemId == null` creates a new link card. */
+    data class EditLink(val itemId: String?) : BoardEditor()
+
+    /** Colour swatches read off a picture (or a whole group). */
+    data class ShowPalette(val itemIds: Set<String>) : BoardEditor()
     data class EditCaption(val itemId: String) : BoardEditor()
     data class EditTags(val itemIds: Set<String>) : BoardEditor()
 }
@@ -161,6 +167,8 @@ class BoardState(
                     item.tags.any { it.lowercase().contains(needle) }
 
             is NoteItem -> item.text.lowercase().contains(needle)
+            is LinkItem ->
+                item.title.lowercase().contains(needle) || item.url.lowercase().contains(needle)
         }
     }
 
@@ -263,8 +271,11 @@ class BoardState(
 
     // ---- Lifecycle ----
 
-    /** Creates `<parent>/<name>` as a fresh board. Returns an error message, or null on success. */
-    fun createBoard(parent: File, name: String): String? {
+    /**
+     * Creates `<parent>/<name>` as a fresh board, with [template]'s starter groups. Returns an
+     * error message, or null on success.
+     */
+    fun createBoard(parent: File, name: String, template: BoardTemplate = BoardTemplate.ALL.first()): String? {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return "Give the board a name."
         val dir = File(parent, sanitizeName(trimmed))
@@ -275,7 +286,12 @@ class BoardState(
         if (dir.exists() && !dir.listFiles().isNullOrEmpty()) return "Folder exists and is not empty:\n$dir"
         if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
         settings.setBoardsHome(parent)
-        val created = BoardFile(name = trimmed)
+        val created = BoardFile(
+            name = trimmed,
+            groups = template.groups.mapIndexed { i, groupName ->
+                BoardGroup(id = Importer.newId(), name = groupName, order = i + 1)
+            },
+        )
         if (!BoardStore.save(dir, created)) return "Couldn't write the board file in:\n$dir"
         root = dir
         board = created
@@ -463,6 +479,170 @@ class BoardState(
                 b.copy(items = b.items.map { if (it is NoteItem && it.id == itemId) it.copy(text = trimmed) else it })
             }
         }
+    }
+
+    fun setNoteColor(id: String, color: String?) = update { b ->
+        b.copy(items = b.items.map { if (it is NoteItem && it.id == id) it.copy(color = color) else it })
+    }
+
+    fun toggleNoteHeading(id: String) = update { b ->
+        b.copy(items = b.items.map { if (it is NoteItem && it.id == id) it.copy(heading = !it.heading) else it })
+    }
+
+    /** Creates or updates a link card. A blank url is ignored. */
+    fun saveLink(itemId: String?, url: String, title: String) {
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) return
+        val name = title.trim()
+        if (itemId == null) {
+            val link = LinkItem(id = Importer.newId(), url = trimmed, title = name)
+            update { it.copy(items = it.items + link) }
+            if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+            selection = setOf(link.id)
+            focusId = link.id
+        } else {
+            update { b ->
+                b.copy(items = b.items.map {
+                    if (it is LinkItem && it.id == itemId) it.copy(url = trimmed, title = name) else it
+                })
+            }
+        }
+    }
+
+    /** Opens a link card in the system browser — ActionDraw itself never goes online. */
+    fun openLink(item: LinkItem) {
+        runCatching {
+            val uri = java.net.URI(if (item.url.contains("://")) item.url else "https://${item.url}")
+            java.awt.Desktop.getDesktop().browse(uri)
+        }
+    }
+
+    /** Dominant colours of the given cards, in display order (empty for notes and links). */
+    fun palettesOf(ids: Set<String>): List<Pair<ImageItem, List<Int>>> =
+        displayItems.filterIsInstance<ImageItem>()
+            .filter { it.id in ids }
+            .mapNotNull { item -> fileOf(item)?.let { item to Palette.of(it) } }
+            .filter { it.second.isNotEmpty() }
+
+    /**
+     * Writes a printable contact sheet of [items] to [target]; returns a line for the board's
+     * notice area either way.
+     */
+    fun exportContactSheet(items: List<BoardItem>, target: File): String {
+        val dir = root ?: return "No board open."
+        val name = board?.name ?: dir.name
+        val ok = ContactSheet.write(dir, items, name, target)
+        importNotice = if (ok) "Contact sheet written to ${target.name}." else "Nothing to put on a sheet."
+        return importNotice!!
+    }
+
+    /** What a contact sheet would contain: the selection, else everything on screen. */
+    val sheetItems: List<BoardItem>
+        get() = displayItems.filter { it is ImageItem }.let { shown ->
+            shown.filter { it.id in selection }.ifEmpty { shown }
+        }
+
+    // ---- Always-on-top reference strip ----
+
+    /** Pictures the floating strip is showing; empty = the strip window is closed. */
+    var stripIds by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    var stripIndex by mutableStateOf(0)
+        private set
+
+    val stripOpen: Boolean get() = stripIds.isNotEmpty()
+
+    val stripItem: ImageItem? get() = stripIds.getOrNull(stripIndex)?.let { item(it) as? ImageItem }
+
+    /** Opens (or refills) the floating strip with what the viewer would show. */
+    fun openStrip() {
+        val ids = viewableIds
+        if (ids.isEmpty()) return
+        stripIds = ids
+        stripIndex = ids.indexOf(focusId).coerceAtLeast(0)
+    }
+
+    fun closeStrip() {
+        stripIds = emptyList()
+        stripIndex = 0
+    }
+
+    fun stripStep(delta: Int) {
+        val n = stripIds.size
+        if (n == 0) return
+        stripIndex = ((stripIndex + delta) % n + n) % n
+    }
+
+    fun stripGoTo(id: String) {
+        stripIds.indexOf(id).takeIf { it >= 0 }?.let { stripIndex = it }
+    }
+
+    // ---- Freeform: snapping and marquee selection ----
+
+    /** Align dragged cards to their neighbours' centres. */
+    var snapping by mutableStateOf(true)
+
+    /** Guides to draw while dragging (board-space x / y of the lines that matched). */
+    var snapGuideX by mutableStateOf<Float?>(null)
+        private set
+    var snapGuideY by mutableStateOf<Float?>(null)
+        private set
+
+    /** Marquee rectangle in board space while rubber-band selecting; null when not dragging. */
+    var marquee by mutableStateOf<List<Float>?>(null)
+        private set
+
+    fun startMarquee(x: Float, y: Float) {
+        marquee = listOf(x, y, x, y)
+    }
+
+    fun updateMarquee(x: Float, y: Float) {
+        marquee?.let { marquee = listOf(it[0], it[1], x, y) }
+    }
+
+    /** Selects every card the rubber band touches. */
+    fun commitMarquee() {
+        val rect = marquee ?: return
+        marquee = null
+        val left = minOf(rect[0], rect[2])
+        val right = maxOf(rect[0], rect[2])
+        val top = minOf(rect[1], rect[3])
+        val bottom = maxOf(rect[1], rect[3])
+        val hits = freeItems.filter { item ->
+            val pos = item.pos ?: return@filter false
+            val half = BASE_SIZE * pos.scale / 2
+            pos.x + half >= left && pos.x - half <= right && pos.y + half >= top && pos.y - half <= bottom
+        }
+        selection = hits.map { it.id }.toSet()
+        focusId = hits.lastOrNull()?.id
+    }
+
+    fun cancelMarquee() {
+        marquee = null
+    }
+
+    /**
+     * Snaps a dragged card to the centre line of a nearby neighbour, within [threshold] board
+     * units, and records the guides to draw. Returns the corrected position.
+     */
+    fun snapPosition(id: String, x: Float, y: Float, threshold: Float): Pair<Float, Float> {
+        if (!snapping) {
+            snapGuideX = null
+            snapGuideY = null
+            return x to y
+        }
+        val others = freeItems.filter { it.id != id && it.id !in selection }.mapNotNull { it.pos }
+        val nearX = others.minByOrNull { kotlin.math.abs(it.x - x) }?.takeIf { kotlin.math.abs(it.x - x) <= threshold }
+        val nearY = others.minByOrNull { kotlin.math.abs(it.y - y) }?.takeIf { kotlin.math.abs(it.y - y) <= threshold }
+        snapGuideX = nearX?.x
+        snapGuideY = nearY?.y
+        return (nearX?.x ?: x) to (nearY?.y ?: y)
+    }
+
+    fun clearSnapGuides() {
+        snapGuideX = null
+        snapGuideY = null
     }
 
     /** Removes cards from the board — files on disk are never touched. */

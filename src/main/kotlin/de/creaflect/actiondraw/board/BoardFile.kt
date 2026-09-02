@@ -81,12 +81,14 @@ sealed class BoardItem {
     fun withGroups(groups: List<String>): BoardItem = when (this) {
         is ImageItem -> copy(groups = groups)
         is NoteItem -> copy(groups = groups)
+        is LinkItem -> copy(groups = groups)
     }
 
     /** The same item at a different freeform placement. */
     fun withPos(pos: ItemPos?): BoardItem = when (this) {
         is ImageItem -> copy(pos = pos)
         is NoteItem -> copy(pos = pos)
+        is LinkItem -> copy(pos = pos)
     }
 }
 
@@ -110,10 +112,50 @@ data class ImageItem(
 @SerialName("note")
 data class NoteItem(
     override val id: String,
+    /** Plain text with `**bold**` and `*italic*` markers (see `NoteText`). */
     val text: String,
     override val groups: List<String> = emptyList(),
     override val pos: ItemPos? = null,
+    /** Paper colour (`#rrggbb`); null = the theme's default note paper. */
+    val color: String? = null,
+    /** Draw the note in a larger, heavier type — for the sign-post notes on a big board. */
+    val heading: Boolean = false,
 ) : BoardItem()
+
+/**
+ * A card that points somewhere on the web. ActionDraw never fetches it: the URL is stored as
+ * typed and opened in the system browser, so boards stay an offline, plain-file affair.
+ */
+@Serializable
+@SerialName("link")
+data class LinkItem(
+    override val id: String,
+    val url: String,
+    val title: String = "",
+    override val groups: List<String> = emptyList(),
+    override val pos: ItemPos? = null,
+) : BoardItem()
+
+/** Paper colours a note cycles through; null is the theme default. */
+object NoteColors {
+    val ALL: List<String?> = listOf(null, "#FFE082", "#C5E1A5", "#B3E5FC", "#F8BBD0", "#D7CCC8")
+}
+
+/**
+ * Starter groups for a new board, so a fresh board is not an empty rectangle. Purely a
+ * convenience: the groups are ordinary groups once created.
+ */
+data class BoardTemplate(val name: String, val groups: List<String>) {
+    companion object {
+        val ALL = listOf(
+            BoardTemplate("Empty", emptyList()),
+            BoardTemplate("Creature design", listOf("Heads", "Bodies", "Wings", "Details", "Colour studies")),
+            BoardTemplate("Character sheet", listOf("Faces", "Poses", "Clothing", "Props", "Expressions")),
+            BoardTemplate("Environment", listOf("Landscapes", "Architecture", "Light & mood", "Textures")),
+            BoardTemplate("Anatomy practice", listOf("Gesture", "Hands & feet", "Heads", "Full figure")),
+        )
+    }
+}
 
 /** Layout ids stored in the sidecar. */
 object BoardLayouts {

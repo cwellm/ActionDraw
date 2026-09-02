@@ -1,6 +1,7 @@
 package de.creaflect.actiondraw.board.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -10,11 +11,15 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
@@ -25,24 +30,33 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.BoardTemplate
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.LinkItem
+import de.creaflect.actiondraw.board.NoteColors
 import de.creaflect.actiondraw.board.NoteItem
+import de.creaflect.actiondraw.board.Palette
 import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.ui.IntervalSelector
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
@@ -71,14 +85,11 @@ fun BoardDialogs(state: BoardState) {
             onCancel = state::closeEditor,
         )
 
-        is BoardEditor.EditNote -> TextPromptDialog(
-            title = if (editor.itemId == null) "New note" else "Edit note",
-            initial = (editor.itemId?.let(state::item) as? NoteItem)?.text ?: "",
-            confirm = "Save",
-            multiline = true,
-            onOk = { state.saveNote(editor.itemId, it); state.closeEditor() },
-            onCancel = state::closeEditor,
-        )
+        is BoardEditor.EditNote -> NoteDialog(state, editor.itemId)
+
+        is BoardEditor.EditLink -> LinkDialog(state, editor.itemId)
+
+        is BoardEditor.ShowPalette -> PaletteDialog(state, editor.itemIds)
 
         is BoardEditor.EditCaption -> TextPromptDialog(
             title = "Caption",
@@ -179,11 +190,133 @@ private fun ViewMode.label(): String = when (this) {
     else -> name.lowercase().replaceFirstChar { it.uppercase() }
 }
 
+/** New or edited note: the text, its paper colour, and whether it reads as a heading. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun NoteDialog(state: BoardState, itemId: String?) {
+    val existing = itemId?.let(state::item) as? NoteItem
+    var text by remember(itemId) { mutableStateOf(existing?.text ?: "") }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text(if (itemId == null) "New note" else "Edit note", style = MaterialTheme.typography.h6)
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            modifier = Modifier.fillMaxWidth().height(150.dp),
+        )
+        Text(
+            "**bold** and *italic* work; the note stays plain text in the board file.",
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+        )
+        if (existing != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Paper", style = MaterialTheme.typography.caption)
+                NoteColors.ALL.forEach { color ->
+                    val swatch = Themes.parseColor(color) ?: MaterialTheme.colors.surface
+                    Box(
+                        Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(swatch)
+                            .border(
+                                2.dp,
+                                if (existing.color == color) MaterialTheme.colors.primary else Color.Transparent,
+                                CircleShape,
+                            )
+                            .clickable { state.setNoteColor(existing.id, color) },
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                SelectChip("Heading", existing.heading) { state.toggleNoteHeading(existing.id) }
+            }
+        }
+        DialogButtons(
+            confirm = "Save",
+            onOk = { state.saveNote(itemId, text); state.closeEditor() },
+            onCancel = state::closeEditor,
+        )
+    }
+}
+
+/** A card that points at a page. The url is stored as typed and opened in the system browser. */
+@Composable
+private fun LinkDialog(state: BoardState, itemId: String?) {
+    val existing = itemId?.let(state::item) as? LinkItem
+    var url by remember(itemId) { mutableStateOf(existing?.url ?: "") }
+    var title by remember(itemId) { mutableStateOf(existing?.title ?: "") }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text(if (itemId == null) "New link" else "Edit link", style = MaterialTheme.typography.h6)
+        OutlinedTextField(
+            value = url,
+            onValueChange = { url = it },
+            label = { Text("Address") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Title (optional)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "ActionDraw never fetches the page — the card just opens it in your browser.",
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+        )
+        DialogButtons(
+            confirm = "Save",
+            onOk = { state.saveLink(itemId, url, title); state.closeEditor() },
+            onCancel = state::closeEditor,
+        )
+    }
+}
+
+/** The colours a picture is made of, as swatches with their hex values. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PaletteDialog(state: BoardState, ids: Set<String>) {
+    val palettes by produceState(initialValue = emptyList<Pair<ImageItem, List<Int>>>(), ids) {
+        value = withContext(Dispatchers.IO) { state.palettesOf(ids) }
+    }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Palette", style = MaterialTheme.typography.h6)
+        if (palettes.isEmpty()) {
+            Text("Reading the colours…", style = MaterialTheme.typography.body2)
+        }
+        palettes.forEach { (item, colors) ->
+            Text(
+                item.caption ?: item.path,
+                style = MaterialTheme.typography.caption,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                colors.forEach { color ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier
+                                .size(46.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0xFF000000L.toInt() or color)),
+                        )
+                        Text(Palette.hex(color), style = MaterialTheme.typography.caption)
+                    }
+                }
+            }
+        }
+        DialogButtons(confirm = "Done", onOk = state::closeEditor, onCancel = state::closeEditor)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NewBoardDialog(state: BoardState) {
     var name by remember { mutableStateOf("") }
     var location by remember { mutableStateOf(state.boardsHome()) }
     var error by remember { mutableStateOf<String?>(null) }
+    var template by remember { mutableStateOf(BoardTemplate.ALL.first()) }
     DialogScrim(onDismiss = state::closeEditor) {
         Text("New Idea Board", style = MaterialTheme.typography.h6)
         OutlinedTextField(
@@ -204,10 +337,23 @@ private fun NewBoardDialog(state: BoardState) {
                 Text("Change…")
             }
         }
+        Text("Start with", style = MaterialTheme.typography.caption)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            BoardTemplate.ALL.forEach { candidate ->
+                SelectChip(candidate.name, template == candidate) { template = candidate }
+            }
+        }
+        if (template.groups.isNotEmpty()) {
+            Text(
+                template.groups.joinToString(" · "),
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.secondary,
+            )
+        }
         error?.let { Text(it, color = MaterialTheme.colors.error, style = MaterialTheme.typography.caption) }
         DialogButtons(
             confirm = "Create",
-            onOk = { error = state.createBoard(location, name) }, // success also closes the dialog
+            onOk = { error = state.createBoard(location, name, template) }, // success also closes
             onCancel = state::closeEditor,
         )
     }

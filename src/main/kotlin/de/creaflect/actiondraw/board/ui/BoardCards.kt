@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -50,6 +51,8 @@ import de.creaflect.actiondraw.board.BoardGroup
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.LinkItem
+import de.creaflect.actiondraw.board.NoteColors
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
@@ -95,6 +98,7 @@ fun BoardCard(
             when (item) {
                 is ImageItem -> ImageCard(state, thumbs, item, textured)
                 is NoteItem -> NoteCard(state, item, textured)
+                is LinkItem -> LinkCard(state, item, textured)
             }
         }
     }
@@ -115,12 +119,27 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
     when (item) {
         is ImageItem -> {
             menu += ContextMenuItem("View large") { state.openViewer(item.id) }
+            menu += ContextMenuItem("Palette…") { state.openEditor(BoardEditor.ShowPalette(ids)) }
             menu += ContextMenuItem("Caption…") { state.openEditor(BoardEditor.EditCaption(item.id)) }
             menu += ContextMenuItem("Tags…") { state.openEditor(BoardEditor.EditTags(ids)) }
             menu += ContextMenuItem(if (item.starred) "Unstar" else "Star") { state.toggleStar(ids) }
         }
 
-        is NoteItem -> menu += ContextMenuItem("Edit note…") { state.openEditor(BoardEditor.EditNote(item.id)) }
+        is NoteItem -> {
+            menu += ContextMenuItem("Edit note…") { state.openEditor(BoardEditor.EditNote(item.id)) }
+            menu += ContextMenuItem(if (item.heading) "Normal size" else "Make heading") {
+                state.toggleNoteHeading(item.id)
+            }
+            menu += ContextMenuItem("Next paper colour") {
+                val next = NoteColors.ALL[(NoteColors.ALL.indexOf(item.color) + 1) % NoteColors.ALL.size]
+                state.setNoteColor(item.id, next)
+            }
+        }
+
+        is LinkItem -> {
+            menu += ContextMenuItem("Open in browser") { state.openLink(item) }
+            menu += ContextMenuItem("Edit link…") { state.openEditor(BoardEditor.EditLink(item.id)) }
+        }
     }
     menu += ContextMenuItem("Copy") { state.copySelection() }
     if (item.groups.isNotEmpty()) {
@@ -217,29 +236,79 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
         Modifier
             .shadow(if (textured) 3.dp else 0.dp, shape)
             .clip(shape)
-            .background(if (textured) Themes.noteBacking else Themes.noteBackingDark)
+            .background(notePaper(item, textured))
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
             .aspectRatio(1f),
     ) {
         Text(
-            item.text,
-            style = MaterialTheme.typography.body2,
-            color = if (textured) Themes.noteInk else Themes.noteInkDark,
-            maxLines = 9,
+            NoteText.format(item.text),
+            style = if (item.heading) MaterialTheme.typography.h6 else MaterialTheme.typography.body2,
+            color = noteInk(item, textured),
+            maxLines = if (item.heading) 4 else 9,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(10.dp),
         )
     }
 }
 
+/** A link card: the title (or the bare url) plus its host, opened on double-click. */
+@Composable
+private fun LinkCard(state: BoardState, item: LinkItem, textured: Boolean) {
+    val shape = RoundedCornerShape(4.dp)
+    Column(
+        Modifier
+            .shadow(if (textured) 3.dp else 0.dp, shape)
+            .clip(shape)
+            .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
+            .border(2.dp, selectionBorder(state, item.id), shape)
+            .cardClicks(state, item.id)
+            .aspectRatio(1f)
+            .padding(10.dp),
+    ) {
+        Text("🔗", style = MaterialTheme.typography.h6)
+        Text(
+            item.title.ifBlank { item.url },
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.onSurface,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            host(item.url),
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.secondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.clickable { state.openLink(item) },
+        )
+    }
+}
+
+internal fun host(url: String): String =
+    url.substringAfter("://").substringBefore('/').ifBlank { url }
+
+internal fun notePaper(item: NoteItem, textured: Boolean): Color =
+    Themes.parseColor(item.color)?.let { if (textured) it else it.copy(alpha = 0.35f) }
+        ?: if (textured) Themes.noteBacking else Themes.noteBackingDark
+
+internal fun noteInk(item: NoteItem, textured: Boolean): Color =
+    if (textured || item.color != null) Themes.noteInk else Themes.noteInkDark
+
 /** Section header: collapse toggle, colour dot, name, count and the group's Draw button. */
 @Composable
-fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int) {
+fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: Boolean = false) {
     val row: @Composable () -> Unit = {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 14.dp, bottom = 2.dp)
+                .background(
+                    if (dropTarget) MaterialTheme.colors.primary.copy(alpha = 0.18f) else Color.Transparent,
+                    RoundedCornerShape(4.dp),
+                ),
         ) {
             if (group != null) {
                 Text(

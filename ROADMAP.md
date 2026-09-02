@@ -186,15 +186,40 @@ surface, material in & out, "Draw these" bridge.*
 
 ---
 
-## ⬜ M3 — Idea Board: the delightful board (Phase 3)
+## ✅ M3 — Idea Board: the delightful board (Phase 3)
 
 - ✅ ~~Freeform canvas layout mode~~ — pulled forward into M1-F
-- ⬜ Freeform polish: multi-item marquee selection, per-group hover drop targets, snap/align
-- ⬜ Always-on-top reference strip (for Krita work)
-- ⬜ Contact-sheet export (for paper work)
-- ⬜ Rich note formatting (bold, colour, …) — per decision D4
-- ⬜ Colour-palette extraction per image/group
-- ⬜ Board templates · URL/link cards (first networked feature — separate decision)
+
+### ✅ F4.1 Freeform polish
+- ✅ Marquee selection: Shift+drag pulls a rubber band over the canvas (plain drag still pans)
+- ✅ Snapping: a dragged card lines up with its neighbours' centres, with guides drawn; toggled
+  by the "Snap" chip in the header
+- ✅ Group headers are drop targets — drag a card onto a header to file it into that group
+
+### ✅ F4.2 Always-on-top reference strip
+- ✅ "Float strip" opens a separate always-on-top window: one picture big, the selection as a
+  filmstrip, prev/next — made to sit beside Krita
+
+### ✅ F4.3 Contact-sheet export
+- ✅ "Contact sheet…" renders the selection (or the whole board) as one printable PNG with
+  captions and a title, drawn with Skia
+
+### ✅ F4.4 Rich note formatting
+- ✅ `**bold**` and `*italic*` rendered on the card; the note stays plain text in the sidecar
+- ✅ Paper colour per note and a heading style, both in the note dialog and the context menu
+
+### ✅ F4.5 Colour-palette extraction
+- ✅ Dominant colours per picture (4×4×4 colour-cube quantisation over a small decode), shown as
+  swatches with hex values — context menu, the Palette button, or `P`
+
+### ✅ F4.6 Board templates
+- ✅ New board… offers starter groups: Creature design, Character sheet, Environment, Anatomy
+  practice, or Empty
+
+### ✅ F4.7 Link cards
+- ✅ A card holding a url + title, opened in the system browser; searchable like everything else
+- ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its
+  own decision
 
 ---
 
