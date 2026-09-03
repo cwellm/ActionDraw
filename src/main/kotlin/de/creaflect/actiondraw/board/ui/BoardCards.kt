@@ -9,9 +9,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -299,38 +299,52 @@ internal fun noteInk(item: NoteItem, textured: Boolean): Color =
 /** Section header: collapse toggle, colour dot, name, count and the group's Draw button. */
 @Composable
 fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: Boolean = false) {
+    val accent = accentOf(state, group)
     val row: @Composable () -> Unit = {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 14.dp, bottom = 2.dp)
-                .background(
-                    if (dropTarget) MaterialTheme.colors.primary.copy(alpha = 0.18f) else Color.Transparent,
-                    RoundedCornerShape(4.dp),
-                ),
-        ) {
-            if (group != null) {
+        Column {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 14.dp, bottom = 2.dp)
+                    .background(
+                        if (dropTarget) MaterialTheme.colors.primary.copy(alpha = 0.18f) else Color.Transparent,
+                        RoundedCornerShape(4.dp),
+                    ),
+            ) {
+                if (group != null) {
+                    Text(
+                        if (group.collapsed) "▸" else "▾",
+                        color = MaterialTheme.colors.onBackground.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .clickable { state.toggleCollapsed(group.id) }
+                            .padding(horizontal = 4.dp),
+                    )
+                    // Every group gets a colour, whether or not one was picked for it, so the
+                    // sections are told apart at a glance.
+                    accent?.let {
+                        Box(Modifier.size(10.dp).clip(CircleShape).background(it))
+                        Spacer(Modifier.width(6.dp))
+                    }
+                }
                 Text(
-                    if (group.collapsed) "▸" else "▾",
-                    color = MaterialTheme.colors.onBackground.copy(alpha = 0.7f),
-                    modifier = Modifier.clickable { state.toggleCollapsed(group.id) }.padding(horizontal = 4.dp),
+                    "${group?.name ?: "Inbox"} ($count)",
+                    style = MaterialTheme.typography.subtitle1,
+                    fontWeight = FontWeight.Bold,
+                    color = accent ?: MaterialTheme.colors.onBackground,
                 )
-                Themes.parseColor(group.color)?.let { accent ->
-                    Box(Modifier.size(10.dp).clip(CircleShape).background(accent))
-                    Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.weight(1f))
+                if (count > 0) {
+                    OutlinedButton(onClick = { state.drawGroup(group?.id) }) { Text("Draw $count") }
                 }
             }
-            Text(
-                "${group?.name ?: "Inbox"} ($count)",
-                style = MaterialTheme.typography.subtitle1,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colors.onBackground,
+            // A hairline in the group's colour ties its cards to the header above them.
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .background((accent ?: MaterialTheme.colors.onBackground).copy(alpha = 0.35f)),
             )
-            Spacer(Modifier.weight(1f))
-            if (count > 0) {
-                OutlinedButton(onClick = { state.drawGroup(group?.id) }) { Text("Draw $count") }
-            }
         }
     }
     if (group != null) {
@@ -365,3 +379,8 @@ internal fun PracticeBadge(practice: BoardState.Practice, modifier: Modifier) {
         )
     }
 }
+
+/** The colour a section is drawn in — the Inbox has none. */
+@Composable
+private fun accentOf(state: BoardState, group: BoardGroup?): Color? =
+    group?.let { Themes.parseColor(state.accentOfGroup(it)) }

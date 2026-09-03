@@ -216,6 +216,17 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ New board… offers starter groups: Creature design, Character sheet, Environment, Anatomy
   practice, or Empty
 
+### ✅ F4.8 Groups on the canvas & strip carousel (feedback round 2)
+- ✅ Every group now has a colour, whether or not one was picked: a dot and a hairline under the
+  section header in grid mode, a tinted, outlined area with a name label in free mode
+- ✅ Dragging a group's area moves the whole group; the selection is left alone, so dragging a
+  single card afterwards still moves only that card
+- ✅ The group label selects the group as a unit; right-clicking its area offers draw, rename,
+  colour and delete
+- ✅ A grouped card carries its group's colour as a dot, so it stays recognisable on its own
+- ✅ The floating reference strip is a carousel again: drag or wheel to flip, with the neighbours
+  sliding in as in the large view
+
 ### ✅ F4.7 Link cards
 - ✅ A card holding a url + title, opened in the system browser; searchable like everything else
 - ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its

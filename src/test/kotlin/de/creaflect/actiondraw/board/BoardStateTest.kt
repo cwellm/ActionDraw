@@ -680,6 +680,135 @@ class BoardStateTest {
         assertFalse(state.stripOpen)
     }
 
+    // ---- Groups on the canvas (feedback round 2) ----
+
+    @Test
+    fun aGroupGetsAHullAroundItsCardsOnTheCanvas() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+
+        val hull = state.groupHulls.single()
+        assertEquals("Wings", hull.group.name)
+        assertEquals(2, hull.count, "only the group's own cards count")
+
+        // The hull encloses both cards, with room to spare.
+        val members = state.board!!.items.filter { it.id in setOf(ids[0], ids[1]) }.map { it.pos!! }
+        val half = BoardState.BASE_SIZE / 2
+        assertTrue(hull.left < members.minOf { it.x } - half, "padded on the left")
+        assertTrue(hull.right > members.maxOf { it.x } + half, "padded on the right")
+        assertTrue(hull.top < members.minOf { it.y } - half)
+        assertTrue(hull.bottom > members.maxOf { it.y } + half)
+    }
+
+    @Test
+    fun anEmptyOrUnplacedGroupHasNoHull() {
+        val state = newState()
+        boardWithThreeImages(state)
+        state.addGroup("Nobody home")
+        state.setLayout(BoardLayouts.FREE)
+        assertTrue(state.groupHulls.isEmpty(), "a group without cards draws nothing")
+    }
+
+    @Test
+    fun everyGroupHasAColourEvenWithoutOneSet() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.addGroup("A")
+        state.addGroup("B")
+        val (first, second) = state.sortedGroups
+
+        assertNull(first.color, "no colour was picked")
+        assertTrue(state.accentOfGroup(first).startsWith("#"), "but one is derived for drawing")
+        assertTrue(
+            state.accentOfGroup(first) != state.accentOfGroup(second),
+            "neighbouring groups must be told apart",
+        )
+
+        state.cycleGroupColor(first.id)
+        val recoloured = state.sortedGroups.first()
+        assertEquals(recoloured.color, state.accentOfGroup(recoloured), "an explicit colour wins")
+    }
+
+    @Test
+    fun draggingAGroupMovesEveryCardInItAndLeavesTheRestAlone() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+        val before = state.board!!.items.associate { it.id to it.pos!! }
+
+        state.dragGroupBy(groupId, 40f, -25f)
+        state.commitLayout()
+
+        val after = state.board!!.items.associate { it.id to it.pos!! }
+        listOf(ids[0], ids[1]).forEach { id ->
+            assertEquals(before.getValue(id).x + 40f, after.getValue(id).x, "group member moved")
+            assertEquals(before.getValue(id).y - 25f, after.getValue(id).y)
+        }
+        assertEquals(before.getValue(ids[2]).x, after.getValue(ids[2]).x, "the ungrouped card stayed")
+
+        // And it is on disk, not only in memory.
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        assertEquals(after.getValue(ids[0]).x, reopened.board!!.items.first { it.id == ids[0] }.pos!!.x)
+    }
+
+    @Test
+    fun aSingleCardStillMovesOnItsOwnAfterAGroupDrag() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+
+        // Dragging the group must not select it, or the next card drag would move everything.
+        state.clearSelection()
+        state.dragGroupBy(groupId, 10f, 10f)
+        state.commitLayout()
+        assertTrue(state.selection.isEmpty(), "a group drag leaves the selection alone")
+
+        val before = state.board!!.items.associate { it.id to it.pos!! }
+        state.dragBy(ids[0], 15f, 0f)
+        state.commitLayout()
+        val after = state.board!!.items.associate { it.id to it.pos!! }
+        assertEquals(before.getValue(ids[0]).x + 15f, after.getValue(ids[0]).x, "the card moved")
+        assertEquals(before.getValue(ids[1]).x, after.getValue(ids[1]).x, "its group mate did not")
+    }
+
+    @Test
+    fun theGroupLabelSelectsTheWholeGroup() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+
+        state.selectGroup(groupId)
+        assertEquals(setOf(ids[0], ids[1]), state.selection)
+    }
+
+    @Test
+    fun aGroupedCardCarriesItsGroupsAccent() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0]), groupId)
+
+        val grouped = state.item(ids[0])!!
+        val loose = state.item(ids[2])!!
+        assertEquals(state.accentOfGroup(state.sortedGroups.single()), state.accentOf(grouped))
+        assertNull(state.accentOf(loose), "an ungrouped card shows no accent")
+    }
+
     @Test
     fun availableBoardsListsTheHomeAndRecentOnes() {
         val state = newState()

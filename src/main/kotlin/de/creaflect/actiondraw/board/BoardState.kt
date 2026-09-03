@@ -542,6 +542,80 @@ class BoardState(
             shown.filter { it.id in selection }.ifEmpty { shown }
         }
 
+    // ---- Groups on the freeform canvas ----
+
+    /**
+     * The area a group occupies on the canvas: the bounding box of its cards, in board units,
+     * plus the colour it is drawn in. Gives a group a visible identity on a surface that
+     * otherwise only has loose cards.
+     */
+    data class GroupHull(
+        val group: BoardGroup,
+        val color: String,
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float,
+        val count: Int,
+    )
+
+    /** Padding between a group's cards and the edge of its hull, in board units. */
+    private val hullPadding = BASE_SIZE * 0.18f
+
+    /** One hull per group that has placed, currently visible cards. */
+    val groupHulls: List<GroupHull>
+        get() {
+            val shown = freeItems
+            return sortedGroups.mapIndexedNotNull { index, group ->
+                val positions = shown.filter { group.id in it.groups }.mapNotNull { it.pos }
+                if (positions.isEmpty()) return@mapIndexedNotNull null
+                val halves = positions.map { BASE_SIZE * it.scale / 2 }
+                GroupHull(
+                    group = group,
+                    // A group without its own accent still needs to be told apart from the next.
+                    color = group.color ?: fallbackGroupColor(index),
+                    left = positions.mapIndexed { i, p -> p.x - halves[i] }.min() - hullPadding,
+                    top = positions.mapIndexed { i, p -> p.y - halves[i] }.min() - hullPadding,
+                    right = positions.mapIndexed { i, p -> p.x + halves[i] }.max() + hullPadding,
+                    bottom = positions.mapIndexed { i, p -> p.y + halves[i] }.max() + hullPadding,
+                    count = positions.size,
+                )
+            }
+        }
+
+    /** The colour a group is drawn in: its own accent, or a distinct one derived from its place. */
+    fun accentOfGroup(group: BoardGroup): String {
+        val index = sortedGroups.indexOfFirst { it.id == group.id }
+        return group.color ?: fallbackGroupColor(index.coerceAtLeast(0))
+    }
+
+    /** The accent a card should show, so a grouped card is recognisable on its own too. */
+    fun accentOf(item: BoardItem): String? {
+        val groups = sortedGroups
+        val index = groups.indexOfFirst { it.id in item.groups }
+        if (index < 0) return null
+        return groups[index].color ?: fallbackGroupColor(index)
+    }
+
+    /** Moves every card of a group together — the group behaves as one object. */
+    fun dragGroupBy(groupId: String, dx: Float, dy: Float) = updateTransient { b ->
+        b.copy(items = b.items.map { item ->
+            val pos = item.pos
+            if (groupId in item.groups && pos != null) {
+                item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
+            } else {
+                item
+            }
+        })
+    }
+
+    /** Selects a whole group — clicking its label picks the group up as a unit. */
+    fun selectGroup(groupId: String) {
+        val ids = freeItems.filter { groupId in it.groups }.map { it.id }
+        selection = ids.toSet()
+        focusId = ids.firstOrNull()
+    }
+
     // ---- Always-on-top reference strip ----
 
     /** Pictures the floating strip is showing; empty = the strip window is closed. */
@@ -1061,6 +1135,12 @@ class BoardState(
         /** Colour accents a group cycles through (null = no accent). */
         val GROUP_COLORS: List<String?> =
             listOf(null, "#80CBC4", "#FFB74D", "#A5D6A7", "#EF9A9A", "#B39DDB")
+
+        /** Distinct colour for a group that has none of its own, by its position on the board. */
+        fun fallbackGroupColor(index: Int): String {
+            val named = GROUP_COLORS.filterNotNull()
+            return named[index % named.size]
+        }
 
         /** Base edge length of a freeform card at scale 1, in board units. */
         const val BASE_SIZE = 220f

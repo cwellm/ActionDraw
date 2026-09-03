@@ -77,11 +77,15 @@ still have an ordinary folder of images; the board never renames, moves or delet
 
 ### Organising
 - **Two layouts** per board, switchable in the header:
-  - **Grid** — cards in collapsible group sections (unassigned cards sit in the **Inbox**), with
-    colour accents and per-group ordering.
+  - **Grid** — cards in collapsible group sections (unassigned cards sit in the **Inbox**), each
+    with its own colour and per-group ordering.
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
     `Shift`+drag pulls a rubber band over several cards, and dragged cards snap to their
     neighbours' centre lines (toggle with the **Snap** chip).
+    Groups show as a tinted, outlined area with a name label: drag the area to move the whole
+    group, drag a card inside it to move just that card, click the label to select the group, and
+    right-click the area to draw, rename, recolour or delete it. Grouped cards carry a small dot
+    in their group's colour.
 - **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
   **link cards** (`L`) that open in your browser; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
@@ -99,7 +103,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **Immersive** (`F` or ⛶): fullscreen with all chrome hidden, for browsing on a second monitor.
   Whenever the window is not fullscreen, every menu stays visible.
 - **Float strip**: a small always-on-top window showing the selection — one picture big with a
-  filmstrip underneath — so a reference stays visible while you paint in another program.
+  filmstrip underneath — so a reference stays visible while you paint in another program. It is a
+  carousel too: drag sideways or use the wheel to flip through the selection.
 - **Contact sheet…**: renders the selection (or the whole board) as one printable PNG.
 - New boards can start from a **template** (Creature design, Character sheet, Environment,
   Anatomy practice) instead of empty.

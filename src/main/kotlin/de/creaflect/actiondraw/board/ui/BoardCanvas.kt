@@ -5,6 +5,7 @@ import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
@@ -146,6 +149,11 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
                 }
             },
     ) {
+        // Group areas first, so cards sit on top of their own group's tint.
+        state.groupHulls.forEach { hull ->
+            key("hull-" + hull.group.id) { GroupArea(state, hull, viewSize) }
+        }
+
         state.freeItems.forEach { item ->
             key(item.id) { CanvasItem(state, thumbs, item, textured, viewSize) }
         }
@@ -258,6 +266,20 @@ private fun CanvasItem(
                 is ImageItem -> CanvasImage(state, thumbs, item, textured)
                 is NoteItem -> CanvasNote(state, item, textured)
                 is LinkItem -> CanvasLink(state, item, textured)
+            }
+            // A grouped card carries its group's colour, so it is recognisable even when
+            // dragged out of the group area.
+            state.accentOf(item)?.let { hex ->
+                Themes.parseColor(hex)?.let { accent ->
+                    Box(
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(3.dp)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(accent),
+                    )
+                }
             }
             if (singleSelected) {
                 RotateHandle(state, item.id, Modifier.align(Alignment.TopCenter))
@@ -389,5 +411,73 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
             color = MaterialTheme.colors.onSurface,
             overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+/**
+ * A group's territory on the canvas: a tinted, outlined area behind its cards with the group name
+ * in the corner. Dragging the area (or its label) moves the whole group; the cards on top keep
+ * their own drag, so a single card can still be moved out of place inside it.
+ */
+@Composable
+private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
+    val zoom = state.zoom
+    val density = LocalDensity.current
+    val accent = Themes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
+    val x = (hull.left - state.camX) * zoom + viewSize.width / 2f
+    val y = (hull.top - state.camY) * zoom + viewSize.height / 2f
+    val w = (hull.right - hull.left) * zoom
+    val h = (hull.bottom - hull.top) * zoom
+    val shape = RoundedCornerShape(10.dp)
+
+    ContextMenuArea(items = {
+        listOf(
+            ContextMenuItem("Draw " + hull.count) { state.drawGroup(hull.group.id) },
+            ContextMenuItem("Select group") { state.selectGroup(hull.group.id) },
+            ContextMenuItem("Rename group…") { state.openEditor(BoardEditor.RenameGroup(hull.group.id)) },
+            ContextMenuItem("Cycle colour") { state.cycleGroupColor(hull.group.id) },
+            ContextMenuItem("Delete group (cards stay)") { state.deleteGroup(hull.group.id) },
+        )
+    }) {
+        Box(
+            Modifier
+                .size(with(density) { w.toDp() }, with(density) { h.toDp() })
+                .graphicsLayer {
+                    translationX = x
+                    translationY = y
+                }
+                .clip(shape)
+                .background(accent.copy(alpha = 0.10f))
+                .border(1.dp, accent.copy(alpha = 0.55f), shape)
+                // Dragging the area moves the group as one. The selection is deliberately left
+                // alone, so dragging a single card afterwards still moves only that card.
+                .pointerInput(hull.group.id) {
+                    detectDragGestures(
+                        onDrag = { change, drag ->
+                            change.consume()
+                            state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                        },
+                        onDragEnd = { state.commitLayout() },
+                    )
+                },
+        ) {
+            // The label names the group and selects it as a unit when clicked.
+            Surface(
+                color = accent.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(bottomEnd = 8.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .clickable { state.selectGroup(hull.group.id) },
+            ) {
+                Text(
+                    hull.group.name + "  ·  " + hull.count,
+                    style = MaterialTheme.typography.caption,
+                    color = Color(0xFF1A1A1A),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+        }
     }
 }

@@ -352,3 +352,19 @@ The last planned milestone, and the one where the board stops being only functio
 - **Templates** are plain starter groups, nothing more — a new board is an ordinary board.
 - **Link cards** store a url and open it in the system browser. ActionDraw still never goes
   online; fetching web thumbnails remains the open networked decision from the ideation.
+
+## 16. Feedback round 2 (2026-09-03)
+
+- **The strip lost its carousel.** The floating strip had been built as a plain viewer with ‹ ›
+  buttons, while the large view had the swipe carousel; both now share the same mechanics
+  (Animatable offset, neighbours laid out at ±width, glide on release, wheel support).
+- **Groups had no identity of their own.** Two changes: every group is now *given* a colour
+  (`accentOfGroup` — its own, else a distinct one derived from its order), and the freeform canvas
+  draws each group as a tinted, outlined **hull** around its cards with a name label in the
+  corner. In the grid, the header carries the colour as a dot, coloured title and a hairline that
+  ties the header to the cards below it.
+- **Moving a group vs. moving a card.** Dragging the hull moves every card of the group together;
+  dragging a card inside it still moves only that card. The hull drag deliberately does *not*
+  change the selection — if it selected the group, the next card drag would have moved everything
+  (the selection is what card drags follow). Clicking the label is the explicit way to select a
+  group as a unit; right-clicking the hull gives it the same menu the grid header has.
