@@ -448,3 +448,17 @@ of the commands stayed green through all of them. The key mapping is now a pure 
 be tested without building a Compose key event — `InternalKeyEvent` is not constructible from
 outside. `BoardKeysTest` covers G / Ctrl+G / Ctrl+Shift+G, and its worth was checked the same way
 as the canvas test: restore the old binding and it fails.
+
+## 21. Deleting boards (2026-09-03)
+
+"Delete a board" is ambiguous, and the ambiguity matters: the sidecar belongs to ActionDraw, the
+pictures belong to the user. So deletion has two readings and the safe one is the default —
+**Remove board** deletes `.actiondraw_board.json` (and its backup) and forgets the board, leaving
+the folder and every picture untouched; **Also delete the folder** is a separate tick that erases
+it, with the picture count spelled out and the wording turning red.
+
+The destructive path is guarded: it refuses anything that is not a board folder (so a folder you
+opened via *Explore…* and then thought better of cannot take your pictures with it), the user's
+home, the boards home itself, and a drive root. The open board is closed before its file
+disappears. `DeleteBoardTest` covers both readings and the guards — and, as with the last two
+rounds, the guard test was checked by weakening the guard and watching it fail.

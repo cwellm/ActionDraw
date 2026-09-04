@@ -59,6 +59,15 @@ class Settings(private val dir: File = defaultDir()) {
         write(props)
     }
 
+    /** Forgets a board — used when one is deleted, so it stops showing up in the list. */
+    fun removeRecentBoard(dir: File) {
+        val next = recentBoards().filter { !it.absolutePath.equals(dir.absolutePath, ignoreCase = true) }
+        val props = read()
+        (0 until MAX_RECENT_BOARDS).forEach { props.remove("$KEY_RECENT_BOARD.$it") }
+        next.forEachIndexed { i, f -> props.setProperty("$KEY_RECENT_BOARD.$i", f.absolutePath) }
+        write(props)
+    }
+
     private fun read(): Properties = Properties().also { props ->
         runCatching { file.takeIf { it.isFile }?.inputStream()?.use(props::load) }
     }

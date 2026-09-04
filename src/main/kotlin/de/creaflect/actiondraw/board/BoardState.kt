@@ -18,6 +18,9 @@ import java.time.format.DateTimeFormatter
 sealed class BoardEditor {
     data object NewBoard : BoardEditor()
 
+    /** Confirms deleting a board; [pictures] is what the folder would take with it. */
+    data class DeleteBoard(val dir: File, val name: String, val pictures: Int) : BoardEditor()
+
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
     data object NewGroup : BoardEditor()
@@ -311,6 +314,65 @@ class BoardState(
         get() = selectedItems.filterIsInstance<ImageItem>().mapNotNull(::fileOf)
 
     // ---- Lifecycle ----
+
+    /** How far a deletion goes. The board file is ActionDraw's; the pictures are the user's. */
+    enum class Deletion { FORGET, DELETE_FOLDER }
+
+    /**
+     * Deletes the board at [dir].
+     *
+     * [Deletion.FORGET] removes only the sidecar (and its backup), so the folder and every
+     * picture in it survive — the folder simply stops being a board. [Deletion.DELETE_FOLDER]
+     * removes the folder itself, which is the only genuinely destructive thing this app does and
+     * is therefore never the default. Refuses obviously wrong targets (a drive root, the user's
+     * home, the boards home itself). Returns a line to show the user.
+     */
+    fun deleteBoard(dir: File, mode: Deletion): String {
+        if (!dir.isDirectory) return "That folder is gone already."
+        if (mode == Deletion.DELETE_FOLDER && !safeToDeleteFolder(dir)) {
+            return "Refusing to delete ${dir.name} — that is not a board folder."
+        }
+
+        // If it is the board on screen, leave it before the file underneath disappears.
+        if (root?.absolutePath.equals(dir.absolutePath, ignoreCase = true)) {
+            root = null
+            board = null
+            selection = emptySet()
+            focusId = null
+            closeStrip()
+        }
+
+        val message = when (mode) {
+            Deletion.FORGET -> {
+                val removed = File(dir, BoardStore.FILE_NAME).delete()
+                File(dir, BoardStore.FILE_NAME + ".bak").delete()
+                if (removed) "Board removed. The pictures are still in ${dir.name}."
+                else "Couldn't remove the board file in ${dir.name}."
+            }
+
+            Deletion.DELETE_FOLDER ->
+                if (dir.deleteRecursively()) "Deleted ${dir.name} and everything in it."
+                else "Couldn't delete ${dir.name} — something in it is in use."
+        }
+
+        settings.removeRecentBoard(dir)
+        recent = settings.recentBoards()
+        boardsHomeTick++ // the board list is keyed on this
+        importNotice = message
+        return message
+    }
+
+    /** Guards the destructive path against paths nobody means to erase. */
+    private fun safeToDeleteFolder(dir: File): Boolean {
+        val target = runCatching { dir.canonicalFile }.getOrNull() ?: return false
+        if (target.parentFile == null) return false // a drive root
+        val home = runCatching { File(System.getProperty("user.home")).canonicalFile }.getOrNull()
+        if (target == home) return false
+        val boardsHome = runCatching { settings.boardsHome().canonicalFile }.getOrNull()
+        if (target == boardsHome) return false
+        // Only a folder ActionDraw actually knows as a board may be removed wholesale.
+        return BoardStore.exists(target)
+    }
 
     /**
      * Creates `<parent>/<name>` as a fresh board, with [template]'s starter groups. Returns an

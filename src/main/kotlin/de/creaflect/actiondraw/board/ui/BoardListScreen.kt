@@ -127,7 +127,14 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(boards, key = { it.dir.absolutePath }) { board ->
-                    BoardTile(board, thumbs) { state.openBoard(board.dir) }
+                    BoardTile(
+                        board = board,
+                        thumbs = thumbs,
+                        onOpen = { state.openBoard(board.dir) },
+                        onDelete = {
+                            state.openEditor(BoardEditor.DeleteBoard(board.dir, board.name, board.pictures))
+                        },
+                    )
                 }
             }
         }
@@ -135,7 +142,12 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
 }
 
 @Composable
-private fun BoardTile(board: BoardSummary, thumbs: ThumbCache, onOpen: () -> Unit) {
+private fun BoardTile(
+    board: BoardSummary,
+    thumbs: ThumbCache,
+    onOpen: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val shape = RoundedCornerShape(6.dp)
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, board.cover) {
         value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 320) } }
@@ -180,13 +192,24 @@ private fun BoardTile(board: BoardSummary, thumbs: ThumbCache, onOpen: () -> Uni
             color = MaterialTheme.colors.secondary,
             modifier = Modifier.padding(horizontal = 10.dp),
         )
-        Text(
-            board.dir.path,
-            style = MaterialTheme.typography.caption,
-            color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 10.dp),
-        )
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 10.dp)) {
+            Text(
+                board.dir.path,
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "Delete…",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.error,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(3.dp))
+                    .clickable { onDelete() }
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+            )
+        }
     }
 }

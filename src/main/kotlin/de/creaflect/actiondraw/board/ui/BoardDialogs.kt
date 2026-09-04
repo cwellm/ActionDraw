@@ -67,6 +67,8 @@ fun BoardDialogs(state: BoardState) {
 
         BoardEditor.NewBoard -> NewBoardDialog(state)
 
+        is BoardEditor.DeleteBoard -> DeleteBoardDialog(state, editor)
+
         BoardEditor.EditSession -> SessionRecipeDialog(state)
 
         BoardEditor.GroupSelection -> TextPromptDialog(
@@ -315,6 +317,49 @@ private fun PaletteDialog(state: BoardState, ids: Set<String>) {
             }
         }
         DialogButtons(confirm = "Done", onOk = state::closeEditor, onCancel = state::closeEditor)
+    }
+}
+
+/**
+ * Deleting a board asks what "delete" should mean. Removing the board file leaves every picture
+ * where it is; deleting the folder does not, so that is a separate, deliberate tick.
+ */
+@Composable
+private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard) {
+    var alsoFolder by remember(editor) { mutableStateOf(false) }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Delete \"${editor.name}\"?", style = MaterialTheme.typography.h6)
+        Text(
+            editor.dir.path,
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+        )
+        Text(
+            if (alsoFolder) {
+                "The folder and everything in it is deleted, including " +
+                    "${editor.pictures} picture(s). This cannot be undone."
+            } else {
+                "The board is removed from ActionDraw. The folder and its " +
+                    "${editor.pictures} picture(s) stay exactly where they are."
+            },
+            style = MaterialTheme.typography.body2,
+            color = if (alsoFolder) MaterialTheme.colors.error else MaterialTheme.colors.onSurface,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = alsoFolder, onCheckedChange = { alsoFolder = it })
+            Text("Also delete the folder and its pictures", style = MaterialTheme.typography.body2)
+        }
+        DialogButtons(
+            confirm = if (alsoFolder) "Delete everything" else "Remove board",
+            onOk = {
+                state.deleteBoard(
+                    editor.dir,
+                    if (alsoFolder) BoardState.Deletion.DELETE_FOLDER else BoardState.Deletion.FORGET,
+                )
+                state.closeEditor()
+            },
+            onCancel = state::closeEditor,
+        )
     }
 }
 

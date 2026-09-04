@@ -64,6 +64,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
   for a board folder elsewhere.
 - New boards are created under the **boards home** (`~/ActionDraw Boards` by default), which the
   picker lets you change.
+- **Deleting a board** (the *Delete…* link on its tile) removes the board but leaves the folder
+  and every picture in it — the board file is ActionDraw's, the pictures are yours. Ticking
+  *Also delete the folder* erases them too, which is the one destructive thing the app does; it
+  refuses to touch a folder that is not a board, your home folder, or the boards home itself.
 - Boards are made first and filled afterwards: a card exists because you put it there, never
   because a file happened to be in the folder.
 

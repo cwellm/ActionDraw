@@ -259,6 +259,13 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Key mapping extracted to a pure `handleBoardShortcut`, covered by `BoardKeysTest` — verified
   by restoring the old binding and watching it fail
 
+### ✅ F4.13 Deleting boards
+- ✅ *Delete…* on a board tile: removing the board keeps the folder and its pictures (default);
+  a separate tick also erases the folder
+- ✅ Guards: refuses a folder that is not a board, the user's home, or the boards home; closes
+  the board first if it is the one on screen; drops it from the recent list
+- ✅ Covered by `DeleteBoardTest`, whose guard case was checked by weakening the guard
+
 ### ✅ F4.7 Link cards
 - ✅ A card holding a url + title, opened in the system browser; searchable like everything else
 - ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its
