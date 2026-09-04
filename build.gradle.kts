@@ -24,6 +24,10 @@ dependencies {
     // Skia can read AVIF; ImageDecoder falls back to ImageIO, so this is all that is needed.
     implementation("io.github.nemanjastokuca:avif-imageio-native-reader:0.1.0")
     testImplementation(kotlin("test"))
+    // Drives the real composables in tests: pointer behaviour (what a click actually selects)
+    // cannot be checked any other way.
+    testImplementation(compose.desktop.uiTestJUnit4)
+    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
 }
 
 kotlin {

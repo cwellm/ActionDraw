@@ -245,6 +245,13 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Auto-placement gives rows more room, so tall cards no longer overlap the row below
 - ✅ A board file with a UTF-8 byte-order mark loads instead of looking corrupt
 
+### ✅ F4.11 Multi-select on the canvas (feedback round 5)
+- ✅ Tap-to-clear moved below the cards; a card click is no longer undone by the release bubbling
+  up to the canvas, so Ctrl/Shift multi-select works in free mode
+- ✅ Clearing the selection also drops the focus ring; the selected outline is heavier (3 dp)
+- ✅ Compose UI tests (`compose.desktop.uiTestJUnit4`) drive the real canvas — verified by
+  restoring the old handler and watching them fail
+
 ### ✅ F4.7 Link cards
 - ✅ A card holding a url + title, opened in the system browser; searchable like everything else
 - ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its

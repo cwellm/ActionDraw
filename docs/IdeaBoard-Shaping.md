@@ -408,3 +408,26 @@ Two real defects did fall out of looking at it:
 
 Also hardened: a sidecar carrying a UTF-8 byte-order mark (easy to introduce by editing the board
 file by hand on Windows) no longer looks corrupt — the BOM is stripped before parsing.
+
+## 19. Feedback round 5 — multi-select on the canvas (2026-09-03)
+
+*"I cannot select multiple pics in free mode, only ever one."* A real bug, and an instructive one.
+
+The canvas carried `detectTapGestures { clearSelection() }` on its outermost Box so that clicking
+empty board would deselect. A card's click handler (`cardClicks`) reacts to the *press* and does
+not consume the event, so the matching release bubbled up to that handler and cleared the
+selection the press had just made. Only `focusId` survived — drawn as a faint ring — which is
+exactly "always only one picture, with no real feedback". Ctrl+click could never accumulate.
+
+The fix is to make tap-to-clear a layer *underneath* the cards rather than a handler above them:
+cards are hit-tested first, so only a tap on empty board reaches it. `clearSelection` now also
+drops the focus ring, and the selected outline on the canvas went from 2 dp to 3 dp.
+
+**This class of bug is invisible to unit tests** — the selection logic was correct all along; the
+question was what a click reaches. The project now has `compose.desktop.uiTestJUnit4` and a
+`CanvasSelectionTest` that drives the real composable. Its worth was checked the only way that
+counts: with the old handler restored, both of its cases fail; with the fix, they pass.
+
+Also learned, the hard way: synthetic mouse input from a script cannot verify this app — Windows
+refuses `SetForegroundWindow` from that context, so the clicks land in whatever window is on top.
+Screenshots of the rendered window remain useful; injected clicks do not.

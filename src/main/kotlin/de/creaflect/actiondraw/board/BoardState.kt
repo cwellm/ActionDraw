@@ -862,6 +862,7 @@ class BoardState(
 
     fun clearSelection() {
         selection = emptySet()
+        focusId = null
     }
 
     fun moveFocus(delta: Int) {

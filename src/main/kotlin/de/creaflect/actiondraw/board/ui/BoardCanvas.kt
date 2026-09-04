@@ -49,6 +49,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -110,7 +111,6 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
                     },
                 )
             }
-            .pointerInput(state) { detectTapGestures(onTap = { state.clearSelection() }) }
             .onPointerEvent(PointerEventType.Move) { event ->
                 shiftHeld = event.keyboardModifiers.isShiftPressed
             }
@@ -150,7 +150,16 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
                 }
             },
     ) {
-        // Group areas first, so cards sit on top of their own group's tint.
+        // Empty board underneath everything: tapping it clears the selection. It must stay below
+        // the cards, or it would swallow their clicks (and it used to, which made it impossible
+        // to select more than one card at a time).
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(state) { detectTapGestures { state.clearSelection() } },
+        )
+
+        // Group areas next, so cards sit on top of their own group's tint.
         state.groupHulls.forEach { hull ->
             key("hull-" + hull.group.id) { GroupArea(state, hull, viewSize) }
         }
@@ -235,6 +244,7 @@ private fun CanvasItem(
                     translationY = cy - hPx / 2
                     rotationZ = pos.rotation
                 }
+                .testTag("card-" + item.id)
                 .cardClicks(state, item.id)
                 .pointerInput(item.id) {
                     detectDragGestures(
@@ -310,7 +320,7 @@ private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, 
             .shadow(if (textured) 4.dp else 1.dp, shape)
             .clip(shape)
             .background(if (textured) Themes.cardBacking else Color(0xFF0D0D0D))
-            .border(2.dp, selectionBorder(state, item.id), shape)
+            .border(3.dp, selectionBorder(state, item.id), shape)
             .padding(if (textured) 5.dp else 1.dp),
         contentAlignment = Alignment.Center,
     ) {
