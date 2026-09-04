@@ -21,6 +21,9 @@ sealed class BoardEditor {
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
     data object NewGroup : BoardEditor()
+
+    /** Names a group made out of whatever is selected. */
+    data object GroupSelection : BoardEditor()
     data class RenameGroup(val groupId: String) : BoardEditor()
 
     /** `itemId == null` creates a new note. */
@@ -104,6 +107,44 @@ class BoardState(
 
     /** Chrome-less mode; only meaningful while the window is fullscreen. */
     var immersive by mutableStateOf(false)
+
+    /** The side drawer listing every card by group; closed by default. */
+    var drawerOpen by mutableStateOf(false)
+
+    /** Groups whose contents are folded away in the drawer. */
+    var drawerCollapsed by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    fun toggleDrawerGroup(groupId: String) {
+        drawerCollapsed =
+            if (groupId in drawerCollapsed) drawerCollapsed - groupId else drawerCollapsed + groupId
+    }
+
+    /**
+     * Centres the freeform camera on a card — the drawer's way of taking you to a picture that is
+     * off-screen. Does nothing in the grid, where the card is simply selected.
+     */
+    fun revealItem(id: String) {
+        selection = setOf(id)
+        focusId = id
+        if (layout != BoardLayouts.FREE) return
+        item(id)?.pos?.let { pos ->
+            camX = pos.x
+            camY = pos.y
+            commitCamera()
+        }
+    }
+
+    /** Centres the camera on a whole group and selects it. */
+    fun revealGroup(groupId: String) {
+        selectGroup(groupId)
+        if (layout != BoardLayouts.FREE) return
+        groupHulls.find { it.group.id == groupId }?.let { hull ->
+            camX = (hull.left + hull.right) / 2
+            camY = (hull.top + hull.bottom) / 2
+            commitCamera()
+        }
+    }
 
     // ---- Freeform camera (board point at the view centre + zoom) ----
     var camX by mutableStateOf(0f)
@@ -428,6 +469,45 @@ class BoardState(
     }
 
     // Items
+
+    /**
+     * Makes a group out of the current selection — the natural way to group on the canvas, where
+     * there are no sections to drop things into. Returns the new group's id, or null if nothing
+     * was selected.
+     */
+    fun groupSelection(name: String): String? {
+        val ids = selection
+        if (ids.isEmpty()) return null
+        val id = Importer.newId()
+        val trimmed = name.trim().ifEmpty { "Group" }
+        update { b ->
+            val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
+            b.copy(
+                groups = b.groups + BoardGroup(id = id, name = trimmed, order = order),
+                items = b.items.map { if (it.id in ids) it.withGroups(listOf(id)) else it },
+            )
+        }
+        return id
+    }
+
+    /** Takes the given cards out of every group they are in; the cards themselves stay put. */
+    fun ungroupItems(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        update { b -> b.copy(items = b.items.map { if (it.id in ids) it.withGroups(emptyList()) else it }) }
+        pruneEmptyGroups()
+    }
+
+    /** Dissolves a group: the group disappears, its cards stay exactly where they are. */
+    fun ungroup(groupId: String) = deleteGroup(groupId)
+
+    /**
+     * Drops groups that no longer hold anything. Without this, ungrouping would leave empty
+     * groups behind that are invisible on the canvas but still clutter the drawer.
+     */
+    private fun pruneEmptyGroups() = update { b ->
+        val used = b.items.flatMap { it.groups }.toSet()
+        b.copy(groups = b.groups.filter { it.id in used })
+    }
 
     fun moveToGroup(ids: Set<String>, groupId: String?) = update { b ->
         b.copy(items = b.items.map { if (it.id in ids) it.withGroups(listOfNotNull(groupId)) else it })

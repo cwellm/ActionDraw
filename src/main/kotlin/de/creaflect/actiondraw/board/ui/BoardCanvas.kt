@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -228,7 +229,7 @@ private fun CanvasItem(
     }) {
         Box(
             Modifier
-                .size(with(density) { wPx.toDp() }, with(density) { hPx.toDp() })
+                .requiredSize(with(density) { wPx.toDp() }, with(density) { hPx.toDp() })
                 .graphicsLayer {
                     translationX = cx - wPx / 2
                     translationY = cy - hPx / 2
@@ -441,14 +442,14 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
     }) {
         Box(
             Modifier
-                .size(with(density) { w.toDp() }, with(density) { h.toDp() })
+                .requiredSize(with(density) { w.toDp() }, with(density) { h.toDp() })
                 .graphicsLayer {
                     translationX = x
                     translationY = y
                 }
                 .clip(shape)
-                .background(accent.copy(alpha = 0.10f))
-                .border(1.dp, accent.copy(alpha = 0.55f), shape)
+                .background(accent.copy(alpha = 0.14f))
+                .border(2.dp, accent.copy(alpha = 0.7f), shape)
                 // Dragging the area moves the group as one. The selection is deliberately left
                 // alone, so dragging a single card afterwards still moves only that card.
                 .pointerInput(hull.group.id) {

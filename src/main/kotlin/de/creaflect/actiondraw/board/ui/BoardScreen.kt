@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -45,7 +46,9 @@ import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
@@ -105,7 +108,9 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                 .then(background)
                 .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = dropTarget),
         ) {
-            Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize()) {
+              if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
+              Column(Modifier.weight(1f).fillMaxHeight()) {
                 if (!hideChrome) {
                     BoardHeader(state, board.name, board.theme, onImmersive = {
                         state.immersive = true
@@ -137,35 +142,45 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                     BoardGrid(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
                 }
                 if (!hideChrome) BoardActionBar(state)
+              }
             }
             if (state.viewerOpen) BoardViewer(state, thumbs)
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BoardHeader(state: BoardState, name: String, theme: String, onImmersive: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    // The header carries a lot; let it wrap rather than squeeze the buttons on a narrow window.
+    FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
     ) {
-        Text(name, style = MaterialTheme.typography.h5, color = MaterialTheme.colors.primary)
-        Spacer(Modifier.weight(1f))
+        Text(
+            name,
+            style = MaterialTheme.typography.h5,
+            color = MaterialTheme.colors.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 320.dp).align(Alignment.CenterVertically),
+        )
+        OutlinedButton(onClick = { state.drawerOpen = !state.drawerOpen }) {
+            Text(if (state.drawerOpen) "Contents ✕" else "Contents")
+        }
         SelectChip("Grid", state.layout == BoardLayouts.GRID) { state.setLayout(BoardLayouts.GRID) }
         SelectChip("Free", state.layout == BoardLayouts.FREE) { state.setLayout(BoardLayouts.FREE) }
         if (state.layout == BoardLayouts.FREE) {
             SelectChip("Snap", state.snapping) { state.snapping = !state.snapping }
         }
-        Spacer(Modifier.width(8.dp))
         BoardThemes.ALL.forEach { id ->
             SelectChip(id.replaceFirstChar { it.uppercase() }, theme == id) { state.setTheme(id) }
         }
-        Spacer(Modifier.width(8.dp))
         OutlinedButton(onClick = { if (state.stripOpen) state.closeStrip() else state.openStrip() }) {
             Text(if (state.stripOpen) "Strip ✕" else "Float strip")
         }
-        OutlinedButton(onClick = onImmersive) { Text("⛶ Immersive") }
+        OutlinedButton(onClick = onImmersive) { Text("Immersive") }
         OutlinedButton(onClick = { state.closeBoard() }) { Text("Close") }
     }
 }
@@ -270,6 +285,14 @@ private fun BoardActionBar(state: BoardState) {
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditSession) }) {
                     Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
                 }
+                if (state.selection.isNotEmpty()) {
+                    OutlinedButton(onClick = { state.openEditor(BoardEditor.GroupSelection) }) {
+                        Text("Group (${state.selection.size})")
+                    }
+                }
+                if (state.selection.any { id -> state.item(id)?.groups?.isNotEmpty() == true }) {
+                    OutlinedButton(onClick = { state.ungroupItems(state.selection) }) { Text("Ungroup") }
+                }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.NewGroup) }) { Text("New group") }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(null)) }) { Text("New note") }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditLink(null)) }) { Text("New link") }
@@ -314,7 +337,8 @@ private fun BoardActionBar(state: BoardState) {
             Text(
                 "Click select · Ctrl/Shift multi · right-click menu · Ctrl+C/V copy/paste · Ctrl+↑/↓ reorder " +
                     "(+Shift: all the way) · Space view large · Enter draw · N note · L link · G group · " +
-                    "S star · T tags · P palette · F2 caption · Del remove · F immersive" +
+                    "S star · T tags · P palette · F2 caption · Del remove · F immersive · " +
+                    "Ctrl+G group · Ctrl+Shift+G ungroup" +
                     if (state.layout == BoardLayouts.FREE) " · Shift+drag marquee" else "",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),

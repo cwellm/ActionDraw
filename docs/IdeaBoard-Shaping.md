@@ -368,3 +368,22 @@ The last planned milestone, and the one where the board stops being only functio
   change the selection — if it selected the group, the next card drag would have moved everything
   (the selection is what card drags follow). Clicking the label is the explicit way to select a
   group as a unit; right-clicking the hull gives it the same menu the grid header has.
+
+## 17. Feedback round 3 (2026-09-03)
+
+*"I do not see any group, at least not in free mode."* The drawing was fine — verified by loading
+a board fixture with a real group and looking at the canvas — but a group with **no cards draws
+nothing**, and until now the only way to make a group was "New group", which creates an *empty*
+one. On the canvas there are no sections to drop cards into afterwards, so groups stayed empty and
+therefore invisible. The fix is to make grouping start from the selection:
+
+- **Group the selection** (`Ctrl+G`, action bar, drawer) creates a group *with members*, so an
+  area appears immediately. **Ungroup** (`Ctrl+Shift+G`, or per group) takes cards back out, and
+  a group holding nothing is pruned rather than lingering invisibly.
+- **The contents drawer** answers the other half: a board is spatial, so it needs a place that
+  lists what is on it. Groups are shown as headers with their colour and count, collapsible, with
+  Select / Draw / Rename / Ungroup; clicking any row selects it and moves the camera to it. It is
+  also where a group can be managed before it has any cards.
+- Two fixes found by actually looking at the rendered window: the header now wraps instead of
+  squeezing its buttons into vertical text, and group areas use `requiredSize` so a hull larger
+  than the viewport is not clamped to it.

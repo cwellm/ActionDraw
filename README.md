@@ -85,12 +85,18 @@ still have an ordinary folder of images; the board never renames, moves or delet
     Groups show as a tinted, outlined area with a name label: drag the area to move the whole
     group, drag a card inside it to move just that card, click the label to select the group, and
     right-click the area to draw, rename, recolour or delete it. Grouped cards carry a small dot
-    in their group's colour.
+    in their group's colour. A group only shows once it holds something.
 - **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
   **link cards** (`L`) that open in your browser; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
+- **Grouping**: select cards and press `Ctrl`+`G` (or *Group* in the action bar) to make a group
+  of them — the way to group on the canvas. `Ctrl`+`Shift`+`G` takes cards back out, and a group
+  left holding nothing disappears by itself.
+- **Contents drawer** (`Ctrl`+`D`, or the *Contents* button): everything on the board as a list,
+  grouped, with thumbnails. Collapse a group, click a row to select it and bring the camera to
+  it, or use a group's *Select · Draw · Rename · Ungroup*.
 - **Reorder by dragging** a card onto another within its group, or with the menu and keyboard
   below.
 - **View large** (`Space`, or the View button): the selected pictures fill the screen. With more
@@ -155,6 +161,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `Space` | view the selection large (carousel) |
 | `Enter` | draw the selection |
 | `N` / `L` / `G` | new note · new link · new group |
+| `Ctrl`+`G` / `Ctrl`+`Shift`+`G` | group the selection · ungroup it |
+| `Ctrl`+`D` | contents drawer |
 | `S` / `T` / `P` / `F2` | star · tags · palette · caption |
 | `Del` | remove card from the board (the file stays) |
 | `F` | immersive mode |

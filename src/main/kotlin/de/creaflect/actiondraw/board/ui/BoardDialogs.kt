@@ -69,6 +69,14 @@ fun BoardDialogs(state: BoardState) {
 
         BoardEditor.EditSession -> SessionRecipeDialog(state)
 
+        BoardEditor.GroupSelection -> TextPromptDialog(
+            title = "Group ${state.selection.size} selected card(s)",
+            initial = "",
+            confirm = "Group",
+            onOk = { state.groupSelection(it); state.closeEditor() },
+            onCancel = state::closeEditor,
+        )
+
         BoardEditor.NewGroup -> TextPromptDialog(
             title = "New group",
             initial = "",

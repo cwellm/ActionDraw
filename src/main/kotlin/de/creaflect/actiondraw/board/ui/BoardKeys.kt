@@ -45,6 +45,12 @@ fun handleBoardKey(
         val all = event.isShiftPressed
         return when (event.key) {
             Key.A -> { state.selectAll(); true }
+            Key.G -> {
+                if (event.isShiftPressed) state.ungroupItems(state.selection)
+                else if (state.selection.isNotEmpty()) state.openEditor(BoardEditor.GroupSelection)
+                true
+            }
+            Key.D -> { state.drawerOpen = !state.drawerOpen; true }
             Key.C -> { state.copySelection(); true }
             Key.V -> { state.importPasted(); true }
             Key.DirectionUp -> {

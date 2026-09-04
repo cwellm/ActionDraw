@@ -227,6 +227,18 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ The floating reference strip is a carousel again: drag or wheel to flip, with the neighbours
   sliding in as in the large view
 
+### ✅ F4.9 Grouping, ungrouping and the contents drawer (feedback round 3)
+- ✅ **Group the selection** (`Ctrl+G`, the action bar, or the drawer) — the way to make a group
+  on the canvas, where there are no sections to drop cards into. An empty group draws nothing,
+  which is why groups made with "New group" alone looked invisible.
+- ✅ **Ungroup**: `Ctrl+Shift+G` for the selected cards, "Ungroup" on a whole group; groups left
+  holding nothing are tidied away
+- ✅ **Contents drawer** (`Ctrl+D` or the Contents button): every card listed by group, with
+  thumbnails, collapsible groups, and Select / Draw / Rename / Ungroup per group
+- ✅ Clicking a row selects it and brings the freeform camera to it
+- ✅ Header wraps instead of squeezing its buttons; the ⛶ glyph (which rendered as a box) is gone
+- ✅ Group areas use `requiredSize`, so a hull larger than the window is no longer clamped
+
 ### ✅ F4.7 Link cards
 - ✅ A card holding a url + title, opened in the system browser; searchable like everything else
 - ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its

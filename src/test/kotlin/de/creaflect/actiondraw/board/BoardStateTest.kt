@@ -809,6 +809,110 @@ class BoardStateTest {
         assertNull(state.accentOf(loose), "an ungrouped card shows no accent")
     }
 
+    // ---- Grouping and ungrouping (feedback round 3) ----
+
+    @Test
+    fun groupingTheSelectionMakesAGroupThatIsVisibleOnTheCanvas() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+
+        val groupId = state.groupSelection("Wings")
+
+        assertEquals("Wings", state.sortedGroups.single().name)
+        assertEquals(setOf(ids[0], ids[1]), state.itemsIn(groupId).map { it.id }.toSet())
+        // The point of the exercise: a group made this way draws an area straight away.
+        assertEquals(1, state.groupHulls.size)
+        assertEquals(2, state.groupHulls.single().count)
+    }
+
+    @Test
+    fun groupingNothingDoesNothing() {
+        val state = newState()
+        boardWithThreeImages(state)
+        state.clearSelection()
+        assertNull(state.groupSelection("Empty"))
+        assertTrue(state.sortedGroups.isEmpty())
+    }
+
+    @Test
+    fun ungroupingCardsTakesThemOutAndTidiesTheEmptyGroupAway() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+        val groupId = state.groupSelection("Wings")!!
+
+        state.ungroupItems(setOf(ids[0]))
+        assertEquals(listOf(ids[1]), state.itemsIn(groupId).map { it.id }, "only that card left")
+        assertEquals(1, state.sortedGroups.size, "the group still holds someone")
+
+        state.ungroupItems(setOf(ids[1]))
+        assertTrue(state.sortedGroups.isEmpty(), "a group with nothing in it is removed")
+        assertEquals(3, state.itemsIn(null).size, "every card is back in the Inbox")
+    }
+
+    @Test
+    fun ungroupingAWholeGroupKeepsItsCards() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.selectAll()
+        val groupId = state.groupSelection("Everything")!!
+
+        state.ungroup(groupId)
+
+        assertTrue(state.sortedGroups.isEmpty())
+        assertEquals(3, state.board!!.items.size, "the cards themselves stay")
+        assertTrue(state.board!!.items.all { it.groups.isEmpty() })
+    }
+
+    @Test
+    fun theDrawerCanFoldGroupsAwayAndBack() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.selectAll()
+        val groupId = state.groupSelection("Wings")!!
+
+        assertTrue(groupId !in state.drawerCollapsed)
+        state.toggleDrawerGroup(groupId)
+        assertTrue(groupId in state.drawerCollapsed)
+        state.toggleDrawerGroup(groupId)
+        assertTrue(groupId !in state.drawerCollapsed)
+    }
+
+    @Test
+    fun revealingACardSelectsItAndBringsTheCameraOver() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        val target = state.board!!.items.first { it.id == ids[2] }.pos!!
+
+        state.revealItem(ids[2])
+
+        assertEquals(setOf(ids[2]), state.selection)
+        assertEquals(target.x, state.camX, "the camera centres on the card")
+        assertEquals(target.y, state.camY)
+    }
+
+    @Test
+    fun revealingAGroupSelectsItAndCentresOnItsArea() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+        val groupId = state.groupSelection("Wings")!!
+        val hull = state.groupHulls.single()
+
+        state.pan(900f, 900f) // look somewhere else first
+        state.revealGroup(groupId)
+
+        assertEquals(setOf(ids[0], ids[1]), state.selection)
+        assertEquals((hull.left + hull.right) / 2, state.camX)
+    }
+
     @Test
     fun availableBoardsListsTheHomeAndRecentOnes() {
         val state = newState()
