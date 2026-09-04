@@ -642,23 +642,40 @@ class BoardState(
     /** Padding between a group's cards and the edge of its hull, in board units. */
     private val hullPadding = BASE_SIZE * 0.18f
 
+    /**
+     * Half the width and half the height of a card in board units. Cards are as wide as
+     * [BASE_SIZE] times their scale and as tall as that divided by the picture's aspect — a
+     * portrait photograph is much taller than it is wide, which anything measuring cards has to
+     * take into account.
+     */
+    private fun halfSizeOf(item: BoardItem): Pair<Float, Float> {
+        val scale = item.pos?.scale ?: 1f
+        val aspect = ((item as? ImageItem)?.aspect ?: 1f).coerceIn(0.2f, 5f)
+        val width = BASE_SIZE * scale
+        return (width / 2f) to (width / aspect / 2f)
+    }
+
     /** One hull per group that has placed, currently visible cards. */
     val groupHulls: List<GroupHull>
         get() {
             val shown = freeItems
             return sortedGroups.mapIndexedNotNull { index, group ->
-                val positions = shown.filter { group.id in it.groups }.mapNotNull { it.pos }
-                if (positions.isEmpty()) return@mapIndexedNotNull null
-                val halves = positions.map { BASE_SIZE * it.scale / 2 }
+                val members = shown.filter { group.id in it.groups && it.pos != null }
+                if (members.isEmpty()) return@mapIndexedNotNull null
+                val boxes = members.map { item ->
+                    val pos = item.pos!!
+                    val (halfW, halfH) = halfSizeOf(item)
+                    listOf(pos.x - halfW, pos.y - halfH, pos.x + halfW, pos.y + halfH)
+                }
                 GroupHull(
                     group = group,
                     // A group without its own accent still needs to be told apart from the next.
                     color = group.color ?: fallbackGroupColor(index),
-                    left = positions.mapIndexed { i, p -> p.x - halves[i] }.min() - hullPadding,
-                    top = positions.mapIndexed { i, p -> p.y - halves[i] }.min() - hullPadding,
-                    right = positions.mapIndexed { i, p -> p.x + halves[i] }.max() + hullPadding,
-                    bottom = positions.mapIndexed { i, p -> p.y + halves[i] }.max() + hullPadding,
-                    count = positions.size,
+                    left = boxes.minOf { it[0] } - hullPadding,
+                    top = boxes.minOf { it[1] } - hullPadding,
+                    right = boxes.maxOf { it[2] } + hullPadding,
+                    bottom = boxes.maxOf { it[3] } + hullPadding,
+                    count = members.size,
                 )
             }
         }
@@ -765,8 +782,9 @@ class BoardState(
         val bottom = maxOf(rect[1], rect[3])
         val hits = freeItems.filter { item ->
             val pos = item.pos ?: return@filter false
-            val half = BASE_SIZE * pos.scale / 2
-            pos.x + half >= left && pos.x - half <= right && pos.y + half >= top && pos.y - half <= bottom
+            val (halfW, halfH) = halfSizeOf(item)
+            pos.x + halfW >= left && pos.x - halfW <= right &&
+                pos.y + halfH >= top && pos.y - halfH <= bottom
         }
         selection = hits.map { it.id }.toSet()
         focusId = hits.lastOrNull()?.id
@@ -1010,13 +1028,17 @@ class BoardState(
 
     /** Centres the camera on all placed cards and zooms to fit them into [viewW]×[viewH] px. */
     fun fitAll(viewW: Float, viewH: Float) {
-        val positions = board?.items.orEmpty().mapNotNull { it.pos }
-        if (positions.isEmpty() || viewW <= 0f || viewH <= 0f) return
-        val half = positions.map { BASE_SIZE * it.scale / 2 }
-        val minX = positions.mapIndexed { i, p -> p.x - half[i] }.min()
-        val maxX = positions.mapIndexed { i, p -> p.x + half[i] }.max()
-        val minY = positions.mapIndexed { i, p -> p.y - half[i] }.min()
-        val maxY = positions.mapIndexed { i, p -> p.y + half[i] }.max()
+        val placed = board?.items.orEmpty().filter { it.pos != null }
+        if (placed.isEmpty() || viewW <= 0f || viewH <= 0f) return
+        val boxes = placed.map { item ->
+            val pos = item.pos!!
+            val (halfW, halfH) = halfSizeOf(item)
+            listOf(pos.x - halfW, pos.y - halfH, pos.x + halfW, pos.y + halfH)
+        }
+        val minX = boxes.minOf { it[0] }
+        val maxX = boxes.maxOf { it[2] }
+        val minY = boxes.minOf { it[1] }
+        val maxY = boxes.maxOf { it[3] }
         camX = (minX + maxX) / 2
         camY = (minY + maxY) / 2
         zoom = (minOf(viewW / (maxX - minX + BASE_SIZE), viewH / (maxY - minY + BASE_SIZE)))
@@ -1236,14 +1258,17 @@ class BoardState(
         fun placeMissing(board: BoardFile, originX: Float = 0f, originY: Float = 0f): BoardFile {
             val unplaced = board.items.count { it.pos == null }
             if (unplaced == 0) return board
-            val gap = BASE_SIZE * 1.2f
+            // Rows are spaced more generously than columns: a portrait card is far taller than
+            // it is wide, and cascading them at one card's height made them overlap.
+            val gap = BASE_SIZE * 1.3f
+            val rowGap = BASE_SIZE * 1.9f
             val perRow = 5
             val startY = (board.items.mapNotNull { it.pos }.maxOfOrNull { it.y + BASE_SIZE } ?: originY)
             val startX = originX - (perRow - 1) * gap / 2
             var i = 0
             return board.copy(items = board.items.map { item ->
                 if (item.pos != null) item
-                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * gap)).also { i++ }
+                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap)).also { i++ }
             })
         }
     }

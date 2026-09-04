@@ -914,6 +914,57 @@ class BoardStateTest {
     }
 
     @Test
+    fun theHullEnclosesTallCardsNotJustSquareOnes() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        // A portrait picture is far taller than it is wide.
+        state.recordAspect(ids[0], 0.5f)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        val groupId = state.groupSelection("Tall")!!
+
+        val hull = state.groupHulls.single()
+        val pos = state.item(ids[0])!!.pos!!
+        val halfHeight = BoardState.BASE_SIZE / 0.5f / 2f
+        assertTrue(
+            hull.bottom >= pos.y + halfHeight,
+            "the hull must reach past the bottom of a portrait card (${hull.bottom} vs ${pos.y + halfHeight})",
+        )
+        assertTrue(hull.top <= pos.y - halfHeight, "and past its top")
+        assertEquals(groupId, hull.group.id)
+    }
+
+    @Test
+    fun theMarqueeCatchesACardByItsRealShape() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.recordAspect(ids[0], 0.5f) // tall
+        state.clearSelection()
+        val pos = state.item(ids[0])!!.pos!!
+
+        // A band that only touches the lower half of the tall card - below a square card's edge.
+        val y = pos.y + BoardState.BASE_SIZE * 0.8f
+        state.startMarquee(pos.x - 5f, y)
+        state.updateMarquee(pos.x + 5f, y + 10f)
+        state.commitMarquee()
+
+        assertTrue(ids[0] in state.selection, "the tall card reaches down that far")
+    }
+
+    @Test
+    fun autoPlacementLeavesRoomBetweenRows() {
+        val cards = (1..7).map { NoteItem(id = "n$it", text = "x") }
+        val board = BoardState.placeMissing(BoardFile(items = cards))
+        val rows = board.items.mapNotNull { it.pos?.y }.distinct().sorted()
+        assertEquals(2, rows.size, "7 cards in rows of 5 -> two rows")
+        assertTrue(
+            rows[1] - rows[0] > BoardState.BASE_SIZE * 1.5f,
+            "rows need more room than a card's width, or tall cards overlap",
+        )
+    }
+
+    @Test
     fun availableBoardsListsTheHomeAndRecentOnes() {
         val state = newState()
         state.createBoard(home, "Alpha")

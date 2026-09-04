@@ -387,3 +387,24 @@ therefore invisible. The fix is to make grouping start from the selection:
 - Two fixes found by actually looking at the rendered window: the header now wraps instead of
   squeezing its buttons into vertical text, and group areas use `requiredSize` so a hull larger
   than the viewport is not clamped to it.
+
+## 18. Feedback round 4 (2026-09-03)
+
+The reported symptoms — no group feedback in free mode, no drawer, "a new group shows 0 pics" —
+were mostly the previous build: the drawer and Group-from-selection landed after that pass, and in
+the old build "New group" was the only way to make one, which creates an *empty* group (hence
+0 pictures, and nothing to draw on the canvas). Verified by scripting the real flow in the running
+app — select two cards, group them — and looking at the result: grid shows "Wings (2)", free shows
+the hull with the drawer listing the group.
+
+Two real defects did fall out of looking at it:
+
+- **Card bounds ignored aspect.** Hulls, marquee hit-testing and Fit all measured a card as a
+  square of `BASE_SIZE × scale`, but a card is that *wide* and `width / aspect` *tall*. A portrait
+  photograph therefore hung out of its own group's area and could be missed by a rubber band.
+  All three now measure through one `halfSizeOf` helper.
+- **Auto-placement rows were too tight** (one card width), so tall cards overlapped the row below.
+  Rows now get 1.9× the base size, columns 1.3×.
+
+Also hardened: a sidecar carrying a UTF-8 byte-order mark (easy to introduce by editing the board
+file by hand on Windows) no longer looks corrupt — the BOM is stripped before parsing.

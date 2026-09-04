@@ -239,6 +239,12 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Header wraps instead of squeezing its buttons; the ⛶ glyph (which rendered as a box) is gone
 - ✅ Group areas use `requiredSize`, so a hull larger than the window is no longer clamped
 
+### ✅ F4.10 Aspect-aware bounds and robustness (feedback round 4)
+- ✅ Hulls, marquee and Fit measure a card by its real width *and* height, so a portrait picture
+  sits inside its group's area instead of hanging out of it
+- ✅ Auto-placement gives rows more room, so tall cards no longer overlap the row below
+- ✅ A board file with a UTF-8 byte-order mark loads instead of looking corrupt
+
 ### ✅ F4.7 Link cards
 - ✅ A card holding a url + title, opened in the system browser; searchable like everything else
 - ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its
