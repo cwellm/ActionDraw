@@ -490,6 +490,15 @@ class BoardState(
         return id
     }
 
+    /**
+     * What "group" means depends on the situation: with cards selected it groups them, otherwise
+     * it starts an empty group. Having two separate commands (one of which quietly made an empty
+     * group while cards were selected) was a trap.
+     */
+    fun startGrouping() {
+        openEditor(if (selection.isEmpty()) BoardEditor.NewGroup else BoardEditor.GroupSelection)
+    }
+
     /** Takes the given cards out of every group they are in; the cards themselves stay put. */
     fun ungroupItems(ids: Set<String>) {
         if (ids.isEmpty()) return

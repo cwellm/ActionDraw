@@ -285,15 +285,12 @@ private fun BoardActionBar(state: BoardState) {
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditSession) }) {
                     Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
                 }
-                if (state.selection.isNotEmpty()) {
-                    OutlinedButton(onClick = { state.openEditor(BoardEditor.GroupSelection) }) {
-                        Text("Group (${state.selection.size})")
-                    }
+                OutlinedButton(onClick = { state.startGrouping() }) {
+                    Text(if (state.selection.isEmpty()) "New group" else "Group (${state.selection.size})")
                 }
                 if (state.selection.any { id -> state.item(id)?.groups?.isNotEmpty() == true }) {
                     OutlinedButton(onClick = { state.ungroupItems(state.selection) }) { Text("Ungroup") }
                 }
-                OutlinedButton(onClick = { state.openEditor(BoardEditor.NewGroup) }) { Text("New group") }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(null)) }) { Text("New note") }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditLink(null)) }) { Text("New link") }
                 if (state.selection.any { state.item(it) is ImageItem }) {
@@ -338,7 +335,7 @@ private fun BoardActionBar(state: BoardState) {
                 "Click select · Ctrl/Shift multi · right-click menu · Ctrl+C/V copy/paste · Ctrl+↑/↓ reorder " +
                     "(+Shift: all the way) · Space view large · Enter draw · N note · L link · G group · " +
                     "S star · T tags · P palette · F2 caption · Del remove · F immersive · " +
-                    "Ctrl+G group · Ctrl+Shift+G ungroup" +
+                    "G group the selection · Ctrl+Shift+G ungroup · Ctrl+D contents" +
                     if (state.layout == BoardLayouts.FREE) " · Shift+drag marquee" else "",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),

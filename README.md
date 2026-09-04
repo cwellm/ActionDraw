@@ -91,9 +91,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
-- **Grouping**: select cards and press `Ctrl`+`G` (or *Group* in the action bar) to make a group
-  of them — the way to group on the canvas. `Ctrl`+`Shift`+`G` takes cards back out, and a group
-  left holding nothing disappears by itself.
+- **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
+  them — the way to group on the canvas. With nothing selected the same command starts an empty
+  group. `Ctrl`+`Shift`+`G` takes cards back out, and a group left holding nothing disappears by
+  itself.
 - **Contents drawer** (`Ctrl`+`D`, or the *Contents* button): everything on the board as a list,
   grouped, with thumbnails. Collapse a group, click a row to select it and bring the camera to
   it, or use a group's *Select · Draw · Rename · Ungroup*.
@@ -160,8 +161,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way); drag a card for free placing |
 | `Space` | view the selection large (carousel) |
 | `Enter` | draw the selection |
-| `N` / `L` / `G` | new note · new link · new group |
-| `Ctrl`+`G` / `Ctrl`+`Shift`+`G` | group the selection · ungroup it |
+| `N` / `L` | new note · new link |
+| `G` (or `Ctrl`+`G`) / `Ctrl`+`Shift`+`G` | group the selection · ungroup it |
 | `Ctrl`+`D` | contents drawer |
 | `S` / `T` / `P` / `F2` | star · tags · palette · caption |
 | `Del` | remove card from the board (the file stays) |

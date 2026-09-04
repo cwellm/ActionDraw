@@ -252,6 +252,13 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Compose UI tests (`compose.desktop.uiTestJUnit4`) drive the real canvas — verified by
   restoring the old handler and watching them fail
 
+### ✅ F4.12 One meaning for "group" (feedback round 6)
+- ✅ `G`, `Ctrl+G`, the action-bar button and the drawer all call `startGrouping()`: it groups the
+  selection when there is one, and starts an empty group otherwise
+- ✅ The button says which it will do ("Group (2)" vs "New group")
+- ✅ Key mapping extracted to a pure `handleBoardShortcut`, covered by `BoardKeysTest` — verified
+  by restoring the old binding and watching it fail
+
 ### ✅ F4.7 Link cards
 - ✅ A card holding a url + title, opened in the system browser; searchable like everything else
 - ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its

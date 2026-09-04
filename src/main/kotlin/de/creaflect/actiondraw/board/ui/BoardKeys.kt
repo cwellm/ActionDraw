@@ -18,17 +18,39 @@ fun handleBoardKey(
     state: BoardState,
     isFullscreen: Boolean,
     setFullscreen: (Boolean) -> Unit,
+): Boolean = handleBoardShortcut(
+    key = event.key,
+    ctrl = event.isCtrlPressed,
+    shift = event.isShiftPressed,
+    state = state,
+    isFullscreen = isFullscreen,
+    setFullscreen = setFullscreen,
+)
+
+/**
+ * Which command a shortcut stands for. Split out from [handleBoardKey] so the mapping can be
+ * tested without building a Compose key event — the bugs here are about *which* command a key
+ * runs (plain `G` used to make an empty group even with cards selected), which no test of the
+ * commands themselves can catch.
+ */
+internal fun handleBoardShortcut(
+    key: Key,
+    ctrl: Boolean,
+    shift: Boolean,
+    state: BoardState,
+    isFullscreen: Boolean,
+    setFullscreen: (Boolean) -> Unit,
 ): Boolean {
     if (state.editor != null) {
         // Open dialogs own the keyboard; the window handler only closes them on Esc.
-        if (event.key == Key.Escape) {
+        if (key == Key.Escape) {
             state.closeEditor()
             return true
         }
         return false
     }
     if (state.viewerOpen) {
-        return when (event.key) {
+        return when (key) {
             Key.Escape, Key.Spacebar -> { state.closeViewer(); true }
             Key.DirectionLeft, Key.DirectionUp -> { state.viewerStep(-1); true }
             Key.DirectionRight, Key.DirectionDown -> { state.viewerStep(1); true }
@@ -38,16 +60,15 @@ fun handleBoardKey(
         }
     }
     val free = state.layout == BoardLayouts.FREE
-    if (event.isCtrlPressed) {
+    if (ctrl) {
         // Ctrl+↑/↓ reorders the focused card: grid = earlier/later in its group,
         // free = one z-level; with Shift it goes all the way.
         val focused = state.focusId
-        val all = event.isShiftPressed
-        return when (event.key) {
+        val all = shift
+        return when (key) {
             Key.A -> { state.selectAll(); true }
             Key.G -> {
-                if (event.isShiftPressed) state.ungroupItems(state.selection)
-                else if (state.selection.isNotEmpty()) state.openEditor(BoardEditor.GroupSelection)
+                if (shift) state.ungroupItems(state.selection) else state.startGrouping()
                 true
             }
             Key.D -> { state.drawerOpen = !state.drawerOpen; true }
@@ -64,7 +85,7 @@ fun handleBoardKey(
             else -> false
         }
     }
-    return when (event.key) {
+    return when (key) {
         Key.Escape -> {
             // Immersive first; a windowed board closes back to the menu.
             if (state.immersive || isFullscreen) {
@@ -95,7 +116,7 @@ fun handleBoardKey(
             if (ids.isNotEmpty()) state.openEditor(BoardEditor.ShowPalette(ids))
             true
         }
-        Key.G -> { state.openEditor(BoardEditor.NewGroup); true }
+        Key.G -> { state.startGrouping(); true }
         Key.S -> { state.toggleStar(state.selection); true }
         Key.T -> {
             val ids = state.selection.ifEmpty { setOfNotNull(state.focusId) }

@@ -431,3 +431,20 @@ counts: with the old handler restored, both of its cases fail; with the fix, the
 Also learned, the hard way: synthetic mouse input from a script cannot verify this app — Windows
 refuses `SetForegroundWindow` from that context, so the clicks land in whatever window is on top.
 Screenshots of the rendered window remain useful; injected clicks do not.
+
+## 20. Feedback round 6 — what "G" means (2026-09-03)
+
+*"Select 2 pics, press G, name the group — group appears in grid with 0 pictures."* Exactly what
+the code said: plain `G` was wired to *New group*, which creates an **empty** group, while only
+`Ctrl+G` grouped the selection. The hint line advertised "G group", so the trap was signposted.
+
+There is now one command: `startGrouping()` groups the selection when there is one and starts an
+empty group otherwise. `G`, `Ctrl+G`, the action-bar button (which reads "Group (2)" or "New
+group" accordingly) and the drawer all go through it, so the same key cannot mean two things.
+
+The lesson repeated from §19: these bugs live in the *wiring*, not the logic, and every unit test
+of the commands stayed green through all of them. The key mapping is now a pure function
+(`handleBoardShortcut(key, ctrl, shift, …)`) that `handleBoardKey` delegates to, so shortcuts can
+be tested without building a Compose key event — `InternalKeyEvent` is not constructible from
+outside. `BoardKeysTest` covers G / Ctrl+G / Ctrl+Shift+G, and its worth was checked the same way
+as the canvas test: restore the old binding and it fails.

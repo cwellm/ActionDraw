@@ -75,7 +75,7 @@ fun BoardDrawer(state: BoardState, thumbs: ThumbCache) {
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             ) {
                 OutlinedButton(
-                    onClick = { state.openEditor(BoardEditor.GroupSelection) },
+                    onClick = { state.startGrouping() },
                     enabled = state.selection.isNotEmpty(),
                 ) { Text("Group (${state.selection.size})") }
                 OutlinedButton(
