@@ -372,7 +372,10 @@ private fun PaletteDialog(state: BoardState, ids: Set<String>) {
  */
 @Composable
 private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard) {
-    var alsoFolder by remember(editor) { mutableStateOf(false) }
+    // A folder ActionDraw made for this board goes with it; a folder that was already yours does
+    // not. Either way the tick is there, so the default is a starting point and not a decision
+    // taken for you.
+    var alsoFolder by remember(editor) { mutableStateOf(editor.ownsFolder) }
     DialogScrim(onDismiss = state::closeEditor) {
         Text("Delete \"${editor.name}\"?", style = MaterialTheme.typography.h6)
         Text(
@@ -384,6 +387,9 @@ private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard
             if (alsoFolder) {
                 "The folder and everything in it is deleted, including " +
                     "${editor.pictures} picture(s). This cannot be undone."
+            } else if (editor.ownsFolder) {
+                "The board is removed, but the folder ActionDraw made for it stays behind with " +
+                    "its ${editor.pictures} picture(s)."
             } else {
                 "The board is removed from ActionDraw. The folder and its " +
                     "${editor.pictures} picture(s) stay exactly where they are."
@@ -393,7 +399,11 @@ private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = alsoFolder, onCheckedChange = { alsoFolder = it })
-            Text("Also delete the folder and its pictures", style = MaterialTheme.typography.body2)
+            Text(
+                if (editor.ownsFolder) "Delete the folder and its pictures"
+                else "Also delete the folder and its pictures (it was not created by ActionDraw)",
+                style = MaterialTheme.typography.body2,
+            )
         }
         DialogButtons(
             confirm = if (alsoFolder) "Delete everything" else "Remove board",

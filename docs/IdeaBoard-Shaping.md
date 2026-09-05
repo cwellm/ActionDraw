@@ -466,6 +466,8 @@ home, the boards home itself, and a drive root. The open board is closed before 
 disappears. `DeleteBoardTest` covers both readings and the guards — and, as with the last two
 rounds, the guard test was checked by weakening the guard and watching it fail.
 
+*Later:* the default turned out to be wrong for boards the app itself created — see §23.
+
 ## 22. Colour temperature, and the one thing that goes online (2026-09-05)
 
 Two backlog items, deliberately taken together because they pull in opposite directions: one makes
@@ -502,3 +504,50 @@ and works offline. *Remove preview* undoes it.
 socket — the same reason the fetcher is an interface at all. The scheme guard earns its place the
 way the others have: delete the `http`/`https` check and two tests fail, one of them the case
 where a `file://` card would otherwise have been read off disk.
+
+## 23. A board is a mapping, not a location (2026-09-05)
+
+Reported: deleting the board "Test" left its folder behind, and the leftover folder then made the
+name unusable — a board could block its own name after being deleted.
+
+Two faults, one cause. Boards were *found* by scanning the boards home, so a board's identity was
+its location: the board's name had to be its folder's name, and the list was only ever "whatever
+happens to sit under the home right now". That is why a stale folder could squat on a name, and
+why pointing the home somewhere else made yesterday's boards disappear once they aged out of the
+five-deep recent list.
+
+So boards are now recorded rather than discovered. `BoardRegistry` keeps `boards.json` next to the
+settings file, mapping each board to the absolute folder it lives in. Three things follow:
+
+- **A name is not a folder.** *New board…* takes the folder name it wants if free, and one beside
+  it (`Test (2)`) if not, while the board is still called what was asked for. A leftover folder is
+  now just a folder.
+- **Moving the boards home adds a place to look, it does not take boards away.** Existing boards
+  keep their recorded paths and stay listed; nothing is moved on disk.
+- **Deleting acts on the recorded folder**, and takes the record with it.
+
+### What "delete" now means
+
+§21 made keeping the pictures the default, on the reasoning that the sidecar belongs to ActionDraw
+and the pictures belong to the user. That reasoning holds — but it was applied to every board
+equally, and the two cases are not the same:
+
+- A folder **ActionDraw created** for a board (what *New board…* does) is the board. Deleting the
+  board deletes it, and that is now the pre-ticked default. This is the reported complaint.
+- A folder that was **already the user's**, adopted through *Explore…* or by dropping in a picture
+  library, is not the app's to erase. Removing the board leaves it exactly where it is.
+
+The registry records which of the two a board is (`ownsFolder`), so the dialog can default
+correctly instead of guessing; the tick is always there, so the default is a starting point rather
+than a decision taken on the user's behalf. The guards from §21 are unchanged — the destructive
+path still refuses anything that is not a board folder, the user's home, the boards home itself,
+and a drive root.
+
+Boards created before the registry existed are adopted into it the first time the list is drawn,
+counting as ActionDraw's own when they sit directly under the boards home, which is where
+*New board…* put them.
+
+`BoardRegistryTest` covers all of it, and the §21 discipline earned its keep again: the first
+version of the "moving the home keeps the boards" test passed even with the registry ripped out,
+because its own helper reset the boards home and the recent list quietly covered for it. The
+mutation run is what exposed that — the test was proving nothing until it was made to fail.

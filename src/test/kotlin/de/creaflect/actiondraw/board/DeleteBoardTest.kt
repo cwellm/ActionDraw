@@ -109,4 +109,17 @@ class DeleteBoardTest {
         root.deleteRecursively()
         assertEquals("That folder is gone already.", state.deleteBoard(root, BoardState.Deletion.FORGET))
     }
+
+    // ---- Reported 2026-09-05: a deleted board's folder blocked its own name ----
+
+    @Test
+    fun aDeletedBoardsNameCanBeUsedAgain() {
+        val (state, root) = boardWithAPicture("Test")
+        state.deleteBoard(root, BoardState.Deletion.FORGET)
+
+        val error = state.createBoard(home, "Test")
+
+        assertNull(error, "the name is free again: $error")
+        assertTrue(state.isOpen, "and the new board opened")
+    }
 }

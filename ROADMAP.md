@@ -260,9 +260,22 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Key mapping extracted to a pure `handleBoardShortcut`, covered by `BoardKeysTest` — verified
   by restoring the old binding and watching it fail
 
+### ✅ F4.14 Boards are recorded, not discovered
+- ✅ `BoardRegistry` (`~/.actiondraw/boards.json`) maps each board to the folder it lives in
+- ✅ A board's name is no longer its folder's name: a taken folder name gets `Test (2)` beside it,
+  so a deleted board's name is usable again (reported 2026-09-05)
+- ✅ Moving the boards home adds a place to look instead of hiding the existing boards; nothing
+  on disk is moved
+- ✅ Deleting acts on the recorded folder and drops the record; folders that vanish behind the
+  app's back are pruned from the list
+- ✅ Boards from before the registry are adopted the first time the list is drawn
+- ✅ Covered by `BoardRegistryTest`, checked by reverting each behaviour in turn — which is how a
+  test that only appeared to prove the home-move guarantee was caught
+
 ### ✅ F4.13 Deleting boards
-- ✅ *Delete…* on a board tile: removing the board keeps the folder and its pictures (default);
-  a separate tick also erases the folder
+- ✅ *Delete…* on a board tile, with the default following whose folder it is: a folder
+  ActionDraw made for the board is deleted with it, a folder that was already the user's is kept.
+  The tick is always there either way (revised 2026-09-05, see F4.14)
 - ✅ Guards: refuses a folder that is not a board, the user's home, or the boards home; closes
   the board first if it is the one on screen; drops it from the recent list
 - ✅ Covered by `DeleteBoardTest`, whose guard case was checked by weakening the guard

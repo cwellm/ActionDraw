@@ -82,6 +82,20 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### Where boards live
+- A board is a folder plus a `.actiondraw_board.json` sidecar, and ActionDraw records which folder
+  belongs to which board in `~/.actiondraw/boards.json`. The board's name is therefore not tied to
+  its folder's name: if the folder name is taken, the board gets one beside it (`Test (2)`) and
+  keeps the name you gave it.
+- **Change home…** sets where *new* boards are created. Boards you already have stay exactly where
+  they are and stay in the list — moving the home adds a place to look, it never hides or moves
+  anything.
+- **Delete…** on a board tile follows whose folder it is. A folder ActionDraw created for the board
+  is deleted along with it; a folder that was already yours — one you opened with *Explore…* — is
+  kept, and only stops being a board. The tick in the dialog lets you choose the other way in
+  either case, and the destructive path refuses anything that is not a board folder, your home
+  folder, the boards home itself, or a drive root.
+
 ### Organising
 - **Two layouts** per board, switchable in the header:
   - **Grid** — cards in collapsible group sections (unassigned cards sit in the **Inbox**), each

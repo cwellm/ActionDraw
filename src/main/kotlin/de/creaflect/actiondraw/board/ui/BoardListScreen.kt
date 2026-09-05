@@ -132,7 +132,14 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
                         thumbs = thumbs,
                         onOpen = { state.openBoard(board.dir) },
                         onDelete = {
-                            state.openEditor(BoardEditor.DeleteBoard(board.dir, board.name, board.pictures))
+                            state.openEditor(
+                                BoardEditor.DeleteBoard(
+                                    dir = board.dir,
+                                    name = board.name,
+                                    pictures = board.pictures,
+                                    ownsFolder = state.entryFor(board.dir)?.ownsFolder ?: false,
+                                ),
+                            )
                         },
                     )
                 }
