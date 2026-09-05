@@ -186,15 +186,90 @@ surface, material in & out, "Draw these" bridge.*
 
 ---
 
-## ⬜ M3 — Idea Board: the delightful board (Phase 3)
+## ✅ M3 — Idea Board: the delightful board (Phase 3)
 
 - ✅ ~~Freeform canvas layout mode~~ — pulled forward into M1-F
-- ⬜ Freeform polish: multi-item marquee selection, per-group hover drop targets, snap/align
-- ⬜ Always-on-top reference strip (for Krita work)
-- ⬜ Contact-sheet export (for paper work)
-- ⬜ Rich note formatting (bold, colour, …) — per decision D4
-- ⬜ Colour-palette extraction per image/group
-- ⬜ Board templates · URL/link cards (first networked feature — separate decision)
+
+### ✅ F4.1 Freeform polish
+- ✅ Marquee selection: Shift+drag pulls a rubber band over the canvas (plain drag still pans)
+- ✅ Snapping: a dragged card lines up with its neighbours' centres, with guides drawn; toggled
+  by the "Snap" chip in the header
+- ✅ Group headers are drop targets — drag a card onto a header to file it into that group
+
+### ✅ F4.2 Always-on-top reference strip
+- ✅ "Float strip" opens a separate always-on-top window: one picture big, the selection as a
+  filmstrip, prev/next — made to sit beside Krita
+
+### ✅ F4.3 Contact-sheet export
+- ✅ "Contact sheet…" renders the selection (or the whole board) as one printable PNG with
+  captions and a title, drawn with Skia
+
+### ✅ F4.4 Rich note formatting
+- ✅ `**bold**` and `*italic*` rendered on the card; the note stays plain text in the sidecar
+- ✅ Paper colour per note and a heading style, both in the note dialog and the context menu
+
+### ✅ F4.5 Colour-palette extraction
+- ✅ Dominant colours per picture (4×4×4 colour-cube quantisation over a small decode), shown as
+  swatches with hex values — context menu, the Palette button, or `P`
+
+### ✅ F4.6 Board templates
+- ✅ New board… offers starter groups: Creature design, Character sheet, Environment, Anatomy
+  practice, or Empty
+
+### ✅ F4.8 Groups on the canvas & strip carousel (feedback round 2)
+- ✅ Every group now has a colour, whether or not one was picked: a dot and a hairline under the
+  section header in grid mode, a tinted, outlined area with a name label in free mode
+- ✅ Dragging a group's area moves the whole group; the selection is left alone, so dragging a
+  single card afterwards still moves only that card
+- ✅ The group label selects the group as a unit; right-clicking its area offers draw, rename,
+  colour and delete
+- ✅ A grouped card carries its group's colour as a dot, so it stays recognisable on its own
+- ✅ The floating reference strip is a carousel again: drag or wheel to flip, with the neighbours
+  sliding in as in the large view
+
+### ✅ F4.9 Grouping, ungrouping and the contents drawer (feedback round 3)
+- ✅ **Group the selection** (`Ctrl+G`, the action bar, or the drawer) — the way to make a group
+  on the canvas, where there are no sections to drop cards into. An empty group draws nothing,
+  which is why groups made with "New group" alone looked invisible.
+- ✅ **Ungroup**: `Ctrl+Shift+G` for the selected cards, "Ungroup" on a whole group; groups left
+  holding nothing are tidied away
+- ✅ **Contents drawer** (`Ctrl+D` or the Contents button): every card listed by group, with
+  thumbnails, collapsible groups, and Select / Draw / Rename / Ungroup per group
+- ✅ Clicking a row selects it and brings the freeform camera to it
+- ✅ Header wraps instead of squeezing its buttons; the ⛶ glyph (which rendered as a box) is gone
+- ✅ Group areas use `requiredSize`, so a hull larger than the window is no longer clamped
+
+### ✅ F4.10 Aspect-aware bounds and robustness (feedback round 4)
+- ✅ Hulls, marquee and Fit measure a card by its real width *and* height, so a portrait picture
+  sits inside its group's area instead of hanging out of it
+- ✅ Auto-placement gives rows more room, so tall cards no longer overlap the row below
+- ✅ A board file with a UTF-8 byte-order mark loads instead of looking corrupt
+
+### ✅ F4.11 Multi-select on the canvas (feedback round 5)
+- ✅ Tap-to-clear moved below the cards; a card click is no longer undone by the release bubbling
+  up to the canvas, so Ctrl/Shift multi-select works in free mode
+- ✅ Clearing the selection also drops the focus ring; the selected outline is heavier (3 dp)
+- ✅ Compose UI tests (`compose.desktop.uiTestJUnit4`) drive the real canvas — verified by
+  restoring the old handler and watching them fail
+
+### ✅ F4.12 One meaning for "group" (feedback round 6)
+- ✅ `G`, `Ctrl+G`, the action-bar button and the drawer all call `startGrouping()`: it groups the
+  selection when there is one, and starts an empty group otherwise
+- ✅ The button says which it will do ("Group (2)" vs "New group")
+- ✅ Key mapping extracted to a pure `handleBoardShortcut`, covered by `BoardKeysTest` — verified
+  by restoring the old binding and watching it fail
+
+### ✅ F4.13 Deleting boards
+- ✅ *Delete…* on a board tile: removing the board keeps the folder and its pictures (default);
+  a separate tick also erases the folder
+- ✅ Guards: refuses a folder that is not a board, the user's home, or the boards home; closes
+  the board first if it is the one on screen; drops it from the recent list
+- ✅ Covered by `DeleteBoardTest`, whose guard case was checked by weakening the guard
+
+### ✅ F4.7 Link cards
+- ✅ A card holding a url + title, opened in the system browser; searchable like everything else
+- ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its
+  own decision
 
 ---
 

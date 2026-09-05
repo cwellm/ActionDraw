@@ -139,6 +139,20 @@ class BoardStoreTest {
     }
 
     @Test
+    fun aSidecarWithAByteOrderMarkStillLoads() {
+        // Editing the board file by hand on Windows easily adds a BOM; it must not look corrupt.
+        File(root, "a.jpg").writeText("x")
+        val text = "\uFEFF{\"version\":1,\"name\":\"BOM\",\"groups\":[]," +
+            "\"items\":[{\"type\":\"image\",\"id\":\"i1\",\"path\":\"a.jpg\",\"groups\":[]}]}"
+        File(root, BoardStore.FILE_NAME).writeText(text)
+
+        val loaded = BoardStore.load(root)
+        assertIs<BoardStore.LoadResult.Loaded>(loaded)
+        assertEquals("BOM", loaded.board.name)
+        assertEquals(1, loaded.board.items.size)
+    }
+
+    @Test
     fun aFolderWithoutASidecarIsNone() {
         assertIs<BoardStore.LoadResult.None>(BoardStore.load(root))
     }

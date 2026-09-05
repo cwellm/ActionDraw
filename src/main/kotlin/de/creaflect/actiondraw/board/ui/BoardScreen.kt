@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -45,18 +46,23 @@ import androidx.compose.ui.draganddrop.dragData
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
+import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardThemes
+import de.creaflect.actiondraw.board.ContactSheet
 import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.formatTime
 import de.creaflect.actiondraw.ui.chooseImages
+import de.creaflect.actiondraw.ui.chooseSaveFile
 import java.io.File
 import java.net.URI
 
@@ -102,7 +108,9 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                 .then(background)
                 .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = dropTarget),
         ) {
-            Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize()) {
+              if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
+              Column(Modifier.weight(1f).fillMaxHeight()) {
                 if (!hideChrome) {
                     BoardHeader(state, board.name, board.theme, onImmersive = {
                         state.immersive = true
@@ -134,29 +142,45 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                     BoardGrid(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
                 }
                 if (!hideChrome) BoardActionBar(state)
+              }
             }
             if (state.viewerOpen) BoardViewer(state, thumbs)
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BoardHeader(state: BoardState, name: String, theme: String, onImmersive: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    // The header carries a lot; let it wrap rather than squeeze the buttons on a narrow window.
+    FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
     ) {
-        Text(name, style = MaterialTheme.typography.h5, color = MaterialTheme.colors.primary)
-        Spacer(Modifier.weight(1f))
+        Text(
+            name,
+            style = MaterialTheme.typography.h5,
+            color = MaterialTheme.colors.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 320.dp).align(Alignment.CenterVertically),
+        )
+        OutlinedButton(onClick = { state.drawerOpen = !state.drawerOpen }) {
+            Text(if (state.drawerOpen) "Contents ✕" else "Contents")
+        }
         SelectChip("Grid", state.layout == BoardLayouts.GRID) { state.setLayout(BoardLayouts.GRID) }
         SelectChip("Free", state.layout == BoardLayouts.FREE) { state.setLayout(BoardLayouts.FREE) }
-        Spacer(Modifier.width(8.dp))
+        if (state.layout == BoardLayouts.FREE) {
+            SelectChip("Snap", state.snapping) { state.snapping = !state.snapping }
+        }
         BoardThemes.ALL.forEach { id ->
             SelectChip(id.replaceFirstChar { it.uppercase() }, theme == id) { state.setTheme(id) }
         }
-        Spacer(Modifier.width(8.dp))
-        OutlinedButton(onClick = onImmersive) { Text("⛶ Immersive") }
+        OutlinedButton(onClick = { if (state.stripOpen) state.closeStrip() else state.openStrip() }) {
+            Text(if (state.stripOpen) "Strip ✕" else "Float strip")
+        }
+        OutlinedButton(onClick = onImmersive) { Text("Immersive") }
         OutlinedButton(onClick = { state.closeBoard() }) { Text("Close") }
     }
 }
@@ -221,8 +245,9 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
         }
         state.sections.forEach { (group, itemsInGroup) ->
             if (group != null || itemsInGroup.isNotEmpty()) {
-                item(key = "header-${group?.id ?: "inbox"}", span = { GridItemSpan(maxLineSpan) }) {
-                    GroupHeader(state, group, itemsInGroup.size)
+                val headerKey = GridReorder.headerKey(group?.id ?: "inbox")
+                item(key = headerKey, span = { GridItemSpan(maxLineSpan) }) {
+                    GroupHeader(state, group, itemsInGroup.size, dropTarget = reorder.targetKey == headerKey)
                 }
             }
             if (group?.collapsed != true) {
@@ -260,8 +285,26 @@ private fun BoardActionBar(state: BoardState) {
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditSession) }) {
                     Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
                 }
-                OutlinedButton(onClick = { state.openEditor(BoardEditor.NewGroup) }) { Text("New group") }
+                OutlinedButton(onClick = { state.startGrouping() }) {
+                    Text(if (state.selection.isEmpty()) "New group" else "Group (${state.selection.size})")
+                }
+                if (state.selection.any { id -> state.item(id)?.groups?.isNotEmpty() == true }) {
+                    OutlinedButton(onClick = { state.ungroupItems(state.selection) }) { Text("Ungroup") }
+                }
                 OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(null)) }) { Text("New note") }
+                OutlinedButton(onClick = { state.openEditor(BoardEditor.EditLink(null)) }) { Text("New link") }
+                if (state.selection.any { state.item(it) is ImageItem }) {
+                    OutlinedButton(onClick = { state.openEditor(BoardEditor.ShowPalette(state.selection)) }) {
+                        Text("Palette")
+                    }
+                }
+                OutlinedButton(onClick = {
+                    val items = state.sheetItems
+                    chooseSaveFile(
+                        suggested = ContactSheet.suggestedName(state.board?.name ?: "board"),
+                        start = state.root,
+                    )?.let { state.exportContactSheet(items, it) }
+                }) { Text("Contact sheet…") }
                 OutlinedButton(onClick = {
                     chooseImages(state.root).takeIf { it.isNotEmpty() }?.let { state.importExternal(it) }
                 }) { Text("Import…") }
@@ -290,8 +333,10 @@ private fun BoardActionBar(state: BoardState) {
             }
             Text(
                 "Click select · Ctrl/Shift multi · right-click menu · Ctrl+C/V copy/paste · Ctrl+↑/↓ reorder " +
-                    "(+Shift: all the way) · Space view large · Enter draw · N note · G group · S star · T tags · " +
-                    "F2 caption · Del remove · F immersive",
+                    "(+Shift: all the way) · Space view large · Enter draw · N note · L link · G group · " +
+                    "S star · T tags · P palette · F2 caption · Del remove · F immersive · " +
+                    "G group the selection · Ctrl+Shift+G ungroup · Ctrl+D contents" +
+                    if (state.layout == BoardLayouts.FREE) " · Shift+drag marquee" else "",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),

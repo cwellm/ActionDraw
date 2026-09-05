@@ -18,13 +18,25 @@ import java.time.format.DateTimeFormatter
 sealed class BoardEditor {
     data object NewBoard : BoardEditor()
 
+    /** Confirms deleting a board; [pictures] is what the folder would take with it. */
+    data class DeleteBoard(val dir: File, val name: String, val pictures: Int) : BoardEditor()
+
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
     data object NewGroup : BoardEditor()
+
+    /** Names a group made out of whatever is selected. */
+    data object GroupSelection : BoardEditor()
     data class RenameGroup(val groupId: String) : BoardEditor()
 
     /** `itemId == null` creates a new note. */
     data class EditNote(val itemId: String?) : BoardEditor()
+
+    /** `itemId == null` creates a new link card. */
+    data class EditLink(val itemId: String?) : BoardEditor()
+
+    /** Colour swatches read off a picture (or a whole group). */
+    data class ShowPalette(val itemIds: Set<String>) : BoardEditor()
     data class EditCaption(val itemId: String) : BoardEditor()
     data class EditTags(val itemIds: Set<String>) : BoardEditor()
 }
@@ -99,6 +111,44 @@ class BoardState(
     /** Chrome-less mode; only meaningful while the window is fullscreen. */
     var immersive by mutableStateOf(false)
 
+    /** The side drawer listing every card by group; closed by default. */
+    var drawerOpen by mutableStateOf(false)
+
+    /** Groups whose contents are folded away in the drawer. */
+    var drawerCollapsed by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    fun toggleDrawerGroup(groupId: String) {
+        drawerCollapsed =
+            if (groupId in drawerCollapsed) drawerCollapsed - groupId else drawerCollapsed + groupId
+    }
+
+    /**
+     * Centres the freeform camera on a card — the drawer's way of taking you to a picture that is
+     * off-screen. Does nothing in the grid, where the card is simply selected.
+     */
+    fun revealItem(id: String) {
+        selection = setOf(id)
+        focusId = id
+        if (layout != BoardLayouts.FREE) return
+        item(id)?.pos?.let { pos ->
+            camX = pos.x
+            camY = pos.y
+            commitCamera()
+        }
+    }
+
+    /** Centres the camera on a whole group and selects it. */
+    fun revealGroup(groupId: String) {
+        selectGroup(groupId)
+        if (layout != BoardLayouts.FREE) return
+        groupHulls.find { it.group.id == groupId }?.let { hull ->
+            camX = (hull.left + hull.right) / 2
+            camY = (hull.top + hull.bottom) / 2
+            commitCamera()
+        }
+    }
+
     // ---- Freeform camera (board point at the view centre + zoom) ----
     var camX by mutableStateOf(0f)
         private set
@@ -161,6 +211,8 @@ class BoardState(
                     item.tags.any { it.lowercase().contains(needle) }
 
             is NoteItem -> item.text.lowercase().contains(needle)
+            is LinkItem ->
+                item.title.lowercase().contains(needle) || item.url.lowercase().contains(needle)
         }
     }
 
@@ -263,8 +315,70 @@ class BoardState(
 
     // ---- Lifecycle ----
 
-    /** Creates `<parent>/<name>` as a fresh board. Returns an error message, or null on success. */
-    fun createBoard(parent: File, name: String): String? {
+    /** How far a deletion goes. The board file is ActionDraw's; the pictures are the user's. */
+    enum class Deletion { FORGET, DELETE_FOLDER }
+
+    /**
+     * Deletes the board at [dir].
+     *
+     * [Deletion.FORGET] removes only the sidecar (and its backup), so the folder and every
+     * picture in it survive — the folder simply stops being a board. [Deletion.DELETE_FOLDER]
+     * removes the folder itself, which is the only genuinely destructive thing this app does and
+     * is therefore never the default. Refuses obviously wrong targets (a drive root, the user's
+     * home, the boards home itself). Returns a line to show the user.
+     */
+    fun deleteBoard(dir: File, mode: Deletion): String {
+        if (!dir.isDirectory) return "That folder is gone already."
+        if (mode == Deletion.DELETE_FOLDER && !safeToDeleteFolder(dir)) {
+            return "Refusing to delete ${dir.name} — that is not a board folder."
+        }
+
+        // If it is the board on screen, leave it before the file underneath disappears.
+        if (root?.absolutePath.equals(dir.absolutePath, ignoreCase = true)) {
+            root = null
+            board = null
+            selection = emptySet()
+            focusId = null
+            closeStrip()
+        }
+
+        val message = when (mode) {
+            Deletion.FORGET -> {
+                val removed = File(dir, BoardStore.FILE_NAME).delete()
+                File(dir, BoardStore.FILE_NAME + ".bak").delete()
+                if (removed) "Board removed. The pictures are still in ${dir.name}."
+                else "Couldn't remove the board file in ${dir.name}."
+            }
+
+            Deletion.DELETE_FOLDER ->
+                if (dir.deleteRecursively()) "Deleted ${dir.name} and everything in it."
+                else "Couldn't delete ${dir.name} — something in it is in use."
+        }
+
+        settings.removeRecentBoard(dir)
+        recent = settings.recentBoards()
+        boardsHomeTick++ // the board list is keyed on this
+        importNotice = message
+        return message
+    }
+
+    /** Guards the destructive path against paths nobody means to erase. */
+    private fun safeToDeleteFolder(dir: File): Boolean {
+        val target = runCatching { dir.canonicalFile }.getOrNull() ?: return false
+        if (target.parentFile == null) return false // a drive root
+        val home = runCatching { File(System.getProperty("user.home")).canonicalFile }.getOrNull()
+        if (target == home) return false
+        val boardsHome = runCatching { settings.boardsHome().canonicalFile }.getOrNull()
+        if (target == boardsHome) return false
+        // Only a folder ActionDraw actually knows as a board may be removed wholesale.
+        return BoardStore.exists(target)
+    }
+
+    /**
+     * Creates `<parent>/<name>` as a fresh board, with [template]'s starter groups. Returns an
+     * error message, or null on success.
+     */
+    fun createBoard(parent: File, name: String, template: BoardTemplate = BoardTemplate.ALL.first()): String? {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return "Give the board a name."
         val dir = File(parent, sanitizeName(trimmed))
@@ -275,7 +389,12 @@ class BoardState(
         if (dir.exists() && !dir.listFiles().isNullOrEmpty()) return "Folder exists and is not empty:\n$dir"
         if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
         settings.setBoardsHome(parent)
-        val created = BoardFile(name = trimmed)
+        val created = BoardFile(
+            name = trimmed,
+            groups = template.groups.mapIndexed { i, groupName ->
+                BoardGroup(id = Importer.newId(), name = groupName, order = i + 1)
+            },
+        )
         if (!BoardStore.save(dir, created)) return "Couldn't write the board file in:\n$dir"
         root = dir
         board = created
@@ -413,6 +532,54 @@ class BoardState(
 
     // Items
 
+    /**
+     * Makes a group out of the current selection — the natural way to group on the canvas, where
+     * there are no sections to drop things into. Returns the new group's id, or null if nothing
+     * was selected.
+     */
+    fun groupSelection(name: String): String? {
+        val ids = selection
+        if (ids.isEmpty()) return null
+        val id = Importer.newId()
+        val trimmed = name.trim().ifEmpty { "Group" }
+        update { b ->
+            val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
+            b.copy(
+                groups = b.groups + BoardGroup(id = id, name = trimmed, order = order),
+                items = b.items.map { if (it.id in ids) it.withGroups(listOf(id)) else it },
+            )
+        }
+        return id
+    }
+
+    /**
+     * What "group" means depends on the situation: with cards selected it groups them, otherwise
+     * it starts an empty group. Having two separate commands (one of which quietly made an empty
+     * group while cards were selected) was a trap.
+     */
+    fun startGrouping() {
+        openEditor(if (selection.isEmpty()) BoardEditor.NewGroup else BoardEditor.GroupSelection)
+    }
+
+    /** Takes the given cards out of every group they are in; the cards themselves stay put. */
+    fun ungroupItems(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        update { b -> b.copy(items = b.items.map { if (it.id in ids) it.withGroups(emptyList()) else it }) }
+        pruneEmptyGroups()
+    }
+
+    /** Dissolves a group: the group disappears, its cards stay exactly where they are. */
+    fun ungroup(groupId: String) = deleteGroup(groupId)
+
+    /**
+     * Drops groups that no longer hold anything. Without this, ungrouping would leave empty
+     * groups behind that are invisible on the canvas but still clutter the drawer.
+     */
+    private fun pruneEmptyGroups() = update { b ->
+        val used = b.items.flatMap { it.groups }.toSet()
+        b.copy(groups = b.groups.filter { it.id in used })
+    }
+
     fun moveToGroup(ids: Set<String>, groupId: String?) = update { b ->
         b.copy(items = b.items.map { if (it.id in ids) it.withGroups(listOfNotNull(groupId)) else it })
     }
@@ -465,6 +632,262 @@ class BoardState(
         }
     }
 
+    fun setNoteColor(id: String, color: String?) = update { b ->
+        b.copy(items = b.items.map { if (it is NoteItem && it.id == id) it.copy(color = color) else it })
+    }
+
+    fun toggleNoteHeading(id: String) = update { b ->
+        b.copy(items = b.items.map { if (it is NoteItem && it.id == id) it.copy(heading = !it.heading) else it })
+    }
+
+    /** Creates or updates a link card. A blank url is ignored. */
+    fun saveLink(itemId: String?, url: String, title: String) {
+        val trimmed = url.trim()
+        if (trimmed.isEmpty()) return
+        val name = title.trim()
+        if (itemId == null) {
+            val link = LinkItem(id = Importer.newId(), url = trimmed, title = name)
+            update { it.copy(items = it.items + link) }
+            if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+            selection = setOf(link.id)
+            focusId = link.id
+        } else {
+            update { b ->
+                b.copy(items = b.items.map {
+                    if (it is LinkItem && it.id == itemId) it.copy(url = trimmed, title = name) else it
+                })
+            }
+        }
+    }
+
+    /** Opens a link card in the system browser — ActionDraw itself never goes online. */
+    fun openLink(item: LinkItem) {
+        runCatching {
+            val uri = java.net.URI(if (item.url.contains("://")) item.url else "https://${item.url}")
+            java.awt.Desktop.getDesktop().browse(uri)
+        }
+    }
+
+    /** Dominant colours of the given cards, in display order (empty for notes and links). */
+    fun palettesOf(ids: Set<String>): List<Pair<ImageItem, List<Int>>> =
+        displayItems.filterIsInstance<ImageItem>()
+            .filter { it.id in ids }
+            .mapNotNull { item -> fileOf(item)?.let { item to Palette.of(it) } }
+            .filter { it.second.isNotEmpty() }
+
+    /**
+     * Writes a printable contact sheet of [items] to [target]; returns a line for the board's
+     * notice area either way.
+     */
+    fun exportContactSheet(items: List<BoardItem>, target: File): String {
+        val dir = root ?: return "No board open."
+        val name = board?.name ?: dir.name
+        val ok = ContactSheet.write(dir, items, name, target)
+        importNotice = if (ok) "Contact sheet written to ${target.name}." else "Nothing to put on a sheet."
+        return importNotice!!
+    }
+
+    /** What a contact sheet would contain: the selection, else everything on screen. */
+    val sheetItems: List<BoardItem>
+        get() = displayItems.filter { it is ImageItem }.let { shown ->
+            shown.filter { it.id in selection }.ifEmpty { shown }
+        }
+
+    // ---- Groups on the freeform canvas ----
+
+    /**
+     * The area a group occupies on the canvas: the bounding box of its cards, in board units,
+     * plus the colour it is drawn in. Gives a group a visible identity on a surface that
+     * otherwise only has loose cards.
+     */
+    data class GroupHull(
+        val group: BoardGroup,
+        val color: String,
+        val left: Float,
+        val top: Float,
+        val right: Float,
+        val bottom: Float,
+        val count: Int,
+    )
+
+    /** Padding between a group's cards and the edge of its hull, in board units. */
+    private val hullPadding = BASE_SIZE * 0.18f
+
+    /**
+     * Half the width and half the height of a card in board units. Cards are as wide as
+     * [BASE_SIZE] times their scale and as tall as that divided by the picture's aspect — a
+     * portrait photograph is much taller than it is wide, which anything measuring cards has to
+     * take into account.
+     */
+    private fun halfSizeOf(item: BoardItem): Pair<Float, Float> {
+        val scale = item.pos?.scale ?: 1f
+        val aspect = ((item as? ImageItem)?.aspect ?: 1f).coerceIn(0.2f, 5f)
+        val width = BASE_SIZE * scale
+        return (width / 2f) to (width / aspect / 2f)
+    }
+
+    /** One hull per group that has placed, currently visible cards. */
+    val groupHulls: List<GroupHull>
+        get() {
+            val shown = freeItems
+            return sortedGroups.mapIndexedNotNull { index, group ->
+                val members = shown.filter { group.id in it.groups && it.pos != null }
+                if (members.isEmpty()) return@mapIndexedNotNull null
+                val boxes = members.map { item ->
+                    val pos = item.pos!!
+                    val (halfW, halfH) = halfSizeOf(item)
+                    listOf(pos.x - halfW, pos.y - halfH, pos.x + halfW, pos.y + halfH)
+                }
+                GroupHull(
+                    group = group,
+                    // A group without its own accent still needs to be told apart from the next.
+                    color = group.color ?: fallbackGroupColor(index),
+                    left = boxes.minOf { it[0] } - hullPadding,
+                    top = boxes.minOf { it[1] } - hullPadding,
+                    right = boxes.maxOf { it[2] } + hullPadding,
+                    bottom = boxes.maxOf { it[3] } + hullPadding,
+                    count = members.size,
+                )
+            }
+        }
+
+    /** The colour a group is drawn in: its own accent, or a distinct one derived from its place. */
+    fun accentOfGroup(group: BoardGroup): String {
+        val index = sortedGroups.indexOfFirst { it.id == group.id }
+        return group.color ?: fallbackGroupColor(index.coerceAtLeast(0))
+    }
+
+    /** The accent a card should show, so a grouped card is recognisable on its own too. */
+    fun accentOf(item: BoardItem): String? {
+        val groups = sortedGroups
+        val index = groups.indexOfFirst { it.id in item.groups }
+        if (index < 0) return null
+        return groups[index].color ?: fallbackGroupColor(index)
+    }
+
+    /** Moves every card of a group together — the group behaves as one object. */
+    fun dragGroupBy(groupId: String, dx: Float, dy: Float) = updateTransient { b ->
+        b.copy(items = b.items.map { item ->
+            val pos = item.pos
+            if (groupId in item.groups && pos != null) {
+                item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
+            } else {
+                item
+            }
+        })
+    }
+
+    /** Selects a whole group — clicking its label picks the group up as a unit. */
+    fun selectGroup(groupId: String) {
+        val ids = freeItems.filter { groupId in it.groups }.map { it.id }
+        selection = ids.toSet()
+        focusId = ids.firstOrNull()
+    }
+
+    // ---- Always-on-top reference strip ----
+
+    /** Pictures the floating strip is showing; empty = the strip window is closed. */
+    var stripIds by mutableStateOf<List<String>>(emptyList())
+        private set
+
+    var stripIndex by mutableStateOf(0)
+        private set
+
+    val stripOpen: Boolean get() = stripIds.isNotEmpty()
+
+    val stripItem: ImageItem? get() = stripIds.getOrNull(stripIndex)?.let { item(it) as? ImageItem }
+
+    /** Opens (or refills) the floating strip with what the viewer would show. */
+    fun openStrip() {
+        val ids = viewableIds
+        if (ids.isEmpty()) return
+        stripIds = ids
+        stripIndex = ids.indexOf(focusId).coerceAtLeast(0)
+    }
+
+    fun closeStrip() {
+        stripIds = emptyList()
+        stripIndex = 0
+    }
+
+    fun stripStep(delta: Int) {
+        val n = stripIds.size
+        if (n == 0) return
+        stripIndex = ((stripIndex + delta) % n + n) % n
+    }
+
+    fun stripGoTo(id: String) {
+        stripIds.indexOf(id).takeIf { it >= 0 }?.let { stripIndex = it }
+    }
+
+    // ---- Freeform: snapping and marquee selection ----
+
+    /** Align dragged cards to their neighbours' centres. */
+    var snapping by mutableStateOf(true)
+
+    /** Guides to draw while dragging (board-space x / y of the lines that matched). */
+    var snapGuideX by mutableStateOf<Float?>(null)
+        private set
+    var snapGuideY by mutableStateOf<Float?>(null)
+        private set
+
+    /** Marquee rectangle in board space while rubber-band selecting; null when not dragging. */
+    var marquee by mutableStateOf<List<Float>?>(null)
+        private set
+
+    fun startMarquee(x: Float, y: Float) {
+        marquee = listOf(x, y, x, y)
+    }
+
+    fun updateMarquee(x: Float, y: Float) {
+        marquee?.let { marquee = listOf(it[0], it[1], x, y) }
+    }
+
+    /** Selects every card the rubber band touches. */
+    fun commitMarquee() {
+        val rect = marquee ?: return
+        marquee = null
+        val left = minOf(rect[0], rect[2])
+        val right = maxOf(rect[0], rect[2])
+        val top = minOf(rect[1], rect[3])
+        val bottom = maxOf(rect[1], rect[3])
+        val hits = freeItems.filter { item ->
+            val pos = item.pos ?: return@filter false
+            val (halfW, halfH) = halfSizeOf(item)
+            pos.x + halfW >= left && pos.x - halfW <= right &&
+                pos.y + halfH >= top && pos.y - halfH <= bottom
+        }
+        selection = hits.map { it.id }.toSet()
+        focusId = hits.lastOrNull()?.id
+    }
+
+    fun cancelMarquee() {
+        marquee = null
+    }
+
+    /**
+     * Snaps a dragged card to the centre line of a nearby neighbour, within [threshold] board
+     * units, and records the guides to draw. Returns the corrected position.
+     */
+    fun snapPosition(id: String, x: Float, y: Float, threshold: Float): Pair<Float, Float> {
+        if (!snapping) {
+            snapGuideX = null
+            snapGuideY = null
+            return x to y
+        }
+        val others = freeItems.filter { it.id != id && it.id !in selection }.mapNotNull { it.pos }
+        val nearX = others.minByOrNull { kotlin.math.abs(it.x - x) }?.takeIf { kotlin.math.abs(it.x - x) <= threshold }
+        val nearY = others.minByOrNull { kotlin.math.abs(it.y - y) }?.takeIf { kotlin.math.abs(it.y - y) <= threshold }
+        snapGuideX = nearX?.x
+        snapGuideY = nearY?.y
+        return (nearX?.x ?: x) to (nearY?.y ?: y)
+    }
+
+    fun clearSnapGuides() {
+        snapGuideX = null
+        snapGuideY = null
+    }
+
     /** Removes cards from the board — files on disk are never touched. */
     fun removeItems(ids: Set<String>) {
         if (ids.isEmpty()) return
@@ -510,6 +933,7 @@ class BoardState(
 
     fun clearSelection() {
         selection = emptySet()
+        focusId = null
     }
 
     fun moveFocus(delta: Int) {
@@ -676,13 +1100,17 @@ class BoardState(
 
     /** Centres the camera on all placed cards and zooms to fit them into [viewW]×[viewH] px. */
     fun fitAll(viewW: Float, viewH: Float) {
-        val positions = board?.items.orEmpty().mapNotNull { it.pos }
-        if (positions.isEmpty() || viewW <= 0f || viewH <= 0f) return
-        val half = positions.map { BASE_SIZE * it.scale / 2 }
-        val minX = positions.mapIndexed { i, p -> p.x - half[i] }.min()
-        val maxX = positions.mapIndexed { i, p -> p.x + half[i] }.max()
-        val minY = positions.mapIndexed { i, p -> p.y - half[i] }.min()
-        val maxY = positions.mapIndexed { i, p -> p.y + half[i] }.max()
+        val placed = board?.items.orEmpty().filter { it.pos != null }
+        if (placed.isEmpty() || viewW <= 0f || viewH <= 0f) return
+        val boxes = placed.map { item ->
+            val pos = item.pos!!
+            val (halfW, halfH) = halfSizeOf(item)
+            listOf(pos.x - halfW, pos.y - halfH, pos.x + halfW, pos.y + halfH)
+        }
+        val minX = boxes.minOf { it[0] }
+        val maxX = boxes.maxOf { it[2] }
+        val minY = boxes.minOf { it[1] }
+        val maxY = boxes.maxOf { it[3] }
         camX = (minX + maxX) / 2
         camY = (minY + maxY) / 2
         zoom = (minOf(viewW / (maxX - minX + BASE_SIZE), viewH / (maxY - minY + BASE_SIZE)))
@@ -882,6 +1310,12 @@ class BoardState(
         val GROUP_COLORS: List<String?> =
             listOf(null, "#80CBC4", "#FFB74D", "#A5D6A7", "#EF9A9A", "#B39DDB")
 
+        /** Distinct colour for a group that has none of its own, by its position on the board. */
+        fun fallbackGroupColor(index: Int): String {
+            val named = GROUP_COLORS.filterNotNull()
+            return named[index % named.size]
+        }
+
         /** Base edge length of a freeform card at scale 1, in board units. */
         const val BASE_SIZE = 220f
 
@@ -896,14 +1330,17 @@ class BoardState(
         fun placeMissing(board: BoardFile, originX: Float = 0f, originY: Float = 0f): BoardFile {
             val unplaced = board.items.count { it.pos == null }
             if (unplaced == 0) return board
-            val gap = BASE_SIZE * 1.2f
+            // Rows are spaced more generously than columns: a portrait card is far taller than
+            // it is wide, and cascading them at one card's height made them overlap.
+            val gap = BASE_SIZE * 1.3f
+            val rowGap = BASE_SIZE * 1.9f
             val perRow = 5
             val startY = (board.items.mapNotNull { it.pos }.maxOfOrNull { it.y + BASE_SIZE } ?: originY)
             val startX = originX - (perRow - 1) * gap / 2
             var i = 0
             return board.copy(items = board.items.map { item ->
                 if (item.pos != null) item
-                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * gap)).also { i++ }
+                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap)).also { i++ }
             })
         }
     }

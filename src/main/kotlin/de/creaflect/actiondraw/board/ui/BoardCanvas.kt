@@ -3,17 +3,22 @@ package de.creaflect.actiondraw.board.ui
 import androidx.compose.foundation.ContextMenuArea
 import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -30,23 +35,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
@@ -64,21 +75,48 @@ import kotlin.math.sin
 @Composable
 fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifier: Modifier) {
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
+    var shiftHeld by remember { mutableStateOf(false) }
 
     Box(
         modifier
             .clipToBounds()
             .onSizeChanged { viewSize = it }
             .pointerInput(state) {
+                // Plain drag pans the board; Shift+drag pulls a rubber band over the cards.
+                var marqueeing = false
                 detectDragGestures(
+                    onDragStart = { start ->
+                        marqueeing = shiftHeld
+                        if (marqueeing) {
+                            val (bx, by) = boardPoint(start, viewSize, state)
+                            state.startMarquee(bx, by)
+                        }
+                    },
                     onDrag = { change, drag ->
                         change.consume()
-                        state.pan(-drag.x / state.zoom, -drag.y / state.zoom)
+                        if (marqueeing) {
+                            val (bx, by) = boardPoint(change.position, viewSize, state)
+                            state.updateMarquee(bx, by)
+                        } else {
+                            state.pan(-drag.x / state.zoom, -drag.y / state.zoom)
+                        }
                     },
-                    onDragEnd = { state.commitCamera() },
+                    onDragEnd = {
+                        if (marqueeing) state.commitMarquee() else state.commitCamera()
+                        marqueeing = false
+                    },
+                    onDragCancel = {
+                        if (marqueeing) state.cancelMarquee() else state.commitCamera()
+                        marqueeing = false
+                    },
                 )
             }
-            .pointerInput(state) { detectTapGestures(onTap = { state.clearSelection() }) }
+            .onPointerEvent(PointerEventType.Move) { event ->
+                shiftHeld = event.keyboardModifiers.isShiftPressed
+            }
+            .onPointerEvent(PointerEventType.Press) { event ->
+                shiftHeld = event.keyboardModifiers.isShiftPressed
+            }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
                 val delta = change.scrollDelta.y
@@ -112,8 +150,48 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
                 }
             },
     ) {
+        // Empty board underneath everything: tapping it clears the selection. It must stay below
+        // the cards, or it would swallow their clicks (and it used to, which made it impossible
+        // to select more than one card at a time).
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(state) { detectTapGestures { state.clearSelection() } },
+        )
+
+        // Group areas next, so cards sit on top of their own group's tint.
+        state.groupHulls.forEach { hull ->
+            key("hull-" + hull.group.id) { GroupArea(state, hull, viewSize) }
+        }
+
         state.freeItems.forEach { item ->
             key(item.id) { CanvasItem(state, thumbs, item, textured, viewSize) }
+        }
+
+        // Alignment guides and the rubber band, drawn over the cards.
+        Canvas(Modifier.fillMaxSize()) {
+            val guideColor = Color(0x99FFB74D)
+            state.snapGuideX?.let { gx ->
+                val x = (gx - state.camX) * state.zoom + size.width / 2
+                drawLine(guideColor, Offset(x, 0f), Offset(x, size.height), 1f)
+            }
+            state.snapGuideY?.let { gy ->
+                val y = (gy - state.camY) * state.zoom + size.height / 2
+                drawLine(guideColor, Offset(0f, y), Offset(size.width, y), 1f)
+            }
+            state.marquee?.let { rect ->
+                val x1 = (minOf(rect[0], rect[2]) - state.camX) * state.zoom + size.width / 2
+                val x2 = (maxOf(rect[0], rect[2]) - state.camX) * state.zoom + size.width / 2
+                val y1 = (minOf(rect[1], rect[3]) - state.camY) * state.zoom + size.height / 2
+                val y2 = (maxOf(rect[1], rect[3]) - state.camY) * state.zoom + size.height / 2
+                drawRect(Color(0x2280CBC4), topLeft = Offset(x1, y1), size = Size(x2 - x1, y2 - y1))
+                drawRect(
+                    Color(0xCC80CBC4),
+                    topLeft = Offset(x1, y1),
+                    size = Size(x2 - x1, y2 - y1),
+                    style = Stroke(1f),
+                )
+            }
         }
 
         if (state.freeItems.isEmpty()) {
@@ -160,12 +238,13 @@ private fun CanvasItem(
     }) {
         Box(
             Modifier
-                .size(with(density) { wPx.toDp() }, with(density) { hPx.toDp() })
+                .requiredSize(with(density) { wPx.toDp() }, with(density) { hPx.toDp() })
                 .graphicsLayer {
                     translationX = cx - wPx / 2
                     translationY = cy - hPx / 2
                     rotationZ = pos.rotation
                 }
+                .testTag("card-" + item.id)
                 .cardClicks(state, item.id)
                 .pointerInput(item.id) {
                     detectDragGestures(
@@ -181,14 +260,37 @@ private fun CanvasItem(
                             val wx = drag.x * cos(rad).toFloat() - drag.y * sin(rad).toFloat()
                             val wy = drag.x * sin(rad).toFloat() + drag.y * cos(rad).toFloat()
                             state.dragBy(item.id, wx / state.zoom, wy / state.zoom)
+                            // Line the card up with its neighbours while it moves.
+                            state.item(item.id)?.pos?.let { moved ->
+                                val (sx, sy) = state.snapPosition(item.id, moved.x, moved.y, 10f / state.zoom)
+                                if (sx != moved.x || sy != moved.y) {
+                                    state.dragBy(item.id, sx - moved.x, sy - moved.y)
+                                }
+                            }
                         },
-                        onDragEnd = { state.commitLayout() },
+                        onDragEnd = { state.clearSnapGuides(); state.commitLayout() },
+                        onDragCancel = { state.clearSnapGuides() },
                     )
                 },
         ) {
             when (item) {
                 is ImageItem -> CanvasImage(state, thumbs, item, textured)
                 is NoteItem -> CanvasNote(state, item, textured)
+                is LinkItem -> CanvasLink(state, item, textured)
+            }
+            // A grouped card carries its group's colour, so it is recognisable even when
+            // dragged out of the group area.
+            state.accentOf(item)?.let { hex ->
+                Themes.parseColor(hex)?.let { accent ->
+                    Box(
+                        Modifier
+                            .align(Alignment.TopStart)
+                            .padding(3.dp)
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(accent),
+                    )
+                }
             }
             if (singleSelected) {
                 RotateHandle(state, item.id, Modifier.align(Alignment.TopCenter))
@@ -218,7 +320,7 @@ private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, 
             .shadow(if (textured) 4.dp else 1.dp, shape)
             .clip(shape)
             .background(if (textured) Themes.cardBacking else Color(0xFF0D0D0D))
-            .border(2.dp, selectionBorder(state, item.id), shape)
+            .border(3.dp, selectionBorder(state, item.id), shape)
             .padding(if (textured) 5.dp else 1.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -293,4 +395,100 @@ private fun ScaleHandle(state: BoardState, id: String, modifier: Modifier) {
                 )
             },
     )
+}
+
+/** Screen point -> board point, for the marquee. */
+private fun boardPoint(point: Offset, viewSize: IntSize, state: BoardState): Pair<Float, Float> =
+    ((point.x - viewSize.width / 2f) / state.zoom + state.camX) to
+        ((point.y - viewSize.height / 2f) / state.zoom + state.camY)
+
+/** A link card on the canvas — the same look as in the grid, sized to its cell. */
+@Composable
+private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
+    val shape = RoundedCornerShape(3.dp)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .shadow(if (textured) 4.dp else 1.dp, shape)
+            .clip(shape)
+            .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
+            .border(2.dp, selectionBorder(state, item.id), shape)
+            .padding(8.dp),
+    ) {
+        Text("\uD83D\uDD17", style = MaterialTheme.typography.body1)
+        Text(
+            item.title.ifBlank { item.url },
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.onSurface,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * A group's territory on the canvas: a tinted, outlined area behind its cards with the group name
+ * in the corner. Dragging the area (or its label) moves the whole group; the cards on top keep
+ * their own drag, so a single card can still be moved out of place inside it.
+ */
+@Composable
+private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
+    val zoom = state.zoom
+    val density = LocalDensity.current
+    val accent = Themes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
+    val x = (hull.left - state.camX) * zoom + viewSize.width / 2f
+    val y = (hull.top - state.camY) * zoom + viewSize.height / 2f
+    val w = (hull.right - hull.left) * zoom
+    val h = (hull.bottom - hull.top) * zoom
+    val shape = RoundedCornerShape(10.dp)
+
+    ContextMenuArea(items = {
+        listOf(
+            ContextMenuItem("Draw " + hull.count) { state.drawGroup(hull.group.id) },
+            ContextMenuItem("Select group") { state.selectGroup(hull.group.id) },
+            ContextMenuItem("Rename group…") { state.openEditor(BoardEditor.RenameGroup(hull.group.id)) },
+            ContextMenuItem("Cycle colour") { state.cycleGroupColor(hull.group.id) },
+            ContextMenuItem("Delete group (cards stay)") { state.deleteGroup(hull.group.id) },
+        )
+    }) {
+        Box(
+            Modifier
+                .requiredSize(with(density) { w.toDp() }, with(density) { h.toDp() })
+                .graphicsLayer {
+                    translationX = x
+                    translationY = y
+                }
+                .clip(shape)
+                .background(accent.copy(alpha = 0.14f))
+                .border(2.dp, accent.copy(alpha = 0.7f), shape)
+                // Dragging the area moves the group as one. The selection is deliberately left
+                // alone, so dragging a single card afterwards still moves only that card.
+                .pointerInput(hull.group.id) {
+                    detectDragGestures(
+                        onDrag = { change, drag ->
+                            change.consume()
+                            state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                        },
+                        onDragEnd = { state.commitLayout() },
+                    )
+                },
+        ) {
+            // The label names the group and selects it as a unit when clicked.
+            Surface(
+                color = accent.copy(alpha = 0.85f),
+                shape = RoundedCornerShape(bottomEnd = 8.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .clickable { state.selectGroup(hull.group.id) },
+            ) {
+                Text(
+                    hull.group.name + "  ·  " + hull.count,
+                    style = MaterialTheme.typography.caption,
+                    color = Color(0xFF1A1A1A),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+        }
+    }
 }

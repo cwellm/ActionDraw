@@ -332,3 +332,133 @@ changing it:
   indexes the folder by content when something is actually missing, then lets the card follow its
   file. This retires the Phase-1 tradeoff recorded in A4.
 - **Board list screen** replaces the picker dialog: a tile per board with cover, counts and path.
+
+## 15. M3 — the delightful board (2026-09-03)
+
+The last planned milestone, and the one where the board stops being only functional:
+
+- **Freeform polish.** Shift+drag rubber-bands a selection (plain drag keeps panning, so the
+  gesture people already learned still works), dragged cards snap to their neighbours' centre
+  lines with guides drawn over the canvas, and in the grid a card dropped on a *group header*
+  files itself into that group — the drop targeting that M2's reorder left out.
+- **Always-on-top strip** is a third window (`alwaysOnTop = true`) showing the selection: one
+  picture big, a filmstrip under it. This is the answer to decision D5's "and then in Krita" half.
+- **Contact sheet** is the paper half of D5: Skia draws the cards into one printable PNG.
+- **Rich notes** stay honest to D4 — `**bold**`/`*italic*` markers are parsed for display but the
+  file keeps plain text, so a board file is still readable in any editor. Paper colour and a
+  heading style are separate fields.
+- **Palettes** quantise a small decode into a 4×4×4 colour cube and average each bucket: cheap,
+  deterministic, and enough to read a scheme off a photograph.
+- **Templates** are plain starter groups, nothing more — a new board is an ordinary board.
+- **Link cards** store a url and open it in the system browser. ActionDraw still never goes
+  online; fetching web thumbnails remains the open networked decision from the ideation.
+
+## 16. Feedback round 2 (2026-09-03)
+
+- **The strip lost its carousel.** The floating strip had been built as a plain viewer with ‹ ›
+  buttons, while the large view had the swipe carousel; both now share the same mechanics
+  (Animatable offset, neighbours laid out at ±width, glide on release, wheel support).
+- **Groups had no identity of their own.** Two changes: every group is now *given* a colour
+  (`accentOfGroup` — its own, else a distinct one derived from its order), and the freeform canvas
+  draws each group as a tinted, outlined **hull** around its cards with a name label in the
+  corner. In the grid, the header carries the colour as a dot, coloured title and a hairline that
+  ties the header to the cards below it.
+- **Moving a group vs. moving a card.** Dragging the hull moves every card of the group together;
+  dragging a card inside it still moves only that card. The hull drag deliberately does *not*
+  change the selection — if it selected the group, the next card drag would have moved everything
+  (the selection is what card drags follow). Clicking the label is the explicit way to select a
+  group as a unit; right-clicking the hull gives it the same menu the grid header has.
+
+## 17. Feedback round 3 (2026-09-03)
+
+*"I do not see any group, at least not in free mode."* The drawing was fine — verified by loading
+a board fixture with a real group and looking at the canvas — but a group with **no cards draws
+nothing**, and until now the only way to make a group was "New group", which creates an *empty*
+one. On the canvas there are no sections to drop cards into afterwards, so groups stayed empty and
+therefore invisible. The fix is to make grouping start from the selection:
+
+- **Group the selection** (`Ctrl+G`, action bar, drawer) creates a group *with members*, so an
+  area appears immediately. **Ungroup** (`Ctrl+Shift+G`, or per group) takes cards back out, and
+  a group holding nothing is pruned rather than lingering invisibly.
+- **The contents drawer** answers the other half: a board is spatial, so it needs a place that
+  lists what is on it. Groups are shown as headers with their colour and count, collapsible, with
+  Select / Draw / Rename / Ungroup; clicking any row selects it and moves the camera to it. It is
+  also where a group can be managed before it has any cards.
+- Two fixes found by actually looking at the rendered window: the header now wraps instead of
+  squeezing its buttons into vertical text, and group areas use `requiredSize` so a hull larger
+  than the viewport is not clamped to it.
+
+## 18. Feedback round 4 (2026-09-03)
+
+The reported symptoms — no group feedback in free mode, no drawer, "a new group shows 0 pics" —
+were mostly the previous build: the drawer and Group-from-selection landed after that pass, and in
+the old build "New group" was the only way to make one, which creates an *empty* group (hence
+0 pictures, and nothing to draw on the canvas). Verified by scripting the real flow in the running
+app — select two cards, group them — and looking at the result: grid shows "Wings (2)", free shows
+the hull with the drawer listing the group.
+
+Two real defects did fall out of looking at it:
+
+- **Card bounds ignored aspect.** Hulls, marquee hit-testing and Fit all measured a card as a
+  square of `BASE_SIZE × scale`, but a card is that *wide* and `width / aspect` *tall*. A portrait
+  photograph therefore hung out of its own group's area and could be missed by a rubber band.
+  All three now measure through one `halfSizeOf` helper.
+- **Auto-placement rows were too tight** (one card width), so tall cards overlapped the row below.
+  Rows now get 1.9× the base size, columns 1.3×.
+
+Also hardened: a sidecar carrying a UTF-8 byte-order mark (easy to introduce by editing the board
+file by hand on Windows) no longer looks corrupt — the BOM is stripped before parsing.
+
+## 19. Feedback round 5 — multi-select on the canvas (2026-09-03)
+
+*"I cannot select multiple pics in free mode, only ever one."* A real bug, and an instructive one.
+
+The canvas carried `detectTapGestures { clearSelection() }` on its outermost Box so that clicking
+empty board would deselect. A card's click handler (`cardClicks`) reacts to the *press* and does
+not consume the event, so the matching release bubbled up to that handler and cleared the
+selection the press had just made. Only `focusId` survived — drawn as a faint ring — which is
+exactly "always only one picture, with no real feedback". Ctrl+click could never accumulate.
+
+The fix is to make tap-to-clear a layer *underneath* the cards rather than a handler above them:
+cards are hit-tested first, so only a tap on empty board reaches it. `clearSelection` now also
+drops the focus ring, and the selected outline on the canvas went from 2 dp to 3 dp.
+
+**This class of bug is invisible to unit tests** — the selection logic was correct all along; the
+question was what a click reaches. The project now has `compose.desktop.uiTestJUnit4` and a
+`CanvasSelectionTest` that drives the real composable. Its worth was checked the only way that
+counts: with the old handler restored, both of its cases fail; with the fix, they pass.
+
+Also learned, the hard way: synthetic mouse input from a script cannot verify this app — Windows
+refuses `SetForegroundWindow` from that context, so the clicks land in whatever window is on top.
+Screenshots of the rendered window remain useful; injected clicks do not.
+
+## 20. Feedback round 6 — what "G" means (2026-09-03)
+
+*"Select 2 pics, press G, name the group — group appears in grid with 0 pictures."* Exactly what
+the code said: plain `G` was wired to *New group*, which creates an **empty** group, while only
+`Ctrl+G` grouped the selection. The hint line advertised "G group", so the trap was signposted.
+
+There is now one command: `startGrouping()` groups the selection when there is one and starts an
+empty group otherwise. `G`, `Ctrl+G`, the action-bar button (which reads "Group (2)" or "New
+group" accordingly) and the drawer all go through it, so the same key cannot mean two things.
+
+The lesson repeated from §19: these bugs live in the *wiring*, not the logic, and every unit test
+of the commands stayed green through all of them. The key mapping is now a pure function
+(`handleBoardShortcut(key, ctrl, shift, …)`) that `handleBoardKey` delegates to, so shortcuts can
+be tested without building a Compose key event — `InternalKeyEvent` is not constructible from
+outside. `BoardKeysTest` covers G / Ctrl+G / Ctrl+Shift+G, and its worth was checked the same way
+as the canvas test: restore the old binding and it fails.
+
+## 21. Deleting boards (2026-09-03)
+
+"Delete a board" is ambiguous, and the ambiguity matters: the sidecar belongs to ActionDraw, the
+pictures belong to the user. So deletion has two readings and the safe one is the default —
+**Remove board** deletes `.actiondraw_board.json` (and its backup) and forgets the board, leaving
+the folder and every picture untouched; **Also delete the folder** is a separate tick that erases
+it, with the picture count spelled out and the wording turning red.
+
+The destructive path is guarded: it refuses anything that is not a board folder (so a folder you
+opened via *Explore…* and then thought better of cannot take your pictures with it), the user's
+home, the boards home itself, and a drive root. The open board is closed before its file
+disappears. `DeleteBoardTest` covers both readings and the guards — and, as with the last two
+rounds, the guard test was checked by weakening the guard and watching it fail.

@@ -46,7 +46,11 @@ object BoardStore {
     }
 
     private fun parse(file: File): BoardFile? = runCatching {
-        file.takeIf { it.isFile }?.readText()?.let { json.decodeFromString(BoardFile.serializer(), it) }
+        file.takeIf { it.isFile }
+            ?.readText()
+            // Editors on Windows like to add a byte-order mark; the JSON parser chokes on it.
+            ?.removePrefix("﻿")
+            ?.let { json.decodeFromString(BoardFile.serializer(), it) }
     }.getOrNull()
 
     /**

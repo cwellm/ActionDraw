@@ -40,14 +40,24 @@ class GridReorder(private val gridState: LazyGridState, private val board: Board
             within && candidate.key != key
         }
         val candidateKey = hit?.key as? String
-        targetKey = candidateKey?.takeIf { section(it) == section(key) && !isSmart(it) }
+        targetKey = when {
+            candidateKey == null -> null
+            // Dropping on a section header files the card into that group.
+            candidateKey.startsWith(HEADER) -> candidateKey.takeIf { !isSmart(it.removePrefix(HEADER)) }
+            section(candidateKey) == section(key) && !isSmart(candidateKey) -> candidateKey
+            else -> null
+        }
     }
 
     fun drop() {
         val from = draggingKey
         val to = targetKey
         if (from != null && to != null) {
-            board.dropOn(itemId(from), itemId(to), groupId(section(from)))
+            if (to.startsWith(HEADER)) {
+                board.moveToGroup(setOf(itemId(from)), groupId(to.removePrefix(HEADER)))
+            } else {
+                board.dropOn(itemId(from), itemId(to), groupId(section(from)))
+            }
         }
         cancel()
     }
@@ -58,6 +68,10 @@ class GridReorder(private val gridState: LazyGridState, private val board: Board
     }
 
     companion object {
+        const val HEADER = "header-"
+
+        fun headerKey(sectionId: String) = "$HEADER$sectionId"
+
         fun cellKey(sectionId: String, itemId: String) = "$sectionId/$itemId"
 
         private fun section(key: String) = key.substringBeforeLast('/')

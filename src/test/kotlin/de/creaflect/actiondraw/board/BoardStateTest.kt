@@ -13,6 +13,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Behavioural tests for BoardState against real temp folders, with a recording fake host. */
@@ -558,6 +559,409 @@ class BoardStateTest {
         val state = newState()
         state.openBoardList()
         assertEquals(1, host.listShown)
+    }
+
+    // ---- M3: links, note styling, templates, marquee, snapping, strip ----
+
+    @Test
+    fun aTemplateGivesANewBoardItsStarterGroups() {
+        val state = newState()
+        val creature = BoardTemplate.ALL.first { it.name == "Creature design" }
+        state.createBoard(home, "Drachen", creature)
+        assertEquals(creature.groups, state.sortedGroups.map { it.name })
+    }
+
+    @Test
+    fun linkCardsAreStoredSearchableAndEditable() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveLink(null, "https://example.com/wings", "Bat wings")
+        val link = state.board!!.items.filterIsInstance<LinkItem>().single()
+        assertEquals("https://example.com/wings", link.url)
+
+        state.search("bat")
+        assertEquals(listOf(link.id), state.visibleOrder.map { it.id }, "matches the title")
+        state.search("example.com")
+        assertEquals(listOf(link.id), state.visibleOrder.map { it.id }, "matches the address")
+        state.clearFilter()
+
+        state.saveLink(link.id, "https://example.com/other", "Other")
+        assertEquals("Other", (state.item(link.id) as LinkItem).title)
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        assertEquals(1, reopened.board!!.items.filterIsInstance<LinkItem>().size)
+    }
+
+    @Test
+    fun aLinkWithoutAnAddressIsNotCreated() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveLink(null, "   ", "nothing")
+        assertTrue(state.board!!.items.isEmpty())
+    }
+
+    @Test
+    fun notesRememberTheirPaperColourAndHeading() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveNote(null, "Wings **from behind**")
+        val id = state.board!!.items.single().id
+
+        state.setNoteColor(id, "#FFE082")
+        state.toggleNoteHeading(id)
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        val note = reopened.board!!.items.filterIsInstance<NoteItem>().single()
+        assertEquals("#FFE082", note.color)
+        assertTrue(note.heading)
+        assertEquals("Wings **from behind**", note.text, "the markers stay in the file")
+    }
+
+    @Test
+    fun theMarqueeSelectsEveryCardItTouches() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        val positions = state.board!!.items.associate { it.id to it.pos!! }
+
+        // A band around the first two cards only.
+        val first = positions.getValue(ids[0])
+        val second = positions.getValue(ids[1])
+        state.startMarquee(first.x - 10f, first.y - 10f)
+        state.updateMarquee(second.x + 10f, second.y + 10f)
+        state.commitMarquee()
+
+        assertEquals(setOf(ids[0], ids[1]), state.selection)
+        assertNull(state.marquee, "the band disappears once it has selected")
+    }
+
+    @Test
+    fun snappingLinesACardUpWithItsNeighbourAndCanBeTurnedOff() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.clearSelection()
+        val anchor = state.board!!.items.first { it.id == ids[0] }.pos!!
+
+        // Almost aligned: snapping should pull it onto the neighbour's centre line.
+        val (x, y) = state.snapPosition(ids[1], anchor.x + 4f, anchor.y + 400f, threshold = 10f)
+        assertEquals(anchor.x, x, "x snapped to the neighbour")
+        assertEquals(anchor.y + 400f, y, "y was too far to snap")
+        assertEquals(anchor.x, state.snapGuideX, "and a guide is drawn where it snapped")
+
+        state.snapping = false
+        val (freeX, _) = state.snapPosition(ids[1], anchor.x + 4f, anchor.y + 400f, threshold = 10f)
+        assertEquals(anchor.x + 4f, freeX, "with snapping off the card goes where it is dragged")
+        assertNull(state.snapGuideX)
+    }
+
+    @Test
+    fun theFloatingStripFollowsTheSelectionAndWrapsAround() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+
+        state.openStrip()
+        assertTrue(state.stripOpen)
+        assertEquals(listOf(ids[0], ids[1]), state.stripIds, "only the selected pictures")
+        assertEquals(1, state.stripIndex, "opens on the card that has focus")
+
+        state.stripStep(-1)
+        assertEquals(0, state.stripIndex)
+        state.stripStep(-1)
+        assertEquals(1, state.stripIndex, "stepping back from the first wraps to the last")
+        state.stripGoTo(ids[0])
+        assertEquals(0, state.stripIndex)
+
+        state.closeStrip()
+        assertFalse(state.stripOpen)
+    }
+
+    // ---- Groups on the canvas (feedback round 2) ----
+
+    @Test
+    fun aGroupGetsAHullAroundItsCardsOnTheCanvas() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+
+        val hull = state.groupHulls.single()
+        assertEquals("Wings", hull.group.name)
+        assertEquals(2, hull.count, "only the group's own cards count")
+
+        // The hull encloses both cards, with room to spare.
+        val members = state.board!!.items.filter { it.id in setOf(ids[0], ids[1]) }.map { it.pos!! }
+        val half = BoardState.BASE_SIZE / 2
+        assertTrue(hull.left < members.minOf { it.x } - half, "padded on the left")
+        assertTrue(hull.right > members.maxOf { it.x } + half, "padded on the right")
+        assertTrue(hull.top < members.minOf { it.y } - half)
+        assertTrue(hull.bottom > members.maxOf { it.y } + half)
+    }
+
+    @Test
+    fun anEmptyOrUnplacedGroupHasNoHull() {
+        val state = newState()
+        boardWithThreeImages(state)
+        state.addGroup("Nobody home")
+        state.setLayout(BoardLayouts.FREE)
+        assertTrue(state.groupHulls.isEmpty(), "a group without cards draws nothing")
+    }
+
+    @Test
+    fun everyGroupHasAColourEvenWithoutOneSet() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.addGroup("A")
+        state.addGroup("B")
+        val (first, second) = state.sortedGroups
+
+        assertNull(first.color, "no colour was picked")
+        assertTrue(state.accentOfGroup(first).startsWith("#"), "but one is derived for drawing")
+        assertTrue(
+            state.accentOfGroup(first) != state.accentOfGroup(second),
+            "neighbouring groups must be told apart",
+        )
+
+        state.cycleGroupColor(first.id)
+        val recoloured = state.sortedGroups.first()
+        assertEquals(recoloured.color, state.accentOfGroup(recoloured), "an explicit colour wins")
+    }
+
+    @Test
+    fun draggingAGroupMovesEveryCardInItAndLeavesTheRestAlone() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+        val before = state.board!!.items.associate { it.id to it.pos!! }
+
+        state.dragGroupBy(groupId, 40f, -25f)
+        state.commitLayout()
+
+        val after = state.board!!.items.associate { it.id to it.pos!! }
+        listOf(ids[0], ids[1]).forEach { id ->
+            assertEquals(before.getValue(id).x + 40f, after.getValue(id).x, "group member moved")
+            assertEquals(before.getValue(id).y - 25f, after.getValue(id).y)
+        }
+        assertEquals(before.getValue(ids[2]).x, after.getValue(ids[2]).x, "the ungrouped card stayed")
+
+        // And it is on disk, not only in memory.
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        assertEquals(after.getValue(ids[0]).x, reopened.board!!.items.first { it.id == ids[0] }.pos!!.x)
+    }
+
+    @Test
+    fun aSingleCardStillMovesOnItsOwnAfterAGroupDrag() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+
+        // Dragging the group must not select it, or the next card drag would move everything.
+        state.clearSelection()
+        state.dragGroupBy(groupId, 10f, 10f)
+        state.commitLayout()
+        assertTrue(state.selection.isEmpty(), "a group drag leaves the selection alone")
+
+        val before = state.board!!.items.associate { it.id to it.pos!! }
+        state.dragBy(ids[0], 15f, 0f)
+        state.commitLayout()
+        val after = state.board!!.items.associate { it.id to it.pos!! }
+        assertEquals(before.getValue(ids[0]).x + 15f, after.getValue(ids[0]).x, "the card moved")
+        assertEquals(before.getValue(ids[1]).x, after.getValue(ids[1]).x, "its group mate did not")
+    }
+
+    @Test
+    fun theGroupLabelSelectsTheWholeGroup() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0], ids[1]), groupId)
+        state.setLayout(BoardLayouts.FREE)
+
+        state.selectGroup(groupId)
+        assertEquals(setOf(ids[0], ids[1]), state.selection)
+    }
+
+    @Test
+    fun aGroupedCardCarriesItsGroupsAccent() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.addGroup("Wings")
+        val groupId = state.sortedGroups.single().id
+        state.moveToGroup(setOf(ids[0]), groupId)
+
+        val grouped = state.item(ids[0])!!
+        val loose = state.item(ids[2])!!
+        assertEquals(state.accentOfGroup(state.sortedGroups.single()), state.accentOf(grouped))
+        assertNull(state.accentOf(loose), "an ungrouped card shows no accent")
+    }
+
+    // ---- Grouping and ungrouping (feedback round 3) ----
+
+    @Test
+    fun groupingTheSelectionMakesAGroupThatIsVisibleOnTheCanvas() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+
+        val groupId = state.groupSelection("Wings")
+
+        assertEquals("Wings", state.sortedGroups.single().name)
+        assertEquals(setOf(ids[0], ids[1]), state.itemsIn(groupId).map { it.id }.toSet())
+        // The point of the exercise: a group made this way draws an area straight away.
+        assertEquals(1, state.groupHulls.size)
+        assertEquals(2, state.groupHulls.single().count)
+    }
+
+    @Test
+    fun groupingNothingDoesNothing() {
+        val state = newState()
+        boardWithThreeImages(state)
+        state.clearSelection()
+        assertNull(state.groupSelection("Empty"))
+        assertTrue(state.sortedGroups.isEmpty())
+    }
+
+    @Test
+    fun ungroupingCardsTakesThemOutAndTidiesTheEmptyGroupAway() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+        val groupId = state.groupSelection("Wings")!!
+
+        state.ungroupItems(setOf(ids[0]))
+        assertEquals(listOf(ids[1]), state.itemsIn(groupId).map { it.id }, "only that card left")
+        assertEquals(1, state.sortedGroups.size, "the group still holds someone")
+
+        state.ungroupItems(setOf(ids[1]))
+        assertTrue(state.sortedGroups.isEmpty(), "a group with nothing in it is removed")
+        assertEquals(3, state.itemsIn(null).size, "every card is back in the Inbox")
+    }
+
+    @Test
+    fun ungroupingAWholeGroupKeepsItsCards() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.selectAll()
+        val groupId = state.groupSelection("Everything")!!
+
+        state.ungroup(groupId)
+
+        assertTrue(state.sortedGroups.isEmpty())
+        assertEquals(3, state.board!!.items.size, "the cards themselves stay")
+        assertTrue(state.board!!.items.all { it.groups.isEmpty() })
+    }
+
+    @Test
+    fun theDrawerCanFoldGroupsAwayAndBack() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.selectAll()
+        val groupId = state.groupSelection("Wings")!!
+
+        assertTrue(groupId !in state.drawerCollapsed)
+        state.toggleDrawerGroup(groupId)
+        assertTrue(groupId in state.drawerCollapsed)
+        state.toggleDrawerGroup(groupId)
+        assertTrue(groupId !in state.drawerCollapsed)
+    }
+
+    @Test
+    fun revealingACardSelectsItAndBringsTheCameraOver() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        val target = state.board!!.items.first { it.id == ids[2] }.pos!!
+
+        state.revealItem(ids[2])
+
+        assertEquals(setOf(ids[2]), state.selection)
+        assertEquals(target.x, state.camX, "the camera centres on the card")
+        assertEquals(target.y, state.camY)
+    }
+
+    @Test
+    fun revealingAGroupSelectsItAndCentresOnItsArea() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.clickItem(ids[1], ctrl = true, shift = false)
+        val groupId = state.groupSelection("Wings")!!
+        val hull = state.groupHulls.single()
+
+        state.pan(900f, 900f) // look somewhere else first
+        state.revealGroup(groupId)
+
+        assertEquals(setOf(ids[0], ids[1]), state.selection)
+        assertEquals((hull.left + hull.right) / 2, state.camX)
+    }
+
+    @Test
+    fun theHullEnclosesTallCardsNotJustSquareOnes() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        // A portrait picture is far taller than it is wide.
+        state.recordAspect(ids[0], 0.5f)
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        val groupId = state.groupSelection("Tall")!!
+
+        val hull = state.groupHulls.single()
+        val pos = state.item(ids[0])!!.pos!!
+        val halfHeight = BoardState.BASE_SIZE / 0.5f / 2f
+        assertTrue(
+            hull.bottom >= pos.y + halfHeight,
+            "the hull must reach past the bottom of a portrait card (${hull.bottom} vs ${pos.y + halfHeight})",
+        )
+        assertTrue(hull.top <= pos.y - halfHeight, "and past its top")
+        assertEquals(groupId, hull.group.id)
+    }
+
+    @Test
+    fun theMarqueeCatchesACardByItsRealShape() {
+        val state = newState()
+        val ids = boardWithThreeImages(state)
+        state.setLayout(BoardLayouts.FREE)
+        state.recordAspect(ids[0], 0.5f) // tall
+        state.clearSelection()
+        val pos = state.item(ids[0])!!.pos!!
+
+        // A band that only touches the lower half of the tall card - below a square card's edge.
+        val y = pos.y + BoardState.BASE_SIZE * 0.8f
+        state.startMarquee(pos.x - 5f, y)
+        state.updateMarquee(pos.x + 5f, y + 10f)
+        state.commitMarquee()
+
+        assertTrue(ids[0] in state.selection, "the tall card reaches down that far")
+    }
+
+    @Test
+    fun autoPlacementLeavesRoomBetweenRows() {
+        val cards = (1..7).map { NoteItem(id = "n$it", text = "x") }
+        val board = BoardState.placeMissing(BoardFile(items = cards))
+        val rows = board.items.mapNotNull { it.pos?.y }.distinct().sorted()
+        assertEquals(2, rows.size, "7 cards in rows of 5 -> two rows")
+        assertTrue(
+            rows[1] - rows[0] > BoardState.BASE_SIZE * 1.5f,
+            "rows need more room than a card's width, or tall cards overlap",
+        )
     }
 
     @Test

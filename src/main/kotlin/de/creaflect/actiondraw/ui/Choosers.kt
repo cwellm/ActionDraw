@@ -37,3 +37,16 @@ fun chooseImages(start: File?): List<File> {
 private fun systemLookAndFeel() {
     runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
 }
+
+/** Save dialog for an export; appends the suggested extension when the user drops it. */
+fun chooseSaveFile(suggested: String, start: File?): File? {
+    systemLookAndFeel()
+    val chooser = JFileChooser().apply {
+        dialogTitle = "Save as"
+        selectedFile = File(start ?: File("."), suggested)
+    }
+    if (chooser.showSaveDialog(null) != JFileChooser.APPROVE_OPTION) return null
+    val chosen = chooser.selectedFile
+    val ext = suggested.substringAfterLast('.', "")
+    return if (ext.isNotEmpty() && !chosen.name.contains('.')) File(chosen.path + "." + ext) else chosen
+}
