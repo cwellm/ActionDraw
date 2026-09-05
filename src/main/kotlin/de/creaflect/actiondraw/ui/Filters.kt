@@ -44,31 +44,24 @@ fun sepiaFilter(): ColorFilter =
         ),
     )
 
-/** Warm white-balance shift (boost red, cut blue) — practice drawing under warm light. */
-fun warmFilter(): ColorFilter =
-    ColorFilter.colorMatrix(
-        ColorMatrix(
-            floatArrayOf(
-                1.10f, 0f, 0f, 0f, 0f,
-                0f, 1.00f, 0f, 0f, 0f,
-                0f, 0f, 0.82f, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        ),
-    )
+/**
+ * Continuous white balance, replacing the old Warm/Cool presets: [temperature] runs from -1
+ * (cool daylight, blue lifted) through 0 (untouched) to +1 (warm lamplight, red lifted). Drawing
+ * the same reference under a slow drift of light is the point — a slider does that, two presets
+ * could not.
+ */
+internal const val TEMPERATURE_SKSL = """
+uniform shader content;
+uniform float temperature;
 
-/** Cool white-balance shift (boost blue, cut red) — practice drawing under cool light. */
-fun coolFilter(): ColorFilter =
-    ColorFilter.colorMatrix(
-        ColorMatrix(
-            floatArrayOf(
-                0.82f, 0f, 0f, 0f, 0f,
-                0f, 1.00f, 0f, 0f, 0f,
-                0f, 0f, 1.12f, 0f, 0f,
-                0f, 0f, 0f, 1f, 0f,
-            ),
-        ),
-    )
+half4 main(float2 coord) {
+    half4 px = content.eval(coord);
+    float r = clamp(1.0 + 0.15 * temperature, 0.0, 2.0);
+    float b = clamp(1.0 - 0.15 * temperature, 0.0, 2.0);
+    // Unpremultiply-free: alpha is carried through untouched, colours are simply scaled.
+    return half4(half3(clamp(float3(px.rgb) * float3(r, 1.0, b), 0.0, 1.0)), px.a);
+}
+"""
 
 /** Sobel edge detection: dark contour lines on a white ground, for line/contour study. */
 internal const val EDGE_SKSL = """
@@ -214,6 +207,7 @@ private val pixelateRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader
 private val notanRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(NOTAN_SKSL) }
 private val defractionRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(DEFRACTION_SKSL) }
 private val invertRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(INVERT_SKSL) }
+private val temperatureRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(TEMPERATURE_SKSL) }
 
 fun edgeRenderEffect(): RenderEffect = effectOf(edgeRuntime)
 
@@ -240,6 +234,10 @@ fun defractionRenderEffect(seed: Float, block: Int = 96, strength: Float = 0.5f)
     }
 
 fun invertRenderEffect(): RenderEffect = effectOf(invertRuntime)
+
+/** [temperature] in -1..1; 0 leaves the picture alone. */
+fun temperatureRenderEffect(temperature: Float): RenderEffect =
+    effectOf(temperatureRuntime) { it.uniform("temperature", temperature.coerceIn(-1f, 1f)) }
 
 /** Builds a Compose [RenderEffect] from a compiled shader that samples the layer as `content`. */
 private fun effectOf(

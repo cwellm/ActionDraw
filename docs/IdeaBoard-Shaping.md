@@ -211,6 +211,9 @@ per-board session recipes · pin-from-session · drag-reordering inside groups �
 (D4) · URL/link cards & anything networked · content-hash dedup/rename-tracking · deleting image
 files from disk (the board only ever *removes cards*).
 
+*Later:* most of these arrived in M2–M4; "anything networked" was held back longest and is now
+the single, explicit *Fetch preview* action — see §22.
+
 ## 9. Rabbit holes & risks (watch these)
 
 1. **Compose desktop drag & drop is experimental** — if `dragAndDropTarget` misbehaves with
@@ -462,3 +465,40 @@ opened via *Explore…* and then thought better of cannot take your pictures wit
 home, the boards home itself, and a drive root. The open board is closed before its file
 disappears. `DeleteBoardTest` covers both readings and the guards — and, as with the last two
 rounds, the guard test was checked by weakening the guard and watching it fail.
+
+## 22. Colour temperature, and the one thing that goes online (2026-09-05)
+
+Two backlog items, deliberately taken together because they pull in opposite directions: one makes
+the app *do* more, the other makes it *reach* further.
+
+**A slider instead of two presets.** Warm and Cool were view modes, which was the wrong category
+for them. A view mode is a way of *looking* — greyscale, squint, notan — and picking one replaces
+the last. White balance is not that; it is a property of the light in the room, and it should be
+able to sit under any of those ways of looking. So it became an adjustment: a slider from −1 to
++1, always on screen, stacking on whatever mode is active, and a Notan study can now be lit warm.
+The shader (`TEMPERATURE_SKSL`) scales red up and blue down by 15% at full travel, leaving alpha
+untouched. `,` cools, `.` warms, `0` returns to neutral — and freeing 7 and 8 let the number row
+become a clean 1–9 over the nine remaining modes.
+
+That renumbering is a migration in disguise. Boards on disk may hold a recipe naming `WARM`, and
+`ViewMode.valueOf` would have shrugged and opened them neutral. Instead a stored `WARM`/`COOL`
+becomes ±0.6 on the slider: the user's intent, moved to where it now lives. §21's discipline
+applies here too — the shortcut table is a pure `handleSessionShortcut(key, …)`, because a Compose
+`KeyEvent` cannot be built in a test and a key pointing at the wrong mode compiles perfectly.
+
+**Fetching a preview.** §8 listed web thumbnails as a no-go, with the reason: it would be the
+first networked feature and deserved its own decision. That decision has now been made, and the
+shape follows from *why* it was held back. Fetching is an explicit act on one card — a context
+menu item that opens a dialog saying plainly what leaves the machine, because the honest cost is
+not bandwidth but the fact that the site learns you opened the link. Nothing is ever fetched in
+the background, on import, or in bulk.
+
+The request is deliberately dull: a single GET, `http`/`https` only, 8 MB cap, 10 s/20 s timeouts,
+no cookies, no referrer, a self-identifying user agent. It reads `og:image` (then `twitter:image`)
+and writes the picture into `<board>/_previews/`, after which the board is a folder of files again
+and works offline. *Remove preview* undoes it.
+
+`LinkPreviewTest` drives all of this through a swappable `Fetcher`, so the test suite never opens a
+socket — the same reason the fetcher is an interface at all. The scheme guard earns its place the
+way the others have: delete the `http`/`https` check and two tests fail, one of them the case
+where a `file://` card would otherwise have been read off disk.

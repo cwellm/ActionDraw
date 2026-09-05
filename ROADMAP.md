@@ -20,7 +20,8 @@ Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (explor
 - ✅ Session summary (poses, total time)
 
 ### ✅ Views & filters
-- ✅ View modes: B&W, Squint, Sepia, Posterize, Pixelate, Warm, Cool, Edge, Silhouette, Notan
+- ✅ View modes: B&W, Squint, Sepia, Posterize, Pixelate, Edge, Silhouette, Notan
+  (Warm/Cool became the colour-temperature slider — F+.1)
 - ✅ Toggles: Blur, Mirror, Upside down, Invert, Defraction
 - ✅ Adjustable parameters (sliders) · proportion grids (Thirds/Phi/Diagonal)
 
@@ -268,14 +269,29 @@ surface, material in & out, "Draw these" bridge.*
 
 ### ✅ F4.7 Link cards
 - ✅ A card holding a url + title, opened in the system browser; searchable like everything else
-- ⬜ Fetching web thumbnails stays out — that would be the first networked feature and needs its
-  own decision
+- ✅ **Web thumbnails** — *Fetch preview* on a link card downloads the picture the page advertises
+  (OpenGraph `og:image`, then `twitter:image`) into `<board>/_previews/` and shows it on the card
+  - ✅ The app's only networked code, and it asks first: a dialog states what leaves the machine
+    before anything is sent. Never automatic, never in the background, one card at a time
+  - ✅ http/https only, 8 MB cap, 10 s/20 s timeouts, no cookies, self-identifying user agent
+  - ✅ Once saved, the picture is a normal file in the board folder — the board works offline again
+  - ✅ *Remove preview* takes the picture off the card
+  - ✅ Covered by `LinkPreviewTest` through a stubbed fetcher, so the suite itself never goes
+    online; the http-only guard was checked by removing it and watching two tests fail
 
 ---
 
-## ⬜ M+ — Practice backlog (independent of the board)
+## 🔄 M+ — Practice backlog (independent of the board)
 
-- ⬜ Continuous colour-temperature slider (replaces Warm/Cool presets — IDEAS.md)
+### ✅ F+.1 Continuous colour temperature
+- ✅ One slider from cool (−1) through neutral (0) to warm (+1), replacing the Warm/Cool presets
+- ✅ An adjustment, not a mode: it stacks on any view mode, so a Notan study can still be lit warm
+- ✅ Always on screen while drawing; `,` cools, `.` warms, `0` back to neutral
+- ✅ The number row is now 1–9 for the nine view modes (Warm/Cool no longer take 7 and 8)
+- ✅ A board's session recipe remembers the light; a recipe still naming `WARM`/`COOL` opens at
+  ±0.6 rather than silently going neutral
+- ✅ Covered by `SessionKeysTest` (a pure `handleSessionShortcut`, since a `KeyEvent` cannot be
+  built in a test), `FiltersShaderTest`, and two `BoardStateTest` cases including an old sidecar
 
 ---
 

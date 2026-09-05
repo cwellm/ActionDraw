@@ -35,6 +35,9 @@ sealed class BoardEditor {
     /** `itemId == null` creates a new link card. */
     data class EditLink(val itemId: String?) : BoardEditor()
 
+    /** Asks before the app contacts a site for a link's preview picture. */
+    data class FetchPreview(val itemId: String) : BoardEditor()
+
     /** Colour swatches read off a picture (or a whole group). */
     data class ShowPalette(val itemIds: Set<String>) : BoardEditor()
     data class EditCaption(val itemId: String) : BoardEditor()
@@ -660,7 +663,39 @@ class BoardState(
         }
     }
 
-    /** Opens a link card in the system browser — ActionDraw itself never goes online. */
+    /**
+     * Fetches the page's preview picture into the board folder and hangs it on the card. This is
+     * the one place the app makes a network request, and only ever because the user asked for it
+     * on a particular card. Blocking — call from a background dispatcher.
+     */
+    fun fetchLinkPreview(itemId: String, fetcher: LinkPreview.Fetcher = LinkPreview.http): String {
+        val dir = root ?: return "No board open."
+        val link = item(itemId) as? LinkItem ?: return "That card is not a link."
+        val label = link.title.ifBlank { LinkPreview.normalize(link.url)?.let { java.net.URI(it).host } ?: "link" }
+        return when (val result = LinkPreview.fetchInto(dir, link.url, label, fetcher)) {
+            is LinkPreview.Result.Saved -> {
+                update { b ->
+                    b.copy(items = b.items.map {
+                        if (it is LinkItem && it.id == itemId) it.copy(preview = result.path) else it
+                    })
+                }
+                "Preview fetched for ${link.title.ifBlank { link.url }}.".also { importNotice = it }
+            }
+
+            is LinkPreview.Result.Failed -> result.reason.also { importNotice = it }
+        }
+    }
+
+    /** Drops a fetched preview (the file stays in `_previews/` until the folder is tidied). */
+    fun clearLinkPreview(itemId: String) = update { b ->
+        b.copy(items = b.items.map { if (it is LinkItem && it.id == itemId) it.copy(preview = null) else it })
+    }
+
+    /** The saved preview file of a link card, if it still exists. */
+    fun previewFileOf(item: LinkItem): File? =
+        root?.let { dir -> item.preview?.let { File(dir, it) } }?.takeIf { it.isFile }
+
+    /** Opens a link card in the system browser — ActionDraw never loads a page itself. */
     fun openLink(item: LinkItem) {
         runCatching {
             val uri = java.net.URI(if (item.url.contains("://")) item.url else "https://${item.url}")
@@ -1244,12 +1279,21 @@ class BoardState(
     /** The stored recipe translated into the practice side's vocabulary; null = keep the menu's. */
     private fun sessionSetup(): SessionSetup? {
         val stored = recipe ?: return null
+        // Boards written before the temperature slider may name the retired WARM/COOL view modes.
+        // Those were a fixed white balance, so carry the intent over to the slider rather than
+        // quietly opening the board under neutral light.
+        val retired = when (stored.viewMode.uppercase()) {
+            "WARM" -> 0.6f
+            "COOL" -> -0.6f
+            else -> null
+        }
         return SessionSetup(
             plan = SessionPlans.ALL.find { it.name == stored.plan },
             intervalSeconds = stored.intervalSeconds,
             autoAdvance = stored.autoAdvance,
             viewMode = runCatching { ViewMode.valueOf(stored.viewMode) }.getOrDefault(ViewMode.NONE),
             gridMode = runCatching { GridMode.valueOf(stored.grid) }.getOrDefault(GridMode.OFF),
+            temperature = retired ?: stored.temperature,
         )
     }
 
@@ -1265,6 +1309,7 @@ class BoardState(
                 autoAdvance = setup.autoAdvance,
                 viewMode = setup.viewMode.name,
                 grid = setup.gridMode.name,
+                temperature = setup.temperature,
             ),
         )
     }

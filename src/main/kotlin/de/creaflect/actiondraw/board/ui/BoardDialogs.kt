@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +57,7 @@ import de.creaflect.actiondraw.ui.IntervalSelector
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -98,6 +100,8 @@ fun BoardDialogs(state: BoardState) {
         is BoardEditor.EditNote -> NoteDialog(state, editor.itemId)
 
         is BoardEditor.EditLink -> LinkDialog(state, editor.itemId)
+
+        is BoardEditor.FetchPreview -> FetchPreviewDialog(state, editor.itemId)
 
         is BoardEditor.ShowPalette -> PaletteDialog(state, editor.itemIds)
 
@@ -278,6 +282,48 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
         DialogButtons(
             confirm = "Save",
             onOk = { state.saveLink(itemId, url, title); state.closeEditor() },
+            onCancel = state::closeEditor,
+        )
+    }
+}
+
+/**
+ * Fetching a preview is the only thing in ActionDraw that leaves the machine, so it asks first
+ * and says plainly what that means.
+ */
+@Composable
+private fun FetchPreviewDialog(state: BoardState, itemId: String) {
+    val link = state.item(itemId) as? LinkItem
+    val scope = rememberCoroutineScope()
+    var busy by remember(itemId) { mutableStateOf(false) }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Fetch preview", style = MaterialTheme.typography.h6)
+        Text(
+            link?.url.orEmpty(),
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            "ActionDraw will contact this address once and save the picture it advertises into " +
+                "the board folder. The site learns that you opened the link; nothing else is sent, " +
+                "and the board stays offline afterwards.",
+            style = MaterialTheme.typography.body2,
+        )
+        if (busy) Text("Fetching…", style = MaterialTheme.typography.caption)
+        DialogButtons(
+            confirm = "Fetch",
+            onOk = {
+                if (!busy) {
+                    busy = true
+                    scope.launch {
+                        withContext(Dispatchers.IO) { state.fetchLinkPreview(itemId) }
+                        busy = false
+                        state.closeEditor()
+                    }
+                }
+            },
             onCancel = state::closeEditor,
         )
     }
