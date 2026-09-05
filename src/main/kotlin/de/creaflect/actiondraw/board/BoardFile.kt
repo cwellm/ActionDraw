@@ -36,6 +36,8 @@ data class SessionRecipe(
     val autoAdvance: Boolean = true,
     val viewMode: String = "NONE",
     val grid: String = "OFF",
+    /** White balance, -1 (cool) .. +1 (warm). */
+    val temperature: Float = 0f,
 )
 
 /** Freeform placement of one card, in board units; [scale] and [rotation] (degrees) around its centre. */
@@ -134,6 +136,11 @@ data class LinkItem(
     val title: String = "",
     override val groups: List<String> = emptyList(),
     override val pos: ItemPos? = null,
+    /**
+     * Path (relative to the board) of a preview picture fetched from the page, or null while the
+     * card is just an address. Fetching is always an explicit act — see [LinkPreview].
+     */
+    val preview: String? = null,
 ) : BoardItem()
 
 /** Paper colours a note cycles through; null is the theme default. */

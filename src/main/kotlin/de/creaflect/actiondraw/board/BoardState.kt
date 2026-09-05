@@ -19,7 +19,16 @@ sealed class BoardEditor {
     data object NewBoard : BoardEditor()
 
     /** Confirms deleting a board; [pictures] is what the folder would take with it. */
-    data class DeleteBoard(val dir: File, val name: String, val pictures: Int) : BoardEditor()
+    /**
+     * [ownsFolder] is what the registry recorded when the board was made: true for a folder
+     * ActionDraw created, which decides whether deleting the folder is the offered default.
+     */
+    data class DeleteBoard(
+        val dir: File,
+        val name: String,
+        val pictures: Int,
+        val ownsFolder: Boolean,
+    ) : BoardEditor()
 
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
@@ -34,6 +43,9 @@ sealed class BoardEditor {
 
     /** `itemId == null` creates a new link card. */
     data class EditLink(val itemId: String?) : BoardEditor()
+
+    /** Asks before the app contacts a site for a link's preview picture. */
+    data class FetchPreview(val itemId: String) : BoardEditor()
 
     /** Colour swatches read off a picture (or a whole group). */
     data class ShowPalette(val itemIds: Set<String>) : BoardEditor()
@@ -161,7 +173,13 @@ class BoardState(
     val theme: String get() = board?.theme ?: BoardThemes.CORK
     val layout: String get() = board?.layout ?: BoardLayouts.GRID
 
+    /** Board -> folder, so a board is not merely "whatever sits under the boards home". */
+    private val registry = BoardRegistry(settings.configDir)
+
     fun boardsHome(): File = settings.boardsHome()
+
+    /** The registry's record for a folder, if it has one. */
+    fun entryFor(dir: File): BoardEntry? = registry.entryFor(dir)
 
     /** Bumped when the boards home changes so open board lists recompute. */
     var boardsHomeTick by mutableStateOf(0)
@@ -173,19 +191,43 @@ class BoardState(
     }
 
     /**
-     * Boards for the picker: the recently opened ones plus every direct subfolder of the boards
-     * home that has a sidecar — deduplicated, with the board's stored name.
+     * Boards for the picker: everything the registry knows, wherever it lives, plus any board
+     * folder found under the boards home or in the recent list that is not recorded yet — those
+     * are adopted into the registry as they are found, which is also how boards from before the
+     * registry existed arrive in it.
+     *
+     * Because the registry holds absolute paths, pointing the boards home somewhere else adds a
+     * place to look; it does not take the existing boards away.
      */
     fun availableBoards(): List<Pair<String, File>> {
+        registry.prune()
         val dirs = LinkedHashMap<String, File>()
-        settings.recentBoards().forEach { dirs.putIfAbsent(it.absolutePath.lowercase(), it.absoluteFile) }
-        settings.boardsHome().listFiles()
-            ?.filter { it.isDirectory && BoardStore.exists(it) }
-            ?.sortedBy { it.name.lowercase() }
-            ?.forEach { dirs.putIfAbsent(it.absolutePath.lowercase(), it.absoluteFile) }
+        registry.entries()
+            .filter { BoardStore.exists(it.dir) }
+            .forEach { dirs.putIfAbsent(it.path.lowercase(), it.dir) }
+
+        val found = settings.recentBoards() +
+            settings.boardsHome().listFiles().orEmpty().sortedBy { it.name.lowercase() }
+        found.filter { it.isDirectory && BoardStore.exists(it) }.forEach { dir ->
+            if (dirs.putIfAbsent(dir.absolutePath.lowercase(), dir.absoluteFile) == null) adopt(dir)
+        }
+
         return dirs.values.map { dir ->
             (BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name) to dir
         }
+    }
+
+    /**
+     * Records a board folder nobody told us about. A direct child of the boards home is one the
+     * app almost certainly created (that is where *New board…* puts them), so it counts as the
+     * board's own; anything else was already the user's before ActionDraw saw it.
+     */
+    private fun adopt(dir: File) {
+        val name = BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name
+        val underHome = runCatching {
+            dir.canonicalFile.parentFile == settings.boardsHome().canonicalFile
+        }.getOrDefault(false)
+        registry.register(name, dir, ownsFolder = underHome)
     }
 
 
@@ -350,11 +392,13 @@ class BoardState(
                 else "Couldn't remove the board file in ${dir.name}."
             }
 
+
             Deletion.DELETE_FOLDER ->
                 if (dir.deleteRecursively()) "Deleted ${dir.name} and everything in it."
                 else "Couldn't delete ${dir.name} — something in it is in use."
         }
 
+        registry.forget(dir)
         settings.removeRecentBoard(dir)
         recent = settings.recentBoards()
         boardsHomeTick++ // the board list is keyed on this
@@ -381,12 +425,26 @@ class BoardState(
     fun createBoard(parent: File, name: String, template: BoardTemplate = BoardTemplate.ALL.first()): String? {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return "Give the board a name."
-        val dir = File(parent, sanitizeName(trimmed))
-        if (BoardStore.exists(dir)) { // already a board -> just open it
-            openBoard(dir)
+        // "Do I already have a board called this?" is a question for the registry: the board's
+        // name and its folder's name are no longer the same thing.
+        val known = registry.entries().firstOrNull {
+            it.name.equals(trimmed, ignoreCase = true) &&
+                it.dir.parentFile?.absolutePath.equals(parent.absolutePath, ignoreCase = true) &&
+                BoardStore.exists(it.dir)
+        }
+        if (known != null) { // already a board -> just open it
+            openBoard(known.dir)
             return null
         }
-        if (dir.exists() && !dir.listFiles().isNullOrEmpty()) return "Folder exists and is not empty:\n$dir"
+        val wanted = File(parent, sanitizeName(trimmed))
+        if (BoardStore.exists(wanted)) { // a board here the registry has not met yet
+            openBoard(wanted)
+            return null
+        }
+        // A board's folder is where its files go, not what the board *is*. So a leftover folder
+        // keeps the name it has and the new board gets one beside it, still called [trimmed] --
+        // deleting a board must never make its name unusable.
+        val dir = if (wanted.exists() && !wanted.listFiles().isNullOrEmpty()) freeFolder(wanted) else wanted
         if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
         settings.setBoardsHome(parent)
         val created = BoardFile(
@@ -396,12 +454,23 @@ class BoardState(
             },
         )
         if (!BoardStore.save(dir, created)) return "Couldn't write the board file in:\n$dir"
+        registry.register(trimmed, dir, ownsFolder = true)
         root = dir
         board = created
         openedFromBackup = false
         openFailed = false
         afterOpen(dir)
         return null
+    }
+
+    /** `Test` -> `Test (2)`. Unlike file naming this never splits a dot off as an extension. */
+    private fun freeFolder(wanted: File): File {
+        var n = 2
+        while (true) {
+            val candidate = File(wanted.parentFile, wanted.name + " (" + n + ")")
+            if (!candidate.exists()) return candidate
+            n++
+        }
     }
 
     fun openBoard(dir: File) {
@@ -447,6 +516,7 @@ class BoardState(
         refreshPractice()
         settings.addRecentBoard(dir)
         recent = settings.recentBoards()
+        if (registry.entryFor(dir) == null) adopt(dir)
         host.showBoard()
     }
 
@@ -660,7 +730,39 @@ class BoardState(
         }
     }
 
-    /** Opens a link card in the system browser — ActionDraw itself never goes online. */
+    /**
+     * Fetches the page's preview picture into the board folder and hangs it on the card. This is
+     * the one place the app makes a network request, and only ever because the user asked for it
+     * on a particular card. Blocking — call from a background dispatcher.
+     */
+    fun fetchLinkPreview(itemId: String, fetcher: LinkPreview.Fetcher = LinkPreview.http): String {
+        val dir = root ?: return "No board open."
+        val link = item(itemId) as? LinkItem ?: return "That card is not a link."
+        val label = link.title.ifBlank { LinkPreview.normalize(link.url)?.let { java.net.URI(it).host } ?: "link" }
+        return when (val result = LinkPreview.fetchInto(dir, link.url, label, fetcher)) {
+            is LinkPreview.Result.Saved -> {
+                update { b ->
+                    b.copy(items = b.items.map {
+                        if (it is LinkItem && it.id == itemId) it.copy(preview = result.path) else it
+                    })
+                }
+                "Preview fetched for ${link.title.ifBlank { link.url }}.".also { importNotice = it }
+            }
+
+            is LinkPreview.Result.Failed -> result.reason.also { importNotice = it }
+        }
+    }
+
+    /** Drops a fetched preview (the file stays in `_previews/` until the folder is tidied). */
+    fun clearLinkPreview(itemId: String) = update { b ->
+        b.copy(items = b.items.map { if (it is LinkItem && it.id == itemId) it.copy(preview = null) else it })
+    }
+
+    /** The saved preview file of a link card, if it still exists. */
+    fun previewFileOf(item: LinkItem): File? =
+        root?.let { dir -> item.preview?.let { File(dir, it) } }?.takeIf { it.isFile }
+
+    /** Opens a link card in the system browser — ActionDraw never loads a page itself. */
     fun openLink(item: LinkItem) {
         runCatching {
             val uri = java.net.URI(if (item.url.contains("://")) item.url else "https://${item.url}")
@@ -1244,12 +1346,21 @@ class BoardState(
     /** The stored recipe translated into the practice side's vocabulary; null = keep the menu's. */
     private fun sessionSetup(): SessionSetup? {
         val stored = recipe ?: return null
+        // Boards written before the temperature slider may name the retired WARM/COOL view modes.
+        // Those were a fixed white balance, so carry the intent over to the slider rather than
+        // quietly opening the board under neutral light.
+        val retired = when (stored.viewMode.uppercase()) {
+            "WARM" -> 0.6f
+            "COOL" -> -0.6f
+            else -> null
+        }
         return SessionSetup(
             plan = SessionPlans.ALL.find { it.name == stored.plan },
             intervalSeconds = stored.intervalSeconds,
             autoAdvance = stored.autoAdvance,
             viewMode = runCatching { ViewMode.valueOf(stored.viewMode) }.getOrDefault(ViewMode.NONE),
             gridMode = runCatching { GridMode.valueOf(stored.grid) }.getOrDefault(GridMode.OFF),
+            temperature = retired ?: stored.temperature,
         )
     }
 
@@ -1265,6 +1376,7 @@ class BoardState(
                 autoAdvance = setup.autoAdvance,
                 viewMode = setup.viewMode.name,
                 grid = setup.gridMode.name,
+                temperature = setup.temperature,
             ),
         )
     }

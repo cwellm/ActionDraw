@@ -13,6 +13,9 @@ import java.util.Properties
 class Settings(private val dir: File = defaultDir()) {
     private val file: File get() = File(dir, FILE_NAME)
 
+    /** Where installation-level state lives, so the board registry can sit beside this file. */
+    val configDir: File get() = dir
+
     /** The folder from the previous run, or null if unknown or no longer a directory. */
     fun lastFolder(): File? = runCatching {
         read().getProperty(KEY_LAST_FOLDER)

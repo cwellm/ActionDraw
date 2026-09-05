@@ -7,7 +7,7 @@ import de.creaflect.actiondraw.ui.NOTAN_SKSL
 import de.creaflect.actiondraw.ui.PIXELATE_SKSL
 import de.creaflect.actiondraw.ui.POSTERIZE_SKSL
 import de.creaflect.actiondraw.ui.SILHOUETTE_SKSL
-import de.creaflect.actiondraw.ui.coolFilter
+import de.creaflect.actiondraw.ui.TEMPERATURE_SKSL
 import de.creaflect.actiondraw.ui.defractionRenderEffect
 import de.creaflect.actiondraw.ui.edgeRenderEffect
 import de.creaflect.actiondraw.ui.grayscaleFilter
@@ -18,7 +18,7 @@ import de.creaflect.actiondraw.ui.posterizeRenderEffect
 import de.creaflect.actiondraw.ui.sepiaFilter
 import de.creaflect.actiondraw.ui.silhouetteRenderEffect
 import de.creaflect.actiondraw.ui.squintFilter
-import de.creaflect.actiondraw.ui.warmFilter
+import de.creaflect.actiondraw.ui.temperatureRenderEffect
 import org.jetbrains.skia.RuntimeEffect
 import kotlin.test.Test
 import kotlin.test.assertNotNull
@@ -32,7 +32,7 @@ class FiltersShaderTest {
     fun allShadersCompile() {
         val shaders = listOf(
             EDGE_SKSL, SILHOUETTE_SKSL, POSTERIZE_SKSL, PIXELATE_SKSL,
-            NOTAN_SKSL, DEFRACTION_SKSL, INVERT_SKSL,
+            NOTAN_SKSL, DEFRACTION_SKSL, INVERT_SKSL, TEMPERATURE_SKSL,
         )
         for (sksl in shaders) {
             RuntimeEffect.makeForShader(sksl).close()
@@ -62,6 +62,12 @@ class FiltersShaderTest {
         assertNotNull(defractionRenderEffect(seed = 0f, block = 32, strength = 0.1f))
         assertNotNull(defractionRenderEffect(seed = 999f, block = 192, strength = 1f))
         assertNotNull(invertRenderEffect())
+        // White balance across its whole range, including the values the slider clamps to.
+        assertNotNull(temperatureRenderEffect(-1f))
+        assertNotNull(temperatureRenderEffect(0f))
+        assertNotNull(temperatureRenderEffect(1f))
+        assertNotNull(temperatureRenderEffect(-4f), "out-of-range values are coerced, not rejected")
+        assertNotNull(temperatureRenderEffect(4f))
     }
 
     @Test
@@ -69,7 +75,5 @@ class FiltersShaderTest {
         assertNotNull(grayscaleFilter())
         assertNotNull(squintFilter())
         assertNotNull(sepiaFilter())
-        assertNotNull(warmFilter())
-        assertNotNull(coolFilter())
     }
 }

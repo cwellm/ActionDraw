@@ -11,7 +11,7 @@ import java.io.File
 import kotlin.random.Random
 
 /** Mutually-exclusive ways of viewing the reference image (value / colour / structure studies). */
-enum class ViewMode { NONE, GRAYSCALE, SQUINT, SEPIA, POSTERIZE, PIXELATE, WARM, COOL, EDGE, SILHOUETTE, NOTAN }
+enum class ViewMode { NONE, GRAYSCALE, SQUINT, SEPIA, POSTERIZE, PIXELATE, EDGE, SILHOUETTE, NOTAN }
 
 /** Proportion-overlay variants drawn over the image. */
 enum class GridMode { OFF, THIRDS, PHI, DIAGONAL }
@@ -87,6 +87,12 @@ class AppState(private val settings: Settings = Settings()) {
     var upsideDown by mutableStateOf(false)
     var mirror by mutableStateOf(false)
     var gridMode by mutableStateOf(GridMode.OFF)
+
+    /**
+     * White balance from -1 (cool) through 0 (neutral) to +1 (warm). Independent of the view
+     * mode, so a Notan study can still be lit warm; replaces the old Warm/Cool view modes.
+     */
+    var temperature by mutableStateOf(0f)
 
     /** Invert the final colours — independent of (and applied after) every other effect. */
     var invert by mutableStateOf(false)
@@ -314,11 +320,12 @@ class AppState(private val settings: Settings = Settings()) {
         autoAdvance = setup.autoAdvance
         viewMode = setup.viewMode
         gridMode = setup.gridMode
+        temperature = setup.temperature
     }
 
     /** The current settings, so a board can remember exactly what is on screen. */
     fun currentSetup(): SessionSetup =
-        SessionSetup(rampPlan, intervalSeconds, autoAdvance, viewMode, gridMode)
+        SessionSetup(rampPlan, intervalSeconds, autoAdvance, viewMode, gridMode, temperature)
 
     /** Files of this session's pool that are flagged for redo — what the summary offers to pin. */
     val sessionFlaggedFiles: List<File>

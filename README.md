@@ -25,9 +25,12 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 - **Session summary** at the end: poses drawn and total time.
 
 ### Reference views & filters
-- **View modes** (mutually exclusive; number row `1`–`0`, plus `N`): None, **Black & white**,
-  **Squint** (low contrast), **Sepia**, **Posterize**, **Pixelate**, **Warm**, **Cool**,
-  **Edge** (outline), **Silhouette** (threshold), and **Notan** (2/3-value study).
+- **View modes** (mutually exclusive; number row `1`–`9`): None, **Black & white**,
+  **Squint** (low contrast), **Sepia**, **Posterize**, **Pixelate**, **Edge** (outline),
+  **Silhouette** (threshold), and **Notan** (2/3-value study, also on `N`).
+- **Colour temperature**: one slider from cool daylight through neutral to warm lamplight
+  (`,` cooler, `.` warmer, `0` neutral). It is an adjustment rather than a mode, so it stacks on
+  whatever else is on — a Notan study can still be lit warm.
 - **Independent toggles**: **Blur** (`B`), **Mirror** (`M`), **Upside down** (`U`),
   **Invert** (`I`), and **Defraction** (`D`) — a cubist shard mosaic, re-rolled randomly every
   time it is switched on.
@@ -79,6 +82,20 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### Where boards live
+- A board is a folder plus a `.actiondraw_board.json` sidecar, and ActionDraw records which folder
+  belongs to which board in `~/.actiondraw/boards.json`. The board's name is therefore not tied to
+  its folder's name: if the folder name is taken, the board gets one beside it (`Test (2)`) and
+  keeps the name you gave it.
+- **Change home…** sets where *new* boards are created. Boards you already have stay exactly where
+  they are and stay in the list — moving the home adds a place to look, it never hides or moves
+  anything.
+- **Delete…** on a board tile follows whose folder it is. A folder ActionDraw created for the board
+  is deleted along with it; a folder that was already yours — one you opened with *Explore…* — is
+  kept, and only stops being a board. The tick in the dialog lets you choose the other way in
+  either case, and the destructive path refuses anything that is not a board folder, your home
+  folder, the boards home itself, or a drive root.
+
 ### Organising
 - **Two layouts** per board, switchable in the header:
   - **Grid** — cards in collapsible group sections (unassigned cards sit in the **Inbox**), each
@@ -91,7 +108,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
     right-click the area to draw, rename, recolour or delete it. Grouped cards carry a small dot
     in their group's colour. A group only shows once it holds something.
 - **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
-  **link cards** (`L`) that open in your browser; one-line **captions** (`F2`), **stars** (`S`)
+  **link cards** (`L`) that open in your browser — right-click one for *Fetch preview* and the
+  picture the page advertises is saved onto the card; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
@@ -145,8 +163,9 @@ still have an ordinary folder of images; the board never renames, moves or delet
 |---|---|
 | `Space` | play / pause |
 | `←` / `→` | previous / next image |
-| `1`–`0` | view mode (None … Silhouette) |
+| `1`–`9` | view mode (None … Notan) |
 | `N` | Notan view |
+| `,` / `.` / `0` | cooler light · warmer light · neutral |
 | `B` / `I` / `D` / `M` / `U` | blur / invert / defraction / mirror / upside down |
 | `G` | cycle proportion grid |
 | `R` | toggle redo flag |
@@ -180,6 +199,22 @@ can be dragged onto another to reorder it, or onto a group header to file it the
 
 More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's design notes are in
 [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and planned work in [ROADMAP.md](ROADMAP.md).
+
+## Going online
+
+ActionDraw is an offline application with exactly one exception: *Fetch preview* on a link card.
+Choosing it asks first, then makes a single plain GET to that address, reads the picture the page
+advertises for sharing (`og:image`, else `twitter:image`) and saves it into the board's
+`_previews/` folder. Only `http` and `https` are followed, at most 8 MB, with short timeouts, no
+cookies and no referrer.
+
+The cost is the ordinary one: the site learns that you opened the link. That is why it is never
+automatic, never done in the background, and always one card at a time. Afterwards the picture is
+a normal file in your board folder and the board works offline again. *Remove preview* takes it
+back off the card.
+
+Nothing else in the app makes a network request — no updates, no telemetry, no fonts or icons
+loaded from anywhere.
 
 ## Image formats
 

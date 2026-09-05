@@ -11,9 +11,10 @@ timed reference practice.
 ## Filters — implemented
 View modes (mutually exclusive): **None**, **Black & white** (full desaturation),
 **Squint** (low contrast + reduced saturation), **Sepia** (warm partial desaturation),
-**Posterize** (few value bands), **Pixelate** (coarse blocks), **Warm** / **Cool** (white-balance
-shift), **Edge** (Sobel outline), **Silhouette** (threshold).
-Independent toggles: **Blur**, **Mirror** (horizontal flip), **Upside down** (180°).
+**Posterize** (few value bands), **Pixelate** (coarse blocks), **Edge** (Sobel outline),
+**Silhouette** (threshold), **Notan** (2/3 value bands).
+Independent adjustments, stacking on any mode: **colour temperature** (cool↔warm white balance),
+**Blur**, **Mirror** (horizontal flip), **Upside down** (180°), **Invert**, **Defraction**.
 Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal**, each with a centre cross.
 
 ## Filters — backlog
@@ -25,7 +26,8 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
 - ✅ **Defraction** (new) — cubist shard mosaic (jittered-Voronoi, per-shard offset+rotation);
   independent toggle (`D`), re-rolled randomly on every switch-on; shard size + strength sliders.
 - ✅ **Invert** (new) — colour inversion of the final image, independent of all other effects (`I`).
-- **Continuous colour-temperature** — a warm↔cool slider instead of the two fixed presets.
+- ~~**Continuous colour-temperature** — a warm↔cool slider instead of the two fixed presets.~~
+  ✅ Implemented (`,` / `.` / `0`, stacks on any view mode).
 
 ## Best ideas
 1. ~~**Gesture-ramp sessions** — predefined life-drawing structures that auto-advance through
@@ -49,7 +51,7 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
   window) with exactly those pictures; every filter and ramp applies as usual.
 
 ## Other notes
-- Keyboard: Space play/pause · ←/→ prev/next · 1–0 view mode · N notan · A auto-advance · B blur ·
+- Keyboard: Space play/pause · ←/→ prev/next · 1–9 view mode · N notan · ,/. light · A auto-advance · B blur ·
   I invert · D defraction · M mirror · U upside-down · G cycle grid · R redo flag · F fullscreen ·
   Esc leave fullscreen / stop. (Board shortcuts: see the README.)
 - Per-folder state files, written inside the selected image folder:
