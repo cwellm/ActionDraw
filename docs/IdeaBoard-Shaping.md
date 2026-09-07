@@ -551,3 +551,27 @@ counting as ActionDraw's own when they sit directly under the boards home, which
 version of the "moving the home keeps the boards" test passed even with the registry ripped out,
 because its own helper reset the boards home and the recent list quietly covered for it. The
 mutation run is what exposed that — the test was proving nothing until it was made to fail.
+
+## 24. Zooming in the large view (2026-09-07)
+
+Asked for: zoom in the viewer, from the XPPen dial and from `+`/`−`.
+
+A tablet dial is a mouse wheel as far as the system is concerned, so "the dial" means the wheel
+— and the wheel used to flip to the next picture. That binding was mine, not asked for, and
+flipping has four other ways (drag, chevrons, arrows, filmstrip) while zooming had none; so the
+wheel now zooms and flipping keeps the rest. Wheel up zooms in, as everywhere else.
+
+Zooming about the middle of the screen is not what anyone wants from a wheel: you point at the
+wing joint and turn. So the wheel zooms about the pointer — the pan that keeps the spot under the
+cursor still is one line of arithmetic (`ViewerZoom.panKeepingPointStill`), kept pure so it can
+be tested. Keys zoom about the centre, which is what keys can do. Once enlarged, a drag pans
+rather than flips, clamped so no empty space ever shows where picture could be; a picture that
+still fits on one axis cannot be panned on that axis at all. Changing picture starts fitted
+again, and `0` fits the current one.
+
+The zoom value lives on `BoardState` — the keys reach it there, and `handleBoardShortcut` stays
+the one testable mapping — while the pan is screen geometry and stays in the composable. The
+viewer clips to its bounds now: an enlarged picture must not paint over the menu bar above it.
+
+`ViewerWheelTest` dispatches a real wheel event through the real composable, the lesson of §19
+applied before the bug this time rather than after.

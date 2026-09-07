@@ -183,6 +183,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `←` `→` `↑` `↓` | move focus (Grid) · nudge the selected card (Free) |
 | `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way); drag a card for free placing |
 | `Space` | view the selection large (carousel) |
+| wheel · `+` / `−` · `0` | in the large view: zoom about the pointer · zoom in / out · fit again (a tablet dial counts as the wheel; once zoomed, drag pans) |
 | `Enter` | draw the selection |
 | `N` / `L` | new note · new link |
 | `G` (or `Ctrl`+`G`) / `Ctrl`+`Shift`+`G` | group the selection · ungroup it |

@@ -56,6 +56,10 @@ internal fun handleBoardShortcut(
             Key.DirectionRight, Key.DirectionDown -> { state.viewerStep(1); true }
             Key.Home -> { state.viewerGoTo(0); true }
             Key.MoveEnd -> { state.viewerGoTo(state.viewerIds.lastIndex); true }
+            // Zoom on either keyboard block; a US layout reaches + through the = key.
+            Key.Plus, Key.Equals, Key.NumPadAdd -> { state.viewerZoomBy(BoardState.VIEWER_ZOOM_STEP); true }
+            Key.Minus, Key.NumPadSubtract -> { state.viewerZoomBy(1f / BoardState.VIEWER_ZOOM_STEP); true }
+            Key.Zero, Key.NumPad0 -> { state.viewerResetZoom(); true }
             else -> false
         }
     }

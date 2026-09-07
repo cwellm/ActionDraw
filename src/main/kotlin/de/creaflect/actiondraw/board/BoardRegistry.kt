@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.samePathAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -81,6 +82,5 @@ data class BoardEntry(
 ) {
     val dir: File get() = File(path)
 
-    /** Windows paths differ only in case, so compare that way rather than by string identity. */
-    fun isAt(folder: File): Boolean = path.equals(folder.absolutePath, ignoreCase = true)
+    fun isAt(folder: File): Boolean = dir.samePathAs(folder)
 }

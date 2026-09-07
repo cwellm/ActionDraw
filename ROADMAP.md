@@ -260,6 +260,16 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Key mapping extracted to a pure `handleBoardShortcut`, covered by `BoardKeysTest` — verified
   by restoring the old binding and watching it fail
 
+### ✅ F4.15 Zoom in the large view
+- ✅ The wheel — which is what an XPPen dial sends — zooms about the pointer; `+`/`−` (either
+  keyboard block, `=` on a US layout) zoom about the centre; `0` fits again (asked 2026-09-07)
+- ✅ Once zoomed, dragging pans and stops where empty space would show; flipping to another
+  picture starts fitted again; the wheel no longer flips (drag, chevrons, arrows and the filmstrip
+  still do)
+- ✅ Covered by `ViewerZoomTest` (the arithmetic), `BoardKeysTest` (the keys) and
+  `ViewerWheelTest`, which sends a real wheel event through the composable; both the wheel
+  handler and the zoom clamp were checked by reverting them
+
 ### ✅ F4.14 Boards are recorded, not discovered
 - ✅ `BoardRegistry` (`~/.actiondraw/boards.json`) maps each board to the folder it lives in
 - ✅ A board's name is no longer its folder's name: a taken folder name gets `Test (2)` beside it,
@@ -309,6 +319,10 @@ surface, material in & out, "Draw these" bridge.*
 ---
 
 ## Housekeeping
+
+- ✅ Tidy-up pass (2026-09-07): dead `dismissOpenFailed` removed, two unused imports, one
+  `File.samePathAs` for the six hand-spelled case-insensitive folder comparisons, imports in
+  place of fully-qualified `java.net`/`java.awt` names; the base compiles without a warning
 
 - ✅ Restore corrupted `README.md` (`6a56d64`, branch `fix/restore-readme`; merged into
   `feat/idea-board` so the board docs could build on it) — ⬜ merge both to `main`
