@@ -244,6 +244,14 @@ private fun BoardSwitcher(state: BoardState) {
             }) {
                 Text("New sub-board here…", color = MaterialTheme.colors.secondary)
             }
+            state.root?.let { here ->
+                DropdownMenuItem(onClick = {
+                    open = false
+                    state.openEditor(BoardEditor.MoveBoard(here, state.board?.name ?: here.name))
+                }) {
+                    Text("Move this board…", color = MaterialTheme.colors.secondary)
+                }
+            }
             DropdownMenuItem(onClick = { open = false; state.openBoardList() }) { Text("All boards…") }
         }
     }

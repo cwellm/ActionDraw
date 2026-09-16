@@ -94,6 +94,11 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **Boards ▾** in a board's header lists every board, nested under the one it belongs to: jump
   straight there, make a **new sub-board here**, or go to the full list. A sub-board also shows
   **↑ Parent** for one tap back up.
+- **Move…** on a board tile (or *Move this board…* in **Boards ▾**) puts a board anywhere in the
+  tree at any time — under another board, or back out to the top. Its folder moves with it, taking
+  its pictures and any boards nested inside; the board on screen follows its folder, so nothing
+  has to be reopened. A board cannot be moved into itself or into one of its own sub-boards, and
+  a name already taken at the destination gets a folder of its own rather than merging.
 - Deleting a board's folder takes any board nested inside it, and the dialog says how many before
   you confirm. *Remove board* (keeping the folder) leaves them alone — they simply become boards
   in their own right.

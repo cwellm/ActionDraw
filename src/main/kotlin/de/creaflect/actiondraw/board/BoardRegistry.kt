@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.samePathAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -61,6 +62,24 @@ class BoardRegistry(private val dir: File) {
     /** Every registered board below [folder], however deep — what deleting that folder takes. */
     fun descendantsOf(folder: File): List<BoardEntry> = entries().filter { it.isInside(folder) }
 
+    /**
+     * Follows a folder that has moved: the board at [from] is now at [to], and so is everything
+     * nested inside it, since a folder takes its contents with it. One rewrite keeps the whole
+     * subtree's records true rather than leaving descendants pointing into thin air.
+     */
+    fun repath(from: File, to: File) {
+        val cut = from.absolutePath.trimEnd(File.separatorChar).length
+        save(
+            entries().map { entry ->
+                when {
+                    entry.isAt(from) -> entry.copy(path = to.absolutePath)
+                    entry.isInside(from) -> entry.copy(path = to.absolutePath + entry.path.substring(cut))
+                    else -> entry
+                }
+            },
+        )
+    }
+
     /** Drops entries whose folder has vanished — deleted in Explorer, or on a drive now offline. */
     fun prune() {
         val live = entries().filter { it.dir.isDirectory }
@@ -100,18 +119,8 @@ data class BoardEntry(
     fun isAt(folder: File): Boolean = dir.samePathAs(folder)
 
     /** True when [folder] lies inside this board's folder. */
-    fun contains(folder: File): Boolean = folder.liesInside(dir)
+    fun contains(folder: File): Boolean = folder.isInside(dir)
 
     /** True when this board's folder lies inside [folder]. */
-    fun isInside(folder: File): Boolean = dir.liesInside(folder)
-}
-
-/**
- * Containment by path. The separator is part of the test on purpose: `Drachen2` sits next to
- * `Drachen`, not inside it, however much their names look alike.
- */
-private fun File.liesInside(folder: File): Boolean {
-    if (samePathAs(folder)) return false
-    val prefix = folder.absolutePath.trimEnd(File.separatorChar) + File.separatorChar
-    return absolutePath.startsWith(prefix, ignoreCase = true)
+    fun isInside(folder: File): Boolean = dir.isInside(folder)
 }

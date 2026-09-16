@@ -134,6 +134,7 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
                         board = board,
                         thumbs = thumbs,
                         onOpen = { state.openBoard(board.dir) },
+                        onMove = { state.openEditor(BoardEditor.MoveBoard(board.dir, board.name)) },
                         onDelete = {
                             state.openEditor(
                                 BoardEditor.DeleteBoard(
@@ -157,6 +158,7 @@ private fun BoardTile(
     board: BoardSummary,
     thumbs: ThumbCache,
     onOpen: () -> Unit,
+    onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val shape = RoundedCornerShape(6.dp)
@@ -221,6 +223,15 @@ private fun BoardTile(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
+            )
+            Text(
+                "Move…",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.secondary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(3.dp))
+                    .clickable { onMove() }
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
             )
             Text(
                 "Delete…",

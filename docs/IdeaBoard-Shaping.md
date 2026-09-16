@@ -620,3 +620,41 @@ how many before you agree; removing just the board file leaves them behind as ro
 **Boards ▾** answers the other half of the request. A tree is only worth having if you can move
 around it from where you are, so the header browses every board, offers a sub-board of the one you
 are in, and a sub-board carries one tap back up to its parent.
+
+## 26. Moving a board in the tree (2026-09-16)
+
+Asked for: put a board somewhere else in the hierarchy at any time — make an existing board a
+sub-board of another later on, or lift it back out.
+
+§25 made nesting a consequence of where a folder sits rather than something recorded separately.
+That is the whole reason this is simple: there is no tree structure to edit, so rearranging the
+hierarchy *is* moving the folder. It also means the answer can never drift from the disk — there
+is no second version of the truth to disagree with it.
+
+What moving a folder drags along had to be handled properly, though:
+
+- **Everything inside comes too** — pictures, notes, and any boards nested within. One repath
+  rewrites the moved board's record and every record beneath it, so no descendant is left pointing
+  into thin air.
+- **The board on screen follows**, whether it is the board that moved or one inside it; its path
+  is rebuilt from the destination plus whatever it was relative to the thing that moved.
+- **Across drives** a rename is not available, so it falls back to copy-then-delete. A copy that
+  fails part-way is cleaned up: the board either moved or was not touched. If the original cannot
+  be cleared away afterwards the move still counts, and says so.
+- **A taken name** at the destination gets `(2)` beside it rather than merging into a stranger's
+  folder — the same rule as creating a board, for the same reason.
+
+### The guard that earns its keep
+
+Moving a board into its own sub-board must be refused, and the mutation run showed exactly why.
+With the guard removed, the test did not fail — it *hung*, and the temp folder came back holding
+
+    Flügel/Membran/Flügel/Membran/Flügel/Membran/… (28 levels)
+
+because copying a folder into its own subtree feeds itself, and only Windows' path limit stopped
+it. A board would have been destroyed by a menu click.
+
+So the check is deliberately doubled. `moveBoard` compares canonical paths, since a junction
+pointing back into the board would slip past a string prefix; and `moveFolder` refuses the same
+thing again regardless of what asked it. That is more belt than this codebase usually wears, and
+the reason is written above it: it is the only thing standing between a misclick and the board.

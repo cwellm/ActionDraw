@@ -293,6 +293,20 @@ surface, material in & out, "Draw these" bridge.*
   leaves them as roots of their own
 - ✅ Covered by `SubBoardTest` and `BoardSwitcherTest`, all five behaviours checked by reverting
 
+### ✅ F4.18 Rearranging the tree
+- ✅ **Move…** on a tile and *Move this board…* in the header put a board under any other board,
+  or back out to the top level, at any time (asked 2026-09-16)
+- ✅ The folder moves with it — pictures and nested boards included — and every record under it is
+  repathed in one go, so nothing is left pointing where the board used to be
+- ✅ The open board follows its folder, even when it was nested inside the one that moved
+- ✅ Renames where the filesystem allows it, copies across drives; a copy that fails part-way is
+  cleaned up, so a board either moved or was not touched
+- ✅ Refuses a move into itself or its own sub-board, compared canonically and re-checked by the
+  mover itself — without that guard the folder is copied into itself until the filesystem gives out
+- ✅ A name already taken at the destination gets its own folder rather than merging
+- ✅ Covered by `MoveBoardTest`; the behaviours were checked by reverting them, and the self-move
+  guard proved itself by producing `Flügel/Membran/Flügel/Membran/…` 28 levels deep when removed
+
 ### ✅ F4.14 Boards are recorded, not discovered
 - ✅ `BoardRegistry` (`~/.actiondraw/boards.json`) maps each board to the folder it lives in
 - ✅ A board's name is no longer its folder's name: a taken folder name gets `Test (2)` beside it,
