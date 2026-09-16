@@ -306,6 +306,17 @@ surface, material in & out, "Draw these" bridge.*
 
 ## 🔄 M+ — Practice backlog (independent of the board)
 
+### ✅ F+.2 Memory drawing
+- ✅ `RampStep.studySeconds` turns a ramp leg into memory work: the reference shows for the study
+  time, hides for the rest of the pose, and returns at the end to compare against (asked 2026-09-16)
+- ✅ A memory pose never auto-advances — the comparison is the point, and one you get no time to
+  make is no comparison
+- ✅ `H` flips whatever the pose would show: a peek while hidden, cover on an ordinary pose
+- ✅ Built-in **From memory** plan (20s/60 · 40s/120 · 80s/240), so a board recipe can name it
+- ✅ The menu spells out what the plan does before you start; the session says which beat is running
+- ✅ Covered by `MemoryPoseTest` (the beats) and `MemoryVeilTest`, which asks the real screen
+  whether the picture is drawn; all five behaviours were checked by reverting them
+
 ### ✅ F+.1 Continuous colour temperature
 - ✅ One slider from cool (−1) through neutral (0) to warm (+1), replacing the Warm/Cool presets
 - ✅ An adjustment, not a mode: it stacks on any view mode, so a Notan study can still be lit warm

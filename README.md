@@ -23,6 +23,11 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 - **Auto-advance** toggle (`A`): on = the timer moves to the next image at 0; off = the countdown
   is informational only, runs into "+overtime", and switching stays manual.
 - **Session summary** at the end: poses drawn and total time.
+- **Memory drawing** (*From memory* ramp): the reference is up for a study time, then goes away
+  and you draw from what you kept. It comes back when the drawing time is up so you can see what
+  you missed — that comparison is the point, so a memory pose waits for you rather than advancing
+  on its own. `H` peeks while it is hidden, and covers an ordinary reference so any picture can be
+  worked this way.
 
 ### Reference views & filters
 - **View modes** (mutually exclusive; number row `1`–`9`): None, **Black & white**,
@@ -166,6 +171,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `1`–`9` | view mode (None … Notan) |
 | `N` | Notan view |
 | `,` / `.` / `0` | cooler light · warmer light · neutral |
+| `H` | hide the reference · peek at it while drawing from memory |
 | `B` / `I` / `D` / `M` / `U` | blur / invert / defraction / mirror / upside down |
 | `G` | cycle proportion grid |
 | `R` | toggle redo flag |

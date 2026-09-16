@@ -106,4 +106,13 @@ class SessionKeysTest {
         press(Key.Escape, state, isFullscreen = true) { fullscreen = it }
         assertFalse(fullscreen, "the first Esc only restores the window")
     }
+
+    @Test
+    fun hCoversAndUncoversTheReference() {
+        val state = state()
+        assertTrue(press(Key.H, state))
+        assertTrue(state.referenceFlipped)
+        press(Key.H, state)
+        assertFalse(state.referenceFlipped)
+    }
 }

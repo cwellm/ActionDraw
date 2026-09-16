@@ -142,17 +142,13 @@ class AppState(private val settings: Settings = Settings()) {
 
     val isRamp: Boolean get() = rampPlan != null
 
+    /** The ramp leg the current pose belongs to; null in fixed-interval mode. */
+    private val currentStep: RampStep?
+        get() = rampPlan?.steps?.getOrNull(rampStepIndex)
+
     /** Duration for the current image: the ramp step's time, or the fixed interval. */
     val currentIntervalSeconds: Int
-        get() {
-            val plan = rampPlan ?: return intervalSeconds
-            var n = rampPose
-            for (step in plan.steps) {
-                if (n < step.count) return step.seconds
-                n -= step.count
-            }
-            return plan.steps.last().seconds
-        }
+        get() = currentStep?.seconds ?: intervalSeconds
 
     val remainingSeconds: Int
         get() = (currentIntervalSeconds - elapsedSeconds).coerceAtLeast(0)
@@ -160,6 +156,45 @@ class AppState(private val settings: Settings = Settings()) {
     /** Seconds past the interval — only ever non-zero in manual (non-auto-advance) mode. */
     val overtimeSeconds: Int
         get() = (elapsedSeconds - currentIntervalSeconds).coerceAtLeast(0)
+
+    // ---- Memory drawing ----
+    //
+    // A memory pose runs in three beats: you study the reference, it goes away while you draw,
+    // and at the end it comes back so you can see what you missed. Nothing here is stored — the
+    // beat follows from the pose's own clock.
+
+    /** How long the reference stays up on this pose, or null on an ordinary one. */
+    val currentStudySeconds: Int? get() = currentStep?.studySeconds
+
+    val isMemoryPose: Boolean get() = currentStudySeconds != null
+
+    /** Counts down to the moment the reference vanishes, so it is never a jump scare. */
+    val studyRemainingSeconds: Int
+        get() = ((currentStudySeconds ?: 0) - elapsedSeconds).coerceAtLeast(0)
+
+    /** The drawing time is up and the reference is back: the beat for comparing what you made. */
+    val comparing: Boolean get() = isMemoryPose && elapsedSeconds >= currentIntervalSeconds
+
+    /** What the pose itself would do — hide the reference for the drawing beat. */
+    private val hiddenByPose: Boolean
+        get() {
+            val study = currentStudySeconds ?: return false
+            return elapsedSeconds >= study && elapsedSeconds < currentIntervalSeconds
+        }
+
+    /**
+     * `H` flips whatever the pose would show: a peek while drawing from memory, and cover on an
+     * ordinary pose so any reference can be worked from memory. Cleared on every new pose.
+     */
+    var referenceFlipped by mutableStateOf(false)
+        private set
+
+    /** Whether the reference is out of sight right now, for whichever of the two reasons. */
+    val referenceHidden: Boolean get() = hiddenByPose != referenceFlipped
+
+    fun toggleReference() {
+        referenceFlipped = !referenceFlipped
+    }
 
     /** Index of the ramp leg the current pose belongs to. */
     val rampStepIndex: Int
@@ -495,6 +530,7 @@ class AppState(private val settings: Settings = Settings()) {
         sessionPoses += 1
         elapsedSeconds = 0
         isPaused = false
+        referenceFlipped = false
     }
 
     fun previous() {
@@ -502,13 +538,16 @@ class AppState(private val settings: Settings = Settings()) {
         index = (index - 1).coerceAtLeast(0)
         elapsedSeconds = 0
         isPaused = false
+        referenceFlipped = false
     }
 
     /** Called once per second by the session timer (only while running). */
     fun tick() {
         elapsedSeconds += 1
         sessionSeconds += 1
-        if (autoAdvance && elapsedSeconds >= currentIntervalSeconds) {
+        // A memory pose never advances on its own: at the end the reference comes back and waits
+        // for you, because a comparison you get no time to make is no comparison at all.
+        if (autoAdvance && !isMemoryPose && elapsedSeconds >= currentIntervalSeconds) {
             next()
         }
     }

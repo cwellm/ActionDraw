@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.PinTargets
@@ -88,12 +89,19 @@ fun SessionScreen(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
             ) {
-                Text(
-                    timerText(state),
-                    color = if (state.remainingSeconds <= 5) LowTimeColor else Color.White,
-                    style = MaterialTheme.typography.h5,
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
+                ) {
+                    Text(
+                        timerText(state),
+                        color = if (state.remainingSeconds <= 5) LowTimeColor else Color.White,
+                        style = MaterialTheme.typography.h5,
+                    )
+                    poseNote(state)?.let {
+                        Text(it, style = MaterialTheme.typography.caption, color = Color.White.copy(alpha = 0.6f))
+                    }
+                }
             }
         }
     } else {
@@ -133,7 +141,10 @@ private fun PinMenu(state: AppState, pinTargets: PinTargets) {
 private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, modifier: Modifier) {
     Box(modifier = modifier.background(Color.Black), contentAlignment = Alignment.Center) {
         val bmp = bitmap
-        if (bmp != null) {
+        if (state.referenceHidden) {
+            // Drawn nowhere, not merely covered: nothing of the picture should reach the screen.
+            MemoryVeil()
+        } else if (bmp != null) {
             val colorFilter = when (state.viewMode) {
                 ViewMode.GRAYSCALE -> grayscaleFilter()
                 ViewMode.SQUINT -> squintFilter()
@@ -166,6 +177,7 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                 colorFilter = colorFilter,
                 modifier = Modifier
                     .fillMaxSize()
+                    .testTag("reference")
                     .graphicsLayer { // outermost: colour inversion of the final result
                         this.renderEffect = if (state.invert) invertEffect else null
                     }
@@ -239,6 +251,15 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTarge
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
                 modifier = Modifier.fillMaxWidth(),
             )
+            poseNote(state)?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.body2,
+                    color = if (state.comparing) MaterialTheme.colors.primary
+                    else MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
             Spacer(Modifier.height(6.dp))
 
             Row(
@@ -406,8 +427,8 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTarge
             Spacer(Modifier.height(6.dp))
             Text(
                 "Space pause · ←/→ prev/next · 1-9 view · N notan · ,/. cooler/warmer · 0 neutral light · " +
-                    "A auto · B blur · I invert · D defraction · M mirror · U flip · G grid · R redo · " +
-                    "F fullscreen · Esc stop",
+                    "H hide/peek · A auto · B blur · I invert · D defraction · M mirror · U flip · G grid · " +
+                    "R redo · F fullscreen · Esc stop",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth(),
@@ -421,6 +442,36 @@ private fun temperatureLabel(temperature: Float): String = when {
     temperature > 0.01f -> "Light: warm +%.0f%%".format(temperature * 100)
     temperature < -0.01f -> "Light: cool %.0f%%".format(temperature * 100)
     else -> "Light: neutral"
+}
+
+/** What stands in for the reference while you draw from memory. */
+@Composable
+private fun MemoryVeil() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.testTag("memory-veil"),
+    ) {
+        Text(
+            "From memory",
+            style = MaterialTheme.typography.h4,
+            color = Color.White.copy(alpha = 0.7f),
+        )
+        Text(
+            "H peeks",
+            style = MaterialTheme.typography.body2,
+            color = Color.White.copy(alpha = 0.35f),
+        )
+    }
+}
+
+/** Which beat of a memory pose is running, or null when there is nothing to say. */
+private fun poseNote(state: AppState): String? = when {
+    state.comparing -> "Compare — Next ▶ when you are done"
+    state.referenceHidden -> "Drawing from memory — H peeks"
+    state.isMemoryPose -> "Study — hides in ${state.studyRemainingSeconds}s"
+    state.referenceFlipped -> "Reference covered — H shows it"
+    else -> null
 }
 
 /** Remaining time, or — in manual mode past the interval — the overtime as "+m:ss". */
