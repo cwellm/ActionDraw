@@ -19,7 +19,8 @@ import java.time.format.DateTimeFormatter
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
-    data object NewBoard : BoardEditor()
+    /** [under] is the board a new one should be nested in; null puts it in the boards home. */
+    data class NewBoard(val under: File? = null) : BoardEditor()
 
     /** Confirms deleting a board; [pictures] is what the folder would take with it. */
     /**
@@ -31,6 +32,8 @@ sealed class BoardEditor {
         val name: String,
         val pictures: Int,
         val ownsFolder: Boolean,
+        /** Boards nested inside this one, which deleting the folder would take as well. */
+        val subBoards: Int = 0,
     ) : BoardEditor()
 
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
@@ -220,6 +223,49 @@ class BoardState(
         }
     }
 
+    /** One board in the tree of boards, with how deep it sits and whose child it is. */
+    data class BoardNode(val name: String, val dir: File, val depth: Int, val parent: String?)
+
+    /**
+     * Every board, depth first, so sub-boards follow the board they belong to. A board whose
+     * parent is registered but no longer readable is treated as a root rather than vanishing
+     * with it.
+     */
+    fun boardTree(): List<BoardNode> {
+        val all = availableBoards()
+        val known = all.map { it.second.absolutePath.lowercase() }.toSet()
+        fun parentPathOf(dir: File): String? =
+            registry.parentOf(dir)?.path?.lowercase()?.takeIf { it in known }
+
+        val out = mutableListOf<BoardNode>()
+        fun walk(under: String?, depth: Int, parentName: String?) {
+            all.filter { parentPathOf(it.second) == under }
+                .sortedBy { it.first.lowercase() }
+                .forEach { (name, dir) ->
+                    out += BoardNode(name, dir, depth, parentName)
+                    walk(dir.absolutePath.lowercase(), depth + 1, name)
+                }
+        }
+        walk(null, 0, null)
+        return out
+    }
+
+    /** The board the open one sits inside, if it is a sub-board. */
+    val parentBoard: BoardEntry?
+        get() = root?.let { registry.parentOf(it) }?.takeIf { BoardStore.exists(it.dir) }
+
+    /** Boards directly inside the open one. */
+    val subBoards: List<BoardEntry>
+        get() {
+            val dir = root ?: return emptyList()
+            return registry.descendantsOf(dir)
+                .filter { registry.parentOf(it.dir)?.isAt(dir) == true && BoardStore.exists(it.dir) }
+                .sortedBy { it.name.lowercase() }
+        }
+
+    /** How many boards would go with [dir] if its folder were deleted. */
+    fun subBoardCount(dir: File): Int = registry.descendantsOf(dir).count { BoardStore.exists(it.dir) }
+
     /**
      * Records a board folder nobody told us about. A direct child of the boards home is one the
      * app almost certainly created (that is where *New board…* puts them), so it counts as the
@@ -401,6 +447,8 @@ class BoardState(
                 else "Couldn't delete ${dir.name} — something in it is in use."
         }
 
+        // A deleted folder takes any board nested inside it, so their records go too.
+        if (mode == Deletion.DELETE_FOLDER) registry.descendantsOf(dir).forEach { registry.forget(it.dir) }
         registry.forget(dir)
         settings.removeRecentBoard(dir)
         recent = settings.recentBoards()
@@ -449,7 +497,9 @@ class BoardState(
         // deleting a board must never make its name unusable.
         val dir = if (wanted.exists() && !wanted.listFiles().isNullOrEmpty()) freeFolder(wanted) else wanted
         if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
-        settings.setBoardsHome(parent)
+        // Creating a board inside another board is making a sub-board of it; that is nesting,
+        // not a decision about where new top-level boards should go.
+        if (registry.parentOf(dir) == null) settings.setBoardsHome(parent)
         val created = BoardFile(
             name = trimmed,
             groups = template.groups.mapIndexed { i, groupName ->

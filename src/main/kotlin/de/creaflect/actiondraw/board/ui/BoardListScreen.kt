@@ -49,6 +49,8 @@ private data class BoardSummary(
     val pictures: Int,
     val notes: Int,
     val cover: File?,
+    /** The board this one is nested in, shown as a breadcrumb on the tile. */
+    val parent: String? = null,
 )
 
 /**
@@ -59,15 +61,17 @@ private data class BoardSummary(
 fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
     val boards by produceState(initialValue = emptyList<BoardSummary>(), state.boardsHomeTick, state.recent) {
         value = withContext(Dispatchers.IO) {
-            state.availableBoards().map { (name, dir) ->
-                val file = BoardStore.peek(dir)
+            // Tree order, so a sub-board sits right after the board it belongs to.
+            state.boardTree().map { node ->
+                val file = BoardStore.peek(node.dir)
                 val images = file?.items.orEmpty().filterIsInstance<ImageItem>()
                 BoardSummary(
-                    name = name,
-                    dir = dir,
+                    name = node.name,
+                    dir = node.dir,
                     pictures = images.size,
                     notes = file?.items.orEmpty().size - images.size,
-                    cover = images.firstOrNull()?.let { File(dir, it.path) }?.takeIf { it.isFile },
+                    cover = images.firstOrNull()?.let { File(node.dir, it.path) }?.takeIf { it.isFile },
+                    parent = node.parent,
                 )
             }
         }
@@ -98,7 +102,7 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
                 chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Open board folder")
                     ?.let(state::openBoard)
             }) { Text("Explore…") }
-            Button(onClick = { state.openEditor(BoardEditor.NewBoard) }) { Text("New board…") }
+            Button(onClick = { state.openEditor(BoardEditor.NewBoard()) }) { Text("New board…") }
         }
 
         if (state.openFailed) {
@@ -137,6 +141,7 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
                                     name = board.name,
                                     pictures = board.pictures,
                                     ownsFolder = state.entryFor(board.dir)?.ownsFolder ?: false,
+                                    subBoards = state.subBoardCount(board.dir),
                                 ),
                             )
                         },
@@ -181,12 +186,22 @@ private fun BoardTile(
                 Text("empty", color = Color.White.copy(alpha = 0.35f), style = MaterialTheme.typography.caption)
             }
         }
+        board.parent?.let {
+            Text(
+                "in $it",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.secondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp),
+            )
+        }
         Text(
             board.name,
             style = MaterialTheme.typography.subtitle1,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp),
+            modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = if (board.parent == null) 8.dp else 0.dp),
         )
         Text(
             buildString {

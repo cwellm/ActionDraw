@@ -87,6 +87,17 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### Boards inside boards
+- A board made **inside another board's folder** is a sub-board of it. Nothing extra is stored —
+  it simply follows from where the folders are — and nesting goes as deep as you like, each board
+  belonging to the nearest one above it.
+- **Boards ▾** in a board's header lists every board, nested under the one it belongs to: jump
+  straight there, make a **new sub-board here**, or go to the full list. A sub-board also shows
+  **↑ Parent** for one tap back up.
+- Deleting a board's folder takes any board nested inside it, and the dialog says how many before
+  you confirm. *Remove board* (keeping the folder) leaves them alone — they simply become boards
+  in their own right.
+
 ### Where boards live
 - A board is a folder plus a `.actiondraw_board.json` sidecar, and ActionDraw records which folder
   belongs to which board in `~/.actiondraw/boards.json`. The board's name is therefore not tied to

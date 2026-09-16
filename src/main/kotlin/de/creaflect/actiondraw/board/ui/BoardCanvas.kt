@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -52,6 +53,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
@@ -64,6 +66,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.roundToInt
 
 /**
  * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
@@ -80,6 +83,7 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
     Box(
         modifier
             .clipToBounds()
+            .testTag("canvas")
             .onSizeChanged { viewSize = it }
             .pointerInput(state) {
                 // Plain drag pans the board; Shift+drag pulls a rubber band over the cards.
@@ -166,6 +170,12 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
 
         state.freeItems.forEach { item ->
             key(item.id) { CanvasItem(state, thumbs, item, textured, viewSize) }
+        }
+
+        // Group labels last of all: they are the handle for picking a group up, so nothing may
+        // end up lying over them.
+        state.groupHulls.forEach { hull ->
+            key("label-" + hull.group.id) { GroupLabel(state, hull, viewSize) }
         }
 
         // Alignment guides and the rubber band, drawn over the cards.
@@ -460,6 +470,12 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                 .clip(shape)
                 .background(accent.copy(alpha = 0.14f))
                 .border(2.dp, accent.copy(alpha = 0.7f), shape)
+                // Clicking anywhere the group shows through picks the whole group up. The label
+                // used to be the only way, which meant a group whose corner had scrolled off the
+                // view could not be selected at all.
+                .pointerInput(hull.group.id) {
+                    detectTapGestures { state.selectGroup(hull.group.id) }
+                }
                 // Dragging the area moves the group as one. The selection is deliberately left
                 // alone, so dragging a single card afterwards still moves only that card.
                 .pointerInput(hull.group.id) {
@@ -471,24 +487,47 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                         onDragEnd = { state.commitLayout() },
                     )
                 },
-        ) {
-            // The label names the group and selects it as a unit when clicked.
-            Surface(
-                color = accent.copy(alpha = 0.85f),
-                shape = RoundedCornerShape(bottomEnd = 8.dp),
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .clickable { state.selectGroup(hull.group.id) },
-            ) {
-                Text(
-                    hull.group.name + "  ·  " + hull.count,
-                    style = MaterialTheme.typography.caption,
-                    color = Color(0xFF1A1A1A),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                )
-            }
-        }
+        )
+    }
+}
+
+/**
+ * A group's name, drawn over everything else so no card can cover it, and kept in sight while any
+ * part of its group is: a hull is often far wider than the view, and pinning the label to the
+ * hull's top-left corner meant the handle disappeared with the corner.
+ */
+@Composable
+private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
+    val zoom = state.zoom
+    val accent = Themes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
+    val left = (hull.left - state.camX) * zoom + viewSize.width / 2f
+    val top = (hull.top - state.camY) * zoom + viewSize.height / 2f
+    val right = (hull.right - state.camX) * zoom + viewSize.width / 2f
+    val bottom = (hull.bottom - state.camY) * zoom + viewSize.height / 2f
+    // Off screen entirely: there is nothing to label.
+    if (right <= 0f || bottom <= 0f || left >= viewSize.width || top >= viewSize.height) return
+
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    // Slide along the edge to stay visible, but never outside the group being named.
+    val x = left.coerceAtLeast(0f).coerceAtMost((right - size.width).coerceAtLeast(0f))
+    val y = top.coerceAtLeast(0f).coerceAtMost((bottom - size.height).coerceAtLeast(0f))
+
+    Surface(
+        color = accent.copy(alpha = 0.85f),
+        shape = RoundedCornerShape(bottomEnd = 8.dp),
+        modifier = Modifier
+            .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+            .onSizeChanged { size = it }
+            .testTag("group-label-" + hull.group.id)
+            .clickable { state.selectGroup(hull.group.id) },
+    ) {
+        Text(
+            hull.group.name + "  ·  " + hull.count,
+            style = MaterialTheme.typography.caption,
+            color = Color(0xFF1A1A1A),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
     }
 }

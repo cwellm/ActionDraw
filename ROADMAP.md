@@ -270,6 +270,29 @@ surface, material in & out, "Draw these" bridge.*
   `ViewerWheelTest`, which sends a real wheel event through the composable; both the wheel
   handler and the zoom clamp were checked by reverting them
 
+### ✅ F4.16 Selecting a group, wherever it is
+- ✅ Clicking a group's area selects the whole group — it used to have exactly one handle, the
+  little label at the hull's top-left corner (reported 2026-09-16)
+- ✅ That corner is routinely off the edge of the view for a wide group, which took the handle
+  with it: the label is now drawn over the cards and slides along to stay in sight, never leaving
+  its own group
+- ✅ In grid mode the group's name in the section header selects it too, which it never did
+- ✅ Covered by `GroupClickTest`, which clicks where the label really is and keeps a guard that
+  dragging a group still moves it; both halves were checked by reverting them
+
+### ✅ F4.17 Boards inside boards
+- ✅ A board created inside another board's folder is a sub-board of it — derived from the
+  registry's recorded paths, with nothing new stored (asked 2026-09-16)
+- ✅ Nesting is arbitrarily deep, and a board belongs to the nearest board above it
+- ✅ Making a sub-board does not move the boards home; a board merely sharing a name prefix
+  (`Drachen2` beside `Drachen`) is not inside anything
+- ✅ **Boards ▾** in the header browses the whole tree from inside a board, with *New sub-board
+  here…*; a sub-board shows **↑ Parent** for one tap up; the board list shows tree order with a
+  parent breadcrumb on each tile
+- ✅ Deleting a folder forgets the boards nested in it and says how many first; *Remove board*
+  leaves them as roots of their own
+- ✅ Covered by `SubBoardTest` and `BoardSwitcherTest`, all five behaviours checked by reverting
+
 ### ✅ F4.14 Boards are recorded, not discovered
 - ✅ `BoardRegistry` (`~/.actiondraw/boards.json`) maps each board to the folder it lives in
 - ✅ A board's name is no longer its folder's name: a taken folder name gets `Test (2)` beside it,

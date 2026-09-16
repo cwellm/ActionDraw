@@ -67,7 +67,7 @@ fun BoardDialogs(state: BoardState) {
     when (val editor = state.editor) {
         null -> {}
 
-        BoardEditor.NewBoard -> NewBoardDialog(state)
+        is BoardEditor.NewBoard -> NewBoardDialog(state, editor.under)
 
         is BoardEditor.DeleteBoard -> DeleteBoardDialog(state, editor)
 
@@ -386,7 +386,9 @@ private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard
         Text(
             if (alsoFolder) {
                 "The folder and everything in it is deleted, including " +
-                    "${editor.pictures} picture(s). This cannot be undone."
+                    "${editor.pictures} picture(s)" +
+                    (if (editor.subBoards > 0) " and ${editor.subBoards} board(s) nested inside it" else "") +
+                    ". This cannot be undone."
             } else if (editor.ownsFolder) {
                 "The board is removed, but the folder ActionDraw made for it stays behind with " +
                     "its ${editor.pictures} picture(s)."
@@ -421,13 +423,20 @@ private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NewBoardDialog(state: BoardState) {
+private fun NewBoardDialog(state: BoardState, under: File?) {
     var name by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf(state.boardsHome()) }
+    var location by remember { mutableStateOf(under ?: state.boardsHome()) }
     var error by remember { mutableStateOf<String?>(null) }
     var template by remember { mutableStateOf(BoardTemplate.ALL.first()) }
     DialogScrim(onDismiss = state::closeEditor) {
-        Text("New Idea Board", style = MaterialTheme.typography.h6)
+        Text(if (under == null) "New Idea Board" else "New sub-board", style = MaterialTheme.typography.h6)
+        if (under != null) {
+            Text(
+                "It will live inside ${under.name}, and show under it in the board list.",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+            )
+        }
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },

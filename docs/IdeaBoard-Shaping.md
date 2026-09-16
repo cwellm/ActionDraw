@@ -575,3 +575,48 @@ viewer clips to its bounds now: an enlarged picture must not paint over the menu
 
 `ViewerWheelTest` dispatches a real wheel event through the real composable, the lesson of §19
 applied before the bug this time rather than after.
+
+## 25. A group you can actually click, and boards inside boards (2026-09-16)
+
+### The group that could not be selected
+
+Reported: on one board, one group could not be clicked at all — its pictures could, but not the
+group. Which board and which group was the tell, because it pointed at geometry rather than logic.
+
+A group had exactly one handle: the little name label pinned to the top-left corner of its hull.
+Everything else about a group — the tint, the border — was decoration that answered no click. And
+a hull is the bounding box of everything in the group, so it is routinely far wider than the
+window. Measuring it in a test made the failure plain: the hull's left edge sat at screen x −210,
+its corner clipped away outside the viewport, and the label's bounds came back as a zero rectangle.
+The handle was not hidden behind anything. It was not on screen.
+
+So: **the group's area answers a click** now, which is the gesture anyone would try first, and the
+label is drawn over the cards (nothing can cover it) and slides along the edge to stay in sight
+without ever leaving its own group. Either one alone would have fixed the reported case; together
+they mean there is no arrangement of a board where a group cannot be picked up. Grid mode had a
+quieter version of the same gap — the section header's name was plain text — and now selects too.
+
+The lesson from §19 keeps earning its place, but with a twist: the test that mattered was not the
+one that clicked a node, it was the one that *printed the geometry*. Guessing produced three wrong
+theories about occlusion and zoom before a single measurement showed the corner was simply
+off-screen.
+
+### Boards inside boards
+
+§23 made a board a recorded mapping from name to folder. Nesting then costs nothing: a sub-board
+is a board whose folder lies inside another board's folder, and the registry already records
+enough to say so. There is no parent field, no tree to keep consistent, and no way for the
+relation to drift from what is on disk — move a board's folder into another and it *is* a
+sub-board.
+
+Two consequences had to be made deliberate rather than accidental. Creating a board inside another
+must not move the boards home, because that is nesting and not a decision about where new
+top-level boards belong. And containment compares with the separator attached, so `Drachen2` sits
+beside `Drachen` rather than inside it.
+
+Deleting keeps §21's shape: erasing a folder takes the boards nested in it, and the dialog says
+how many before you agree; removing just the board file leaves them behind as roots of their own.
+
+**Boards ▾** answers the other half of the request. A tree is only worth having if you can move
+around it from where you are, so the header browses every board, offers a sub-board of the one you
+are in, and a sub-board carries one tap back up to its parent.
