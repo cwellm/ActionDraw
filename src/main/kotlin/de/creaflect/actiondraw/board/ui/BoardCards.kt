@@ -98,7 +98,7 @@ fun BoardCard(
             when (item) {
                 is ImageItem -> ImageCard(state, thumbs, item, textured)
                 is NoteItem -> NoteCard(state, item, textured)
-                is LinkItem -> LinkCard(state, item, textured)
+                is LinkItem -> LinkCard(state, thumbs, item, textured)
             }
         }
     }
@@ -139,6 +139,12 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
         is LinkItem -> {
             menu += ContextMenuItem("Open in browser") { state.openLink(item) }
             menu += ContextMenuItem("Edit link…") { state.openEditor(BoardEditor.EditLink(item.id)) }
+            menu += ContextMenuItem(
+                if (item.preview == null) "Fetch preview (goes online)" else "Fetch preview again",
+            ) { state.openEditor(BoardEditor.FetchPreview(item.id)) }
+            if (item.preview != null) {
+                menu += ContextMenuItem("Remove preview") { state.clearLinkPreview(item.id) }
+            }
         }
     }
     menu += ContextMenuItem("Copy") { state.copySelection() }
@@ -254,8 +260,12 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
 
 /** A link card: the title (or the bare url) plus its host, opened on double-click. */
 @Composable
-private fun LinkCard(state: BoardState, item: LinkItem, textured: Boolean) {
+private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
+    val preview = state.previewFileOf(item)
+    val previewThumb: ImageBitmap? by produceState<ImageBitmap?>(null, preview) {
+        value = preview?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
+    }
     Column(
         Modifier
             .shadow(if (textured) 3.dp else 0.dp, shape)
@@ -266,7 +276,18 @@ private fun LinkCard(state: BoardState, item: LinkItem, textured: Boolean) {
             .aspectRatio(1f)
             .padding(10.dp),
     ) {
-        Text("🔗", style = MaterialTheme.typography.h6)
+        val bmp = previewThumb
+        if (bmp != null) {
+            Image(
+                bitmap = bmp,
+                contentDescription = item.title.ifBlank { item.url },
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(3.dp)),
+            )
+            Spacer(Modifier.height(4.dp))
+        } else {
+            Text("🔗", style = MaterialTheme.typography.h6)
+        }
         Text(
             item.title.ifBlank { item.url },
             style = MaterialTheme.typography.body2,

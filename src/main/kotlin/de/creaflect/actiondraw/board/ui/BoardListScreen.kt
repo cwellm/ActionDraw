@@ -24,7 +24,6 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -132,7 +131,14 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
                         thumbs = thumbs,
                         onOpen = { state.openBoard(board.dir) },
                         onDelete = {
-                            state.openEditor(BoardEditor.DeleteBoard(board.dir, board.name, board.pictures))
+                            state.openEditor(
+                                BoardEditor.DeleteBoard(
+                                    dir = board.dir,
+                                    name = board.name,
+                                    pictures = board.pictures,
+                                    ownsFolder = state.entryFor(board.dir)?.ownsFolder ?: false,
+                                ),
+                            )
                         },
                     )
                 }

@@ -87,4 +87,48 @@ class BoardKeysTest {
         assertEquals(emptyList(), board.sortedGroups, "the emptied group is tidied away")
         assertEquals(2, board.itemsIn(null).size, "and its cards are back in the Inbox")
     }
+
+    // ---- Zoom in the large view (2026-09-07) ----
+
+    @Test
+    fun plusAndMinusZoomTheViewerAndZeroFitsAgain() {
+        board.openViewer()
+        assertEquals(1f, board.viewerZoom)
+
+        assertEquals(true, press(Key.Plus))
+        assertEquals(BoardState.VIEWER_ZOOM_STEP, board.viewerZoom, "one step in")
+        press(Key.NumPadAdd)
+        press(Key.Equals) // + on a US layout lives on the = key
+        assertEquals(BoardState.VIEWER_ZOOM_STEP * BoardState.VIEWER_ZOOM_STEP * BoardState.VIEWER_ZOOM_STEP, board.viewerZoom, 0.0001f)
+
+        press(Key.Minus)
+        press(Key.NumPadSubtract)
+        assertEquals(BoardState.VIEWER_ZOOM_STEP, board.viewerZoom, 0.0001f, "two steps back out")
+
+        press(Key.Zero)
+        assertEquals(1f, board.viewerZoom, "0 fits the picture again")
+    }
+
+    @Test
+    fun theViewerNeverZoomsOutPastFittedNorInPastTheCap() {
+        board.openViewer()
+        press(Key.Minus)
+        assertEquals(1f, board.viewerZoom, "minus at fitted size does nothing")
+        repeat(40) { press(Key.Plus) }
+        assertEquals(BoardState.VIEWER_MAX_ZOOM, board.viewerZoom, "and plus stops at the cap")
+    }
+
+    @Test
+    fun flippingToAnotherPictureStartsFittedAgain() {
+        board.openViewer()
+        press(Key.Plus)
+        press(Key.DirectionRight)
+        assertEquals(1f, board.viewerZoom)
+    }
+
+    @Test
+    fun plusAndMinusMeanNothingWhileTheViewerIsClosed() {
+        assertEquals(false, press(Key.Plus), "left for whoever else wants it")
+        assertEquals(1f, board.viewerZoom)
+    }
 }

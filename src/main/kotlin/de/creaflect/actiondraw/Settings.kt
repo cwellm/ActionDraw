@@ -13,6 +13,9 @@ import java.util.Properties
 class Settings(private val dir: File = defaultDir()) {
     private val file: File get() = File(dir, FILE_NAME)
 
+    /** Where installation-level state lives, so the board registry can sit beside this file. */
+    val configDir: File get() = dir
+
     /** The folder from the previous run, or null if unknown or no longer a directory. */
     fun lastFolder(): File? = runCatching {
         read().getProperty(KEY_LAST_FOLDER)
@@ -51,7 +54,7 @@ class Settings(private val dir: File = defaultDir()) {
 
     fun addRecentBoard(dir: File) {
         val next = (listOf(dir.absoluteFile) +
-            recentBoards().filter { !it.absolutePath.equals(dir.absolutePath, ignoreCase = true) })
+            recentBoards().filter { !it.samePathAs(dir) })
             .take(MAX_RECENT_BOARDS)
         val props = read()
         (0 until MAX_RECENT_BOARDS).forEach { props.remove("$KEY_RECENT_BOARD.$it") }
@@ -61,7 +64,7 @@ class Settings(private val dir: File = defaultDir()) {
 
     /** Forgets a board — used when one is deleted, so it stops showing up in the list. */
     fun removeRecentBoard(dir: File) {
-        val next = recentBoards().filter { !it.absolutePath.equals(dir.absolutePath, ignoreCase = true) }
+        val next = recentBoards().filter { !it.samePathAs(dir) }
         val props = read()
         (0 until MAX_RECENT_BOARDS).forEach { props.remove("$KEY_RECENT_BOARD.$it") }
         next.forEachIndexed { i, f -> props.setProperty("$KEY_RECENT_BOARD.$i", f.absolutePath) }

@@ -138,8 +138,6 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                 ViewMode.GRAYSCALE -> grayscaleFilter()
                 ViewMode.SQUINT -> squintFilter()
                 ViewMode.SEPIA -> sepiaFilter()
-                ViewMode.WARM -> warmFilter()
-                ViewMode.COOL -> coolFilter()
                 else -> null
             }
             val renderEffect = when (state.viewMode) {
@@ -157,6 +155,7 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                 else -> null
             }
             val invertEffect = remember { invertRenderEffect() }
+            val temperatureEffect = remember(state.temperature) { temperatureRenderEffect(state.temperature) }
             val defractionEffect = remember(state.defractionSeed, state.defractionBlock, state.defractionStrength) {
                 defractionRenderEffect(state.defractionSeed, state.defractionBlock, state.defractionStrength)
             }
@@ -169,6 +168,9 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                     .fillMaxSize()
                     .graphicsLayer { // outermost: colour inversion of the final result
                         this.renderEffect = if (state.invert) invertEffect else null
+                    }
+                    .graphicsLayer { // white balance, over whatever the view mode produced
+                        this.renderEffect = if (state.temperature != 0f) temperatureEffect else null
                     }
                     .graphicsLayer { // orientation
                         if (state.upsideDown) rotationZ = 180f
@@ -283,8 +285,6 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTarge
                 ViewChip("Sepia", state, ViewMode.SEPIA)
                 ViewChip("Posterize", state, ViewMode.POSTERIZE)
                 ViewChip("Pixelate", state, ViewMode.PIXELATE)
-                ViewChip("Warm", state, ViewMode.WARM)
-                ViewChip("Cool", state, ViewMode.COOL)
                 ViewChip("Edge", state, ViewMode.EDGE)
                 ViewChip("Silhouette", state, ViewMode.SILHOUETTE)
                 ViewChip("Notan", state, ViewMode.NOTAN)
@@ -335,6 +335,14 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTarge
 
                     else -> {}
                 }
+
+                // White balance is always on offer: it is an adjustment, not a mode.
+                ParamSlider(
+                    label = temperatureLabel(state.temperature),
+                    value = state.temperature,
+                    range = -1f..1f,
+                    steps = 39,
+                ) { state.temperature = it }
 
                 if (state.blur) {
                     ParamSlider(
@@ -397,13 +405,22 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTarge
 
             Spacer(Modifier.height(6.dp))
             Text(
-                "Space pause · ←/→ prev/next · 1-0 view · N notan · A auto · B blur · I invert · D defraction · M mirror · U flip · G grid · R redo · F fullscreen · Esc stop",
+                "Space pause · ←/→ prev/next · 1-9 view · N notan · ,/. cooler/warmer · 0 neutral light · " +
+                    "A auto · B blur · I invert · D defraction · M mirror · U flip · G grid · R redo · " +
+                    "F fullscreen · Esc stop",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
     }
+}
+
+/** Reads as "Light: neutral" / "Light: warm +40%", which means more than a bare number. */
+private fun temperatureLabel(temperature: Float): String = when {
+    temperature > 0.01f -> "Light: warm +%.0f%%".format(temperature * 100)
+    temperature < -0.01f -> "Light: cool %.0f%%".format(temperature * 100)
+    else -> "Light: neutral"
 }
 
 /** Remaining time, or — in manual mode past the interval — the overtime as "+m:ss". */

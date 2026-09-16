@@ -12,6 +12,7 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -491,6 +492,42 @@ class BoardStateTest {
     }
 
     @Test
+    fun aBoardRemembersTheLightItWasDrawnUnder() {
+        val state = newState()
+        boardWithThreeImages(state)
+        host.setup = SessionSetup(null, 45, true, ViewMode.NOTAN, GridMode.OFF, temperature = -0.4f)
+        state.rememberCurrentSetup()
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        reopened.drawGroup(null)
+        assertEquals(-0.4f, host.lastSetup!!.temperature, 0.0001f)
+    }
+
+    @Test
+    fun aBoardFromBeforeTheSliderStillOpensAndKeepsItsLight() {
+        val state = newState()
+        boardWithThreeImages(state)
+        // What an older build wrote: no temperature field at all, and a view mode that is gone.
+        val file = File(state.root!!, BoardStore.FILE_NAME)
+        file.writeText(
+            file.readText().replace(
+                "\"items\"",
+                "\"session\":{\"plan\":null,\"intervalSeconds\":90,\"autoAdvance\":true,\"viewMode\":\"WARM\"},\"items\"",
+            ),
+        )
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        assertEquals(90, reopened.recipe?.intervalSeconds, "the old recipe still parses")
+
+        reopened.drawGroup(null)
+        val setup = host.lastSetup!!
+        assertEquals(ViewMode.NONE, setup.viewMode, "the retired mode is no longer a mode")
+        assertEquals(0.6f, setup.temperature, 0.0001f, "but its warm light survives on the slider")
+    }
+
+    @Test
     fun rememberCurrentSetupTakesWhateverThePracticeSideIsSetTo() {
         val state = newState()
         boardWithThreeImages(state)
@@ -569,6 +606,51 @@ class BoardStateTest {
         val creature = BoardTemplate.ALL.first { it.name == "Creature design" }
         state.createBoard(home, "Drachen", creature)
         assertEquals(creature.groups, state.sortedGroups.map { it.name })
+    }
+
+    @Test
+    fun aFetchedPreviewLandsOnTheCardAndSurvivesAReopen() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveLink(null, "https://example.com/wings", "Bat wings")
+        val id = state.board!!.items.filterIsInstance<LinkItem>().single().id
+
+        // A stubbed fetcher: nothing in the suite ever opens a socket.
+        val page = LinkPreview.Fetched(
+            "text/html",
+            """<meta property="og:image" content="https://cdn.example.com/w.png">""".toByteArray(),
+            "https://example.com/wings",
+        )
+        state.fetchLinkPreview(id) { url ->
+            if (url.endsWith(".png")) LinkPreview.Fetched("image/png", byteArrayOf(1, 2, 3), url) else page
+        }
+
+        val preview = (state.item(id) as LinkItem).preview
+        assertNotNull(preview, "the card now points at a picture")
+        assertTrue(preview.startsWith(LinkPreview.PREVIEW_DIR), "which lives inside the board folder")
+        assertTrue(File(state.root!!, preview).isFile)
+
+        val reopened = newState()
+        reopened.openBoard(state.root!!)
+        val same = reopened.board!!.items.filterIsInstance<LinkItem>().single()
+        assertEquals(preview, same.preview, "the board is offline again and still shows it")
+        assertNotNull(reopened.previewFileOf(same))
+
+        reopened.clearLinkPreview(same.id)
+        assertNull((reopened.item(same.id) as LinkItem).preview)
+    }
+
+    @Test
+    fun aFailedFetchLeavesTheCardAloneAndSaysWhy() {
+        val state = newState()
+        state.createBoard(home, "Test")
+        state.saveLink(null, "https://example.com/wings", "Bat wings")
+        val id = state.board!!.items.filterIsInstance<LinkItem>().single().id
+
+        state.fetchLinkPreview(id) { null }
+
+        assertNull((state.item(id) as LinkItem).preview, "no half-attached preview")
+        assertNotNull(state.importNotice, "and the board says so rather than failing silently")
     }
 
     @Test

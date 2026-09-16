@@ -181,21 +181,37 @@ private fun summaryKeys(event: KeyEvent, state: AppState): Boolean = when (event
 }
 
 private fun sessionKeys(event: KeyEvent, state: AppState, windowState: WindowState): Boolean =
-    when (event.key) {
+    handleSessionShortcut(
+        key = event.key,
+        state = state,
+        isFullscreen = windowState.placement == WindowPlacement.Fullscreen,
+        setFullscreen = { on ->
+            windowState.placement = if (on) WindowPlacement.Fullscreen else WindowPlacement.Floating
+        },
+    )
+
+/**
+ * The session shortcuts as a plain function of the key pressed, so they can be tested: a
+ * [KeyEvent] cannot be constructed outside the Compose runtime, and wiring bugs in this table
+ * would otherwise only ever show up under someone's fingers.
+ */
+internal fun handleSessionShortcut(
+    key: Key,
+    state: AppState,
+    isFullscreen: Boolean,
+    setFullscreen: (Boolean) -> Unit,
+): Boolean =
+    when (key) {
         Key.Spacebar -> { state.togglePause(); true }
         Key.DirectionLeft -> { state.previous(); true }
         Key.DirectionRight -> { state.next(); true }
         Key.Escape -> {
             // Esc leaves fullscreen first (restoring the decorated window);
             // when already windowed, it ends the session.
-            if (windowState.placement == WindowPlacement.Fullscreen) {
-                windowState.placement = WindowPlacement.Floating
-            } else {
-                state.stop()
-            }
+            if (isFullscreen) setFullscreen(false) else state.stop()
             true
         }
-        Key.F -> { toggleFullscreen(windowState); true }
+        Key.F -> { setFullscreen(!isFullscreen); true }
         Key.G -> { state.cycleGrid(); true }
         Key.R -> { state.toggleRedoCurrent(); true }
         Key.A -> { state.autoAdvance = !state.autoAdvance; true }
@@ -205,16 +221,19 @@ private fun sessionKeys(event: KeyEvent, state: AppState, windowState: WindowSta
         Key.M -> { state.mirror = !state.mirror; true }
         Key.B -> { state.blur = !state.blur; true }
         Key.U -> { state.upsideDown = !state.upsideDown; true }
-        // Number row selects the view mode (1..0 -> the ten ViewMode values in order).
+        // Number row selects the view mode (1..9 -> the nine ViewMode values in order).
         Key.One -> { state.viewMode = ViewMode.NONE; true }
         Key.Two -> { state.viewMode = ViewMode.GRAYSCALE; true }
         Key.Three -> { state.viewMode = ViewMode.SQUINT; true }
         Key.Four -> { state.viewMode = ViewMode.SEPIA; true }
         Key.Five -> { state.viewMode = ViewMode.POSTERIZE; true }
         Key.Six -> { state.viewMode = ViewMode.PIXELATE; true }
-        Key.Seven -> { state.viewMode = ViewMode.WARM; true }
-        Key.Eight -> { state.viewMode = ViewMode.COOL; true }
-        Key.Nine -> { state.viewMode = ViewMode.EDGE; true }
-        Key.Zero -> { state.viewMode = ViewMode.SILHOUETTE; true }
+        Key.Seven -> { state.viewMode = ViewMode.EDGE; true }
+        Key.Eight -> { state.viewMode = ViewMode.SILHOUETTE; true }
+        Key.Nine -> { state.viewMode = ViewMode.NOTAN; true }
+        // Light: comma cools, period warms, zero puts it back to neutral.
+        Key.Comma -> { state.temperature = (state.temperature - 0.1f).coerceAtLeast(-1f); true }
+        Key.Period -> { state.temperature = (state.temperature + 0.1f).coerceAtMost(1f); true }
+        Key.Zero -> { state.temperature = 0f; true }
         else -> false
     }

@@ -12,6 +12,8 @@ data class SessionSetup(
     val autoAdvance: Boolean,
     val viewMode: ViewMode,
     val gridMode: GridMode,
+    /** White balance, -1 (cool) .. +1 (warm). */
+    val temperature: Float = 0f,
 )
 
 /**
