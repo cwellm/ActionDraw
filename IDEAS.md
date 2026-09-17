@@ -70,7 +70,7 @@ Both halves of the loop are built — collecting material, and practising from i
 never seen anything that was actually *drawn*. All state is about the reference: seen, redo, tags,
 captions, badges. The output side is where the remaining value is.
 
-- 🔄 **Memory drawing** — the reference disappears mid-pose. *Implemented; see above.*
+- ✅ **Memory drawing** — the reference disappears mid-pose. *Built; see the list above.*
 - ⬜ **Your drawings come back in** — an item gains `attempts: [{path, date, seconds}]` in
   `_drawings/`. Unlocks **overlay compare** (your attempt at 50% over the reference, which is how
   proportion errors are actually found), mirroring your own drawing, and a progression view of one

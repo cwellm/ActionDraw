@@ -217,6 +217,20 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ New board… offers starter groups: Creature design, Character sheet, Environment, Anatomy
   practice, or Empty
 
+### ✅ F4.7 Link cards
+- ✅ A card holding a url + title, opened in the system browser; searchable like everything else
+- ✅ **Web thumbnails** — *Fetch preview* on a link card downloads the picture the page advertises
+  (OpenGraph `og:image`, then `twitter:image`) into `<board>/_previews/` and shows it on the card
+  - ✅ The app's only networked code, and it asks first: a dialog states what leaves the machine
+    before anything is sent. Never automatic, never in the background, one card at a time
+  - ✅ http/https only, 8 MB cap, 10 s/20 s timeouts, no cookies, self-identifying user agent
+  - ✅ Once saved, the picture is a normal file in the board folder — the board works offline again
+  - ✅ *Remove preview* takes the picture off the card
+  - ✅ Covered by `LinkPreviewTest` through a stubbed fetcher, so the suite itself never goes
+    online; the http-only guard was checked by removing it and watching two tests fail
+
+---
+
 ### ✅ F4.8 Groups on the canvas & strip carousel (feedback round 2)
 - ✅ Every group now has a colour, whether or not one was picked: a dot and a hairline under the
   section header in grid mode, a tinted, outlined area with a name label in free mode
@@ -260,7 +274,34 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Key mapping extracted to a pure `handleBoardShortcut`, covered by `BoardKeysTest` — verified
   by restoring the old binding and watching it fail
 
-### ✅ F4.15 Zoom in the large view
+### ✅ F4.13 Deleting boards
+- ✅ *Delete…* on a board tile, with the default following whose folder it is: a folder
+  ActionDraw made for the board is deleted with it, a folder that was already the user's is kept.
+  The tick is always there either way (revised 2026-09-05, see F4.14)
+- ✅ Guards: refuses a folder that is not a board, the user's home, or the boards home; closes
+  the board first if it is the one on screen; drops it from the recent list
+- ✅ Covered by `DeleteBoardTest`, whose guard case was checked by weakening the guard
+
+---
+
+## ✅ M4 — Idea Board: living with it
+
+Everything after M3 shipped: the things that only show up once a board is in daily use, and the
+two reports that came out of using one.
+
+### ✅ F5.1 Boards are recorded, not discovered
+- ✅ `BoardRegistry` (`~/.actiondraw/boards.json`) maps each board to the folder it lives in
+- ✅ A board's name is no longer its folder's name: a taken folder name gets `Test (2)` beside it,
+  so a deleted board's name is usable again (reported 2026-09-05)
+- ✅ Moving the boards home adds a place to look instead of hiding the existing boards; nothing
+  on disk is moved
+- ✅ Deleting acts on the recorded folder and drops the record; folders that vanish behind the
+  app's back are pruned from the list
+- ✅ Boards from before the registry are adopted the first time the list is drawn
+- ✅ Covered by `BoardRegistryTest`, checked by reverting each behaviour in turn — which is how a
+  test that only appeared to prove the home-move guarantee was caught
+
+### ✅ F5.2 Zoom in the large view
 - ✅ The wheel — which is what an XPPen dial sends — zooms about the pointer; `+`/`−` (either
   keyboard block, `=` on a US layout) zoom about the centre; `0` fits again (asked 2026-09-07)
 - ✅ Once zoomed, dragging pans and stops where empty space would show; flipping to another
@@ -270,7 +311,7 @@ surface, material in & out, "Draw these" bridge.*
   `ViewerWheelTest`, which sends a real wheel event through the composable; both the wheel
   handler and the zoom clamp were checked by reverting them
 
-### ✅ F4.16 Selecting a group, wherever it is
+### ✅ F5.3 Selecting a group, wherever it is
 - ✅ Clicking a group's area selects the whole group — it used to have exactly one handle, the
   little label at the hull's top-left corner (reported 2026-09-16)
 - ✅ That corner is routinely off the edge of the view for a wide group, which took the handle
@@ -280,7 +321,7 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Covered by `GroupClickTest`, which clicks where the label really is and keeps a guard that
   dragging a group still moves it; both halves were checked by reverting them
 
-### ✅ F4.17 Boards inside boards
+### ✅ F5.4 Boards inside boards
 - ✅ A board created inside another board's folder is a sub-board of it — derived from the
   registry's recorded paths, with nothing new stored (asked 2026-09-16)
 - ✅ Nesting is arbitrarily deep, and a board belongs to the nearest board above it
@@ -293,7 +334,7 @@ surface, material in & out, "Draw these" bridge.*
   leaves them as roots of their own
 - ✅ Covered by `SubBoardTest` and `BoardSwitcherTest`, all five behaviours checked by reverting
 
-### ✅ F4.18 Rearranging the tree
+### ✅ F5.5 Rearranging the tree
 - ✅ **Move…** on a tile and *Move this board…* in the header put a board under any other board,
   or back out to the top level, at any time (asked 2026-09-16)
 - ✅ The folder moves with it — pictures and nested boards included — and every record under it is
@@ -307,52 +348,7 @@ surface, material in & out, "Draw these" bridge.*
 - ✅ Covered by `MoveBoardTest`; the behaviours were checked by reverting them, and the self-move
   guard proved itself by producing `Flügel/Membran/Flügel/Membran/…` 28 levels deep when removed
 
-### ✅ F4.14 Boards are recorded, not discovered
-- ✅ `BoardRegistry` (`~/.actiondraw/boards.json`) maps each board to the folder it lives in
-- ✅ A board's name is no longer its folder's name: a taken folder name gets `Test (2)` beside it,
-  so a deleted board's name is usable again (reported 2026-09-05)
-- ✅ Moving the boards home adds a place to look instead of hiding the existing boards; nothing
-  on disk is moved
-- ✅ Deleting acts on the recorded folder and drops the record; folders that vanish behind the
-  app's back are pruned from the list
-- ✅ Boards from before the registry are adopted the first time the list is drawn
-- ✅ Covered by `BoardRegistryTest`, checked by reverting each behaviour in turn — which is how a
-  test that only appeared to prove the home-move guarantee was caught
-
-### ✅ F4.13 Deleting boards
-- ✅ *Delete…* on a board tile, with the default following whose folder it is: a folder
-  ActionDraw made for the board is deleted with it, a folder that was already the user's is kept.
-  The tick is always there either way (revised 2026-09-05, see F4.14)
-- ✅ Guards: refuses a folder that is not a board, the user's home, or the boards home; closes
-  the board first if it is the one on screen; drops it from the recent list
-- ✅ Covered by `DeleteBoardTest`, whose guard case was checked by weakening the guard
-
-### ✅ F4.7 Link cards
-- ✅ A card holding a url + title, opened in the system browser; searchable like everything else
-- ✅ **Web thumbnails** — *Fetch preview* on a link card downloads the picture the page advertises
-  (OpenGraph `og:image`, then `twitter:image`) into `<board>/_previews/` and shows it on the card
-  - ✅ The app's only networked code, and it asks first: a dialog states what leaves the machine
-    before anything is sent. Never automatic, never in the background, one card at a time
-  - ✅ http/https only, 8 MB cap, 10 s/20 s timeouts, no cookies, self-identifying user agent
-  - ✅ Once saved, the picture is a normal file in the board folder — the board works offline again
-  - ✅ *Remove preview* takes the picture off the card
-  - ✅ Covered by `LinkPreviewTest` through a stubbed fetcher, so the suite itself never goes
-    online; the http-only guard was checked by removing it and watching two tests fail
-
----
-
 ## 🔄 M+ — Practice backlog (independent of the board)
-
-### ✅ F+.2 Memory drawing
-- ✅ `RampStep.studySeconds` turns a ramp leg into memory work: the reference shows for the study
-  time, hides for the rest of the pose, and returns at the end to compare against (asked 2026-09-16)
-- ✅ A memory pose never auto-advances — the comparison is the point, and one you get no time to
-  make is no comparison
-- ✅ `H` flips whatever the pose would show: a peek while hidden, cover on an ordinary pose
-- ✅ Built-in **From memory** plan (20s/60 · 40s/120 · 80s/240), so a board recipe can name it
-- ✅ The menu spells out what the plan does before you start; the session says which beat is running
-- ✅ Covered by `MemoryPoseTest` (the beats) and `MemoryVeilTest`, which asks the real screen
-  whether the picture is drawn; all five behaviours were checked by reverting them
 
 ### ✅ F+.1 Continuous colour temperature
 - ✅ One slider from cool (−1) through neutral (0) to warm (+1), replacing the Warm/Cool presets
@@ -366,11 +362,47 @@ surface, material in & out, "Draw these" bridge.*
 
 ---
 
+### ✅ F+.2 Memory drawing
+- ✅ `RampStep.studySeconds` turns a ramp leg into memory work: the reference shows for the study
+  time, hides for the rest of the pose, and returns at the end to compare against (asked 2026-09-16)
+- ✅ A memory pose never auto-advances — the comparison is the point, and one you get no time to
+  make is no comparison
+- ✅ `H` flips whatever the pose would show: a peek while hidden, cover on an ordinary pose
+- ✅ Built-in **From memory** plan (20s/60 · 40s/120 · 80s/240), so a board recipe can name it
+- ✅ The menu spells out what the plan does before you start; the session says which beat is running
+- ✅ Covered by `MemoryPoseTest` (the beats) and `MemoryVeilTest`, which asks the real screen
+  whether the picture is drawn; all five behaviours were checked by reverting them
+
+### ⬜ F+.3 Your drawings come back in
+- ⬜ An item gains `attempts: [{path, date, seconds}]`, the files living in `_drawings/`
+- ⬜ Overlay compare (your attempt over the reference), mirroring your own drawing, and one
+  subject's progression over months
+- ⬜ The app has never seen anything actually drawn — all state so far is about the reference.
+  The biggest structural gap, and a real data-model change.
+
+### ⬜ F+.4 Staged studies
+- ⬜ The filter changes during a pose: Notan for the value masses, Edge for the contour, then
+  full. Shares the ramp-phase seam that memory drawing opened.
+
+### ⬜ F+.5 Smaller things on the list
+- ⬜ A watched drop folder per board — Krita saves a PNG into it and the card appears
+- ⬜ Step through an animation frame by frame (GIF/WebP, already decodable)
+- ⬜ Export a board as a portable bundle or a captioned PDF
+
+Reasoning for all of these, and one idea deliberately **not** taken, is in the *Where next*
+section of [IDEAS.md](IDEAS.md).
+
+---
+
 ## Housekeeping
 
 - ✅ Tidy-up pass (2026-09-07): dead `dismissOpenFailed` removed, two unused imports, one
   `File.samePathAs` for the six hand-spelled case-insensitive folder comparisons, imports in
   place of fully-qualified `java.net`/`java.awt` names; the base compiles without a warning
+- ✅ Docs aligned (2026-09-17): features renumbered into the order they were built, the work
+  after M3 split out as its own milestone, the open backlog listed here rather than only in
+  `IDEAS.md`, and the README's group and large-view shortcuts brought back in step with what
+  the code does. `File.isInside` joined `samePathAs` as the one rule for path containment.
 
 - ✅ Restore corrupted `README.md` (`6a56d64`, branch `fix/restore-readme`; merged into
-  `feat/idea-board` so the board docs could build on it) — ⬜ merge both to `main`
+  `feat/idea-board` so the board docs could build on it), both long since on `main`

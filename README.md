@@ -124,9 +124,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
     `Shift`+drag pulls a rubber band over several cards, and dragged cards snap to their
     neighbours' centre lines (toggle with the **Snap** chip).
-    Groups show as a tinted, outlined area with a name label: drag the area to move the whole
-    group, drag a card inside it to move just that card, click the label to select the group, and
-    right-click the area to draw, rename, recolour or delete it. Grouped cards carry a small dot
+    Groups show as a tinted, outlined area with a name label: click the area (or the label) to
+    select the whole group, drag the area to move it as one, drag a card inside it to move just
+    that card, and right-click the area to draw, rename, recolour or delete it. The label stays
+    in view even when the group runs off the edge of the window. Grouped cards carry a small dot
     in their group's colour. A group only shows once it holds something.
 - **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
   **link cards** (`L`) that open in your browser — right-click one for *Fetch preview* and the
@@ -135,7 +136,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
-  them — the way to group on the canvas. With nothing selected the same command starts an empty
+  them. In grid mode a section's name selects that group's cards — the way to group on the canvas. With nothing selected the same command starts an empty
   group. `Ctrl`+`Shift`+`G` takes cards back out, and a group left holding nothing disappears by
   itself.
 - **Contents drawer** (`Ctrl`+`D`, or the *Contents* button): everything on the board as a list,
@@ -206,6 +207,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way); drag a card for free placing |
 | `Space` | view the selection large (carousel) |
 | wheel · `+` / `−` · `0` | in the large view: zoom about the pointer · zoom in / out · fit again (a tablet dial counts as the wheel; once zoomed, drag pans) |
+| `←` `→` · `Home` / `End` · `Space` | in the large view: flip · first / last picture · close |
 | `Enter` | draw the selection |
 | `N` / `L` | new note · new link |
 | `G` (or `Ctrl`+`G`) / `Ctrl`+`Shift`+`G` | group the selection · ungroup it |
