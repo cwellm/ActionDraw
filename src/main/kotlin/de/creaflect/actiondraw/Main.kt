@@ -221,6 +221,8 @@ internal fun handleSessionShortcut(
         Key.M -> { state.mirror = !state.mirror; true }
         Key.B -> { state.blur = !state.blur; true }
         Key.U -> { state.upsideDown = !state.upsideDown; true }
+        // H covers the reference — or peeks at it, while drawing from memory.
+        Key.H -> { state.toggleReference(); true }
         // Number row selects the view mode (1..9 -> the nine ViewMode values in order).
         Key.One -> { state.viewMode = ViewMode.NONE; true }
         Key.Two -> { state.viewMode = ViewMode.GRAYSCALE; true }

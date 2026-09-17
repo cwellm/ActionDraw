@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.samePathAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
@@ -16,7 +17,7 @@ import java.io.File
  * deleting a board deletes exactly the folder that board was in.
  *
  * Lives next to the settings file, and like it, all IO is best-effort: an unreadable registry
- * means the scan below is all we know, not a broken app.
+ * means the scan elsewhere is all we know, not a broken app.
  */
 class BoardRegistry(private val dir: File) {
     private val file: File get() = File(dir, FILE_NAME)
@@ -24,7 +25,7 @@ class BoardRegistry(private val dir: File) {
     fun entries(): List<BoardEntry> = runCatching {
         file.takeIf { it.isFile }
             ?.readText()
-            ?.removePrefix("\uFEFF")
+            ?.removePrefix("﻿")
             ?.let { json.decodeFromString(ListSerializer(BoardEntry.serializer()), it) }
             .orEmpty()
     }.getOrDefault(emptyList())
@@ -46,6 +47,38 @@ class BoardRegistry(private val dir: File) {
     }
 
     fun forget(folder: File) = save(entries().filterNot { it.isAt(folder) })
+
+    /**
+     * The registered board [folder] sits inside — the nearest one, so a board two levels down
+     * belongs to its immediate parent rather than to the top of the tree. Null when it stands
+     * on its own.
+     *
+     * Nesting needs nothing stored: a sub-board is simply a board whose folder lies inside
+     * another board's folder, which the recorded paths already say.
+     */
+    fun parentOf(folder: File): BoardEntry? =
+        entries().filter { it.contains(folder) }.maxByOrNull { it.path.length }
+
+    /** Every registered board below [folder], however deep — what deleting that folder takes. */
+    fun descendantsOf(folder: File): List<BoardEntry> = entries().filter { it.isInside(folder) }
+
+    /**
+     * Follows a folder that has moved: the board at [from] is now at [to], and so is everything
+     * nested inside it, since a folder takes its contents with it. One rewrite keeps the whole
+     * subtree's records true rather than leaving descendants pointing into thin air.
+     */
+    fun repath(from: File, to: File) {
+        val cut = from.absolutePath.trimEnd(File.separatorChar).length
+        save(
+            entries().map { entry ->
+                when {
+                    entry.isAt(from) -> entry.copy(path = to.absolutePath)
+                    entry.isInside(from) -> entry.copy(path = to.absolutePath + entry.path.substring(cut))
+                    else -> entry
+                }
+            },
+        )
+    }
 
     /** Drops entries whose folder has vanished — deleted in Explorer, or on a drive now offline. */
     fun prune() {
@@ -82,5 +115,12 @@ data class BoardEntry(
 ) {
     val dir: File get() = File(path)
 
+    /** Windows paths differ only in case, so compare that way rather than by string identity. */
     fun isAt(folder: File): Boolean = dir.samePathAs(folder)
+
+    /** True when [folder] lies inside this board's folder. */
+    fun contains(folder: File): Boolean = folder.isInside(dir)
+
+    /** True when this board's folder lies inside [folder]. */
+    fun isInside(folder: File): Boolean = dir.isInside(folder)
 }

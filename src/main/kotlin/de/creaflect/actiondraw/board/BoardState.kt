@@ -8,6 +8,7 @@ import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
@@ -19,7 +20,8 @@ import java.time.format.DateTimeFormatter
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
-    data object NewBoard : BoardEditor()
+    /** [under] is the board a new one should be nested in; null puts it in the boards home. */
+    data class NewBoard(val under: File? = null) : BoardEditor()
 
     /** Confirms deleting a board; [pictures] is what the folder would take with it. */
     /**
@@ -31,6 +33,8 @@ sealed class BoardEditor {
         val name: String,
         val pictures: Int,
         val ownsFolder: Boolean,
+        /** Boards nested inside this one, which deleting the folder would take as well. */
+        val subBoards: Int = 0,
     ) : BoardEditor()
 
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
@@ -46,6 +50,9 @@ sealed class BoardEditor {
 
     /** `itemId == null` creates a new link card. */
     data class EditLink(val itemId: String?) : BoardEditor()
+
+    /** Picks a new home in the tree for the board at [dir]. */
+    data class MoveBoard(val dir: File, val name: String) : BoardEditor()
 
     /** Asks before the app contacts a site for a link's preview picture. */
     data class FetchPreview(val itemId: String) : BoardEditor()
@@ -219,6 +226,49 @@ class BoardState(
             (BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name) to dir
         }
     }
+
+    /** One board in the tree of boards, with how deep it sits and whose child it is. */
+    data class BoardNode(val name: String, val dir: File, val depth: Int, val parent: String?)
+
+    /**
+     * Every board, depth first, so sub-boards follow the board they belong to. A board whose
+     * parent is registered but no longer readable is treated as a root rather than vanishing
+     * with it.
+     */
+    fun boardTree(): List<BoardNode> {
+        val all = availableBoards()
+        val known = all.map { it.second.absolutePath.lowercase() }.toSet()
+        fun parentPathOf(dir: File): String? =
+            registry.parentOf(dir)?.path?.lowercase()?.takeIf { it in known }
+
+        val out = mutableListOf<BoardNode>()
+        fun walk(under: String?, depth: Int, parentName: String?) {
+            all.filter { parentPathOf(it.second) == under }
+                .sortedBy { it.first.lowercase() }
+                .forEach { (name, dir) ->
+                    out += BoardNode(name, dir, depth, parentName)
+                    walk(dir.absolutePath.lowercase(), depth + 1, name)
+                }
+        }
+        walk(null, 0, null)
+        return out
+    }
+
+    /** The board the open one sits inside, if it is a sub-board. */
+    val parentBoard: BoardEntry?
+        get() = root?.let { registry.parentOf(it) }?.takeIf { BoardStore.exists(it.dir) }
+
+    /** Boards directly inside the open one. */
+    val subBoards: List<BoardEntry>
+        get() {
+            val dir = root ?: return emptyList()
+            return registry.descendantsOf(dir)
+                .filter { registry.parentOf(it.dir)?.isAt(dir) == true && BoardStore.exists(it.dir) }
+                .sortedBy { it.name.lowercase() }
+        }
+
+    /** How many boards would go with [dir] if its folder were deleted. */
+    fun subBoardCount(dir: File): Int = registry.descendantsOf(dir).count { BoardStore.exists(it.dir) }
 
     /**
      * Records a board folder nobody told us about. A direct child of the boards home is one the
@@ -401,6 +451,8 @@ class BoardState(
                 else "Couldn't delete ${dir.name} — something in it is in use."
         }
 
+        // A deleted folder takes any board nested inside it, so their records go too.
+        if (mode == Deletion.DELETE_FOLDER) registry.descendantsOf(dir).forEach { registry.forget(it.dir) }
         registry.forget(dir)
         settings.removeRecentBoard(dir)
         recent = settings.recentBoards()
@@ -449,7 +501,9 @@ class BoardState(
         // deleting a board must never make its name unusable.
         val dir = if (wanted.exists() && !wanted.listFiles().isNullOrEmpty()) freeFolder(wanted) else wanted
         if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
-        settings.setBoardsHome(parent)
+        // Creating a board inside another board is making a sub-board of it; that is nesting,
+        // not a decision about where new top-level boards should go.
+        if (registry.parentOf(dir) == null) settings.setBoardsHome(parent)
         val created = BoardFile(
             name = trimmed,
             groups = template.groups.mapIndexed { i, groupName ->
@@ -468,6 +522,7 @@ class BoardState(
 
     /** `Test` -> `Test (2)`. Unlike file naming this never splits a dot off as an extension. */
     private fun freeFolder(wanted: File): File {
+        if (!wanted.exists()) return wanted
         var n = 2
         while (true) {
             val candidate = File(wanted.parentFile, wanted.name + " (" + n + ")")
@@ -1411,6 +1466,77 @@ class BoardState(
         if (root?.samePathAs(dir) == true) board = next
         return "Pinned ${outcome.items.size} to ${next.name}."
     }
+
+    /**
+     * Moves a board under [into] — or out to the boards home when that is null — taking its
+     * folder, its pictures and any boards nested inside it along. Nesting *is* where the folder
+     * sits, so rearranging the hierarchy means moving it; there is no second place to keep the
+     * shape of the tree, and so no way for the two to disagree.
+     *
+     * Returns what happened, for the board to report.
+     */
+    fun moveBoard(dir: File, into: File?): String {
+        if (!BoardStore.exists(dir)) return "${dir.name} is not a board."
+        val name = entryFor(dir)?.name ?: dir.name
+        val target = (into ?: settings.boardsHome()).absoluteFile
+        // Compared canonically: a junction or symlink pointing back into the board would slip
+        // past a plain string test, and moving a folder into itself copies it into itself until
+        // the filesystem gives out. This guard is the only thing between that and the board.
+        val realDir = runCatching { dir.canonicalFile }.getOrDefault(dir.absoluteFile)
+        val realTarget = runCatching { target.canonicalFile }.getOrDefault(target)
+        if (realTarget.samePathAs(realDir)) return "A board cannot be moved into itself."
+        if (realTarget.isInside(realDir)) return "A board cannot be moved into one of its own sub-boards."
+        if (!target.isDirectory && !target.mkdirs()) return "Couldn't open ${target.name}."
+        if (dir.parentFile?.samePathAs(target) == true) return "$name is already there."
+
+        val destination = freeFolder(File(target, dir.name))
+        // The open board may be the one moving, or may live inside it; either way it has to come
+        // out at the other end rather than pointing at a folder that is no longer there.
+        val openInside = root?.let { it.samePathAs(dir) || it.isInside(dir) } == true
+        val openSuffix = if (openInside) root!!.absolutePath.substring(dir.absolutePath.length) else ""
+
+        val failure = moveFolder(dir, destination)
+        if (failure != null) return failure.also { importNotice = it }
+
+        registry.repath(dir, destination)
+        settings.removeRecentBoard(dir)
+        settings.addRecentBoard(destination)
+        recent = settings.recentBoards()
+        if (openInside) root = File(destination.absolutePath + openSuffix)
+        boardsHomeTick++
+        val where = if (into == null) "the boards home" else (entryFor(target)?.name ?: target.name)
+        return "Moved $name to $where.".also { importNotice = it }
+    }
+
+    /**
+     * Rename where the filesystem allows it, copy-then-delete where it does not (another drive).
+     * A copy that fails part-way is cleaned up, so the board is never left in two halves: either
+     * it moved, or nothing happened to it.
+     */
+    private fun moveFolder(from: File, to: File): String? {
+        // Never copy a folder into its own subtree, whatever the caller believed.
+        if (to.samePathAs(from) || to.isInside(from)) return "Couldn't move ${from.name} into itself."
+        if (from.renameTo(to)) return null
+        val copied = runCatching { from.copyRecursively(to, overwrite = false) }.isSuccess
+        if (!copied) {
+            to.deleteRecursively()
+            return "Couldn't move ${from.name}."
+        }
+        if (!from.deleteRecursively()) {
+            // It moved; the original just could not be cleared away. Say so, rather than call a
+            // move that worked a failure.
+            importNotice = "Moved ${from.name}, but its old folder could not be removed."
+        }
+        return null
+    }
+
+    /**
+     * Where [dir] could go: the boards home, then every board that is neither it nor inside it.
+     * Its current parent is in the list too, marked by the dialog, so the tree reads the same
+     * there as everywhere else.
+     */
+    fun moveTargets(dir: File): List<BoardNode> =
+        boardTree().filterNot { it.dir.samePathAs(dir) || it.dir.isInside(dir) }
 
     fun openBoardList() {
         openFailed = false

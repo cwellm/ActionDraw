@@ -39,6 +39,9 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
    next session (and the flag clears once redrawn).
 
 ## Session features (beyond filters)
+- ✅ **Memory drawing** — a ramp leg carries a study time (`RampStep.studySeconds`); the reference
+  hides for the rest of the pose and returns at the end to compare against. `H` hides or peeks.
+  The exercise that matters when the subject does not exist to be photographed.
 - ✅ **Picture picker** — thumbnail grid (menu → "Choose pictures…"): click to include/exclude,
   All/None; sessions draw only from the selection, and a fresh cycle resets seen-state only for
   the selected pictures.
@@ -51,7 +54,7 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
   window) with exactly those pictures; every filter and ramp applies as usual.
 
 ## Other notes
-- Keyboard: Space play/pause · ←/→ prev/next · 1–9 view mode · N notan · ,/. light · A auto-advance · B blur ·
+- Keyboard: Space play/pause · ←/→ prev/next · 1–9 view mode · N notan · ,/. light · H hide/peek · A auto-advance · B blur ·
   I invert · D defraction · M mirror · U upside-down · G cycle grid · R redo flag · F fullscreen ·
   Esc leave fullscreen / stop. (Board shortcuts: see the README.)
 - Per-folder state files, written inside the selected image folder:
@@ -60,3 +63,27 @@ Proportion overlay (**Grid**): **Thirds**, **Phi** (golden section), **Diagonal*
   board folders with subfolders.
 - Thumbnails are cached under `~/.actiondraw/thumbs/` (keyed by path, size and mtime); deleting
   that folder only costs a re-render.
+
+## Where next (2026-09-16)
+
+Both halves of the loop are built — collecting material, and practising from it — but the app has
+never seen anything that was actually *drawn*. All state is about the reference: seen, redo, tags,
+captions, badges. The output side is where the remaining value is.
+
+- ✅ **Memory drawing** — the reference disappears mid-pose. *Built; see the list above.*
+- ⬜ **Your drawings come back in** — an item gains `attempts: [{path, date, seconds}]` in
+  `_drawings/`. Unlocks **overlay compare** (your attempt at 50% over the reference, which is how
+  proportion errors are actually found), mirroring your own drawing, and a progression view of one
+  subject over months. The biggest structural gap; a real data-model change.
+- ⬜ **Staged studies** — the filter changes during a pose: Notan for the value masses, Edge for
+  the contour, then full. Shares the ramp-phase seam with memory drawing.
+- ⬜ **A watched drop folder per board** — Krita saves a PNG into it and the card appears. Feeds
+  the attempts idea automatically.
+- ⬜ **Step through an animation** frame by frame (GIF/WebP, which ImageIO already decodes) —
+  bird-flight and gait loops are the best wing and pose reference there is.
+- ⬜ **Export a board** as a portable bundle or a captioned PDF — the Drachenbuch is a book, and
+  nothing currently hands you something printable or backup-able.
+
+Considered and deliberately not taken: rating each session to build a "struggled with" smart group.
+It would work, but it risks making practice feel like homework, and this app's character is that it
+gets out of the way. If ever built: one optional question, and never a streak.

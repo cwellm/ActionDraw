@@ -65,6 +65,12 @@ import de.creaflect.actiondraw.ui.chooseImages
 import de.creaflect.actiondraw.ui.chooseSaveFile
 import java.io.File
 import java.net.URI
+import androidx.compose.material.Divider
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.testTag
+import de.creaflect.actiondraw.samePathAs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -166,6 +172,16 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onImmers
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.widthIn(max = 320.dp).align(Alignment.CenterVertically),
         )
+        BoardSwitcher(state)
+        // One tap up out of a sub-board, without going round by the list.
+        state.parentBoard?.let { parent ->
+            OutlinedButton(
+                onClick = { state.openBoard(parent.dir) },
+                modifier = Modifier.testTag("board-up"),
+            ) {
+                Text("↑ " + parent.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
         OutlinedButton(onClick = { state.drawerOpen = !state.drawerOpen }) {
             Text(if (state.drawerOpen) "Contents ✕" else "Contents")
         }
@@ -182,6 +198,62 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onImmers
         }
         OutlinedButton(onClick = onImmersive) { Text("Immersive") }
         OutlinedButton(onClick = { state.closeBoard() }) { Text("Close") }
+    }
+}
+
+/**
+ * Quick browse: every board, nested under the one it belongs to, without going back to the list.
+ * Boards are a tree once they can sit inside each other, and the whole point of the tree is being
+ * able to move around it from where you already are.
+ */
+@Composable
+private fun BoardSwitcher(state: BoardState) {
+    var open by remember { mutableStateOf(false) }
+    val tree by produceState(emptyList<BoardState.BoardNode>(), open, state.boardsHomeTick, state.root) {
+        if (open) value = withContext(Dispatchers.IO) { state.boardTree() }
+    }
+    Box {
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.testTag("board-switcher")) {
+            Text("Boards ▾")
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (tree.isEmpty()) {
+                DropdownMenuItem(onClick = { open = false }) { Text("Looking…") }
+            }
+            tree.forEach { node ->
+                val here = state.root?.samePathAs(node.dir) == true
+                DropdownMenuItem(
+                    onClick = {
+                        open = false
+                        if (!here) state.openBoard(node.dir)
+                    },
+                    modifier = Modifier.testTag("switch-to-" + node.name),
+                ) {
+                    Text(
+                        "      ".repeat(node.depth) + (if (here) "• " else "") + node.name,
+                        color = if (here) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Divider()
+            DropdownMenuItem(onClick = {
+                open = false
+                state.openEditor(BoardEditor.NewBoard(state.root))
+            }) {
+                Text("New sub-board here…", color = MaterialTheme.colors.secondary)
+            }
+            state.root?.let { here ->
+                DropdownMenuItem(onClick = {
+                    open = false
+                    state.openEditor(BoardEditor.MoveBoard(here, state.board?.name ?: here.name))
+                }) {
+                    Text("Move this board…", color = MaterialTheme.colors.secondary)
+                }
+            }
+            DropdownMenuItem(onClick = { open = false; state.openBoardList() }) { Text("All boards…") }
+        }
     }
 }
 

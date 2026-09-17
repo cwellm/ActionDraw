@@ -23,6 +23,11 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 - **Auto-advance** toggle (`A`): on = the timer moves to the next image at 0; off = the countdown
   is informational only, runs into "+overtime", and switching stays manual.
 - **Session summary** at the end: poses drawn and total time.
+- **Memory drawing** (*From memory* ramp): the reference is up for a study time, then goes away
+  and you draw from what you kept. It comes back when the drawing time is up so you can see what
+  you missed — that comparison is the point, so a memory pose waits for you rather than advancing
+  on its own. `H` peeks while it is hidden, and covers an ordinary reference so any picture can be
+  worked this way.
 
 ### Reference views & filters
 - **View modes** (mutually exclusive; number row `1`–`9`): None, **Black & white**,
@@ -82,6 +87,22 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### Boards inside boards
+- A board made **inside another board's folder** is a sub-board of it. Nothing extra is stored —
+  it simply follows from where the folders are — and nesting goes as deep as you like, each board
+  belonging to the nearest one above it.
+- **Boards ▾** in a board's header lists every board, nested under the one it belongs to: jump
+  straight there, make a **new sub-board here**, or go to the full list. A sub-board also shows
+  **↑ Parent** for one tap back up.
+- **Move…** on a board tile (or *Move this board…* in **Boards ▾**) puts a board anywhere in the
+  tree at any time — under another board, or back out to the top. Its folder moves with it, taking
+  its pictures and any boards nested inside; the board on screen follows its folder, so nothing
+  has to be reopened. A board cannot be moved into itself or into one of its own sub-boards, and
+  a name already taken at the destination gets a folder of its own rather than merging.
+- Deleting a board's folder takes any board nested inside it, and the dialog says how many before
+  you confirm. *Remove board* (keeping the folder) leaves them alone — they simply become boards
+  in their own right.
+
 ### Where boards live
 - A board is a folder plus a `.actiondraw_board.json` sidecar, and ActionDraw records which folder
   belongs to which board in `~/.actiondraw/boards.json`. The board's name is therefore not tied to
@@ -103,9 +124,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
     `Shift`+drag pulls a rubber band over several cards, and dragged cards snap to their
     neighbours' centre lines (toggle with the **Snap** chip).
-    Groups show as a tinted, outlined area with a name label: drag the area to move the whole
-    group, drag a card inside it to move just that card, click the label to select the group, and
-    right-click the area to draw, rename, recolour or delete it. Grouped cards carry a small dot
+    Groups show as a tinted, outlined area with a name label: click the area (or the label) to
+    select the whole group, drag the area to move it as one, drag a card inside it to move just
+    that card, and right-click the area to draw, rename, recolour or delete it. The label stays
+    in view even when the group runs off the edge of the window. Grouped cards carry a small dot
     in their group's colour. A group only shows once it holds something.
 - **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
   **link cards** (`L`) that open in your browser — right-click one for *Fetch preview* and the
@@ -114,7 +136,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
-  them — the way to group on the canvas. With nothing selected the same command starts an empty
+  them. In grid mode a section's name selects that group's cards — the way to group on the canvas. With nothing selected the same command starts an empty
   group. `Ctrl`+`Shift`+`G` takes cards back out, and a group left holding nothing disappears by
   itself.
 - **Contents drawer** (`Ctrl`+`D`, or the *Contents* button): everything on the board as a list,
@@ -166,6 +188,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `1`–`9` | view mode (None … Notan) |
 | `N` | Notan view |
 | `,` / `.` / `0` | cooler light · warmer light · neutral |
+| `H` | hide the reference · peek at it while drawing from memory |
 | `B` / `I` / `D` / `M` / `U` | blur / invert / defraction / mirror / upside down |
 | `G` | cycle proportion grid |
 | `R` | toggle redo flag |
@@ -184,6 +207,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `Ctrl`+`↑`/`↓` | reorder one step (`+Shift`: all the way); drag a card for free placing |
 | `Space` | view the selection large (carousel) |
 | wheel · `+` / `−` · `0` | in the large view: zoom about the pointer · zoom in / out · fit again (a tablet dial counts as the wheel; once zoomed, drag pans) |
+| `←` `→` · `Home` / `End` · `Space` | in the large view: flip · first / last picture · close |
 | `Enter` | draw the selection |
 | `N` / `L` | new note · new link |
 | `G` (or `Ctrl`+`G`) / `Ctrl`+`Shift`+`G` | group the selection · ungroup it |

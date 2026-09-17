@@ -112,11 +112,23 @@ private fun SessionSettings(state: AppState, modifier: Modifier) {
                 style = MaterialTheme.typography.body1,
             )
             Text(
-                plan.steps.joinToString("  →  ") { "${formatTime(it.seconds)}×${it.count}" },
+                plan.steps.joinToString("  →  ") {
+                    val leg = "${formatTime(it.seconds)}×${it.count}"
+                    it.studySeconds?.let { study -> "$leg (${study}s study)" } ?: leg
+                },
                 style = MaterialTheme.typography.body2,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center,
             )
+            if (plan.hasMemorySteps) {
+                Text(
+                    "The reference is hidden after the study time — you draw the rest from memory, " +
+                        "and it comes back at the end so you can compare.",
+                    style = MaterialTheme.typography.caption,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {

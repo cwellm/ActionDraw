@@ -30,6 +30,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -353,6 +354,10 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                     style = MaterialTheme.typography.subtitle1,
                     fontWeight = FontWeight.Bold,
                     color = accent ?: MaterialTheme.colors.onBackground,
+                    // The name selects the section's cards, as a group's label does on the canvas.
+                    modifier = if (group == null) Modifier else Modifier
+                        .testTag("group-header-" + group.id)
+                        .clickable { state.selectGroup(group.id) },
                 )
                 Spacer(Modifier.weight(1f))
                 if (count > 0) {

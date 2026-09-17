@@ -60,6 +60,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.testTag
+import de.creaflect.actiondraw.samePathAs
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
 @Composable
@@ -67,7 +72,7 @@ fun BoardDialogs(state: BoardState) {
     when (val editor = state.editor) {
         null -> {}
 
-        BoardEditor.NewBoard -> NewBoardDialog(state)
+        is BoardEditor.NewBoard -> NewBoardDialog(state, editor.under)
 
         is BoardEditor.DeleteBoard -> DeleteBoardDialog(state, editor)
 
@@ -102,6 +107,8 @@ fun BoardDialogs(state: BoardState) {
         is BoardEditor.EditLink -> LinkDialog(state, editor.itemId)
 
         is BoardEditor.FetchPreview -> FetchPreviewDialog(state, editor.itemId)
+
+        is BoardEditor.MoveBoard -> MoveBoardDialog(state, editor.dir, editor.name)
 
         is BoardEditor.ShowPalette -> PaletteDialog(state, editor.itemIds)
 
@@ -288,6 +295,75 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
 }
 
 /**
+ * Where a board should sit in the tree. Nesting is where the folder is, so choosing here moves
+ * the folder — with its pictures and any boards inside it. Nothing is lost either way, which is
+ * why picking a destination is confirmation enough.
+ */
+@Composable
+private fun MoveBoardDialog(state: BoardState, dir: File, name: String) {
+    val targets by produceState(emptyList<BoardState.BoardNode>(), dir) {
+        value = withContext(Dispatchers.IO) { state.moveTargets(dir) }
+    }
+    val home = state.boardsHome()
+    val currentParent = dir.absoluteFile.parentFile
+    val scope = rememberCoroutineScope()
+
+    fun moveTo(target: File?) {
+        scope.launch {
+            withContext(Dispatchers.IO) { state.moveBoard(dir, target) }
+            state.closeEditor()
+        }
+    }
+
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Move \"$name\"", style = MaterialTheme.typography.h6)
+        Text(
+            "Its folder moves too, along with everything in it — pictures and any boards nested " +
+                "inside. You can move it again at any time.",
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.75f),
+        )
+        Column(Modifier.fillMaxWidth().heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
+            MoveTarget(
+                label = "Top level",
+                depth = 0,
+                here = currentParent?.samePathAs(home) == true,
+                tag = "move-to-top",
+            ) { moveTo(null) }
+            targets.forEach { node ->
+                MoveTarget(
+                    label = node.name,
+                    depth = node.depth + 1,
+                    here = currentParent?.samePathAs(node.dir) == true,
+                    tag = "move-to-" + node.name,
+                ) { moveTo(node.dir) }
+            }
+        }
+        // No confirm button: picking a destination is the action.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = state::closeEditor) { Text("Cancel") }
+        }
+    }
+}
+
+/** One destination row; the board's current home is shown but cannot be chosen again. */
+@Composable
+private fun MoveTarget(label: String, depth: Int, here: Boolean, tag: String, onPick: () -> Unit) {
+    Text(
+        "    ".repeat(depth) + label + if (here) "   (where it is now)" else "",
+        style = MaterialTheme.typography.body2,
+        color = if (here) MaterialTheme.colors.onSurface.copy(alpha = 0.4f) else MaterialTheme.colors.onSurface,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(4.dp))
+            .then(if (here) Modifier else Modifier.testTag(tag).clickable { onPick() })
+            .padding(horizontal = 8.dp, vertical = 7.dp),
+    )
+}
+
+/**
  * Fetching a preview is the only thing in ActionDraw that leaves the machine, so it asks first
  * and says plainly what that means.
  */
@@ -386,7 +462,9 @@ private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard
         Text(
             if (alsoFolder) {
                 "The folder and everything in it is deleted, including " +
-                    "${editor.pictures} picture(s). This cannot be undone."
+                    "${editor.pictures} picture(s)" +
+                    (if (editor.subBoards > 0) " and ${editor.subBoards} board(s) nested inside it" else "") +
+                    ". This cannot be undone."
             } else if (editor.ownsFolder) {
                 "The board is removed, but the folder ActionDraw made for it stays behind with " +
                     "its ${editor.pictures} picture(s)."
@@ -421,13 +499,20 @@ private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NewBoardDialog(state: BoardState) {
+private fun NewBoardDialog(state: BoardState, under: File?) {
     var name by remember { mutableStateOf("") }
-    var location by remember { mutableStateOf(state.boardsHome()) }
+    var location by remember { mutableStateOf(under ?: state.boardsHome()) }
     var error by remember { mutableStateOf<String?>(null) }
     var template by remember { mutableStateOf(BoardTemplate.ALL.first()) }
     DialogScrim(onDismiss = state::closeEditor) {
-        Text("New Idea Board", style = MaterialTheme.typography.h6)
+        Text(if (under == null) "New Idea Board" else "New sub-board", style = MaterialTheme.typography.h6)
+        if (under != null) {
+            Text(
+                "It will live inside ${under.name}, and show under it in the board list.",
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+            )
+        }
         OutlinedTextField(
             value = name,
             onValueChange = { name = it },

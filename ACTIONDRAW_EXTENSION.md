@@ -6,6 +6,13 @@
 > The feature is named **Idea Board**; the Phase-1 shape lives in
 > [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and progress is tracked in
 > [ROADMAP.md](ROADMAP.md).
+>
+> **Update (2026-09-17):** this remains the record of the exploration and is deliberately left as
+> it was written — including the guesses that turned out wrong. Nearly all of §3.3's tables have
+> since been built, the "keep out of v1" items included: web thumbnails became an explicit
+> *Fetch preview* on a link card, and the freeform canvas arrived in M1-F rather than as a
+> moonshot. What is actually built is [ROADMAP.md](ROADMAP.md); what is next is the *Where next*
+> section of [IDEAS.md](IDEAS.md).
 
 ## 1. The idea
 
