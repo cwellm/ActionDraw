@@ -24,6 +24,8 @@ import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
 import java.io.File
+import de.creaflect.actiondraw.concept.ConceptHost
+import de.creaflect.actiondraw.concept.ConceptState
 
 fun main() = application {
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
@@ -40,6 +42,14 @@ fun main() = application {
             override fun showBoardList() = appState.showBoardList()
             override fun leaveBoard() = appState.leaveBoard()
             override fun currentSetup(): SessionSetup = appState.currentSetup()
+        })
+    }
+    // Concepts talk to the rest of the app through the same kind of seam.
+    val conceptState = remember {
+        ConceptState(settings, object : ConceptHost {
+            override fun showConcepts() = appState.showConcepts()
+            override fun showConcept() = appState.showConcept()
+            override fun leaveConcepts() = appState.leaveConcepts()
         })
     }
     // Lets a running session file pictures away on a board, without the session knowing what a
@@ -60,11 +70,12 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         title = "ActionDraw",
         state = windowState,
-        onKeyEvent = { handleKey(it, appState, boardState, windowState) },
+        onKeyEvent = { handleKey(it, appState, boardState, conceptState, windowState) },
     ) {
         App(
             appState,
             boardState,
+            conceptState,
             thumbs,
             pinTargets,
             isFullscreen = isFullscreen,
@@ -130,9 +141,26 @@ private fun handleKey(
     event: KeyEvent,
     state: AppState,
     boardState: BoardState,
+    conceptState: ConceptState,
     windowState: WindowState,
 ): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
+    // A concept dialog owns the keyboard; Esc closes it, and on the concept screens Esc goes up.
+    if (conceptState.editor != null) {
+        if (event.key == Key.Escape) {
+            conceptState.closeEditor()
+            return true
+        }
+        return false
+    }
+    if (state.screen == Screen.Concept && event.key == Key.Escape) {
+        conceptState.closeConcept()
+        return true
+    }
+    if (state.screen == Screen.Concepts && event.key == Key.Escape) {
+        conceptState.leaveList()
+        return true
+    }
     // A board dialog may be open on any screen (the board picker lives on the menu): Esc closes
     // it, everything else stays with the dialog's text fields.
     if (boardState.editor != null) {
