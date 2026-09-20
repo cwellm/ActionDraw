@@ -124,9 +124,12 @@ still have an ordinary folder of images; the board never renames, moves or delet
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
     `Shift`+drag pulls a rubber band over several cards, and dragged cards snap to their
     neighbours' centre lines (toggle with the **Snap** chip).
-    Groups show as a tinted, outlined area with a name label: click the area (or the label) to
-    select the whole group, drag the area to move it as one, drag a card inside it to move just
-    that card, and right-click the area to draw, rename, recolour or delete it. The label stays
+    Groups show as a tinted, outlined frame with a name label. The frame is shaped to the cards
+    — the union of their padded boxes, so an L-shaped arrangement gets an L-shaped frame and
+    two clusters get two lobes joined by a thin bridge — and only the frame answers: click it
+    (or the label) to select the whole group, drag it to move the group as one, drag a card
+    inside it to move just that card, and right-click it to draw, rename, recolour or delete
+    it. A click in the empty corner of an L lands on the board, not the group. The label stays
     in view even when the group runs off the edge of the window. Grouped cards carry a small dot
     in their group's colour. A group only shows once it holds something.
 - **Note cards** (`N`) in a small Markdown: `# headings`, `**bold**`, `*italic*`, `` `code` ``,

@@ -67,6 +67,15 @@ import kotlinx.coroutines.withContext
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.roundToInt
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.input.pointer.positionChange
 
 /**
  * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
@@ -449,7 +458,17 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
     val y = (hull.top - state.camY) * zoom + viewSize.height / 2f
     val w = (hull.right - hull.left) * zoom
     val h = (hull.bottom - hull.top) * zoom
-    val shape = RoundedCornerShape(10.dp)
+    val nested = hull.group.parentId != null
+
+    // The frame's shape in the area's own pixels: the union of the padded boxes and bridges,
+    // each a rounded rectangle. Built once per hull geometry and zoom, then both drawn and
+    // hit-tested, so what shows is exactly what answers a click.
+    val shape = remember(hull.boxes, hull.bridges, zoom) {
+        frameShape(hull.boxes + hull.bridges, originX = hull.left, originY = hull.top, zoom = zoom)
+    }
+    val composePath = remember(shape) { shape.asComposePath() }
+    val fill = accent.copy(alpha = if (nested) 0.10f else 0.14f)
+    val stroke = with(density) { (if (nested) 1.dp else 2.dp).toPx() }
 
     ContextMenuArea(items = {
         listOf(
@@ -467,30 +486,57 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                     translationX = x
                     translationY = y
                 }
-                .clip(shape)
-                // A subgroup sits on its parent's tint, so it is drawn lighter with a dashed feel
-                // to its edge -- inside something, not beside it.
-                .background(accent.copy(alpha = if (hull.group.parentId != null) 0.10f else 0.14f))
-                .border(if (hull.group.parentId != null) 1.dp else 2.dp, accent.copy(alpha = 0.7f), shape)
-                // Clicking anywhere the group shows through picks the whole group up. The label
-                // used to be the only way, which meant a group whose corner had scrolled off the
-                // view could not be selected at all.
-                .pointerInput(hull.group.id) {
-                    detectTapGestures { state.selectGroup(hull.group.id) }
+                .drawBehind {
+                    drawPath(composePath, fill)
+                    drawPath(composePath, accent.copy(alpha = 0.7f), style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round))
                 }
-                // Dragging the area moves the group as one. The selection is deliberately left
-                // alone, so dragging a single card afterwards still moves only that card.
-                .pointerInput(hull.group.id) {
-                    detectDragGestures(
-                        onDrag = { change, drag ->
+                // Clicking the frame picks the group up; dragging it moves the group as one. A
+                // press outside the shape -- in the empty notch of an L, say -- is not the
+                // group's business and falls through to whatever is under it.
+                .pointerInput(shape, hull.group.id) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        if (!shape.contains(down.position.x, down.position.y)) return@awaitEachGesture
+                        down.consume()
+                        var moved = false
+                        val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
                             change.consume()
-                            state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
-                        },
-                        onDragEnd = { state.commitLayout() },
-                    )
+                            moved = true
+                            state.dragGroupBy(hull.group.id, over.x / state.zoom, over.y / state.zoom)
+                        }
+                        if (slop != null) {
+                            drag(slop.id) { change ->
+                                val delta = change.positionChange()
+                                change.consume()
+                                state.dragGroupBy(hull.group.id, delta.x / state.zoom, delta.y / state.zoom)
+                            }
+                            state.commitLayout()
+                        } else if (!moved) {
+                            state.selectGroup(hull.group.id)
+                        }
+                    }
                 },
         )
     }
+}
+
+/**
+ * One Skia path for the union of [boxes] (board units), each a rounded rectangle, translated so
+ * that ([originX], [originY]) is the path's origin and scaled by [zoom] to pixels.
+ */
+internal fun frameShape(boxes: List<List<Float>>, originX: Float, originY: Float, zoom: Float): org.jetbrains.skia.Path {
+    val radius = 14f * zoom
+    var union: org.jetbrains.skia.Path? = null
+    for (box in boxes) {
+        val rect = org.jetbrains.skia.RRect.makeLTRB(
+            (box[0] - originX) * zoom, (box[1] - originY) * zoom,
+            (box[2] - originX) * zoom, (box[3] - originY) * zoom,
+            radius,
+        )
+        val piece = org.jetbrains.skia.Path().addRRect(rect)
+        union = if (union == null) piece else org.jetbrains.skia.Path.makeCombining(union, piece, org.jetbrains.skia.PathOp.UNION) ?: union
+    }
+    return union ?: org.jetbrains.skia.Path()
 }
 
 /**

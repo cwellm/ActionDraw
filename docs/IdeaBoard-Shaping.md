@@ -709,3 +709,33 @@ memberships and offered nothing, which the test caught.
 
 The `source` field went in at the same time, unused, so that concept groups (M7) do not change
 the sidecar's shape a second time; a test shows it round-trips.
+
+## 29. Frames shaped to the arrangement (2026-09-20)
+
+The bounding box was never the group; it was the cheapest thing that contained it. Three cards
+in an L got a rectangle a third empty, and the empty third answered clicks as if it were cards.
+
+The frame is now the union of the cards' padded boxes — each a rounded rectangle, combined with
+Skia's path ops — plus, where the union falls into pieces that do not touch, a thin bridge from
+one piece's nearest edge to the next's. Bridges go neighbour to neighbour in x-order, so three
+clusters get two bridges rather than three; the point of a bridge is that a group never looks
+like two groups, not that every piece is wired to every other.
+
+The rule that made it worth doing: **the drawn path is the hit-tested path.** `GroupArea` builds
+one Skia path, draws it, and gates its gesture on `path.contains(x, y)`; a press outside the
+shape is not consumed and falls through to the card or board beneath. §25's "what shows is what
+clicks" is now literally true rather than approximately.
+
+Two details worth recording. The boxes are padded *once*, in the state, so the union the canvas
+draws and the bounds the label and camera use agree on where the edge is — padding at both
+ends had them disagree by a band. And "touching" is decided on the padded boxes: two cards a
+whole card apart are one piece if their padding overlaps, two pieces with a bridge if not. The
+first version of the L test put the third card too far down, got a bridge, and failed its own
+precondition — the geometry was right and the test's idea of an L was wrong, which is the
+better way round.
+
+Subgroups compose: a parent's union takes its children's finished bounds in as one more box, so
+the parent's frame always encloses the child's, and the child is drawn on top of the parent's
+tint, lighter. The inner corners where rectangles meet stay sharp in this first build — the spec
+allowed either that or a blur-and-threshold, and the sharp version reads well enough that the
+extra pass is not worth its cost yet.

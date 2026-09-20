@@ -383,10 +383,15 @@ of ideas and inspiration; what daily use asked for.
   behaviours checked by reverting them — flattening, parent drag, dissolve-into-parent, the
   prune rule and the hull union
 
-### ⬜ F6.3 Frames shaped to the arrangement
-- ⬜ A group's frame is the union of its cards' padded boxes, one smooth outline, lobes with a
-  bridge when the cards sit apart; recomputed only when a member moves
-- ⬜ Hit-testing uses the same path, so what shows is what clicks
+### ✅ F6.3 Frames shaped to the arrangement
+- ✅ A group's frame is the union of its cards' padded boxes (and its subgroups' frames), drawn as
+  one Skia path of rounded rectangles; pieces that do not touch get a thin bridge between their
+  nearest edges, neighbour to neighbour, so a group in three clusters gets two bridges
+- ✅ The same path is hit-tested: a press outside the shape — the empty corner of an L — is not
+  the group's and falls through to whatever is under it; inside, a tap selects and a drag moves
+- ✅ The geometry (`FrameShape`) is pure and tested on its own; `FrameClickTest` clicks the notch
+  of an L on the real canvas and sees the group *not* selected — checked by letting the whole
+  bounding box answer again and watching it fail
 
 ### ⬜ F6.4 Custom board background
 - ⬜ A wallpaper per board, copied into `_wallpaper/`: cover / tile / centre, dim, blur; behind

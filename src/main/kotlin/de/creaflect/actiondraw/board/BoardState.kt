@@ -947,6 +947,10 @@ class BoardState(
         val right: Float,
         val bottom: Float,
         val count: Int,
+        /** The padded boxes the frame is the union of — the cards', plus any subgroup's bounds. */
+        val boxes: List<List<Float>> = emptyList(),
+        /** Thin connectors between pieces of the union that do not touch. */
+        val bridges: List<List<Float>> = emptyList(),
     )
 
     /** Padding between a group's cards and the edge of its hull, in board units. */
@@ -980,18 +984,23 @@ class BoardState(
             val ordered = sortedGroups.sortedBy { if (it.parentId == null) 1 else 0 }
             val hulls = ordered.mapNotNull { group ->
                 val index = sortedGroups.indexOf(group)
-                val boxes = boxesOf(group) + sortedGroups.filter { it.parentId == group.id }.mapNotNull { childHulls[it.id] }
-                if (boxes.isEmpty()) return@mapNotNull null
+                val raw = boxesOf(group) + sortedGroups.filter { it.parentId == group.id }.mapNotNull { childHulls[it.id] }
+                if (raw.isEmpty()) return@mapNotNull null
+                // Grown by the padding here, so the union the canvas draws and the bounds below
+                // agree on where the frame's edge is.
+                val boxes = raw.map { listOf(it[0] - hullPadding, it[1] - hullPadding, it[2] + hullPadding, it[3] + hullPadding) }
                 val members = shown.count { it.pos != null && it.groups.any { g -> g == group.id || groupById(g)?.parentId == group.id } }
                 GroupHull(
                     group = group,
                     // A group without its own accent still needs to be told apart from the next.
                     color = group.color ?: fallbackGroupColor(index),
-                    left = boxes.minOf { it[0] } - hullPadding,
-                    top = boxes.minOf { it[1] } - hullPadding,
-                    right = boxes.maxOf { it[2] } + hullPadding,
-                    bottom = boxes.maxOf { it[3] } + hullPadding,
+                    left = boxes.minOf { it[0] },
+                    top = boxes.minOf { it[1] },
+                    right = boxes.maxOf { it[2] },
+                    bottom = boxes.maxOf { it[3] },
                     count = members,
+                    boxes = boxes,
+                    bridges = FrameShape.bridges(boxes),
                 ).also { hull -> childHulls[group.id] = listOf(hull.left, hull.top, hull.right, hull.bottom) }
             }
             // Parents drawn first (underneath), then their subgroups on top of the tint.
