@@ -78,20 +78,20 @@ fun BoardDialogs(state: BoardState) {
 
         BoardEditor.EditSession -> SessionRecipeDialog(state)
 
-        BoardEditor.GroupSelection -> TextPromptDialog(
+        is BoardEditor.GroupSelection -> GroupPlacementDialog(
+            state = state,
             title = "Group ${state.selection.size} selected card(s)",
-            initial = "",
             confirm = "Group",
-            onOk = { state.groupSelection(it); state.closeEditor() },
-            onCancel = state::closeEditor,
+            initialParent = editor.parentId,
+            onOk = { name, parent -> state.groupSelection(name, parent); state.closeEditor() },
         )
 
-        BoardEditor.NewGroup -> TextPromptDialog(
+        is BoardEditor.NewGroup -> GroupPlacementDialog(
+            state = state,
             title = "New group",
-            initial = "",
             confirm = "Create",
-            onOk = { state.addGroup(it); state.closeEditor() },
-            onCancel = state::closeEditor,
+            initialParent = editor.parentId,
+            onOk = { name, parent -> state.addGroup(name, parent); state.closeEditor() },
         )
 
         is BoardEditor.RenameGroup -> TextPromptDialog(
@@ -563,6 +563,48 @@ private fun NewBoardDialog(state: BoardState, under: File?) {
         DialogButtons(
             confirm = "Create",
             onOk = { error = state.createBoard(location, name, template) }, // success also closes
+            onCancel = state::closeEditor,
+        )
+    }
+}
+
+/**
+ * A name, and where the group goes: the top level, or inside one of the top-level groups. One
+ * level only, so only top-level groups are offered — a subgroup cannot hold subgroups.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupPlacementDialog(
+    state: BoardState,
+    title: String,
+    confirm: String,
+    initialParent: String?,
+    onOk: (String, String?) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var parent by remember { mutableStateOf(initialParent) }
+    val parents = state.possibleParents(null)
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text(title, style = MaterialTheme.typography.h6)
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("group-name"),
+        )
+        if (parents.isNotEmpty()) {
+            Text("Inside", style = MaterialTheme.typography.caption)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SelectChip("Top level", parent == null) { parent = null }
+                parents.forEach { candidate ->
+                    SelectChip(candidate.name, parent == candidate.id) { parent = candidate.id }
+                }
+            }
+        }
+        DialogButtons(
+            confirm = confirm,
+            onOk = { onOk(name, parent) },
             onCancel = state::closeEditor,
         )
     }

@@ -321,13 +321,14 @@ internal fun noteInk(item: NoteItem, textured: Boolean): Color =
 @Composable
 fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: Boolean = false) {
     val accent = accentOf(state, group)
+    val nested = group?.parentId != null
     val row: @Composable () -> Unit = {
-        Column {
+        Column(Modifier.padding(start = if (nested) 22.dp else 0.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp, bottom = 2.dp)
+                    .padding(top = if (nested) 6.dp else 14.dp, bottom = 2.dp)
                     .background(
                         if (dropTarget) MaterialTheme.colors.primary.copy(alpha = 0.18f) else Color.Transparent,
                         RoundedCornerShape(4.dp),
@@ -349,8 +350,8 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                     }
                 }
                 Text(
-                    "${group?.name ?: "Inbox"} ($count)",
-                    style = MaterialTheme.typography.subtitle1,
+                    (if (nested) "↳ " else "") + "${group?.name ?: "Inbox"} ($count)",
+                    style = if (nested) MaterialTheme.typography.subtitle2 else MaterialTheme.typography.subtitle1,
                     fontWeight = FontWeight.Bold,
                     color = accent ?: MaterialTheme.colors.onBackground,
                     // The name selects the section's cards, as a group's label does on the canvas.
@@ -359,8 +360,9 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                         .clickable { state.selectGroup(group.id) },
                 )
                 Spacer(Modifier.weight(1f))
-                if (count > 0) {
-                    OutlinedButton(onClick = { state.drawGroup(group?.id) }) { Text("Draw $count") }
+                val drawable = if (group == null) count else state.itemsInTree(group.id).size
+                if (drawable > 0) {
+                    OutlinedButton(onClick = { state.drawGroup(group?.id) }) { Text("Draw $drawable") }
                 }
             }
             // A hairline in the group's colour ties its cards to the header above them.
@@ -379,13 +381,25 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
     }
 }
 
-private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMenuItem> = listOf(
-    ContextMenuItem("Rename…") { state.openEditor(BoardEditor.RenameGroup(group.id)) },
-    ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) },
-    ContextMenuItem("Move up") { state.moveGroup(group.id, -1) },
-    ContextMenuItem("Move down") { state.moveGroup(group.id, +1) },
-    ContextMenuItem("Delete group (cards → Inbox)") { state.deleteGroup(group.id) },
-)
+private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMenuItem> = buildList {
+    add(ContextMenuItem("Rename…") { state.openEditor(BoardEditor.RenameGroup(group.id)) })
+    add(ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) })
+    add(ContextMenuItem("Move up") { state.moveGroup(group.id, -1) })
+    add(ContextMenuItem("Move down") { state.moveGroup(group.id, +1) })
+    // One level of nesting: a group can go inside a top-level group, or back out to the top.
+    state.possibleParents(group.id).filter { it.id != group.parentId }.forEach { parent ->
+        add(ContextMenuItem("Move into ${parent.name}") { state.setGroupParent(group.id, parent.id) })
+    }
+    if (group.parentId != null) {
+        add(ContextMenuItem("Make top-level") { state.setGroupParent(group.id, null) })
+        add(ContextMenuItem("New subgroup here…") { state.openEditor(BoardEditor.NewGroup(group.parentId)) })
+    } else {
+        add(ContextMenuItem("New subgroup inside…") { state.openEditor(BoardEditor.NewGroup(group.id)) })
+    }
+    add(ContextMenuItem(if (group.parentId == null) "Delete group (cards → Inbox)" else "Dissolve (cards → parent)") {
+        state.ungroup(group.id)
+    })
+}
 
 /** Shows how a picture stands with the practice side: flagged to redo, drawn, or never drawn. */
 @Composable

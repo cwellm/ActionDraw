@@ -316,13 +316,14 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
             }
         }
         state.sections.forEach { (group, itemsInGroup) ->
-            if (group != null || itemsInGroup.isNotEmpty()) {
+            // A subgroup's header hides with its parent's cards when the parent is collapsed.
+            if ((group != null || itemsInGroup.isNotEmpty()) && state.groupById(group?.parentId)?.collapsed != true) {
                 val headerKey = GridReorder.headerKey(group?.id ?: "inbox")
                 item(key = headerKey, span = { GridItemSpan(maxLineSpan) }) {
                     GroupHeader(state, group, itemsInGroup.size, dropTarget = reorder.targetKey == headerKey)
                 }
             }
-            if (group?.collapsed != true) {
+            if (!state.isFolded(group)) {
                 val section = group?.id ?: "inbox"
                 items(itemsInGroup, key = { GridReorder.cellKey(section, it.id) }) { item ->
                     BoardCard(

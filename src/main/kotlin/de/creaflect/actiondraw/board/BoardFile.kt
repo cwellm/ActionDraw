@@ -65,6 +65,17 @@ data class BoardGroup(
     val color: String? = null,
     val order: Int = 0,
     val collapsed: Boolean = false,
+    /**
+     * The group this one sits inside, or null at the top level. Exactly one level is allowed —
+     * a subgroup cannot hold subgroups — and [BoardStore.validate] flattens anything deeper.
+     */
+    val parentId: String? = null,
+    /**
+     * Where the group's cards come from when they are not the board's own: reserved for a linked
+     * concept (`concept:<id>`), whose group cannot be dissolved from the board. Null for every
+     * group the board made itself.
+     */
+    val source: String? = null,
 )
 
 /**

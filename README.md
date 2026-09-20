@@ -139,7 +139,14 @@ still have an ordinary folder of images; the board never renames, moves or delet
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
-  them. In grid mode a section's name selects that group's cards — the way to group on the canvas. With nothing selected the same command starts an empty
+  them. In grid mode a section's name selects that group's cards
+- **Subgroups**, one level deep: when you group a selection or make a new group, the dialog
+  offers *Inside…* a top-level group; a group's menu has *Move into…* and *Make top-level*. A
+  subgroup is an indented section under its parent in grid mode and a lighter area inside the
+  parent's on the canvas. The parent counts, draws, selects and drags its subgroups' cards as
+  its own; collapsing the parent folds them away. *Dissolve* on a subgroup lifts its cards into
+  the parent; deleting a parent lifts its subgroups to the top level. Anything deeper than one
+  level in a board file is flattened on load — the way to group on the canvas. With nothing selected the same command starts an empty
   group. `Ctrl`+`Shift`+`G` takes cards back out, and a group left holding nothing disappears by
   itself.
 - **Contents drawer** (`Ctrl`+`D`, or the *Contents* button): everything on the board as a list,

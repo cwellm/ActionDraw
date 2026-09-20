@@ -367,13 +367,21 @@ of ideas and inspiration; what daily use asked for.
 - ✅ Found on the way: a lone new card was placed two widths off the left of the screen, because
   the placer centred a row of five whatever the count; it now centres over the cards it places
 
-### ⬜ F6.2 One level of subgroups
-- ⬜ `BoardGroup.parentId`, depth limited to one on load; `source` reserved for concept groups
-- ⬜ Grid: nested sections, collapsing with the parent · Free: the subgroup's frame inside the
-  parent's, the parent moving everything
-- ⬜ A card in a subgroup counts as in the parent for draw, count and select; ungrouping lifts
-  into the parent
-- ⬜ "Group the selection" offers "as a subgroup of X"; "Move into…" for existing groups
+### ✅ F6.2 One level of subgroups
+- ✅ `BoardGroup.parentId`, flattened to one level on load (a missing or nested parent is
+  dropped, lifting the group rather than losing it); `source` reserved for concept groups and
+  shown to round-trip
+- ✅ Grid: a subgroup is an indented section under its parent and folds with it · Free: its
+  area sits lighter inside the parent's, whose hull takes the child's hull in; dragging the
+  parent moves everything, dragging the subgroup only itself
+- ✅ A parent counts, draws and selects its subgroups' cards as its own; dissolving a subgroup
+  lifts its cards into the parent; deleting a parent lifts its subgroups to the top level; a
+  parent holding only a subgroup is not pruned as empty
+- ✅ Grouping a selection offers *Inside…* with the group the cards already share under
+  pre-picked; *Move into…* / *Make top-level* / *New subgroup…* on a group's menu and the drawer
+- ✅ Covered by `SubgroupTest` (fourteen cases) and `SubgroupGridTest` on the real screen; five
+  behaviours checked by reverting them — flattening, parent drag, dissolve-into-parent, the
+  prune rule and the hull union
 
 ### ⬜ F6.3 Frames shaped to the arrangement
 - ⬜ A group's frame is the union of its cards' padded boxes, one smooth outline, lobes with a

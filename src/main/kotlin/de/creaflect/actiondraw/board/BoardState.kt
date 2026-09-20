@@ -40,10 +40,12 @@ sealed class BoardEditor {
 
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
-    data object NewGroup : BoardEditor()
+    /** [parentId] nests the new group inside an existing top-level group. */
+    data class NewGroup(val parentId: String? = null) : BoardEditor()
 
     /** Names a group made out of whatever is selected. */
-    data object GroupSelection : BoardEditor()
+    /** [parentId] nests the group made from the selection inside an existing top-level group. */
+    data class GroupSelection(val parentId: String? = null) : BoardEditor()
     data class RenameGroup(val groupId: String) : BoardEditor()
 
     /** `itemId == null` creates a new note. */
@@ -370,17 +372,48 @@ class BoardState(
             .filter { if (groupId == null) it.groups.isEmpty() else groupId in it.groups }
             .filter(::visible)
 
-    /** Inbox first, then the groups by order — the board's display structure. */
+    // ---- One level of subgroups ----
+
+    fun groupById(id: String?): BoardGroup? = id?.let { g -> sortedGroups.find { it.id == g } }
+
+    /** The group [id] sits inside, if any. */
+    fun parentOf(id: String): BoardGroup? = groupById(groupById(id)?.parentId)
+
+    /** Groups directly inside [parentId] (null = the top level), in order. */
+    fun subgroupsOf(parentId: String?): List<BoardGroup> = sortedGroups.filter { it.parentId == parentId }
+
+    /** A group's cards *and* its subgroups' cards: what "draw the group" and its count mean. */
+    fun itemsInTree(groupId: String): List<BoardItem> =
+        itemsIn(groupId) + subgroupsOf(groupId).flatMap { itemsIn(it.id) }
+
+    /** Top-level groups a group could be moved into — not itself, and none that has subgroups
+     *  of its own if the group in question holds any, since the tree stays one level deep. */
+    fun possibleParents(groupId: String?): List<BoardGroup> =
+        subgroupsOf(null).filter { candidate ->
+            candidate.id != groupId && (groupId == null || subgroupsOf(groupId).isEmpty())
+        }
+
+    /**
+     * Inbox first, then each top-level group followed by its subgroups — the board's display
+     * structure, which is also why a subgroup sits right under its parent in grid mode.
+     */
     val sections: List<Pair<BoardGroup?, List<BoardItem>>>
         get() {
             val result = mutableListOf<Pair<BoardGroup?, List<BoardItem>>>(null to itemsIn(null))
-            sortedGroups.forEach { result += it to itemsIn(it.id) }
+            subgroupsOf(null).forEach { parent ->
+                result += parent to itemsIn(parent.id)
+                subgroupsOf(parent.id).forEach { child -> result += child to itemsIn(child.id) }
+            }
             return result
         }
 
     /** Flattened display order (collapsed groups excluded) — basis for range select and focus. */
     val visibleOrder: List<BoardItem>
-        get() = sections.flatMap { (group, items) -> if (group?.collapsed == true) emptyList() else items }
+        get() = sections.flatMap { (group, items) -> if (isFolded(group)) emptyList() else items }
+
+    /** A section is folded when its group, or the group above it, is collapsed. */
+    fun isFolded(group: BoardGroup?): Boolean =
+        group != null && (group.collapsed || groupById(group.parentId)?.collapsed == true)
 
     /** The freeform canvas' items (tag filter applied), in z-order (last = frontmost). */
     val freeItems: List<BoardItem>
@@ -617,13 +650,29 @@ class BoardState(
 
     // Groups
 
-    fun addGroup(name: String) {
+    fun addGroup(name: String, parentId: String? = null) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
+        val parent = parentId?.takeIf { groupById(it)?.parentId == null } // one level, no deeper
         update { b ->
             val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
-            b.copy(groups = b.groups + BoardGroup(id = Importer.newId(), name = trimmed, order = order))
+            b.copy(groups = b.groups + BoardGroup(id = Importer.newId(), name = trimmed, order = order, parentId = parent))
         }
+    }
+
+    /**
+     * Puts a group inside [parentId], or at the top level with null. Refused when it would make
+     * the tree deeper than one level: a group that has subgroups cannot become one, and a
+     * subgroup cannot be the parent.
+     */
+    fun setGroupParent(id: String, parentId: String?): Boolean {
+        if (parentId == id) return false
+        if (parentId != null) {
+            if (groupById(parentId)?.parentId != null) return false
+            if (subgroupsOf(id).isNotEmpty()) return false
+        }
+        update { b -> b.copy(groups = b.groups.map { if (it.id == id) it.copy(parentId = parentId) else it }) }
+        return true
     }
 
     fun renameGroup(id: String, name: String) {
@@ -652,10 +701,13 @@ class BoardState(
         b.copy(groups = ordered.mapIndexed { i, g -> g.copy(order = i + 1) })
     }
 
-    /** Removes the group; its items simply lose the membership and fall back into the Inbox. */
+    /**
+     * Removes the group; its own cards fall back into the Inbox, and any subgroups it held move
+     * up to the top level with their cards, since nothing about *them* was deleted.
+     */
     fun deleteGroup(id: String) = update { b ->
         b.copy(
-            groups = b.groups.filterNot { it.id == id },
+            groups = b.groups.filterNot { it.id == id }.map { if (it.parentId == id) it.copy(parentId = null) else it },
             items = b.items.map { if (id in it.groups) it.withGroups(it.groups - id) else it },
         )
     }
@@ -667,19 +719,34 @@ class BoardState(
      * there are no sections to drop things into. Returns the new group's id, or null if nothing
      * was selected.
      */
-    fun groupSelection(name: String): String? {
+    fun groupSelection(name: String, parentId: String? = null): String? {
         val ids = selection
         if (ids.isEmpty()) return null
         val id = Importer.newId()
         val trimmed = name.trim().ifEmpty { "Group" }
+        val parent = parentId?.takeIf { groupById(it)?.parentId == null }
         update { b ->
             val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
             b.copy(
-                groups = b.groups + BoardGroup(id = id, name = trimmed, order = order),
+                groups = b.groups + BoardGroup(id = id, name = trimmed, order = order, parentId = parent),
                 items = b.items.map { if (it.id in ids) it.withGroups(listOf(id)) else it },
             )
         }
+        pruneEmptyGroups()
         return id
+    }
+
+    /**
+     * The group the selected cards would naturally nest under: the one top-level group they all
+     * belong to, if there is one. Offered as the default when grouping a selection.
+     */
+    fun sharedParentOfSelection(): BoardGroup? {
+        // Each card's group, resolved up to the top level: a card in Membran is under Flügel too.
+        val tops = selection.mapNotNull { id ->
+            val group = groupById(item(id)?.groups?.firstOrNull()) ?: return@mapNotNull null
+            if (group.parentId == null) group else groupById(group.parentId)
+        }.toSet()
+        return tops.singleOrNull()
     }
 
     /**
@@ -688,7 +755,10 @@ class BoardState(
      * group while cards were selected) was a trap.
      */
     fun startGrouping() {
-        openEditor(if (selection.isEmpty()) BoardEditor.NewGroup else BoardEditor.GroupSelection)
+        openEditor(
+            if (selection.isEmpty()) BoardEditor.NewGroup()
+            else BoardEditor.GroupSelection(sharedParentOfSelection()?.id),
+        )
     }
 
     /** Takes the given cards out of every group they are in; the cards themselves stay put. */
@@ -698,8 +768,25 @@ class BoardState(
         pruneEmptyGroups()
     }
 
-    /** Dissolves a group: the group disappears, its cards stay exactly where they are. */
-    fun ungroup(groupId: String) = deleteGroup(groupId)
+    /**
+     * Dissolves a group: the group disappears, its cards stay exactly where they are — inside
+     * the parent, when the group was a subgroup, since that is the group they were in as well.
+     */
+    fun ungroup(groupId: String) {
+        val parent = groupById(groupId)?.parentId
+        if (parent == null) {
+            deleteGroup(groupId)
+        } else {
+            update { b ->
+                b.copy(
+                    groups = b.groups.filterNot { it.id == groupId },
+                    items = b.items.map {
+                        if (groupId in it.groups) it.withGroups((it.groups - groupId + parent).distinct()) else it
+                    },
+                )
+            }
+        }
+    }
 
     /**
      * Drops groups that no longer hold anything. Without this, ungrouping would leave empty
@@ -707,7 +794,8 @@ class BoardState(
      */
     private fun pruneEmptyGroups() = update { b ->
         val used = b.items.flatMap { it.groups }.toSet()
-        b.copy(groups = b.groups.filter { it.id in used })
+        val parentsInUse = b.groups.filter { it.id in used }.mapNotNull { it.parentId }.toSet()
+        b.copy(groups = b.groups.filter { it.id in used || it.id in parentsInUse })
     }
 
     fun moveToGroup(ids: Set<String>, groupId: String?) = update { b ->
@@ -881,14 +969,20 @@ class BoardState(
     val groupHulls: List<GroupHull>
         get() {
             val shown = freeItems
-            return sortedGroups.mapIndexedNotNull { index, group ->
-                val members = shown.filter { group.id in it.groups && it.pos != null }
-                if (members.isEmpty()) return@mapIndexedNotNull null
-                val boxes = members.map { item ->
+            // Subgroups first, so a parent can take its children's finished hulls into its own.
+            val childHulls = mutableMapOf<String, List<Float>>()
+            fun boxesOf(group: BoardGroup): List<List<Float>> =
+                shown.filter { group.id in it.groups && it.pos != null }.map { item ->
                     val pos = item.pos!!
                     val (halfW, halfH) = halfSizeOf(item)
                     listOf(pos.x - halfW, pos.y - halfH, pos.x + halfW, pos.y + halfH)
                 }
+            val ordered = sortedGroups.sortedBy { if (it.parentId == null) 1 else 0 }
+            val hulls = ordered.mapNotNull { group ->
+                val index = sortedGroups.indexOf(group)
+                val boxes = boxesOf(group) + sortedGroups.filter { it.parentId == group.id }.mapNotNull { childHulls[it.id] }
+                if (boxes.isEmpty()) return@mapNotNull null
+                val members = shown.count { it.pos != null && it.groups.any { g -> g == group.id || groupById(g)?.parentId == group.id } }
                 GroupHull(
                     group = group,
                     // A group without its own accent still needs to be told apart from the next.
@@ -897,9 +991,11 @@ class BoardState(
                     top = boxes.minOf { it[1] } - hullPadding,
                     right = boxes.maxOf { it[2] } + hullPadding,
                     bottom = boxes.maxOf { it[3] } + hullPadding,
-                    count = members.size,
-                )
+                    count = members,
+                ).also { hull -> childHulls[group.id] = listOf(hull.left, hull.top, hull.right, hull.bottom) }
             }
+            // Parents drawn first (underneath), then their subgroups on top of the tint.
+            return hulls.sortedBy { if (it.group.parentId == null) 0 else 1 }
         }
 
     /** The colour a group is drawn in: its own accent, or a distinct one derived from its place. */
@@ -918,9 +1014,10 @@ class BoardState(
 
     /** Moves every card of a group together — the group behaves as one object. */
     fun dragGroupBy(groupId: String, dx: Float, dy: Float) = updateTransient { b ->
+        val inTree = setOf(groupId) + b.groups.filter { it.parentId == groupId }.map { it.id }
         b.copy(items = b.items.map { item ->
             val pos = item.pos
-            if (groupId in item.groups && pos != null) {
+            if (item.groups.any { it in inTree } && pos != null) {
                 item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
             } else {
                 item
@@ -930,7 +1027,8 @@ class BoardState(
 
     /** Selects a whole group — clicking its label picks the group up as a unit. */
     fun selectGroup(groupId: String) {
-        val ids = freeItems.filter { groupId in it.groups }.map { it.id }
+        val inTree = setOf(groupId) + subgroupsOf(groupId).map { it.id }
+        val ids = freeItems.filter { it.groups.any { g -> g in inTree } }.map { it.id }
         selection = ids.toSet()
         focusId = ids.firstOrNull()
     }
@@ -1398,7 +1496,7 @@ class BoardState(
     fun drawSelection() = draw(selectedImageFiles)
 
     fun drawGroup(groupId: String?) =
-        draw(itemsIn(groupId).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
+        draw((if (groupId == null) itemsIn(null) else itemsInTree(groupId)).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
 
     /** Draw exactly these cards — used by the smart sections' Draw buttons. */
     fun drawItems(items: List<BoardItem>) =

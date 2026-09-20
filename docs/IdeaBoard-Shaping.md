@@ -681,3 +681,31 @@ the fix is a line: centre the row over the cards actually in it.
 `NoteLinkTest` clicks the link on the real canvas and sees `openUrl` called; making the link
 inert fails it. Search now matches the words rather than the markup, though that wiring is a
 single line and was not mutation-checked — noted here so it is not mistaken for tested.
+
+## 28. One level of subgroups (2026-09-20)
+
+The model change is one field, `parentId`, and the limit is enforced in three places on
+purpose: at creation (a parent that is itself a subgroup is ignored), at re-parenting (refused
+both ways — a group with children cannot become a child, a child cannot become a parent), and on
+load (`BoardStore.oneLevelDeep` drops a parent that is missing or nested, lifting the group to
+the top rather than losing its cards). Three places rather than one because a board file is
+plain JSON that anyone, including a future version, may write; the load-time rule is the one
+that actually protects the cards, and the others keep the UI from ever producing something the
+loader would then quietly undo.
+
+What "in the group" means once there is a tree was the real design work, and it comes down to
+one rule: **a parent owns its subgroups' cards for everything that acts on the group, and only
+its own cards for everything that files them.** Draw, count, select, drag, collapse — the tree.
+Sections, the drawer's item rows, "move to group" — the group itself. The hull follows the same
+rule structurally: a parent's hull takes its children's *finished* hulls in as boxes, computed
+children-first, so the parent always encloses them and is drawn underneath.
+
+Two smaller decisions. Dissolving a subgroup lifts its cards into the parent — that is the group
+they were in as well, and dropping them to the Inbox would have been a surprise. Deleting a
+parent lifts its subgroups to the top level: nothing about *them* was deleted. And the "shared
+parent" offered when grouping a selection resolves each card up to the top level first, so a card
+in Flügel and one in Membran both count as "under Flügel" — the first version compared raw
+memberships and offered nothing, which the test caught.
+
+The `source` field went in at the same time, unused, so that concept groups (M7) do not change
+the sidecar's shape a second time; a test shows it round-trips.

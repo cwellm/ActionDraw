@@ -85,12 +85,22 @@ fun BoardDrawer(state: BoardState, thumbs: ThumbCache) {
             }
 
             LazyColumn(Modifier.fillMaxSize().padding(horizontal = 6.dp)) {
-                state.sortedGroups.forEach { group ->
+                state.subgroupsOf(null).forEach { group ->
                     val items = state.itemsIn(group.id)
-                    item(key = "g-${group.id}") { DrawerGroupRow(state, group, items.size) }
+                    item(key = "g-${group.id}") { DrawerGroupRow(state, group, state.itemsInTree(group.id).size) }
                     if (group.id !in state.drawerCollapsed) {
                         items(items.size, key = { i -> "gi-${group.id}-${items[i].id}" }) { i ->
                             DrawerItemRow(state, thumbs, items[i], indented = true)
+                        }
+                        // Its subgroups, one step further in, with their own cards under them.
+                        state.subgroupsOf(group.id).forEach { child ->
+                            val inner = state.itemsIn(child.id)
+                            item(key = "g-${child.id}") { DrawerGroupRow(state, child, inner.size, nested = true) }
+                            if (child.id !in state.drawerCollapsed) {
+                                items(inner.size, key = { i -> "gi-${child.id}-${inner[i].id}" }) { i ->
+                                    DrawerItemRow(state, thumbs, inner[i], indented = true, deeper = true)
+                                }
+                            }
                         }
                     }
                 }
@@ -115,10 +125,10 @@ fun BoardDrawer(state: BoardState, thumbs: ThumbCache) {
 
 /** A group in the drawer: colour, name, count, and what can be done to it as a whole. */
 @Composable
-private fun DrawerGroupRow(state: BoardState, group: BoardGroup, count: Int) {
+private fun DrawerGroupRow(state: BoardState, group: BoardGroup, count: Int, nested: Boolean = false) {
     val accent = Themes.parseColor(state.accentOfGroup(group)) ?: MaterialTheme.colors.secondary
     val collapsed = group.id in state.drawerCollapsed
-    Column(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = if (nested) 4.dp else 10.dp, start = if (nested) 18.dp else 0.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Text(
                 if (collapsed) "▸" else "▾",
@@ -141,7 +151,8 @@ private fun DrawerGroupRow(state: BoardState, group: BoardGroup, count: Int) {
             DrawerAction("Select") { state.selectGroup(group.id) }
             DrawerAction("Draw") { state.drawGroup(group.id) }
             DrawerAction("Rename") { state.openEditor(BoardEditor.RenameGroup(group.id)) }
-            DrawerAction("Ungroup") { state.ungroup(group.id) }
+            DrawerAction(if (nested) "Dissolve" else "Ungroup") { state.ungroup(group.id) }
+            if (nested) DrawerAction("Top level") { state.setGroupParent(group.id, null) }
         }
     }
 }
@@ -161,7 +172,7 @@ private fun DrawerAction(label: String, onClick: () -> Unit) {
 
 /** One card in the drawer: a thumbnail (or a glyph) and its name. */
 @Composable
-private fun DrawerItemRow(state: BoardState, thumbs: ThumbCache, item: BoardItem, indented: Boolean) {
+private fun DrawerItemRow(state: BoardState, thumbs: ThumbCache, item: BoardItem, indented: Boolean, deeper: Boolean = false) {
     val selected = item.id in state.selection
     val label = when (item) {
         is ImageItem -> item.caption ?: state.fileOf(item)?.name ?: item.path
@@ -172,7 +183,7 @@ private fun DrawerItemRow(state: BoardState, thumbs: ThumbCache, item: BoardItem
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = if (indented) 28.dp else 8.dp, end = 6.dp, top = 2.dp, bottom = 2.dp)
+            .padding(start = if (deeper) 46.dp else if (indented) 28.dp else 8.dp, end = 6.dp, top = 2.dp, bottom = 2.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(
                 if (selected) MaterialTheme.colors.secondary.copy(alpha = 0.18f) else Color.Transparent,

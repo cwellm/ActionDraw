@@ -468,8 +468,10 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                     translationY = y
                 }
                 .clip(shape)
-                .background(accent.copy(alpha = 0.14f))
-                .border(2.dp, accent.copy(alpha = 0.7f), shape)
+                // A subgroup sits on its parent's tint, so it is drawn lighter with a dashed feel
+                // to its edge -- inside something, not beside it.
+                .background(accent.copy(alpha = if (hull.group.parentId != null) 0.10f else 0.14f))
+                .border(if (hull.group.parentId != null) 1.dp else 2.dp, accent.copy(alpha = 0.7f), shape)
                 // Clicking anywhere the group shows through picks the whole group up. The label
                 // used to be the only way, which meant a group whose corner had scrolled off the
                 // view could not be selected at all.
