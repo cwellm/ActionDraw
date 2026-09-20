@@ -49,7 +49,10 @@ sealed class BoardEditor {
     data class RenameGroup(val groupId: String) : BoardEditor()
 
     /** `itemId == null` creates a new note. */
-    data class EditNote(val itemId: String?) : BoardEditor()
+    data class EditNote(val itemId: String?, val kind: String = NoteKind.DOCUMENT) : BoardEditor()
+
+    /** A document note opened to read: the whole text, rendered. */
+    data class ShowNote(val itemId: String) : BoardEditor()
 
     /** `itemId == null` creates a new link card. */
     data class EditLink(val itemId: String?) : BoardEditor()
@@ -862,11 +865,13 @@ class BoardState(
         filterTags = filterTags.filter { it in allTags }.toSet() // a removed tag may be gone entirely
     }
 
-    fun saveNote(itemId: String?, text: String) {
+    fun setNoteKind(id: String, kind: String) = updateItem<NoteItem>(id) { it.copy(kind = kind) }
+
+    fun saveNote(itemId: String?, text: String, kind: String = NoteKind.DOCUMENT) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         if (itemId == null) {
-            val note = NoteItem(id = Importer.newId(), text = trimmed)
+            val note = NoteItem(id = Importer.newId(), text = trimmed, kind = kind)
             update { it.copy(items = it.items + note) }
             selection = setOf(note.id)
             focusId = note.id
@@ -981,6 +986,8 @@ class BoardState(
         val boxes: List<List<Float>> = emptyList(),
         /** Convex bands joining pieces of the union that do not touch, as flat polygons. */
         val connectors: List<List<Float>> = emptyList(),
+        /** The member cards' own boxes, unpadded — where a dropped card actually lands *on* the group. */
+        val cards: List<List<Float>> = emptyList(),
     )
 
     /** Padding between a group's cards and the edge of its hull, in board units. */
@@ -994,9 +1001,19 @@ class BoardState(
      */
     private fun halfSizeOf(item: BoardItem): Pair<Float, Float> {
         val scale = item.pos?.scale ?: 1f
-        val aspect = ((item as? ImageItem)?.aspect ?: 1f).coerceIn(0.2f, 5f)
         val width = BASE_SIZE * scale
-        return (width / 2f) to (width / aspect / 2f)
+        return (width / 2f) to (width / aspectOf(item) / 2f)
+    }
+
+    /**
+     * Width over height of a card on the canvas — the one rule the canvas draws by and the
+     * frames measure by. Pictures have their own; a link and a document note are a title strip;
+     * a post-it is as tall as its text.
+     */
+    fun aspectOf(item: BoardItem): Float = when (item) {
+        is ImageItem -> (item.aspect ?: 1f).coerceIn(0.2f, 5f)
+        is LinkItem -> STRIP_ASPECT
+        is NoteItem -> if (item.kind == NoteKind.POSTIT) item.estimatedAspect() else STRIP_ASPECT
     }
 
     /** One hull per group that has placed, currently visible cards. */
@@ -1014,7 +1031,8 @@ class BoardState(
             val ordered = sortedGroups.sortedBy { if (it.parentId == null) 1 else 0 }
             val hulls = ordered.mapNotNull { group ->
                 val index = sortedGroups.indexOf(group)
-                val raw = boxesOf(group) + sortedGroups.filter { it.parentId == group.id }.mapNotNull { childHulls[it.id] }
+                val own = boxesOf(group)
+                val raw = own + sortedGroups.filter { it.parentId == group.id }.mapNotNull { childHulls[it.id] }
                 if (raw.isEmpty()) return@mapNotNull null
                 // Grown by the padding here, so the union the canvas draws and the bounds below
                 // agree on where the frame's edge is.
@@ -1031,6 +1049,7 @@ class BoardState(
                     count = members,
                     boxes = boxes,
                     connectors = FrameShape.connectors(boxes),
+                    cards = own + sortedGroups.filter { it.parentId == group.id }.flatMap { boxesOf(it) },
                 ).also { hull -> childHulls[group.id] = listOf(hull.left, hull.top, hull.right, hull.bottom) }
             }
             // Parents drawn first (underneath), then their subgroups on top of the tint.
@@ -1081,16 +1100,52 @@ class BoardState(
      * are: moving a picture about inside its own group's frame must never re-file it. Returns the
      * group joined, or null when nothing changed.
      */
+    /**
+     * The group whose *cards* cover the board point — not its padding, not the band between two
+     * of its pictures. That is the target for dropping: a card let go merely near a group, or in
+     * the space between its pictures, stays as it is. The innermost group wins.
+     */
+    fun groupAtCard(x: Float, y: Float): BoardGroup? =
+        groupHulls
+            .filter { hull -> hull.cards.any { x >= it[0] && x <= it[2] && y >= it[1] && y <= it[3] } }
+            .maxByOrNull { if (it.group.parentId != null) 1 else 0 }
+            ?.group
+
+    /** The group a card being dragged would join if let go now; the canvas shows it. */
+    var dropTargetGroup by mutableStateOf<String?>(null)
+        private set
+
+    /** Called while a card drags: remembers which group it is over, for the frame to show. */
+    fun trackDropTarget(id: String) {
+        val pos = item(id)?.pos
+        val target = pos?.let { groupAtCard(it.x, it.y) }
+        val inTree = target?.let { t -> setOf(t.id) + subgroupsOf(t.id).map { it.id } }.orEmpty()
+        val already = item(id)?.groups?.any { it in inTree } == true
+        dropTargetGroup = target?.id?.takeUnless { already }
+    }
+
     fun dropIntoGroupAt(id: String): BoardGroup? {
+        dropTargetGroup = null
         val pos = item(id)?.pos ?: return null
-        val target = groupAt(pos.x, pos.y) ?: return null
+        val target = groupAtCard(pos.x, pos.y) ?: return null
         val ids = if (id in selection) selection else setOf(id)
         val inTree = setOf(target.id) + subgroupsOf(target.id).map { it.id }
         val movers = ids.filter { cardId -> item(cardId)?.groups?.none { it in inTree } == true }
         if (movers.isEmpty()) return null
         moveToGroup(movers.toSet(), target.id)
         pruneEmptyGroups()
+        // Never silent: a card changing group is worth a line.
+        importNotice = if (movers.size == 1) "${labelOf(movers.single())} is now in ${target.name}."
+        else "${movers.size} cards are now in ${target.name}."
         return target
+    }
+
+    /** A short name for a card in a message. */
+    private fun labelOf(id: String): String = when (val it = item(id)) {
+        is ImageItem -> it.caption ?: File(it.path).name
+        is NoteItem -> it.title
+        is LinkItem -> it.title.ifBlank { it.url }
+        null -> "card"
     }
 
     /** Selects a whole group — clicking its label picks the group up as a unit. */
@@ -1787,6 +1842,9 @@ class BoardState(
     }
 
     companion object {
+        /** Width over height of a link or document-note strip on the canvas. */
+        const val STRIP_ASPECT = 3.4f
+
         /** Where a board keeps the copy of its background picture. */
         const val WALLPAPER_DIR = "_wallpaper"
 

@@ -128,7 +128,7 @@ class BoardChromeTest {
         val (state, _) = shownBoard()
         rule.onNodeWithTag("board-add").performClick()
         rule.waitForIdle()
-        rule.onNode(androidx.compose.ui.test.hasText("New note")).performClick()
+        rule.onNode(androidx.compose.ui.test.hasText("New document note")).performClick()
         rule.waitForIdle()
         assertTrue(state.editor is BoardEditor.EditNote, "the note dialog is what opens: ${state.editor}")
     }

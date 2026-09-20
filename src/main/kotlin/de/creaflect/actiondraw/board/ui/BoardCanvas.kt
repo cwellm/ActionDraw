@@ -77,6 +77,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.board.NoteKind
 
 /**
  * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
@@ -240,7 +248,7 @@ private fun CanvasItem(
 ) {
     val pos = item.pos ?: return
     val zoom = state.zoom
-    val aspect = ((item as? ImageItem)?.aspect ?: 1f).coerceIn(0.2f, 5f)
+    val aspect = state.aspectOf(item)
     val wPx = BoardState.BASE_SIZE * pos.scale * zoom
     val hPx = wPx / aspect
     val cx = (pos.x - state.camX) * zoom + viewSize.width / 2f
@@ -280,6 +288,7 @@ private fun CanvasItem(
                             val wx = drag.x * cos(rad).toFloat() - drag.y * sin(rad).toFloat()
                             val wy = drag.x * sin(rad).toFloat() + drag.y * cos(rad).toFloat()
                             state.dragBy(item.id, wx / state.zoom, wy / state.zoom)
+                            state.trackDropTarget(item.id)
                             // Line the card up with its neighbours while it moves.
                             state.item(item.id)?.pos?.let { moved ->
                                 val (sx, sy) = state.snapPosition(item.id, moved.x, moved.y, 10f / state.zoom)
@@ -364,21 +373,51 @@ private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, 
 @Composable
 private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(3.dp)
-    Box(
-        Modifier
-            .fillMaxSize()
-            .shadow(if (textured) 4.dp else 1.dp, shape)
-            .clip(shape)
-            .background(if (textured) Themes.noteBacking else Themes.noteBackingDark)
-            .border(2.dp, selectionBorder(state, item.id), shape),
-    ) {
-        Markdown.Rendered(
-            item.text,
-            style = MaterialTheme.typography.body2,
-            color = if (textured) Themes.noteInk else Themes.noteInkDark,
-            onLink = state::openUrl,
-            modifier = Modifier.padding(10.dp).testTag("note-" + item.id),
-        )
+    val paper = notePaper(item, textured)
+    val ink = if (textured) Themes.noteInk else Themes.noteInkDark
+    if (item.kind == NoteKind.POSTIT) {
+        // A post-it: all of the text, as typed, in a written hand, on paper that fits it.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .shadow(if (textured) 4.dp else 1.dp, shape)
+                .clip(shape)
+                .background(paper)
+                .border(2.dp, selectionBorder(state, item.id), shape),
+        ) {
+            Text(
+                item.text,
+                style = MaterialTheme.typography.body1.copy(fontFamily = FontFamily.Cursive, lineHeight = 22.sp),
+                color = ink,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
+            )
+        }
+    } else {
+        // A document note: only its title on the board; a tap opens the whole note to read.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxSize()
+                .shadow(if (textured) 4.dp else 1.dp, shape)
+                .clip(shape)
+                .background(paper)
+                .border(2.dp, selectionBorder(state, item.id), shape)
+                .pointerInput(item.id) { detectTapGestures { state.openEditor(BoardEditor.ShowNote(item.id)) } }
+                .padding(horizontal = 10.dp)
+                .testTag("note-" + item.id),
+        ) {
+            Text("▤", style = MaterialTheme.typography.body2, color = ink.copy(alpha = 0.6f))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                item.title,
+                style = if (item.heading) MaterialTheme.typography.subtitle1 else MaterialTheme.typography.body2,
+                fontWeight = FontWeight.Bold,
+                color = ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -431,20 +470,27 @@ private fun boardPoint(point: Offset, viewSize: IntSize, state: BoardState): Pai
 @Composable
 private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
     val shape = RoundedCornerShape(3.dp)
-    Column(
-        Modifier
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
             .fillMaxSize()
             .shadow(if (textured) 4.dp else 1.dp, shape)
             .clip(shape)
             .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
             .border(2.dp, selectionBorder(state, item.id), shape)
-            .padding(8.dp),
+            // A plain tap opens the page; selecting is still Ctrl/Shift+click, drag, or right-click.
+            .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }
+            .padding(horizontal = 10.dp)
+            .testTag("link-" + item.id),
     ) {
-        Text("\uD83D\uDD17", style = MaterialTheme.typography.body1)
+        Text("\uD83D\uDD17", style = MaterialTheme.typography.body2)
+        Spacer(Modifier.width(8.dp))
         Text(
             item.title.ifBlank { item.url },
             style = MaterialTheme.typography.body2,
-            color = MaterialTheme.colors.onSurface,
+            color = MaterialTheme.colors.primary,
+            textDecoration = TextDecoration.Underline,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
     }
@@ -473,8 +519,9 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
         frameShape(hull.boxes, hull.connectors, originX = hull.left, originY = hull.top, zoom = zoom)
     }
     val composePath = remember(shape) { shape.asComposePath() }
-    val fill = accent.copy(alpha = if (nested) 0.10f else 0.14f)
-    val stroke = with(density) { (if (nested) 1.dp else 2.dp).toPx() }
+    val receiving = state.dropTargetGroup == hull.group.id
+    val fill = accent.copy(alpha = if (receiving) 0.28f else if (nested) 0.10f else 0.14f)
+    val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() }
 
     ContextMenuArea(items = {
         listOf(

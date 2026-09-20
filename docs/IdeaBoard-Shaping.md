@@ -842,3 +842,35 @@ Refined the same day: inside a board, *Settings* and *Hotkeys* show only what pe
 board — *Board settings* (the boards home and snapping) and the board's own hotkeys — with the
 start menu's sheets holding everything. Same components, one list each; the board merely asks
 for its section.
+
+## 34. Two kinds of note, links that open, and a drop that asks less (2026-09-22)
+
+**The bug first**, because it was mine and recent. "The note and the link move with my group,
+even though they are not part of it." Only members move — `dragGroupBy` filters by membership —
+so they *were* members, and the only silent way in was §33's drop-into-group: after §32 gave the
+frames generous convex bands, letting a note go anywhere inside one filed it, with no sign that
+anything had happened. Tidy a note up next to a group and it was in the group. The fix is a
+narrower target and a louder act: a card files only when let go **on one of the group's cards**
+(their own boxes, not the padding, not the band), the frame brightens while a drop would file,
+and a notice says what was filed where. The frame's shape still selects and drags the group —
+that is what it is for — it just no longer swallows what lands near it.
+
+**Links** had been square cards with an icon and a host line; a link is a title. It is one now,
+underlined, and a plain tap opens it — selecting is Ctrl/Shift+click, a drag, or the right-click
+menu, all of which still work because the tap detector sits beside the existing press handling
+rather than replacing it.
+
+**Notes** split into two kinds, which the user named. A **document note** shows only its title on
+the board — the first `#` heading, else the first line, markers stripped — and a tap opens the
+whole note to read, rendered, with a way into editing. A **post-it** shows all of its text as
+typed, in a written hand (`FontFamily.Cursive`, whatever the system provides), on paper as tall
+as the text. Existing notes are documents by default, so old boards read as before.
+
+The shape of a card on the canvas became one rule, `aspectOf`, shared by the canvas that draws
+and the frames that measure: a picture has its own, a link and a document note are a strip, a
+post-it estimates its height from its text — an estimate in the state rather than a measurement
+in the UI, so the frame around a post-it needs no round trip to agree with it.
+
+One test moved with the design: the old check that clicked a link *on* a canvas note now opens
+the note first and clicks the link in the popup, which is where links live once the card is a
+title. Three behaviours were checked by reverting them.

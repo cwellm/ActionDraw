@@ -413,9 +413,15 @@ of ideas and inspiration; what daily use asked for.
 - ✅ **Settings** and **Hotkeys** as menu points in both places — buttons on the start menu, entries
   in the board's ⋯. Inside a board they show only what pertains to the board; the sheets are the
   same components, so the two cannot drift apart
-- ✅ A card is added to a group later by dropping it on the group's frame (the innermost frame
-  wins; a card already in the group is never re-filed by moving inside its own frame), or by
-  right-click → *Add to ‹group›*
+- ✅ A card is added to a group later by dropping it **on one of the group's cards** (the innermost
+  group wins; a card already in the group is never re-filed by moving inside its own frame), with
+  the frame brightening while a drop would file and a notice once it has; or by right-click →
+  *Add to ‹group›*. Dropping anywhere in the frame was too eager: with the generous bands of
+  the previous round, a note let go near a group joined it silently — which is what "my note
+  moves with the group" turned out to be (2026-09-22)
+- ✅ Links are a title that opens on a click; notes come in two kinds — a **document note** shows
+  its title and opens in a popup, a **post-it** shows its text as typed in a written hand, sized
+  to the text (2026-09-22)
 - ✅ Enter in a name field confirms — new group, rename, any single-line prompt
 - ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
   inner corners soften too), and the space between separated pictures is always covered: the

@@ -160,21 +160,25 @@ still have an ordinary folder of images; the board never renames, moves or delet
     it. A click in the empty corner of an L lands on the board, not the group. The label stays
     in view even when the group runs off the edge of the window. Grouped cards carry a small dot
     in their group's colour. A group only shows once it holds something.
-- **Note cards** (`N`) in a small Markdown: `# headings`, `**bold**`, `*italic*`, `` `code` ``,
-  `-` and `1.` lists, `---` rules, and `[text](url)` links that open in your browser when clicked
-  (so a note can carry several links); the dialog previews the result, and the note stays plain
-  text in the board file. Plus a paper colour and an optional heading style;
-  **link cards** (`L`) that open in your browser — right-click one for *Fetch preview* and the
-  picture the page advertises is saved onto the card; one-line **captions** (`F2`), **stars** (`S`)
+- **Two kinds of note** (`N`, or **+ ▾**). A **document note** shows only its title on the board
+  — its first `# heading`, else its first line — and a click opens the whole note in a popup,
+  rendered in a small Markdown: `# headings`, `**bold**`, `*italic*`, `` `code` ``, `-` and `1.`
+  lists, `---` rules, and `[text](url)` links that open in your browser. A **post-it** shows all
+  of its text exactly as typed, in a written hand, on paper sized to the text. Either way the
+  note stays plain text in the board file, with a paper colour and an optional heading style;
+  **link cards** (`L`): the title, underlined, and a click opens it in your browser (select one
+  with Ctrl+click, a drag, or right-click); *Fetch preview* on the right-click menu saves the
+  picture the page advertises beside the title; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
   them. In grid mode a section's name selects that group's cards
-- **Adding a card to a group later**: on the canvas, drag it onto the group's frame and let go —
-  it (or the whole selection it is part of) joins that group; a card already in the group is never
-  re-filed by being moved about inside its own frame. Or right-click → **Add to ‹group›** (*Move
-  to* when it is in another group already). In grid mode, drag it onto the group's header.
+- **Adding a card to a group later**: on the canvas, drag it onto one of the group's *pictures*
+  and let go — the frame brightens while a drop would file, and a line at the top says what
+  happened. Letting go merely near a group, or in the space between its pictures, files nothing:
+  a card only joins a group when you put it *on* the group. Or right-click → **Add to ‹group›**
+  (*Move to* when it is in another group already). In grid mode, drag it onto the group's header.
 - **Right-click a card → Remove from ‹group›** takes it out of its group: into the parent when it
   was in a subgroup, otherwise into the Inbox.
 - **Subgroups**, one level deep: when you group a selection or make a new group, the dialog

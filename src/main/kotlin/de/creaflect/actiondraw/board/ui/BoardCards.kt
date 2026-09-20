@@ -58,6 +58,11 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.board.NoteKind
 
 /**
  * One board cell (image or note) with its right-click menu; [groupId] is the section it sits in.
@@ -244,26 +249,55 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
 @Composable
 private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
-    Box(
-        Modifier
-            .shadow(if (textured) 3.dp else 0.dp, shape)
-            .clip(shape)
-            .background(notePaper(item, textured))
-            .border(2.dp, selectionBorder(state, item.id), shape)
-            .cardClicks(state, item.id)
-            .aspectRatio(1f),
-    ) {
-        Markdown.Rendered(
-            item.text,
-            style = if (item.heading) MaterialTheme.typography.h6 else MaterialTheme.typography.body2,
-            color = noteInk(item, textured),
-            onLink = state::openUrl,
-            modifier = Modifier.padding(10.dp).testTag("note-" + item.id),
-        )
+    val ink = noteInk(item, textured)
+    if (item.kind == NoteKind.POSTIT) {
+        // A post-it: the text as typed, in a written hand, as tall as it needs to be.
+        Box(
+            Modifier
+                .shadow(if (textured) 3.dp else 0.dp, shape)
+                .clip(shape)
+                .background(notePaper(item, textured))
+                .border(2.dp, selectionBorder(state, item.id), shape)
+                .cardClicks(state, item.id)
+                .fillMaxWidth(),
+        ) {
+            Text(
+                item.text,
+                style = MaterialTheme.typography.body1.copy(fontFamily = FontFamily.Cursive, lineHeight = 22.sp),
+                color = ink,
+                modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
+            )
+        }
+    } else {
+        // A document note: the title only; a tap opens the note to read.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .shadow(if (textured) 3.dp else 0.dp, shape)
+                .clip(shape)
+                .background(notePaper(item, textured))
+                .border(2.dp, selectionBorder(state, item.id), shape)
+                .cardClicks(state, item.id)
+                .pointerInput(item.id) { detectTapGestures { state.openEditor(BoardEditor.ShowNote(item.id)) } }
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 12.dp)
+                .testTag("note-" + item.id),
+        ) {
+            Text("▤", style = MaterialTheme.typography.body2, color = ink.copy(alpha = 0.6f))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                item.title,
+                style = if (item.heading) MaterialTheme.typography.subtitle1 else MaterialTheme.typography.body2,
+                fontWeight = FontWeight.Bold,
+                color = ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
-/** A link card: the title (or the bare url) plus its host, opened on double-click. */
+/** A link card: its title, underlined, and a tap opens it. The preview picture, if fetched, sits beside. */
 @Composable
 private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
@@ -271,15 +305,18 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
     val previewThumb: ImageBitmap? by produceState<ImageBitmap?>(null, preview) {
         value = preview?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
     }
-    Column(
-        Modifier
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
             .shadow(if (textured) 3.dp else 0.dp, shape)
             .clip(shape)
             .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
-            .aspectRatio(1f)
-            .padding(10.dp),
+            .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+            .testTag("link-" + item.id),
     ) {
         val bmp = previewThumb
         if (bmp != null) {
@@ -287,28 +324,29 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
                 bitmap = bmp,
                 contentDescription = item.title.ifBlank { item.url },
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(3.dp)),
+                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(3.dp)),
             )
-            Spacer(Modifier.height(4.dp))
         } else {
-            Text("🔗", style = MaterialTheme.typography.h6)
+            Text("🔗", style = MaterialTheme.typography.body2)
         }
-        Text(
-            item.title.ifBlank { item.url },
-            style = MaterialTheme.typography.body2,
-            color = MaterialTheme.colors.onSurface,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.weight(1f))
-        Text(
-            host(item.url),
-            style = MaterialTheme.typography.caption,
-            color = MaterialTheme.colors.secondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.clickable { state.openLink(item) },
-        )
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(
+                item.title.ifBlank { item.url },
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.primary,
+                textDecoration = TextDecoration.Underline,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                host(item.url),
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.secondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

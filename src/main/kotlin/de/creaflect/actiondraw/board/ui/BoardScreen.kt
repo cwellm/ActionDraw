@@ -93,6 +93,7 @@ import androidx.compose.material.TextFieldDefaults
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
+import de.creaflect.actiondraw.board.NoteKind
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -302,7 +303,8 @@ private fun AddMenu(state: BoardState) {
     Box {
         FlatButton("+ ▾", Modifier.testTag("board-add")) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditNote(null)) }) { Text("New note") }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditNote(null)) }) { Text("New document note") }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditNote(null, NoteKind.POSTIT)) }) { Text("New post-it") }
             DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditLink(null)) }) { Text("New link") }
             DropdownMenuItem(onClick = { open = false; state.startGrouping() }) {
                 Text(if (state.selection.isEmpty()) "New group" else "Group the selection (${state.selection.size})")

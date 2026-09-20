@@ -73,6 +73,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import de.creaflect.actiondraw.board.NoteKind
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
 @Composable
@@ -110,7 +111,9 @@ fun BoardDialogs(state: BoardState) {
             onCancel = state::closeEditor,
         )
 
-        is BoardEditor.EditNote -> NoteDialog(state, editor.itemId)
+        is BoardEditor.EditNote -> NoteDialog(state, editor.itemId, editor.kind)
+
+        is BoardEditor.ShowNote -> ShowNoteDialog(state, editor.itemId)
 
         is BoardEditor.EditLink -> LinkDialog(state, editor.itemId)
 
@@ -240,23 +243,36 @@ private fun ViewMode.label(): String = when (this) {
 /** New or edited note: the text, its paper colour, and whether it reads as a heading. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NoteDialog(state: BoardState, itemId: String?) {
+private fun NoteDialog(state: BoardState, itemId: String?, initialKind: String) {
     val existing = itemId?.let(state::item) as? NoteItem
     var text by remember(itemId) { mutableStateOf(existing?.text ?: "") }
+    var kind by remember(itemId) { mutableStateOf(existing?.kind ?: initialKind) }
     DialogScrim(onDismiss = state::closeEditor) {
-        Text(if (itemId == null) "New note" else "Edit note", style = MaterialTheme.typography.h6)
+        Text(
+            when {
+                itemId != null -> "Edit note"
+                kind == NoteKind.POSTIT -> "New post-it"
+                else -> "New document note"
+            },
+            style = MaterialTheme.typography.h6,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            SelectChip("Document — a title on the board, the text in a popup", kind == NoteKind.DOCUMENT) { kind = NoteKind.DOCUMENT }
+            SelectChip("Post-it — all of it, as typed", kind == NoteKind.POSTIT) { kind = NoteKind.POSTIT }
+        }
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
             modifier = Modifier.fillMaxWidth().height(150.dp),
         )
         Text(
-            "# heading · **bold** · *italic* · `code` · [text](url) · - list · 1. list · --- ; " +
-                "the note stays plain text in the board file.",
+            if (kind == NoteKind.POSTIT) "Shown exactly as typed, in a written hand."
+            else "# heading · **bold** · *italic* · `code` · [text](url) · - list · 1. list · --- ; " +
+                "the first heading (or line) is the title on the board.",
             style = MaterialTheme.typography.caption,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
         )
-        if (Markdown.hasMarkup(text)) {
+        if (kind == NoteKind.DOCUMENT && Markdown.hasMarkup(text)) {
             // Only when there is markup to show: a plain note previewing itself is noise.
             Markdown.Rendered(
                 text,
@@ -294,9 +310,37 @@ private fun NoteDialog(state: BoardState, itemId: String?) {
         }
         DialogButtons(
             confirm = "Save",
-            onOk = { state.saveNote(itemId, text); state.closeEditor() },
+            onOk = {
+                state.saveNote(itemId, text, kind)
+                if (itemId != null) state.setNoteKind(itemId, kind)
+                state.closeEditor()
+            },
             onCancel = state::closeEditor,
         )
+    }
+}
+
+/** A document note opened to read: the whole text, rendered, with a way into editing it. */
+@Composable
+private fun ShowNoteDialog(state: BoardState, itemId: String) {
+    val note = state.item(itemId) as? NoteItem
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text(note?.title ?: "Note", style = MaterialTheme.typography.h6)
+        Markdown.Rendered(
+            note?.text.orEmpty(),
+            style = MaterialTheme.typography.body1,
+            color = MaterialTheme.colors.onSurface,
+            onLink = state::openUrl,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 420.dp)
+                .verticalScroll(rememberScrollState())
+                .testTag("note-popup"),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(itemId)) }) { Text("Edit…") }
+            Button(onClick = state::closeEditor) { Text("Close") }
+        }
     }
 }
 

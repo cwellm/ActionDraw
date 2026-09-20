@@ -7,11 +7,13 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.onRoot
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
+import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
@@ -19,6 +21,7 @@ import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * A `[text](url)` inside a note must open when clicked — through the real card, because whether
@@ -66,6 +69,7 @@ class NoteLinkTest {
     private fun showAndLocate(state: BoardState, noteId: String): androidx.compose.ui.geometry.Rect {
         rule.setContent {
             BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardDialogs(state)
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
@@ -78,11 +82,19 @@ class NoteLinkTest {
     fun clickingALinkInsideANoteOpensIt() {
         val (state, opened) = boardWithALinkNote()
         val note = state.board!!.items.single()
-        val bounds = showAndLocate(state, note.id)
+        val strip = showAndLocate(state, note.id)
 
-        // The link is the first thing on the first line; click just inside its top-left.
-        rule.onNodeWithTag("canvas").performMouseInput {
-            moveTo(Offset(bounds.left + 14f, bounds.top + 8f))
+        // A document note shows its title on the board; the text, links included, is in the
+        // popup a click on the strip opens.
+        rule.onNodeWithTag("canvas").performMouseInput { moveTo(strip.center); press(); release() }
+        rule.waitForIdle()
+        assertTrue(state.editor is BoardEditor.ShowNote, "the strip opens the note: ${state.editor}")
+        assertEquals(emptyList(), opened, "opening the note is not opening its link")
+
+        // The link is the first thing on the popup's first line; click just inside its top-left.
+        val popup = rule.onNodeWithTag("note-popup", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        rule.onRoot().performMouseInput {
+            moveTo(Offset(popup.left + 14f, popup.top + 8f))
             press()
             release()
         }
@@ -104,6 +116,6 @@ class NoteLinkTest {
         }
         rule.waitForIdle()
 
-        assertEquals(emptyList(), opened, "a click on plain text is a click on the card, not a link")
+        assertEquals(emptyList(), opened, "a click on the strip opens the note to read, never a link")
     }
 }
