@@ -155,8 +155,10 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
         val lands = state.groupById(group.parentId)?.name ?: "Inbox"
         menu += ContextMenuItem("Remove from ${group.name} (→ $lands)") { state.removeFromGroup(ids) }
     }
+    val verb = if (item.groups.isEmpty()) "Add to" else "Move to"
     state.sortedGroups.filterNot { it.id in item.groups }.forEach { group ->
-        menu += ContextMenuItem("Move to ${group.name}") { state.moveToGroup(ids, group.id) }
+        val label = (if (group.parentId != null) "  ↳ " else "") + group.name
+        menu += ContextMenuItem("$verb $label") { state.moveToGroup(ids, group.id) }
     }
     menu += ContextMenuItem("Remove from board") { state.removeItems(ids) }
     return menu

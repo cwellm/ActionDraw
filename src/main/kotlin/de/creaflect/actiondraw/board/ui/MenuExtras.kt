@@ -22,7 +22,6 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,19 +46,19 @@ fun MenuExtras(app: AppState, boards: BoardState) {
     var settings by remember { mutableStateOf(false) }
     var hotkeys by remember { mutableStateOf(false) }
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
     ) {
-        TextButton(onClick = { settings = true }, modifier = Modifier.testTag("menu-settings")) { Text("Settings…") }
-        TextButton(onClick = { hotkeys = true }, modifier = Modifier.testTag("menu-hotkeys")) { Text("Hotkeys…") }
+        OutlinedButton(onClick = { settings = true }, modifier = Modifier.weight(1f).testTag("menu-settings")) { Text("Settings") }
+        OutlinedButton(onClick = { hotkeys = true }, modifier = Modifier.weight(1f).testTag("menu-hotkeys")) { Text("Hotkeys") }
     }
     if (settings) MenuScrim(onDismiss = { settings = false }) { SettingsSheet(app, boards) { settings = false } }
     if (hotkeys) MenuScrim(onDismiss = { hotkeys = false }) { HotkeysSheet { hotkeys = false } }
 }
 
-/** What the app remembers between runs, in one place. */
+/** What the app remembers between runs, in one place. [app] is null when opened from a board. */
 @Composable
-private fun ColumnScope.SettingsSheet(app: AppState, boards: BoardState, onClose: () -> Unit) {
+internal fun ColumnScope.SettingsSheet(app: AppState?, boards: BoardState, onClose: () -> Unit) {
     Text("Settings", style = MaterialTheme.typography.h6)
 
     Text("Boards home", style = MaterialTheme.typography.caption)
@@ -80,12 +79,14 @@ private fun ColumnScope.SettingsSheet(app: AppState, boards: BoardState, onClose
         color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
     )
 
-    Text("Reference folder", style = MaterialTheme.typography.caption)
-    Text(
-        app.folder?.path ?: "none chosen yet",
-        style = MaterialTheme.typography.body2,
-        color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
-    )
+    if (app != null) {
+        Text("Reference folder", style = MaterialTheme.typography.caption)
+        Text(
+            app.folder?.path ?: "none chosen yet",
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+        )
+    }
 
     Text("Board canvas", style = MaterialTheme.typography.caption)
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -104,7 +105,7 @@ private fun ColumnScope.SettingsSheet(app: AppState, boards: BoardState, onClose
 
 /** Every hotkey, session and board, on one sheet. */
 @Composable
-private fun ColumnScope.HotkeysSheet(onClose: () -> Unit) {
+internal fun ColumnScope.HotkeysSheet(onClose: () -> Unit) {
     Text("Hotkeys", style = MaterialTheme.typography.h6)
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
         Hotkeys.SECTIONS.forEach { (title, rows) ->

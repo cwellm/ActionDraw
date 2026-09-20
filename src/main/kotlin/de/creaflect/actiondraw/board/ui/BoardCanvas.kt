@@ -288,7 +288,12 @@ private fun CanvasItem(
                                 }
                             }
                         },
-                        onDragEnd = { state.clearSnapGuides(); state.commitLayout() },
+                        onDragEnd = {
+                            state.clearSnapGuides()
+                            // Let go over a group's frame: the card (or its selection) joins it.
+                            state.dropIntoGroupAt(item.id)
+                            state.commitLayout()
+                        },
                         onDragCancel = { state.clearSnapGuides() },
                     )
                 },

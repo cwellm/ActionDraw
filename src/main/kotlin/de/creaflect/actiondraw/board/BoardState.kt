@@ -60,8 +60,11 @@ sealed class BoardEditor {
     /** The board's background picture: choose, fit, dim, blur, remove. */
     data object Wallpaper : BoardEditor()
 
-    /** The keyboard shortcuts, in a sheet, since the header no longer carries them as a footer. */
-    data object Shortcuts : BoardEditor()
+    /** Every hotkey on one sheet — the same one the start menu shows. */
+    data object Hotkeys : BoardEditor()
+
+    /** The app's settings, reachable from the board as well as from the start menu. */
+    data object Settings : BoardEditor()
 
     /** A new name for the open board, from clicking its name in the header. */
     data object RenameBoard : BoardEditor()
@@ -1059,6 +1062,35 @@ class BoardState(
                 item
             }
         })
+    }
+
+    /**
+     * The group whose frame covers the board point ([x], [y]) — the innermost one, so a point on
+     * a subgroup is the subgroup's, not its parent's. Null on open board.
+     */
+    fun groupAt(x: Float, y: Float): BoardGroup? =
+        groupHulls
+            .filter { FrameShape.contains(it.boxes, it.connectors, x, y) }
+            .maxByOrNull { if (it.group.parentId != null) 1 else 0 }
+            ?.group
+
+    /**
+     * A card dragged onto a group's frame joins that group — the way to file a card into a group
+     * on the canvas, where there are no sections to drop it into. Acts on the whole selection when
+     * the card is part of it. Cards already in the group, or in one of its subgroups, stay as they
+     * are: moving a picture about inside its own group's frame must never re-file it. Returns the
+     * group joined, or null when nothing changed.
+     */
+    fun dropIntoGroupAt(id: String): BoardGroup? {
+        val pos = item(id)?.pos ?: return null
+        val target = groupAt(pos.x, pos.y) ?: return null
+        val ids = if (id in selection) selection else setOf(id)
+        val inTree = setOf(target.id) + subgroupsOf(target.id).map { it.id }
+        val movers = ids.filter { cardId -> item(cardId)?.groups?.none { it in inTree } == true }
+        if (movers.isEmpty()) return null
+        moveToGroup(movers.toSet(), target.id)
+        pruneEmptyGroups()
+        return target
     }
 
     /** Selects a whole group — clicking its label picks the group up as a unit. */

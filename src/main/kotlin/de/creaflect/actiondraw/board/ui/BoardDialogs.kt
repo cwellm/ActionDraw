@@ -120,7 +120,11 @@ fun BoardDialogs(state: BoardState) {
 
         BoardEditor.Wallpaper -> WallpaperDialog(state)
 
-        BoardEditor.Shortcuts -> ShortcutsDialog(state)
+        BoardEditor.Hotkeys -> DialogScrim(onDismiss = state::closeEditor) { HotkeysSheet(onClose = state::closeEditor) }
+
+        BoardEditor.Settings -> DialogScrim(onDismiss = state::closeEditor) {
+            SettingsSheet(app = null, boards = state, onClose = state::closeEditor)
+        }
 
         BoardEditor.RenameBoard -> TextPromptDialog(
             title = "Rename board",
@@ -326,23 +330,6 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
             onOk = { state.saveLink(itemId, url, title); state.closeEditor() },
             onCancel = state::closeEditor,
         )
-    }
-}
-
-/** The board's hotkeys, on one sheet — the same list the menu's Hotkeys… shows. */
-@Composable
-private fun ShortcutsDialog(state: BoardState) {
-    DialogScrim(onDismiss = state::closeEditor) {
-        Text("Shortcuts", style = MaterialTheme.typography.h6)
-        Hotkeys.BOARD.forEach { (keys, what) ->
-            Row(Modifier.fillMaxWidth()) {
-                Text(keys, style = MaterialTheme.typography.body2, modifier = Modifier.width(230.dp))
-                Text(what, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.75f))
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = state::closeEditor) { Text("Close") }
-        }
     }
 }
 

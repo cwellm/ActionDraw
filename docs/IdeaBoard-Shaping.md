@@ -818,3 +818,22 @@ its own never shows one.
 **Settings and Hotkeys on the menu.** Two quiet links under Draw and Boards. The hotkey tables
 live in one object that both the menu's sheet and the board's *Shortcuts…* read, so they cannot
 drift apart — the same reasoning as one Markdown renderer for notes and documents.
+
+## 33. Dropping a card into a group (2026-09-21)
+
+Two follow-ups to §32. *Settings* and *Hotkeys* had been small text links on the start menu
+only, which read as nothing at all; they are buttons there now and entries in the board's ⋯ as
+well, both drawing from the same sheets.
+
+And adding a picture to a group later. The menu path existed (*Move to ‹group›*), but the
+gesture a person tries first on a canvas is to drag the picture onto the group — so that works
+now: let go over a group's frame and the card, or the selection it belongs to, joins. Two rules
+keep it from surprising. The **innermost** frame wins, so a drop on a subgroup files into the
+subgroup rather than its parent. And a card **already in the group's tree is never re-filed**
+by being moved about inside its own frame — §32 made moving a picture away stretch the frame
+rather than leave the group, and dropping must not undo that from the other side.
+
+"Which frame is under this point" is the same union the canvas draws (§29's rule), asked in
+board units with a little pure geometry: inside any padded box, or inside any convex connector.
+The real-canvas test drags a loose card onto a frame and sees it filed; reverting the frame
+gate, the stay rule and the canvas wiring each failed exactly one test.

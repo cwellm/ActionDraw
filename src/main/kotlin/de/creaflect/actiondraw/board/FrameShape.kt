@@ -62,6 +62,28 @@ object FrameShape {
     private fun touches(a: List<Float>, b: List<Float>): Boolean =
         a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]
 
+    /** True when ([x], [y]) lies inside any of [boxes] or any of the convex [connectors]. */
+    fun contains(boxes: List<List<Float>>, connectors: List<List<Float>>, x: Float, y: Float): Boolean =
+        boxes.any { x >= it[0] && x <= it[2] && y >= it[1] && y <= it[3] } ||
+            connectors.any { insideConvex(it, x, y) }
+
+    /** Point in a convex polygon given as `[x0, y0, x1, y1, …]`, either winding. */
+    fun insideConvex(polygon: List<Float>, x: Float, y: Float): Boolean {
+        val n = polygon.size / 2
+        if (n < 3) return false
+        var positive = false
+        var negative = false
+        for (i in 0 until n) {
+            val ax = polygon[2 * i]; val ay = polygon[2 * i + 1]
+            val bx = polygon[2 * ((i + 1) % n)]; val by = polygon[2 * ((i + 1) % n) + 1]
+            val cross = (bx - ax) * (y - ay) - (by - ay) * (x - ax)
+            if (cross > 0f) positive = true
+            if (cross < 0f) negative = true
+            if (positive && negative) return false
+        }
+        return true
+    }
+
     private fun corners(box: List<Float>): List<Pair<Float, Float>> =
         listOf(box[0] to box[1], box[2] to box[1], box[2] to box[3], box[0] to box[3])
 

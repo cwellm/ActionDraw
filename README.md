@@ -88,10 +88,11 @@ still have an ordinary folder of images; the board never renames, moves or delet
   you get copies. A notes-only selection copies as plain text.
 
 ### Settings and hotkeys
-- The start menu has **Settings…** (the boards home, the reference folder, and whether dragged
-  cards snap to their neighbours' centre lines — **off** unless you switch it on; the same switch
-  is in a board's ⋯ menu) and **Hotkeys…**, every shortcut for the session and the board on one
-  sheet. The board's ⋯ menu has the same sheet as *Shortcuts…*.
+- **Settings** and **Hotkeys** are buttons on the start menu, under *Draw* and *Boards*, and
+  entries in every board's **⋯** menu. Settings holds the boards home, the reference folder, and
+  whether dragged cards snap to their neighbours' centre lines — **off** unless you switch it on
+  (the same switch is a line in ⋯). Hotkeys is every shortcut for the session and the board on
+  one sheet; both places show the same list.
 - Pressing **Enter** in a name field — a new group, a rename — confirms it.
 
 ### The header
@@ -169,6 +170,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
   them. In grid mode a section's name selects that group's cards
+- **Adding a card to a group later**: on the canvas, drag it onto the group's frame and let go —
+  it (or the whole selection it is part of) joins that group; a card already in the group is never
+  re-filed by being moved about inside its own frame. Or right-click → **Add to ‹group›** (*Move
+  to* when it is in another group already). In grid mode, drag it onto the group's header.
 - **Right-click a card → Remove from ‹group›** takes it out of its group: into the parent when it
   was in a subgroup, otherwise into the Inbox.
 - **Subgroups**, one level deep: when you group a selection or make a new group, the dialog

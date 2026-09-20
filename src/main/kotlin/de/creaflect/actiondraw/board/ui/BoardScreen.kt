@@ -315,7 +315,12 @@ private fun MoreMenu(state: BoardState, theme: String, onImmersive: () -> Unit) 
                 Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
             }
             Divider()
-            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Shortcuts) }) { Text("Shortcuts…") }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Settings) }, modifier = Modifier.testTag("board-settings")) {
+                Text("Settings…")
+            }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Hotkeys) }, modifier = Modifier.testTag("board-hotkeys")) {
+                Text("Hotkeys…")
+            }
             DropdownMenuItem(onClick = { open = false; onImmersive() }) { Text("Immersive") }
             DropdownMenuItem(onClick = { open = false; state.closeBoard() }, modifier = Modifier.testTag("board-close")) {
                 Text("Close board")
