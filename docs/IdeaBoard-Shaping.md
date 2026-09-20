@@ -785,3 +785,36 @@ through the rewrite, which is the point of tags over text.
 `BoardChromeTest` drives the new chrome on the real screen. This is the last piece of M5; the
 board is now what [Board-Handling-Spec.md](Board-Handling-Spec.md) described, minus the one
 gesture §30 declined.
+
+## 32. What using M5 asked for (2026-09-21)
+
+Six remarks from the first day with the new board, and what each turned into.
+
+**The frame, again.** The union-of-boxes frame was "better, but": a bit angular, and when a
+picture was pulled away from its group the thin bridge between them left the space "very empty".
+The second point is the interesting one, because it corrects §29's design, not its execution. A
+bridge says "these belong together"; what the user wanted the frame to say is "this is the
+group's ground, including the space between its pictures" — which is the convex hull of the two
+pieces, a full band. So the connector became exactly that, neighbour to neighbour, and the L
+stays an L because touching pieces need no connector at all. Rounder came from two things: a
+wider corner radius, and thickening the finished union with a round-joined stroke and uniting it
+back — the one trick that softens the *inner* corners a union leaves sharp, which no radius on
+the rectangles can reach.
+
+**Snapping off by default.** It had been on since M3 as a convenience; in use it fought the hand.
+It is now a preference in `Settings`, off unless switched on, remembered across runs, reachable
+from a board's ⋯ and from the menu's Settings. The `BoardStateTest` that exercised snapping had
+silently depended on the old default and needed to switch it on first — a small reminder that a
+default is part of the contract.
+
+**Remove from group.** Right-click on a card now offers it, and it lands where §28's rule says:
+in the parent when the card was in a subgroup, otherwise in the Inbox.
+
+**Enter confirms.** Every single-line prompt — a group's name, a rename — takes Enter as the
+confirm button, through one modifier on the field. Testing it needed the dialogs composed
+alongside the screen: in the app shell they float above every screen from `App`, so a screen on
+its own never shows one.
+
+**Settings and Hotkeys on the menu.** Two quiet links under Draw and Boards. The hotkey tables
+live in one object that both the menu's sheet and the board's *Shortcuts…* read, so they cannot
+drift apart — the same reasoning as one Markdown renderer for notes and documents.

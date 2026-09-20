@@ -87,6 +87,13 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### Settings and hotkeys
+- The start menu has **Settings…** (the boards home, the reference folder, and whether dragged
+  cards snap to their neighbours' centre lines — **off** unless you switch it on; the same switch
+  is in a board's ⋯ menu) and **Hotkeys…**, every shortcut for the session and the board on one
+  sheet. The board's ⋯ menu has the same sheet as *Shortcuts…*.
+- Pressing **Enter** in a name field — a new group, a rename — confirms it.
+
 ### The header
 - One line: the board's **name** (click it to rename) · **Boards ▾** · **↑ Parent** when nested ·
   **Grid | Free** · **Search** · **Contents** · **+ ▾** (new note, new link, group, import,
@@ -142,8 +149,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
     `Shift`+drag pulls a rubber band over several cards, and dragged cards snap to their
     neighbours' centre lines (toggle with the **Snap** chip).
     Groups show as a tinted, outlined frame with a name label. The frame is shaped to the cards
-    — the union of their padded boxes, so an L-shaped arrangement gets an L-shaped frame and
-    two clusters get two lobes joined by a thin bridge — and only the frame answers: click it
+    — the union of their padded boxes, rounded off, so an L-shaped arrangement gets an L-shaped
+    frame — and the space between pictures of one group is always covered: pull a picture away
+    and the frame stretches with it as a full band, never thinning to a line. Only the frame
+    answers: click it
     (or the label) to select the whole group, drag it to move the group as one, drag a card
     inside it to move just that card, and right-click it to draw, rename, recolour or delete
     it. A click in the empty corner of an L lands on the board, not the group. The label stays
@@ -160,6 +169,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
   them. In grid mode a section's name selects that group's cards
+- **Right-click a card → Remove from ‹group›** takes it out of its group: into the parent when it
+  was in a subgroup, otherwise into the Inbox.
 - **Subgroups**, one level deep: when you group a selection or make a new group, the dialog
   offers *Inside…* a top-level group; a group's menu has *Move into…* and *Make top-level*. A
   subgroup is an indented section under its parent in grid mode and a lighter area inside the

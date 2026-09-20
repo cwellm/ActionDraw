@@ -4,11 +4,16 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.input.key.Key
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
@@ -25,6 +30,7 @@ import kotlin.test.assertTrue
  * selection, and an overflow menu whose entries actually do things. All wiring — so all on the
  * real screen.
  */
+@OptIn(ExperimentalTestApi::class)
 class BoardChromeTest {
     @get:Rule
     val rule = createComposeRule()
@@ -52,7 +58,11 @@ class BoardChromeTest {
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg").map { File(root, it).apply { createNewFile() } })
         state.clearSelection()
-        rule.setContent { BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {}) }
+        // The dialogs float above every screen in the app shell, so the test composes them too.
+        rule.setContent {
+            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardDialogs(state)
+        }
         rule.waitForIdle()
         return state to state.board!!.items.map { it.id }
     }
@@ -113,5 +123,35 @@ class BoardChromeTest {
         rule.onNode(androidx.compose.ui.test.hasText("New note")).performClick()
         rule.waitForIdle()
         assertTrue(state.editor is BoardEditor.EditNote, "the note dialog is what opens: ${state.editor}")
+    }
+
+    @Test
+    fun enterInTheGroupNameConfirmsTheGroup() {
+        val (state, ids) = shownBoard()
+        state.clickItem(ids[0], ctrl = false, shift = false)
+        state.startGrouping()
+        rule.waitForIdle()
+
+        rule.onNodeWithTag("group-name").performTextInput("Flügel")
+        rule.onNodeWithTag("group-name").performKeyInput { pressKey(Key.Enter) }
+        rule.waitForIdle()
+
+        assertEquals(listOf("Flügel"), state.sortedGroups.map { it.name }, "Enter is the Group button")
+        assertTrue(state.editor == null, "and the dialog closed")
+    }
+
+    @Test
+    fun theOverflowsSnapItemTogglesThePreference() {
+        val (state, _) = shownBoard()
+        state.setLayout(BoardLayouts.FREE)
+        assertFalse(state.snapping, "off to begin with")
+
+        rule.onNodeWithTag("board-more").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("snap-toggle").performClick()
+        rule.waitForIdle()
+
+        assertTrue(state.snapping)
+        assertTrue(BoardState(Settings(config), host).snapping, "and it is remembered")
     }
 }

@@ -28,7 +28,11 @@ import de.creaflect.actiondraw.SessionPlans
 
 /** The start menu; [boardButton] lets the app shell add the Idea-Boards entry next to Draw. */
 @Composable
-fun MenuScreen(state: AppState, boardButton: @Composable RowScope.() -> Unit = {}) {
+fun MenuScreen(
+    state: AppState,
+    boardButton: @Composable RowScope.() -> Unit = {},
+    extras: @Composable () -> Unit = {},
+) {
     Box(
         Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 20.dp),
         contentAlignment = Alignment.TopCenter,
@@ -52,6 +56,8 @@ fun MenuScreen(state: AppState, boardButton: @Composable RowScope.() -> Unit = {
                 }
                 boardButton()
             }
+            // Settings and the hotkeys: small, under the two big buttons, never in the way.
+            extras()
         }
     }
 }

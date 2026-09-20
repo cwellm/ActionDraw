@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.FrameShape
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
@@ -463,8 +464,8 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
     // The frame's shape in the area's own pixels: the union of the padded boxes and bridges,
     // each a rounded rectangle. Built once per hull geometry and zoom, then both drawn and
     // hit-tested, so what shows is exactly what answers a click.
-    val shape = remember(hull.boxes, hull.bridges, zoom) {
-        frameShape(hull.boxes + hull.bridges, originX = hull.left, originY = hull.top, zoom = zoom)
+    val shape = remember(hull.boxes, hull.connectors, zoom) {
+        frameShape(hull.boxes, hull.connectors, originX = hull.left, originY = hull.top, zoom = zoom)
     }
     val composePath = remember(shape) { shape.asComposePath() }
     val fill = accent.copy(alpha = if (nested) 0.10f else 0.14f)
@@ -521,22 +522,45 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
 }
 
 /**
- * One Skia path for the union of [boxes] (board units), each a rounded rectangle, translated so
- * that ([originX], [originY]) is the path's origin and scaled by [zoom] to pixels.
+ * One Skia path for a group's frame: the union of [boxes] (rounded rectangles) and [connectors]
+ * (convex polygons filling the space between pieces), translated so that ([originX], [originY])
+ * is the path's origin and scaled by [zoom] to pixels. The union is then thickened with a round
+ * stroke and united back, which rounds off every corner the union left sharp — the frame reads
+ * as one soft shape rather than a stack of rectangles.
  */
-internal fun frameShape(boxes: List<List<Float>>, originX: Float, originY: Float, zoom: Float): org.jetbrains.skia.Path {
-    val radius = 14f * zoom
+internal fun frameShape(
+    boxes: List<List<Float>>,
+    connectors: List<List<Float>>,
+    originX: Float,
+    originY: Float,
+    zoom: Float,
+): org.jetbrains.skia.Path {
+    fun x(v: Float) = (v - originX) * zoom
+    fun y(v: Float) = (v - originY) * zoom
+    val radius = FrameShape.RADIUS * zoom
     var union: org.jetbrains.skia.Path? = null
-    for (box in boxes) {
-        val rect = org.jetbrains.skia.RRect.makeLTRB(
-            (box[0] - originX) * zoom, (box[1] - originY) * zoom,
-            (box[2] - originX) * zoom, (box[3] - originY) * zoom,
-            radius,
-        )
-        val piece = org.jetbrains.skia.Path().addRRect(rect)
-        union = if (union == null) piece else org.jetbrains.skia.Path.makeCombining(union, piece, org.jetbrains.skia.PathOp.UNION) ?: union
+    fun add(piece: org.jetbrains.skia.Path) {
+        union = if (union == null) piece else org.jetbrains.skia.Path.makeCombining(union!!, piece, org.jetbrains.skia.PathOp.UNION) ?: union
     }
-    return union ?: org.jetbrains.skia.Path()
+    for (box in boxes) {
+        add(org.jetbrains.skia.Path().addRRect(org.jetbrains.skia.RRect.makeLTRB(x(box[0]), y(box[1]), x(box[2]), y(box[3]), radius)))
+    }
+    for (polygon in connectors) {
+        if (polygon.size < 6) continue
+        val points = Array(polygon.size / 2) { i -> org.jetbrains.skia.Point(x(polygon[2 * i]), y(polygon[2 * i + 1])) }
+        add(org.jetbrains.skia.Path().addPoly(points, true))
+    }
+    val core = union ?: return org.jetbrains.skia.Path()
+    // Dilate: stroke the outline with round joins and unite it with the fill.
+    val paint = org.jetbrains.skia.Paint().apply {
+        mode = org.jetbrains.skia.PaintMode.STROKE
+        strokeWidth = radius * 0.6f
+        strokeJoin = org.jetbrains.skia.PaintStrokeJoin.ROUND
+        strokeCap = org.jetbrains.skia.PaintStrokeCap.ROUND
+    }
+    val rim = org.jetbrains.skia.PathUtils.fillPathWithPaint(core, paint)
+    paint.close()
+    return org.jetbrains.skia.Path.makeCombining(core, rim, org.jetbrains.skia.PathOp.UNION) ?: core
 }
 
 /**

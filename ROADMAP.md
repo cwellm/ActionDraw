@@ -407,6 +407,20 @@ of ideas and inspiration; what daily use asked for.
 - ✅ Covered by `WallpaperTest` (nine cases, one on the real screen); the one-copy rule and the
   recovery exclusion were checked by reverting them
 
+### ✅ F6.6 What using it asked for (remarks of 2026-09-21)
+- ✅ Right-click → *Remove from ‹group›*: into the parent for a subgroup's card, else the Inbox;
+  a group left empty is tidied away
+- ✅ *Settings…* and *Hotkeys…* on the start menu; the board's *Shortcuts…* draws from the same
+  list, so the two sheets cannot drift apart
+- ✅ Enter in a name field confirms — new group, rename, any single-line prompt
+- ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
+  inner corners soften too), and the space between separated pictures is always covered: the
+  connector is the convex hull of the two pieces, a full band, never a thin bridge
+- ✅ Snapping is a preference, **off** by default, remembered across runs; switched in ⋯ or in
+  Settings
+- ✅ `RemarksTest`, `MenuExtrasTest`, and cases in `FrameClickTest` and `BoardChromeTest`; the
+  three behaviours that matter most were checked by reverting them
+
 ### ✅ F6.5 Menus that get out of the way
 - ✅ One-line header: name (click renames) · Boards ▾ · ↑ Parent · segmented Grid | Free ·
   Search · Contents · + ▾ (note, link, group, import, paste) · ⋯

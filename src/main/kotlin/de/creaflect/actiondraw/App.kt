@@ -10,6 +10,7 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardListScreen
 import de.creaflect.actiondraw.board.ui.BoardMenuButton
+import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.MenuScreen
@@ -46,7 +47,11 @@ fun App(
         Surface {
             Box {
                 when (state.screen) {
-                    Screen.Menu -> MenuScreen(state) { BoardMenuButton(boardState) }
+                    Screen.Menu -> MenuScreen(
+                        state,
+                        boardButton = { BoardMenuButton(boardState) },
+                        extras = { MenuExtras(state, boardState) },
+                    )
                     Screen.Picker -> PickerScreen(state, thumbs)
                     Screen.Session -> SessionScreen(state, onToggleFullscreen, isFullscreen, pinTargets)
                     Screen.Summary -> SummaryScreen(state, pinTargets)

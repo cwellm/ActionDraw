@@ -68,6 +68,11 @@ import de.creaflect.actiondraw.samePathAs
 import androidx.compose.material.Slider
 import de.creaflect.actiondraw.board.WallpaperFit
 import de.creaflect.actiondraw.ui.chooseImages
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
 @Composable
@@ -324,28 +329,14 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
     }
 }
 
-/** The keyboard, on one sheet, now that the action bar no longer carries it as a footer. */
+/** The board's hotkeys, on one sheet — the same list the menu's Hotkeys… shows. */
 @Composable
 private fun ShortcutsDialog(state: BoardState) {
     DialogScrim(onDismiss = state::closeEditor) {
         Text("Shortcuts", style = MaterialTheme.typography.h6)
-        listOf(
-            "Click · Ctrl+click · Shift+click" to "select · toggle · range",
-            "Ctrl+A · Ctrl+C · Ctrl+V" to "select all · copy · paste",
-            "← → ↑ ↓" to "move focus (grid) · nudge the selection (free)",
-            "Ctrl+↑ / ↓ (+Shift)" to "reorder one step (all the way)",
-            "Space" to "view the selection large",
-            "wheel · + / − · 0" to "zoom the large view · fit",
-            "Enter" to "draw the selection",
-            "N · L · G" to "new note · new link · group the selection",
-            "Ctrl+Shift+G · Ctrl+D" to "ungroup · contents drawer",
-            "S · T · P · F2" to "star · tags · palette · caption",
-            "Del" to "remove the card (the file stays)",
-            "F · Esc" to "immersive · leave immersive / close",
-            "Shift+drag" to "rubber-band select (free)",
-        ).forEach { (keys, what) ->
+        Hotkeys.BOARD.forEach { (keys, what) ->
             Row(Modifier.fillMaxWidth()) {
-                Text(keys, style = MaterialTheme.typography.body2, modifier = Modifier.width(220.dp))
+                Text(keys, style = MaterialTheme.typography.body2, modifier = Modifier.width(230.dp))
                 Text(what, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.75f))
             }
         }
@@ -678,7 +669,7 @@ private fun GroupPlacementDialog(
             onValueChange = { name = it },
             label = { Text("Name") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().testTag("group-name"),
+            modifier = Modifier.fillMaxWidth().confirmOnEnter { onOk(name, parent) }.testTag("group-name"),
         )
         if (parents.isNotEmpty()) {
             Text("Inside", style = MaterialTheme.typography.caption)
@@ -713,9 +704,22 @@ private fun TextPromptDialog(
             value = value,
             onValueChange = { value = it },
             singleLine = !multiline,
-            modifier = Modifier.fillMaxWidth().let { if (multiline) it.height(150.dp) else it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .let { if (multiline) it.height(150.dp) else it.confirmOnEnter { onOk(value) } }
+                .testTag("prompt-field"),
         )
         DialogButtons(confirm = confirm, onOk = { onOk(value) }, onCancel = onCancel)
+    }
+}
+
+/** Enter in a single-line field means "yes, that" — the same as the confirm button. */
+private fun Modifier.confirmOnEnter(onOk: () -> Unit): Modifier = onPreviewKeyEvent { event ->
+    if (event.type == KeyEventType.KeyDown && (event.key == Key.Enter || event.key == Key.NumPadEnter)) {
+        onOk()
+        true
+    } else {
+        false
     }
 }
 

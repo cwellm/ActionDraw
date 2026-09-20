@@ -95,7 +95,7 @@ class FrameClickTest {
     fun aClickInTheEmptyCornerOfAnLDoesNotSelectTheGroup() {
         val (state, group) = lShapedGroup()
         val hull = state.groupHulls.single()
-        assertTrue(hull.bridges.isEmpty(), "an L is one piece: its boxes touch")
+        assertTrue(hull.connectors.isEmpty(), "an L is one piece: its boxes touch")
         // The empty corner: the bottom-right of the bounding box, well inside it.
         val notch = state.toScreen(hull.right - 60f, hull.bottom - 60f)
         val ids = state.board!!.items.map { it.id }
@@ -106,6 +106,46 @@ class FrameClickTest {
 
         assertTrue(state.selection.size <= 1, "a click in the notch is not a click on the group: ${state.selection.size}")
         assertTrue(group !in state.selection)
+    }
+
+    /** Two cards in one group, pulled well apart. */
+    private fun separatedPair(): Pair<BoardState, String> {
+        val state = BoardState(Settings(config), host)
+        state.createBoard(home, "Apart")
+        val root = state.root!!
+        state.importExternal(listOf("a.jpg", "b.jpg").map { File(root, it).apply { createNewFile() } })
+        state.setLayout(BoardLayouts.FREE)
+        val ids = state.board!!.items.map { it.id }
+        state.clearSelection(); state.clickItem(ids[1], ctrl = false, shift = false)
+        state.nudgeSelection(BoardState.BASE_SIZE * 2.5f, BoardState.BASE_SIZE * 0.4f) // a clear gap, slightly askew
+        state.commitLayout()
+        state.selectAll()
+        val group = state.groupSelection("Paar")!!
+        state.clearSelection()
+        rule.setContent {
+            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+        }
+        rule.waitForIdle()
+        val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
+        state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())
+        rule.waitForIdle()
+        return state to group
+    }
+
+    @Test
+    fun theSpaceBetweenTwoSeparatedCardsBelongsToTheGroup() {
+        val (state, _) = separatedPair()
+        val hull = state.groupHulls.single()
+        assertEquals(1, hull.connectors.size, "two pieces, one band between them")
+        val ids = state.board!!.items.map { it.id }
+        val a = state.item(ids[0])!!.pos!!
+        val b = state.item(ids[1])!!.pos!!
+        // Halfway between the two cards: on neither card, but inside the band that joins them.
+        val between = state.toScreen((a.x + b.x) / 2f, (a.y + b.y) / 2f)
+
+        click(between)
+
+        assertEquals(2, state.selection.size, "a click between the pictures picks the group up — the frame never thins to a line there")
     }
 
     @Test

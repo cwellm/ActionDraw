@@ -14,19 +14,22 @@ import kotlin.math.min
  * A box is `[left, top, right, bottom]`.
  */
 object FrameShape {
-    /** Width of the connector between two pieces that do not touch, in board units. */
-    const val BRIDGE_WIDTH = 26f
+    /** Corner radius of the frame's rounded rectangles, in board units. */
+    const val RADIUS = 36f
 
     /**
-     * Bridges for [boxes]: none when everything already touches, otherwise one per gap between
-     * neighbouring pieces, ordered left to right so a group in three clusters gets two bridges,
-     * not three. Each bridge is itself a box, running between the two pieces' nearest edges.
+     * Connectors for [boxes]: none when everything already touches, otherwise one per gap between
+     * neighbouring pieces, ordered left to right so a group in three clusters gets two, not three.
+     * A connector is the **convex hull of the two pieces** — a full band rather than a thin
+     * bridge — so the space between two pictures of a group is always covered: move one picture
+     * away and the frame stretches with it instead of thinning to a line. Returned as a polygon,
+     * `[x0, y0, x1, y1, …]`, counter-clockwise.
      */
-    fun bridges(boxes: List<List<Float>>): List<List<Float>> {
+    fun connectors(boxes: List<List<Float>>): List<List<Float>> {
         val pieces = components(boxes)
         if (pieces.size < 2) return emptyList()
         val ordered = pieces.sortedBy { (it[0] + it[2]) / 2f }
-        return ordered.zipWithNext { a, b -> bridge(a, b) }
+        return ordered.zipWithNext { a, b -> convexHull(corners(a) + corners(b)) }
     }
 
     /**
@@ -59,14 +62,26 @@ object FrameShape {
     private fun touches(a: List<Float>, b: List<Float>): Boolean =
         a[0] <= b[2] && b[0] <= a[2] && a[1] <= b[3] && b[1] <= a[3]
 
-    /** A thin box from the nearest point of [a] to the nearest point of [b], centre line to centre line. */
-    private fun bridge(a: List<Float>, b: List<Float>): List<Float> {
-        val ax = ((a[0] + a[2]) / 2f).coerceIn(b[0], b[2]).coerceIn(a[0], a[2])
-        val ay = ((a[1] + a[3]) / 2f).coerceIn(b[1], b[3]).coerceIn(a[1], a[3])
-        val bx = ax.coerceIn(b[0], b[2])
-        val by = ay.coerceIn(b[1], b[3])
-        // From a's edge to b's edge, one bridge-width thick, in whichever direction the gap runs.
-        val half = BRIDGE_WIDTH / 2f
-        return listOf(min(ax, bx) - half, min(ay, by) - half, max(ax, bx) + half, max(ay, by) + half)
+    private fun corners(box: List<Float>): List<Pair<Float, Float>> =
+        listOf(box[0] to box[1], box[2] to box[1], box[2] to box[3], box[0] to box[3])
+
+    /** Andrew's monotone chain; the polygon as a flat list of coordinates. */
+    fun convexHull(points: List<Pair<Float, Float>>): List<Float> {
+        val sorted = points.distinct().sortedWith(compareBy({ it.first }, { it.second }))
+        if (sorted.size < 3) return sorted.flatMap { listOf(it.first, it.second) }
+        fun cross(o: Pair<Float, Float>, a: Pair<Float, Float>, b: Pair<Float, Float>) =
+            (a.first - o.first) * (b.second - o.second) - (a.second - o.second) * (b.first - o.first)
+        val lower = mutableListOf<Pair<Float, Float>>()
+        for (p in sorted) {
+            while (lower.size >= 2 && cross(lower[lower.size - 2], lower.last(), p) <= 0f) lower.removeAt(lower.size - 1)
+            lower += p
+        }
+        val upper = mutableListOf<Pair<Float, Float>>()
+        for (p in sorted.asReversed()) {
+            while (upper.size >= 2 && cross(upper[upper.size - 2], upper.last(), p) <= 0f) upper.removeAt(upper.size - 1)
+            upper += p
+        }
+        val hull = lower.dropLast(1) + upper.dropLast(1)
+        return hull.flatMap { listOf(it.first, it.second) }
     }
 }

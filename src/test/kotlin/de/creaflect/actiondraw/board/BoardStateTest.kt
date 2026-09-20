@@ -722,6 +722,7 @@ class BoardStateTest {
     @Test
     fun snappingLinesACardUpWithItsNeighbourAndCanBeTurnedOff() {
         val state = newState()
+        state.setSnappingPreference(true) // it is a preference now, off unless asked for
         val ids = boardWithThreeImages(state)
         state.setLayout(BoardLayouts.FREE)
         state.clearSelection()
@@ -733,7 +734,7 @@ class BoardStateTest {
         assertEquals(anchor.y + 400f, y, "y was too far to snap")
         assertEquals(anchor.x, state.snapGuideX, "and a guide is drawn where it snapped")
 
-        state.snapping = false
+        state.setSnappingPreference(false)
         val (freeX, _) = state.snapPosition(ids[1], anchor.x + 4f, anchor.y + 400f, threshold = 10f)
         assertEquals(anchor.x + 4f, freeX, "with snapping off the card goes where it is dragged")
         assertNull(state.snapGuideX)

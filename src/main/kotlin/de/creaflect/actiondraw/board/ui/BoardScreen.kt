@@ -295,7 +295,7 @@ private fun MoreMenu(state: BoardState, theme: String, onImmersive: () -> Unit) 
             }
             Divider()
             if (state.layout == BoardLayouts.FREE) {
-                DropdownMenuItem(onClick = { open = false; state.snapping = !state.snapping }) {
+                DropdownMenuItem(onClick = { open = false; state.setSnappingPreference(!state.snapping) }, modifier = Modifier.testTag("snap-toggle")) {
                     Text((if (state.snapping) "• " else "   ") + "Snap to neighbours")
                 }
             }

@@ -150,8 +150,10 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
         }
     }
     menu += ContextMenuItem("Copy") { state.copySelection() }
-    if (item.groups.isNotEmpty()) {
-        menu += ContextMenuItem("Move to Inbox") { state.moveToGroup(ids, null) }
+    state.groupById(item.groups.firstOrNull())?.let { group ->
+        // Out of the group it is in: into the parent for a subgroup's card, else the Inbox.
+        val lands = state.groupById(group.parentId)?.name ?: "Inbox"
+        menu += ContextMenuItem("Remove from ${group.name} (→ $lands)") { state.removeFromGroup(ids) }
     }
     state.sortedGroups.filterNot { it.id in item.groups }.forEach { group ->
         menu += ContextMenuItem("Move to ${group.name}") { state.moveToGroup(ids, group.id) }

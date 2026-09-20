@@ -770,6 +770,24 @@ class BoardState(
         )
     }
 
+    /**
+     * Takes the cards out of the group they are in. A card in a subgroup lands in the parent —
+     * that is the group it was in as well; a card in a top-level group lands in the Inbox.
+     */
+    fun removeFromGroup(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        update { b ->
+            b.copy(items = b.items.map { item ->
+                if (item.id !in ids || item.groups.isEmpty()) item
+                else {
+                    val parent = b.groups.find { it.id == item.groups.first() }?.parentId
+                    item.withGroups(listOfNotNull(parent))
+                }
+            })
+        }
+        pruneEmptyGroups()
+    }
+
     /** Takes the given cards out of every group they are in; the cards themselves stay put. */
     fun ungroupItems(ids: Set<String>) {
         if (ids.isEmpty()) return
@@ -958,8 +976,8 @@ class BoardState(
         val count: Int,
         /** The padded boxes the frame is the union of — the cards', plus any subgroup's bounds. */
         val boxes: List<List<Float>> = emptyList(),
-        /** Thin connectors between pieces of the union that do not touch. */
-        val bridges: List<List<Float>> = emptyList(),
+        /** Convex bands joining pieces of the union that do not touch, as flat polygons. */
+        val connectors: List<List<Float>> = emptyList(),
     )
 
     /** Padding between a group's cards and the edge of its hull, in board units. */
@@ -1009,7 +1027,7 @@ class BoardState(
                     bottom = boxes.maxOf { it[3] },
                     count = members,
                     boxes = boxes,
-                    bridges = FrameShape.bridges(boxes),
+                    connectors = FrameShape.connectors(boxes),
                 ).also { hull -> childHulls[group.id] = listOf(hull.left, hull.top, hull.right, hull.bottom) }
             }
             // Parents drawn first (underneath), then their subgroups on top of the tint.
@@ -1145,8 +1163,14 @@ class BoardState(
 
     // ---- Freeform: snapping and marquee selection ----
 
-    /** Align dragged cards to their neighbours' centres. */
-    var snapping by mutableStateOf(true)
+    /** Align dragged cards to their neighbours' centres — a preference, off unless switched on. */
+    var snapping by mutableStateOf(settings.snapByDefault())
+        private set
+
+    fun setSnappingPreference(on: Boolean) {
+        snapping = on
+        settings.setSnapByDefault(on)
+    }
 
     /** Guides to draw while dragging (board-space x / y of the lines that matched). */
     var snapGuideX by mutableStateOf<Float?>(null)
