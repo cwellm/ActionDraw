@@ -472,26 +472,47 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
 
 ---
 
-## ⬜ M7 — Concepts
+## 🔄 M7 — Concepts
 
-Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md). A thing that lives once and
-is linked onto many boards.
+Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (§8 records what was built and
+the answers taken to its open questions). A thing that lives once and is linked onto many boards.
 
-### ⬜ F8.1 Concepts as folders
-- ⬜ `ConceptRegistry`, concept folder and sidecar (id, name, kind, notes, items), the Concepts
-  list screen; pictures and notes first
+### ✅ F8.1 Concepts as folders
+- ✅ `ConceptRegistry` (`~/.actiondraw/concepts.json`, id → folder), the concept folder and its
+  sidecar `.actiondraw_concept.json` (id, name, kind, notes, items, documents), a concepts home
+  beside the boards home; folders found under it are adopted and given an id
+- ✅ The Concepts list (tiles by kind, cover, counts, how many boards link it) and the concept's
+  page (pictures, notes, links in a grid; documents rendered beside); Esc goes up
+- ✅ Pictures copied into `_imported/` by the board's importer; notes and links as on a board
 
-### ⬜ F8.2 Documents
-- ⬜ `.md` files in a concept, rendered with the M5 renderer, edited with a live preview
+### ✅ F8.2 Documents
+- ✅ `.md` files in `_docs/`, named from their first heading, rendered with the M5 renderer,
+  edited in a text box with a live preview; a document whose file vanished is dropped on load
 
-### ⬜ F8.3 Linked onto boards
-- ⬜ `BoardFile.concepts` by id; a concept group per link with `source = concept:<id>` —
-  non-resolvable, its one action *Unlink*; draw, view, strip, search all work on it
-- ⬜ Deleting a concept names the boards it will vanish from, first
+### ✅ F8.3 Linked onto boards
+- ✅ `BoardFile.concepts` by id; one group per link, id and `source` both `concept:<id>`, holding
+  *borrowed* cards that point at the concept's files by a `concept:<id>/<path>` path — resolved
+  through `ConceptSource`, the board's one seam to the concept side
+- ✅ Non-resolvable in the state, not just the menus: no rename, recolour, nesting or dissolving;
+  borrowed cards cannot be removed, moved out or grouped; *Unlink* is the one action (group menus
+  on the header, the canvas frame and the drawer); the group is marked ⧉ and outlined in dashes
+- ✅ Reconciled on every open and after a link: new items appear, vanished ones go, picture,
+  caption and text follow the concept; the board's place, stars and tags stay; a renamed concept
+  renames its groups
+- ✅ **Concepts ▾** in the board header (link one, jump to a linked one, all concepts); **Boards…**
+  on the concept's page with a tick per board, working on closed boards too, from disk
+- ✅ Dropping the board's own card on a concept group (or *Move to ⧉ …*) adds it to the concept;
+  the borrowed card takes the board's card's place
+- ✅ Deleting a concept names the boards it is linked on and takes it off them first
+- ✅ Covered by `ConceptTest` (14) and `ConceptLinkTest` (15); eleven guards checked by breaking them
 
-### ⬜ F8.4 Sketches and per-board opinions
+### 🔄 F8.4 Sketches and per-board opinions
 - ⬜ Live Sketch saves into a concept (needs M6)
-- ⬜ Stars and tags on borrowed cards live on the board, keyed by content id
+- ✅ Stars, tags and place of a borrowed card live on the board (matched by the card's id; the
+  content id is carried along for recovery)
+- ✅ Practice memory of a borrowed card is the board's, keyed the way a session started there
+  writes it — one folder per session is what the practice core knows; a concept-owned memory
+  would need the session to write to several folders (open, see the ideation §8)
 
 ---
 

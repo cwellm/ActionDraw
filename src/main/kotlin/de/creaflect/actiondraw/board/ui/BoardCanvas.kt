@@ -85,6 +85,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
+import androidx.compose.ui.graphics.PathEffect
 
 /**
  * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
@@ -522,14 +523,22 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
     val receiving = state.dropTargetGroup == hull.group.id
     val fill = accent.copy(alpha = if (receiving) 0.28f else if (nested) 0.10f else 0.14f)
     val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() }
+    // A concept's group is outlined in dashes: borrowed, not the board's own.
+    val borrowedDash = if (hull.group.isConcept) PathEffect.dashPathEffect(floatArrayOf(12f, 8f)) else null
 
     ContextMenuArea(items = {
-        listOf(
-            ContextMenuItem("Draw " + hull.count) { state.drawGroup(hull.group.id) },
-            ContextMenuItem("Select group") { state.selectGroup(hull.group.id) },
-            ContextMenuItem("Rename group…") { state.openEditor(BoardEditor.RenameGroup(hull.group.id)) },
-            ContextMenuItem("Cycle colour") { state.cycleGroupColor(hull.group.id) },
-            ContextMenuItem("Delete group (cards stay)") { state.deleteGroup(hull.group.id) },
+        val group = hull.group
+        if (group.isConcept) listOf(
+            ContextMenuItem("Draw " + hull.count) { state.drawGroup(group.id) },
+            ContextMenuItem("Select group") { state.selectGroup(group.id) },
+            ContextMenuItem("Open concept") { group.conceptId?.let(state::showConcept) },
+            ContextMenuItem("Unlink from this board") { group.conceptId?.let(state::unlinkConcept) },
+        ) else listOf(
+            ContextMenuItem("Draw " + hull.count) { state.drawGroup(group.id) },
+            ContextMenuItem("Select group") { state.selectGroup(group.id) },
+            ContextMenuItem("Rename group…") { state.openEditor(BoardEditor.RenameGroup(group.id)) },
+            ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) },
+            ContextMenuItem("Delete group (cards stay)") { state.deleteGroup(group.id) },
         )
     }) {
         Box(
@@ -541,7 +550,7 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                 }
                 .drawBehind {
                     drawPath(composePath, fill)
-                    drawPath(composePath, accent.copy(alpha = 0.7f), style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round))
+                    drawPath(composePath, accent.copy(alpha = 0.7f), style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round, pathEffect = borrowedDash))
                 }
                 // Clicking the frame picks the group up; dragging it moves the group as one. A
                 // press outside the shape -- in the empty notch of an L, say -- is not the
@@ -646,7 +655,7 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
             .clickable { state.selectGroup(hull.group.id) },
     ) {
         Text(
-            hull.group.name + "  ·  " + hull.count,
+            (if (hull.group.isConcept) "⧉ " else "") + hull.group.name + "  ·  " + hull.count,
             style = MaterialTheme.typography.caption,
             color = Color(0xFF1A1A1A),
             maxLines = 1,

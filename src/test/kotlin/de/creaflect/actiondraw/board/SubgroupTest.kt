@@ -205,14 +205,29 @@ class SubgroupTest {
         assertEquals(t.wings, editor.parentId, "and the dialog starts with that parent picked")
     }
 
+    /**
+     * `source` marks a linked concept's group. A concept group whose link is gone is dropped on
+     * open, with its borrowed cards — but only in the form the app writes (id `concept:<id>`).
+     * Anything else that carries a source is left as found, and the board's own cards are never
+     * touched either way.
+     */
     @Test
-    fun theSourceFieldRoundTripsUntouched() {
+    fun aConceptGroupWithoutItsLinkGoesButTheBoardsOwnCardsNever() {
         val t = tree()
-        val withSource = t.state.board!!.copy(
-            groups = t.state.board!!.groups.map { if (it.id == t.heads) it.copy(source = "concept:x") else it },
+        val ghostGroup = BoardGroup(id = "concept:x", name = "Ghost", order = 9, source = "concept:x")
+        val ghostCard = ImageItem(id = "ghost", path = "concept:x/a.jpg", groups = listOf("concept:x"))
+        val odd = t.state.board!!.copy(
+            groups = t.state.board!!.groups.map { if (it.id == t.heads) it.copy(source = "concept:y") else it } + ghostGroup,
+            items = t.state.board!!.items + ghostCard,
         )
-        BoardStore.save(t.state.root!!, withSource)
+        BoardStore.save(t.state.root!!, odd)
+
         val reopened = BoardState(Settings(config), host).also { it.openBoard(t.state.root!!) }
-        assertEquals("concept:x", reopened.groupById(t.heads)!!.source, "reserved now, so the file's shape does not change twice")
+
+        assertNull(reopened.groupById("concept:x"), "no link, no group")
+        assertNull(reopened.item("ghost"), "and its borrowed card went with it")
+        assertEquals("concept:y", reopened.groupById(t.heads)!!.source, "an odd source is left as found")
+        assertEquals(listOf(t.ids[3]), reopened.itemsIn(t.heads).map { it.id }, "with the board's own card still in it")
+        assertEquals(5, reopened.board!!.items.size, "not one of the board's own cards lost")
     }
 }

@@ -32,25 +32,40 @@ fun main() = application {
     val windowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
     val settings = remember { Settings() }
     val appState = remember { AppState(settings) }
-    // The board talks to the rest of the app only through this host (its "plugin" boundary).
-    val boardState = remember {
-        BoardState(settings, object : BoardHost {
-            override fun startSession(root: File, images: List<File>, setup: SessionSetup?) =
-                appState.startBoardSession(root, images, setup)
-
-            override fun showBoard() = appState.showBoard()
-            override fun showBoardList() = appState.showBoardList()
-            override fun leaveBoard() = appState.leaveBoard()
-            override fun currentSetup(): SessionSetup = appState.currentSetup()
-        })
-    }
-    // Concepts talk to the rest of the app through the same kind of seam.
+    // Boards and concepts need each other — a concept is linked onto boards, a board reads its
+    // concepts — but each only through its host, and the holder lets them be built in turn.
+    val boardHolder = remember { BoardStateHolder() }
     val conceptState = remember {
         ConceptState(settings, object : ConceptHost {
             override fun showConcepts() = appState.showConcepts()
             override fun showConcept() = appState.showConcept()
             override fun leaveConcepts() = appState.leaveConcepts()
+            override fun boardsFor(conceptId: String) = boardHolder.state.boardsFor(conceptId)
+            override fun setLinked(conceptId: String, board: File, linked: Boolean) {
+                boardHolder.state.setLinked(conceptId, board, linked)
+            }
+            override fun unlinkEverywhere(conceptId: String) = boardHolder.state.unlinkEverywhere(conceptId)
         })
+    }
+    // The board talks to the rest of the app only through this host (its "plugin" boundary).
+    val boardState = remember {
+        BoardState(
+            settings,
+            object : BoardHost {
+                override fun startSession(root: File, images: List<File>, setup: SessionSetup?) =
+                    appState.startBoardSession(root, images, setup)
+
+                override fun showBoard() = appState.showBoard()
+                override fun showBoardList() = appState.showBoardList()
+                override fun leaveBoard() = appState.leaveBoard()
+                override fun currentSetup(): SessionSetup = appState.currentSetup()
+                override fun showConcept(id: String) {
+                    conceptState.openById(id)
+                }
+                override fun showConcepts() = conceptState.openList()
+            },
+            concepts = conceptState,
+        ).also { boardHolder.state = it }
     }
     // Lets a running session file pictures away on a board, without the session knowing what a
     // board is (see PinTargets).
@@ -267,3 +282,8 @@ internal fun handleSessionShortcut(
         Key.Zero -> { state.temperature = 0f; true }
         else -> false
     }
+
+/** Lets the concept host reach the board state that is built after it. */
+private class BoardStateHolder {
+    lateinit var state: BoardState
+}

@@ -24,6 +24,8 @@ data class BoardFile(
     val items: List<BoardItem> = emptyList(),
     /** A picture behind the cards, or null for the theme's texture alone. */
     val wallpaper: Wallpaper? = null,
+    /** Ids of the concepts linked onto this board; each shows as a group (see [ConceptLink]). */
+    val concepts: List<String> = emptyList(),
 )
 
 /**
@@ -98,7 +100,13 @@ data class BoardGroup(
      * group the board made itself.
      */
     val source: String? = null,
-)
+) {
+    /** The concept this group shows, when it is a linked one: the id after `concept:`. */
+    val conceptId: String? get() = source?.takeIf { it.startsWith(ConceptLink.PREFIX) }?.removePrefix(ConceptLink.PREFIX)
+
+    /** A linked concept's group: not the board's to rename, recolour, nest or dissolve. */
+    val isConcept: Boolean get() = conceptId != null
+}
 
 /**
  * One card. Items may belong to several groups; an empty [groups] list means the Inbox.

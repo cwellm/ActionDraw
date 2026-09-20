@@ -786,7 +786,7 @@ through the rewrite, which is the point of tags over text.
 board is now what [Board-Handling-Spec.md](Board-Handling-Spec.md) described, minus the one
 gesture §30 declined.
 
-## 32. What using M5 asked for (2026-09-21)
+## 32. What using M5 asked for (2026-09-20)
 
 Six remarks from the first day with the new board, and what each turned into.
 
@@ -819,7 +819,7 @@ its own never shows one.
 live in one object that both the menu's sheet and the board's *Shortcuts…* read, so they cannot
 drift apart — the same reasoning as one Markdown renderer for notes and documents.
 
-## 33. Dropping a card into a group (2026-09-21)
+## 33. Dropping a card into a group (2026-09-20)
 
 Two follow-ups to §32. *Settings* and *Hotkeys* had been small text links on the start menu
 only, which read as nothing at all; they are buttons there now and entries in the board's ⋯ as
@@ -843,7 +843,7 @@ board — *Board settings* (the boards home and snapping) and the board's own ho
 start menu's sheets holding everything. Same components, one list each; the board merely asks
 for its section.
 
-## 34. Two kinds of note, links that open, and a drop that asks less (2026-09-22)
+## 34. Two kinds of note, links that open, and a drop that asks less (2026-09-20)
 
 **The bug first**, because it was mine and recent. "The note and the link move with my group,
 even though they are not part of it." Only members move — `dragGroupBy` filters by membership —
@@ -874,3 +874,49 @@ in the UI, so the frame around a post-it needs no round trip to agree with it.
 One test moved with the design: the old check that clicked a link *on* a canvas note now opens
 the note first and clicks the link in the popup, which is where links live once the card is a
 title. Three behaviours were checked by reverting them.
+
+## 35. A concept on the board (2026-09-20)
+
+M7 asked the board to show something that is not its own: a linked concept as a group. The
+question was where the concept's cards live while they are on the board.
+
+**Borrowed cards, persisted.** The board file keeps a copy of each concept item — same id, the
+concept's picture and text, and a `concept:<id>/<path>` path in place of a file of its own — in
+a group whose id is `concept:<id>`. That is one more kind of path for `fileOf` to resolve and
+nothing else to change: selection, drag, z-order, search, the viewer, the strip and the contact
+sheet all read items as before, and the board's opinions about a borrowed card (place, star,
+tags) are ordinary fields on an ordinary item. The alternative — cards computed from the concept
+on the fly — would have meant every reader of `board.items` learning a second list, forty-five
+places in the state alone. The price is a **reconcile** on every open and after each link:
+`ConceptLink.reconcile` is pure, takes the board and a lookup, and returns the board with each
+concept group named after its concept and its cards brought up to date, the board's fields kept.
+
+**Not the board's to change, in the state.** Menus hide what a concept group cannot do, but the
+guards sit in `BoardState`: rename, recolour, nesting, dissolving, removing, moving out and
+grouping all refuse borrowed things, and say so where the refusal would be silent. A keyboard
+Delete on a borrowed card goes through the same `removeItems` as the menu, so it is refused the
+same way. *Unlink* is the one action, on the header, the frame and the drawer alike.
+
+**Into the concept by dropping.** Letting the board's own card go on a concept group could have
+been refused; the ideation assumed it should *add to the concept*, and that is what it does:
+the picture is copied into the concept's folder, the board's card makes way, and the borrowed
+card that comes back from the reconcile is put where the old one stood. Every other board that
+links the concept sees the picture on its next open.
+
+**The old `source` test taught caution.** M5 reserved `BoardGroup.source` and tested that it
+round-trips untouched. The first reconcile treated *any* group with a `source` as a concept
+group and dropped it — with its cards — when its concept was not linked; on that test's board
+the cards were the board's own. Now only a group in the exact form this code writes counts as
+stale, and its cards are borrowed by definition. Anything else with a `source` is left as found.
+
+**Practice memory stayed with the board.** A session started from a board records seen state in
+the board's folder, keyed by each file's path relative to it; a borrowed card's key is therefore
+the concept file's relative path, and the board's badge uses the same key. The ideation had
+assumed the concept would own the memory; that needs the practice core to write to several
+folders per session and stays open.
+
+Eleven guards were checked by breaking them: removing, moving and renaming refused; the empty
+concept group not pruned; borrowed pictures kept by `validate`; the board's star surviving a
+sync; a deleted concept unlinked everywhere; a drop adding to the concept; and, from the first
+step, vanished documents dropped, files kept on a keep-the-folder delete, an adopted folder's id
+written back, a moved folder followed by id.

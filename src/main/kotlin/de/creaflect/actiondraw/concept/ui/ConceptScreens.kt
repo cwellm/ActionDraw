@@ -76,6 +76,8 @@ import kotlinx.coroutines.withContext
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
+import androidx.compose.runtime.LaunchedEffect
+import de.creaflect.actiondraw.board.BoardLink
 
 /** The Concepts entry on the menu, equal in weight to Draw and Boards. */
 @Composable
@@ -95,6 +97,8 @@ private data class ConceptSummary(
     val pictures: Int,
     val documents: Int,
     val cover: File?,
+    /** How many boards link this concept. */
+    val boards: Int = 0,
 )
 
 /** Every concept, grouped by kind, each with a cover and its counts. */
@@ -110,6 +114,7 @@ fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache) {
                     pictures = images.size,
                     documents = file?.documents.orEmpty().size,
                     cover = images.firstOrNull()?.let { File(entry.dir, it.path) }?.takeIf { it.isFile },
+                    boards = state.boardsFor(entry.id).count { it.linked },
                 )
             }
         }
@@ -215,7 +220,8 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
         )
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
             Text(
-                "${summary.pictures} picture${if (summary.pictures == 1) "" else "s"} · ${summary.documents} doc${if (summary.documents == 1) "" else "s"}",
+                "${summary.pictures} picture${if (summary.pictures == 1) "" else "s"} · ${summary.documents} doc${if (summary.documents == 1) "" else "s"}" +
+                    if (summary.boards > 0) " · on ${summary.boards} board${if (summary.boards == 1) "" else "s"}" else "",
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.secondary,
                 modifier = Modifier.weight(1f),
@@ -261,6 +267,7 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { state.closeConcept() }, modifier = Modifier.testTag("concept-up")) { Text("↑ All concepts") }
                 AddMenu(state)
+                TextButton(onClick = { state.openEditor(ConceptEditor.LinkToBoards) }, modifier = Modifier.testTag("concept-link")) { Text("Boards…") }
                 TextButton(onClick = { state.openEditor(ConceptEditor.DeleteConcept(state.root!!, concept.name)) }) { Text("Delete…") }
             }
         }
@@ -495,8 +502,51 @@ fun ConceptDialogs(state: ConceptState) {
             }
         }
 
+        ConceptEditor.LinkToBoards -> {
+            val id = state.concept?.id
+            var boards by remember(editor, id) { mutableStateOf<List<BoardLink>?>(null) }
+            LaunchedEffect(editor, id) {
+                boards = withContext(Dispatchers.IO) { id?.let { state.boardsFor(it) }.orEmpty() }
+            }
+            Scrim(onDismiss = state::closeEditor) {
+                Text("On which boards?", style = MaterialTheme.typography.h6)
+                Text(
+                    "A linked concept shows on the board as a group of its own — the concept itself, not a copy.",
+                    style = MaterialTheme.typography.body2,
+                    color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                )
+                val list = boards
+                when {
+                    list == null -> Text("Looking…", style = MaterialTheme.typography.caption)
+                    list.isEmpty() -> Text("No boards yet.", style = MaterialTheme.typography.caption)
+                    else -> Column(Modifier.fillMaxWidth().heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                        list.forEach { link ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth().testTag("board-link-" + link.name).clickable {
+                                    id?.let { state.setLinked(it, link.dir, !link.linked) }
+                                    boards = list.map { if (it.dir == link.dir) it.copy(linked = !link.linked) else it }
+                                },
+                            ) {
+                                Checkbox(checked = link.linked, onCheckedChange = null)
+                                Text(link.name, style = MaterialTheme.typography.body2)
+                            }
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(onClick = state::closeEditor) { Text("Done") }
+                }
+            }
+        }
+
         is ConceptEditor.DeleteConcept -> {
             var alsoFolder by remember(editor) { mutableStateOf(true) }
+            val linked by produceState(emptyList<String>(), editor) {
+                value = withContext(Dispatchers.IO) {
+                    ConceptStore.peek(editor.dir)?.id?.let { id -> state.boardsFor(id).filter { it.linked }.map { it.name } }.orEmpty()
+                }
+            }
             Scrim(onDismiss = state::closeEditor) {
                 Text("Delete \"${editor.name}\"?", style = MaterialTheme.typography.h6)
                 Text(editor.dir.path, style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f))
@@ -505,6 +555,14 @@ fun ConceptDialogs(state: ConceptState) {
                     style = MaterialTheme.typography.body2,
                     color = MaterialTheme.colors.error,
                 )
+                if (linked.isNotEmpty()) {
+                    Text(
+                        "Linked on: " + linked.joinToString(),
+                        style = MaterialTheme.typography.body2,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.testTag("delete-linked-boards"),
+                    )
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = alsoFolder, onCheckedChange = { alsoFolder = it })
                     Text("Delete the folder and everything in it", style = MaterialTheme.typography.body2)

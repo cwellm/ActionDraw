@@ -12,6 +12,10 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.samePathAs
 import java.io.File
+import de.creaflect.actiondraw.board.BoardLink
+import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptSnapshot
+import de.creaflect.actiondraw.board.ConceptSource
 
 /**
  * Everything the concept module is allowed to ask of the rest of the app — the same kind of seam
@@ -21,6 +25,15 @@ interface ConceptHost {
     fun showConcepts()
     fun showConcept()
     fun leaveConcepts()
+
+    /** Every board, and whether it links the concept — the boards side answers this. */
+    fun boardsFor(conceptId: String): List<BoardLink> = emptyList()
+
+    /** Links or unlinks the concept on one board. */
+    fun setLinked(conceptId: String, board: File, linked: Boolean) {}
+
+    /** Takes the concept off every board that links it; returns their names. */
+    fun unlinkEverywhere(conceptId: String): List<String> = emptyList()
 }
 
 /** Which dialog is open over the concept screens. */
@@ -32,6 +45,8 @@ sealed class ConceptEditor {
     /** `path == null` starts a new document. */
     data class EditDocument(val path: String?) : ConceptEditor()
     data class DeleteConcept(val dir: File, val name: String) : ConceptEditor()
+    /** Which boards the open concept is linked onto — ticks to set and clear. */
+    data object LinkToBoards : ConceptEditor()
 }
 
 /**
@@ -41,7 +56,7 @@ sealed class ConceptEditor {
  * no layout, no groups, no session recipe. Linking onto boards is the board's business
  * (`BoardState`), by id.
  */
-class ConceptState(private val settings: Settings, private val host: ConceptHost) {
+class ConceptState(private val settings: Settings, private val host: ConceptHost) : ConceptSource {
     private val registry = ConceptRegistry(settings.configDir)
 
     var root by mutableStateOf<File?>(null)
@@ -181,6 +196,8 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
      */
     fun deleteConcept(dir: File, alsoFolder: Boolean): String {
         if (!ConceptStore.exists(dir)) return "${dir.name} is not a concept."
+        // Off every board first: a board must not be left pointing at a concept that is gone.
+        val unlinked = ConceptStore.peek(dir)?.id?.let { host.unlinkEverywhere(it) }.orEmpty()
         if (root?.samePathAs(dir) == true) {
             root = null
             concept = null
@@ -195,8 +212,44 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         }
         registry.forget(dir)
         listTick++
-        notice = message
-        return message
+        val full = if (unlinked.isEmpty()) message else "$message Unlinked from ${unlinked.joinToString()}."
+        notice = full
+        return full
+    }
+
+    // ---- Boards ----
+
+    fun boardsFor(conceptId: String): List<BoardLink> = host.boardsFor(conceptId)
+
+    fun setLinked(conceptId: String, board: File, linked: Boolean) {
+        host.setLinked(conceptId, board, linked)
+        listTick++
+    }
+
+    // ---- What boards see (ConceptSource) ----
+
+    override fun available(): List<ConceptRef> = availableConcepts().map { ConceptRef(it.id, it.name, it.kind) }
+
+    override fun snapshot(id: String): ConceptSnapshot? {
+        val open = concept
+        val dir = root
+        if (open != null && dir != null && open.id == id) return ConceptSnapshot(id, open.name, dir, open.items)
+        val entry = registry.byId(id) ?: return null
+        val file = (ConceptStore.load(entry.dir) as? ConceptStore.LoadResult.Loaded)?.concept ?: return null
+        return ConceptSnapshot(id, file.name, entry.dir, file.items)
+    }
+
+    override fun addToConcept(id: String, pictures: List<File>, others: List<BoardItem>): List<BoardItem>? {
+        val openHere = concept?.id == id && root != null
+        val dir = (if (openHere) root else registry.byId(id)?.dir) ?: return null
+        val current = (if (openHere) concept else (ConceptStore.load(dir) as? ConceptStore.LoadResult.Loaded)?.concept) ?: return null
+        val existing = current.items.filterIsInstance<ImageItem>().map { it.path }.toSet()
+        val outcome = Importer.importFiles(dir, pictures, groupId = null, existingPaths = existing)
+        val added = outcome.items + others.map { it.withGroups(emptyList()) }
+        val next = current.copy(items = current.items + added)
+        if (!ConceptStore.save(dir, next)) return null
+        if (openHere) concept = next
+        return added
     }
 
     // ---- Cards ----

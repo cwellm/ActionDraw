@@ -1,12 +1,16 @@
 package de.creaflect.actiondraw.concept
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
+import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
 import de.creaflect.actiondraw.image.ThumbCache
@@ -240,5 +244,34 @@ class ConceptTest {
         rule.waitForIdle()
         rule.onNodeWithTag("document-Anatomy.md", useUnmergedTree = true).assertIsDisplayed()
         assertNotNull(state.concept)
+    }
+
+    // ---- Boards, as the concept side sees them ----
+
+    @Test
+    fun theDialogsNameTheBoardsAndToggleALink() {
+        val buch = File(home, "Buch")
+        val zweites = File(home, "Zweites")
+        val toggled = mutableListOf<Pair<String, Boolean>>()
+        val boardsHost = object : ConceptHost {
+            override fun showConcepts() = Unit
+            override fun showConcept() = Unit
+            override fun leaveConcepts() = Unit
+            override fun boardsFor(conceptId: String) = listOf(BoardLink("Buch", buch, true), BoardLink("Zweites", zweites, false))
+            override fun setLinked(conceptId: String, board: File, linked: Boolean) { toggled += board.name to linked }
+        }
+        val state = ConceptState(Settings(config), boardsHost).also { it.setConceptsHomeDir(home) }
+        state.createConcept("Drache")
+
+        state.openEditor(ConceptEditor.DeleteConcept(state.root!!, "Drache"))
+        rule.setContent { ConceptDialogs(state) }
+        rule.waitForIdle()
+        rule.onNodeWithTag("delete-linked-boards", useUnmergedTree = true).assertTextEquals("Linked on: Buch")
+
+        state.openEditor(ConceptEditor.LinkToBoards)
+        rule.waitForIdle()
+        rule.onNodeWithTag("board-link-Zweites").performClick()
+        rule.waitForIdle()
+        assertEquals(listOf("Zweites" to true), toggled)
     }
 }
