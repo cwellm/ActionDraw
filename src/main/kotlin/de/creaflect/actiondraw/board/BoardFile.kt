@@ -22,7 +22,29 @@ data class BoardFile(
     val session: SessionRecipe? = null,
     val groups: List<BoardGroup> = emptyList(),
     val items: List<BoardItem> = emptyList(),
+    /** A picture behind the cards, or null for the theme's texture alone. */
+    val wallpaper: Wallpaper? = null,
 )
+
+/**
+ * The board's background picture. [path] is relative to the board (the file is copied into
+ * `_wallpaper/`), so it moves with the board. [fit] is one of [WallpaperFit]; [dim] darkens it so
+ * the cards stay readable; [blur] softens it, in 0..1.
+ */
+@Serializable
+data class Wallpaper(
+    val path: String,
+    val fit: String = WallpaperFit.COVER,
+    val dim: Float = 0.35f,
+    val blur: Float = 0f,
+)
+
+object WallpaperFit {
+    const val COVER = "cover"
+    const val TILE = "tile"
+    const val CENTER = "center"
+    val ALL = listOf(COVER, TILE, CENTER)
+}
 
 /**
  * A board's remembered session settings ("Drachenbuch is always 60 s in Notan"). Stored as plain
@@ -65,6 +87,17 @@ data class BoardGroup(
     val color: String? = null,
     val order: Int = 0,
     val collapsed: Boolean = false,
+    /**
+     * The group this one sits inside, or null at the top level. Exactly one level is allowed —
+     * a subgroup cannot hold subgroups — and [BoardStore.validate] flattens anything deeper.
+     */
+    val parentId: String? = null,
+    /**
+     * Where the group's cards come from when they are not the board's own: reserved for a linked
+     * concept (`concept:<id>`), whose group cannot be dissolved from the board. Null for every
+     * group the board made itself.
+     */
+    val source: String? = null,
 )
 
 /**
@@ -114,7 +147,7 @@ data class ImageItem(
 @SerialName("note")
 data class NoteItem(
     override val id: String,
-    /** Plain text with `**bold**` and `*italic*` markers (see `NoteText`). */
+    /** Plain text; a document note reads it as Markdown, a post-it shows it as typed. */
     val text: String,
     override val groups: List<String> = emptyList(),
     override val pos: ItemPos? = null,
@@ -122,7 +155,40 @@ data class NoteItem(
     val color: String? = null,
     /** Draw the note in a larger, heavier type — for the sign-post notes on a big board. */
     val heading: Boolean = false,
-) : BoardItem()
+    /** [NoteKind.DOCUMENT] (a title on the board, the text in a popup) or [NoteKind.POSTIT]. */
+    val kind: String = NoteKind.DOCUMENT,
+) : BoardItem() {
+    /**
+     * What a document note shows on the board: its first `#` heading, else its first line —
+     * markers stripped. A note with no text at all is "Note".
+     */
+    val title: String
+        get() {
+            val lines = text.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            val heading = lines.firstOrNull { it.startsWith("#") }?.trimStart('#')?.trim()
+            val first = heading ?: lines.firstOrNull() ?: return "Note"
+            return first.replace(Regex("""\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)]\([^)]*\)""")) { m ->
+                m.groups.drop(1).firstNotNullOfOrNull { it?.value } ?: ""
+            }.trim().ifBlank { "Note" }
+        }
+
+    /**
+     * A post-it is as tall as its text. Estimated from the text alone so the state (frames,
+     * fit-all) and the canvas agree without a text measurement: width over height, where height
+     * grows by one line per ~[charsPerLine] characters and per line break.
+     */
+    fun estimatedAspect(charsPerLine: Int = 26): Float {
+        val lines = text.lines().sumOf { line -> maxOf(1, (line.length + charsPerLine - 1) / charsPerLine) }
+        val heightUnits = 1.6f + lines * 1.05f // padding plus lines, in units of one line height
+        val widthUnits = charsPerLine * 0.62f
+        return (widthUnits / heightUnits).coerceIn(0.35f, 3.5f)
+    }
+}
+
+object NoteKind {
+    const val DOCUMENT = "document"
+    const val POSTIT = "postit"
+}
 
 /**
  * A card that points somewhere on the web. ActionDraw never fetches it: the URL is stored as

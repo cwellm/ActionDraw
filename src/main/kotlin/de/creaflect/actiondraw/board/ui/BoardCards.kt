@@ -58,6 +58,11 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.board.NoteKind
 
 /**
  * One board cell (image or note) with its right-click menu; [groupId] is the section it sits in.
@@ -124,6 +129,7 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
             menu += ContextMenuItem("Caption…") { state.openEditor(BoardEditor.EditCaption(item.id)) }
             menu += ContextMenuItem("Tags…") { state.openEditor(BoardEditor.EditTags(ids)) }
             menu += ContextMenuItem(if (item.starred) "Unstar" else "Star") { state.toggleStar(ids) }
+            menu += ContextMenuItem("Use as wallpaper") { state.fileOf(item)?.let { state.setWallpaper(it) } }
         }
 
         is NoteItem -> {
@@ -149,11 +155,15 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
         }
     }
     menu += ContextMenuItem("Copy") { state.copySelection() }
-    if (item.groups.isNotEmpty()) {
-        menu += ContextMenuItem("Move to Inbox") { state.moveToGroup(ids, null) }
+    state.groupById(item.groups.firstOrNull())?.let { group ->
+        // Out of the group it is in: into the parent for a subgroup's card, else the Inbox.
+        val lands = state.groupById(group.parentId)?.name ?: "Inbox"
+        menu += ContextMenuItem("Remove from ${group.name} (→ $lands)") { state.removeFromGroup(ids) }
     }
+    val verb = if (item.groups.isEmpty()) "Add to" else "Move to"
     state.sortedGroups.filterNot { it.id in item.groups }.forEach { group ->
-        menu += ContextMenuItem("Move to ${group.name}") { state.moveToGroup(ids, group.id) }
+        val label = (if (group.parentId != null) "  ↳ " else "") + group.name
+        menu += ContextMenuItem("$verb $label") { state.moveToGroup(ids, group.id) }
     }
     menu += ContextMenuItem("Remove from board") { state.removeItems(ids) }
     return menu
@@ -239,27 +249,55 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
 @Composable
 private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
-    Box(
-        Modifier
-            .shadow(if (textured) 3.dp else 0.dp, shape)
-            .clip(shape)
-            .background(notePaper(item, textured))
-            .border(2.dp, selectionBorder(state, item.id), shape)
-            .cardClicks(state, item.id)
-            .aspectRatio(1f),
-    ) {
-        Text(
-            NoteText.format(item.text),
-            style = if (item.heading) MaterialTheme.typography.h6 else MaterialTheme.typography.body2,
-            color = noteInk(item, textured),
-            maxLines = if (item.heading) 4 else 9,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(10.dp),
-        )
+    val ink = noteInk(item, textured)
+    if (item.kind == NoteKind.POSTIT) {
+        // A post-it: the text as typed, in a written hand, as tall as it needs to be.
+        Box(
+            Modifier
+                .shadow(if (textured) 3.dp else 0.dp, shape)
+                .clip(shape)
+                .background(notePaper(item, textured))
+                .border(2.dp, selectionBorder(state, item.id), shape)
+                .cardClicks(state, item.id)
+                .fillMaxWidth(),
+        ) {
+            Text(
+                item.text,
+                style = MaterialTheme.typography.body1.copy(fontFamily = FontFamily.Cursive, lineHeight = 22.sp),
+                color = ink,
+                modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
+            )
+        }
+    } else {
+        // A document note: the title only; a tap opens the note to read.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .shadow(if (textured) 3.dp else 0.dp, shape)
+                .clip(shape)
+                .background(notePaper(item, textured))
+                .border(2.dp, selectionBorder(state, item.id), shape)
+                .cardClicks(state, item.id)
+                .pointerInput(item.id) { detectTapGestures { state.openEditor(BoardEditor.ShowNote(item.id)) } }
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 12.dp)
+                .testTag("note-" + item.id),
+        ) {
+            Text("▤", style = MaterialTheme.typography.body2, color = ink.copy(alpha = 0.6f))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                item.title,
+                style = if (item.heading) MaterialTheme.typography.subtitle1 else MaterialTheme.typography.body2,
+                fontWeight = FontWeight.Bold,
+                color = ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
-/** A link card: the title (or the bare url) plus its host, opened on double-click. */
+/** A link card: its title, underlined, and a tap opens it. The preview picture, if fetched, sits beside. */
 @Composable
 private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
@@ -267,15 +305,18 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
     val previewThumb: ImageBitmap? by produceState<ImageBitmap?>(null, preview) {
         value = preview?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
     }
-    Column(
-        Modifier
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
             .shadow(if (textured) 3.dp else 0.dp, shape)
             .clip(shape)
             .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
-            .aspectRatio(1f)
-            .padding(10.dp),
+            .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 10.dp)
+            .testTag("link-" + item.id),
     ) {
         val bmp = previewThumb
         if (bmp != null) {
@@ -283,28 +324,29 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
                 bitmap = bmp,
                 contentDescription = item.title.ifBlank { item.url },
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(3.dp)),
+                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(3.dp)),
             )
-            Spacer(Modifier.height(4.dp))
         } else {
-            Text("🔗", style = MaterialTheme.typography.h6)
+            Text("🔗", style = MaterialTheme.typography.body2)
         }
-        Text(
-            item.title.ifBlank { item.url },
-            style = MaterialTheme.typography.body2,
-            color = MaterialTheme.colors.onSurface,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.weight(1f))
-        Text(
-            host(item.url),
-            style = MaterialTheme.typography.caption,
-            color = MaterialTheme.colors.secondary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.clickable { state.openLink(item) },
-        )
+        Spacer(Modifier.width(8.dp))
+        Column {
+            Text(
+                item.title.ifBlank { item.url },
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.primary,
+                textDecoration = TextDecoration.Underline,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                host(item.url),
+                style = MaterialTheme.typography.caption,
+                color = MaterialTheme.colors.secondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -322,13 +364,14 @@ internal fun noteInk(item: NoteItem, textured: Boolean): Color =
 @Composable
 fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: Boolean = false) {
     val accent = accentOf(state, group)
+    val nested = group?.parentId != null
     val row: @Composable () -> Unit = {
-        Column {
+        Column(Modifier.padding(start = if (nested) 22.dp else 0.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 14.dp, bottom = 2.dp)
+                    .padding(top = if (nested) 6.dp else 14.dp, bottom = 2.dp)
                     .background(
                         if (dropTarget) MaterialTheme.colors.primary.copy(alpha = 0.18f) else Color.Transparent,
                         RoundedCornerShape(4.dp),
@@ -350,8 +393,8 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                     }
                 }
                 Text(
-                    "${group?.name ?: "Inbox"} ($count)",
-                    style = MaterialTheme.typography.subtitle1,
+                    (if (nested) "↳ " else "") + "${group?.name ?: "Inbox"} ($count)",
+                    style = if (nested) MaterialTheme.typography.subtitle2 else MaterialTheme.typography.subtitle1,
                     fontWeight = FontWeight.Bold,
                     color = accent ?: MaterialTheme.colors.onBackground,
                     // The name selects the section's cards, as a group's label does on the canvas.
@@ -360,8 +403,9 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                         .clickable { state.selectGroup(group.id) },
                 )
                 Spacer(Modifier.weight(1f))
-                if (count > 0) {
-                    OutlinedButton(onClick = { state.drawGroup(group?.id) }) { Text("Draw $count") }
+                val drawable = if (group == null) count else state.itemsInTree(group.id).size
+                if (drawable > 0) {
+                    OutlinedButton(onClick = { state.drawGroup(group?.id) }) { Text("Draw $drawable") }
                 }
             }
             // A hairline in the group's colour ties its cards to the header above them.
@@ -380,13 +424,25 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
     }
 }
 
-private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMenuItem> = listOf(
-    ContextMenuItem("Rename…") { state.openEditor(BoardEditor.RenameGroup(group.id)) },
-    ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) },
-    ContextMenuItem("Move up") { state.moveGroup(group.id, -1) },
-    ContextMenuItem("Move down") { state.moveGroup(group.id, +1) },
-    ContextMenuItem("Delete group (cards → Inbox)") { state.deleteGroup(group.id) },
-)
+private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMenuItem> = buildList {
+    add(ContextMenuItem("Rename…") { state.openEditor(BoardEditor.RenameGroup(group.id)) })
+    add(ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) })
+    add(ContextMenuItem("Move up") { state.moveGroup(group.id, -1) })
+    add(ContextMenuItem("Move down") { state.moveGroup(group.id, +1) })
+    // One level of nesting: a group can go inside a top-level group, or back out to the top.
+    state.possibleParents(group.id).filter { it.id != group.parentId }.forEach { parent ->
+        add(ContextMenuItem("Move into ${parent.name}") { state.setGroupParent(group.id, parent.id) })
+    }
+    if (group.parentId != null) {
+        add(ContextMenuItem("Make top-level") { state.setGroupParent(group.id, null) })
+        add(ContextMenuItem("New subgroup here…") { state.openEditor(BoardEditor.NewGroup(group.parentId)) })
+    } else {
+        add(ContextMenuItem("New subgroup inside…") { state.openEditor(BoardEditor.NewGroup(group.id)) })
+    }
+    add(ContextMenuItem(if (group.parentId == null) "Delete group (cards → Inbox)" else "Dissolve (cards → parent)") {
+        state.ungroup(group.id)
+    })
+}
 
 /** Shows how a picture stands with the practice side: flagged to redo, drawn, or never drawn. */
 @Composable

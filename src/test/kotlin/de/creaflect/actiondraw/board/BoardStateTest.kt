@@ -722,6 +722,7 @@ class BoardStateTest {
     @Test
     fun snappingLinesACardUpWithItsNeighbourAndCanBeTurnedOff() {
         val state = newState()
+        state.setSnappingPreference(true) // it is a preference now, off unless asked for
         val ids = boardWithThreeImages(state)
         state.setLayout(BoardLayouts.FREE)
         state.clearSelection()
@@ -733,7 +734,7 @@ class BoardStateTest {
         assertEquals(anchor.y + 400f, y, "y was too far to snap")
         assertEquals(anchor.x, state.snapGuideX, "and a guide is drawn where it snapped")
 
-        state.snapping = false
+        state.setSnappingPreference(false)
         val (freeX, _) = state.snapPosition(ids[1], anchor.x + 4f, anchor.y + 400f, threshold = 10f)
         assertEquals(anchor.x + 4f, freeX, "with snapping off the card goes where it is dragged")
         assertNull(state.snapGuideX)
@@ -1060,5 +1061,19 @@ class BoardStateTest {
 
         val names = state.availableBoards().map { it.first }.toSet()
         assertEquals(setOf("Alpha", "Beta", "Gamma"), names)
+    }
+
+    // ---- Placement ----
+
+    @Test
+    fun aLoneNewCardIsPlacedAtTheOriginNotOffToTheLeft() {
+        val one = BoardFile(name = "one", items = listOf(NoteItem(id = "n", text = "hi")))
+        val placed = BoardState.placeMissing(one)
+        assertEquals(0f, placed.items.single().pos!!.x, "one card: centred where the camera looks")
+
+        val three = BoardFile(name = "three", items = (1..3).map { NoteItem(id = "n$it", text = "hi") })
+        val xs = BoardState.placeMissing(three).items.map { it.pos!!.x }
+        assertEquals(0f, xs[1], "three cards: the middle one on the origin")
+        assertEquals(-xs[0], xs[2], "and the outer two symmetric about it")
     }
 }

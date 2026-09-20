@@ -65,6 +65,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.testTag
 import de.creaflect.actiondraw.samePathAs
+import androidx.compose.material.Slider
+import de.creaflect.actiondraw.board.WallpaperFit
+import de.creaflect.actiondraw.ui.chooseImages
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import de.creaflect.actiondraw.board.NoteKind
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
 @Composable
@@ -78,20 +87,20 @@ fun BoardDialogs(state: BoardState) {
 
         BoardEditor.EditSession -> SessionRecipeDialog(state)
 
-        BoardEditor.GroupSelection -> TextPromptDialog(
+        is BoardEditor.GroupSelection -> GroupPlacementDialog(
+            state = state,
             title = "Group ${state.selection.size} selected card(s)",
-            initial = "",
             confirm = "Group",
-            onOk = { state.groupSelection(it); state.closeEditor() },
-            onCancel = state::closeEditor,
+            initialParent = editor.parentId,
+            onOk = { name, parent -> state.groupSelection(name, parent); state.closeEditor() },
         )
 
-        BoardEditor.NewGroup -> TextPromptDialog(
+        is BoardEditor.NewGroup -> GroupPlacementDialog(
+            state = state,
             title = "New group",
-            initial = "",
             confirm = "Create",
-            onOk = { state.addGroup(it); state.closeEditor() },
-            onCancel = state::closeEditor,
+            initialParent = editor.parentId,
+            onOk = { name, parent -> state.addGroup(name, parent); state.closeEditor() },
         )
 
         is BoardEditor.RenameGroup -> TextPromptDialog(
@@ -102,13 +111,33 @@ fun BoardDialogs(state: BoardState) {
             onCancel = state::closeEditor,
         )
 
-        is BoardEditor.EditNote -> NoteDialog(state, editor.itemId)
+        is BoardEditor.EditNote -> NoteDialog(state, editor.itemId, editor.kind)
+
+        is BoardEditor.ShowNote -> ShowNoteDialog(state, editor.itemId)
 
         is BoardEditor.EditLink -> LinkDialog(state, editor.itemId)
 
         is BoardEditor.FetchPreview -> FetchPreviewDialog(state, editor.itemId)
 
         is BoardEditor.MoveBoard -> MoveBoardDialog(state, editor.dir, editor.name)
+
+        BoardEditor.Wallpaper -> WallpaperDialog(state)
+
+        BoardEditor.Hotkeys -> DialogScrim(onDismiss = state::closeEditor) {
+            HotkeysSheet(sections = Hotkeys.SECTIONS.filter { it.first == Hotkeys.BOARD_TITLE }, onClose = state::closeEditor)
+        }
+
+        BoardEditor.Settings -> DialogScrim(onDismiss = state::closeEditor) {
+            SettingsSheet(app = null, boards = state, onClose = state::closeEditor)
+        }
+
+        BoardEditor.RenameBoard -> TextPromptDialog(
+            title = "Rename board",
+            initial = state.board?.name ?: "",
+            confirm = "Rename",
+            onOk = { state.renameBoard(it); state.closeEditor() },
+            onCancel = state::closeEditor,
+        )
 
         is BoardEditor.ShowPalette -> PaletteDialog(state, editor.itemIds)
 
@@ -214,21 +243,49 @@ private fun ViewMode.label(): String = when (this) {
 /** New or edited note: the text, its paper colour, and whether it reads as a heading. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun NoteDialog(state: BoardState, itemId: String?) {
+private fun NoteDialog(state: BoardState, itemId: String?, initialKind: String) {
     val existing = itemId?.let(state::item) as? NoteItem
     var text by remember(itemId) { mutableStateOf(existing?.text ?: "") }
+    var kind by remember(itemId) { mutableStateOf(existing?.kind ?: initialKind) }
     DialogScrim(onDismiss = state::closeEditor) {
-        Text(if (itemId == null) "New note" else "Edit note", style = MaterialTheme.typography.h6)
+        Text(
+            when {
+                itemId != null -> "Edit note"
+                kind == NoteKind.POSTIT -> "New post-it"
+                else -> "New document note"
+            },
+            style = MaterialTheme.typography.h6,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            SelectChip("Document — a title on the board, the text in a popup", kind == NoteKind.DOCUMENT) { kind = NoteKind.DOCUMENT }
+            SelectChip("Post-it — all of it, as typed", kind == NoteKind.POSTIT) { kind = NoteKind.POSTIT }
+        }
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
             modifier = Modifier.fillMaxWidth().height(150.dp),
         )
         Text(
-            "**bold** and *italic* work; the note stays plain text in the board file.",
+            if (kind == NoteKind.POSTIT) "Shown exactly as typed, in a written hand."
+            else "# heading · **bold** · *italic* · `code` · [text](url) · - list · 1. list · --- ; " +
+                "the first heading (or line) is the title on the board.",
             style = MaterialTheme.typography.caption,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
         )
+        if (kind == NoteKind.DOCUMENT && Markdown.hasMarkup(text)) {
+            // Only when there is markup to show: a plain note previewing itself is noise.
+            Markdown.Rendered(
+                text,
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.onSurface,
+                onLink = state::openUrl,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 160.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp),
+            )
+        }
         if (existing != null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Paper", style = MaterialTheme.typography.caption)
@@ -253,9 +310,37 @@ private fun NoteDialog(state: BoardState, itemId: String?) {
         }
         DialogButtons(
             confirm = "Save",
-            onOk = { state.saveNote(itemId, text); state.closeEditor() },
+            onOk = {
+                state.saveNote(itemId, text, kind)
+                if (itemId != null) state.setNoteKind(itemId, kind)
+                state.closeEditor()
+            },
             onCancel = state::closeEditor,
         )
+    }
+}
+
+/** A document note opened to read: the whole text, rendered, with a way into editing it. */
+@Composable
+private fun ShowNoteDialog(state: BoardState, itemId: String) {
+    val note = state.item(itemId) as? NoteItem
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text(note?.title ?: "Note", style = MaterialTheme.typography.h6)
+        Markdown.Rendered(
+            note?.text.orEmpty(),
+            style = MaterialTheme.typography.body1,
+            color = MaterialTheme.colors.onSurface,
+            onLink = state::openUrl,
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 420.dp)
+                .verticalScroll(rememberScrollState())
+                .testTag("note-popup"),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(itemId)) }) { Text("Edit…") }
+            Button(onClick = state::closeEditor) { Text("Close") }
+        }
     }
 }
 
@@ -291,6 +376,47 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
             onOk = { state.saveLink(itemId, url, title); state.closeEditor() },
             onCancel = state::closeEditor,
         )
+    }
+}
+
+/** The board's background: pick a picture, say how it fits, dim and soften it, or take it away. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WallpaperDialog(state: BoardState) {
+    val paper = state.wallpaper
+    var error by remember { mutableStateOf<String?>(null) }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Wallpaper", style = MaterialTheme.typography.h6)
+        Text(
+            if (paper == null) "A picture behind the cards. The theme's texture shows through where it does not reach."
+            else "Copied into the board's _wallpaper folder, so it moves with the board.",
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.75f),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                chooseImages(state.root).firstOrNull()?.let { error = state.setWallpaper(it) }
+            }) { Text(if (paper == null) "Choose picture…" else "Change picture…") }
+            if (paper != null) {
+                OutlinedButton(onClick = { state.clearWallpaper() }) { Text("Remove") }
+            }
+        }
+        if (paper != null) {
+            Text("Fit", style = MaterialTheme.typography.caption)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                WallpaperFit.ALL.forEach { fit ->
+                    SelectChip(fit.replaceFirstChar { it.uppercase() }, paper.fit == fit) { state.setWallpaperLook(fit = fit) }
+                }
+            }
+            Text("Dim: ${(paper.dim * 100).toInt()}%", style = MaterialTheme.typography.caption)
+            Slider(value = paper.dim, onValueChange = { state.setWallpaperLook(dim = it) }, valueRange = 0f..0.9f)
+            Text("Blur: ${(paper.blur * 100).toInt()}%", style = MaterialTheme.typography.caption)
+            Slider(value = paper.blur, onValueChange = { state.setWallpaperLook(blur = it) }, valueRange = 0f..1f)
+        }
+        error?.let { Text(it, color = MaterialTheme.colors.error, style = MaterialTheme.typography.caption) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = state::closeEditor) { Text("Done") }
+        }
     }
 }
 
@@ -553,6 +679,48 @@ private fun NewBoardDialog(state: BoardState, under: File?) {
     }
 }
 
+/**
+ * A name, and where the group goes: the top level, or inside one of the top-level groups. One
+ * level only, so only top-level groups are offered — a subgroup cannot hold subgroups.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupPlacementDialog(
+    state: BoardState,
+    title: String,
+    confirm: String,
+    initialParent: String?,
+    onOk: (String, String?) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var parent by remember { mutableStateOf(initialParent) }
+    val parents = state.possibleParents(null)
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text(title, style = MaterialTheme.typography.h6)
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().confirmOnEnter { onOk(name, parent) }.testTag("group-name"),
+        )
+        if (parents.isNotEmpty()) {
+            Text("Inside", style = MaterialTheme.typography.caption)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SelectChip("Top level", parent == null) { parent = null }
+                parents.forEach { candidate ->
+                    SelectChip(candidate.name, parent == candidate.id) { parent = candidate.id }
+                }
+            }
+        }
+        DialogButtons(
+            confirm = confirm,
+            onOk = { onOk(name, parent) },
+            onCancel = state::closeEditor,
+        )
+    }
+}
+
 @Composable
 private fun TextPromptDialog(
     title: String,
@@ -569,9 +737,22 @@ private fun TextPromptDialog(
             value = value,
             onValueChange = { value = it },
             singleLine = !multiline,
-            modifier = Modifier.fillMaxWidth().let { if (multiline) it.height(150.dp) else it },
+            modifier = Modifier
+                .fillMaxWidth()
+                .let { if (multiline) it.height(150.dp) else it.confirmOnEnter { onOk(value) } }
+                .testTag("prompt-field"),
         )
         DialogButtons(confirm = confirm, onOk = { onOk(value) }, onCancel = onCancel)
+    }
+}
+
+/** Enter in a single-line field means "yes, that" — the same as the confirm button. */
+private fun Modifier.confirmOnEnter(onOk: () -> Unit): Modifier = onPreviewKeyEvent { event ->
+    if (event.type == KeyEventType.KeyDown && (event.key == Key.Enter || event.key == Key.NumPadEnter)) {
+        onOk()
+        true
+    } else {
+        false
     }
 }
 

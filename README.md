@@ -87,6 +87,32 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### Settings and hotkeys
+- **Settings** and **Hotkeys** are buttons on the start menu, under *Draw* and *Boards*, and
+  entries in every board's **⋯** menu. On the start menu, Settings holds the boards home, the
+  reference folder, and whether dragged cards snap to their neighbours' centre lines — **off**
+  unless you switch it on — and Hotkeys lists every shortcut for the session and the board.
+  Inside a board, both show only what pertains to the board: *Board settings* (boards home,
+  snapping) and the board's hotkeys.
+- Pressing **Enter** in a name field — a new group, a rename — confirms it.
+
+### The header
+- One line: the board's **name** (click it to rename) · **Boards ▾** · **↑ Parent** when nested ·
+  **Grid | Free** · **Search** · **Contents** · **+ ▾** (new note, new link, group, import,
+  paste) · **⋯** (theme, snap, float strip, wallpaper, contact sheet, session recipe, shortcuts,
+  immersive, close). Tag chips appear under it only when the board has tags, and the action bar
+  at the bottom — draw, view, group, palette, copy, move to — appears only while something is
+  selected. An empty board is just the board.
+
+### Wallpaper
+- **⋯ → Wallpaper…** gives a board a picture behind the cards: choose one, or
+  right-click a picture already on the board and *Use as wallpaper*. It is copied into the board's
+  `_wallpaper/` folder, so it moves with the board and is never offered back as a card. Fit it as
+  *cover*, *tile* or *centre*; dim it so the cards stay readable; blur it if it is busy. On the
+  canvas it drifts at a third of the camera's pace, so the board reads as a surface the cards lie
+  on. The theme's texture shows through wherever it does not reach, and the contact sheet leaves
+  it out — the sheet is the material.
+
 ### Boards inside boards
 - A board made **inside another board's folder** is a sub-board of it. Nothing extra is stored —
   it simply follows from where the folders are — and nesting goes as deep as you like, each board
@@ -124,19 +150,44 @@ still have an ordinary folder of images; the board never renames, moves or delet
   - **Free** — a pan/zoom canvas where every card has its own position, size and rotation.
     `Shift`+drag pulls a rubber band over several cards, and dragged cards snap to their
     neighbours' centre lines (toggle with the **Snap** chip).
-    Groups show as a tinted, outlined area with a name label: click the area (or the label) to
-    select the whole group, drag the area to move it as one, drag a card inside it to move just
-    that card, and right-click the area to draw, rename, recolour or delete it. The label stays
+    Groups show as a tinted, outlined frame with a name label. The frame is shaped to the cards
+    — the union of their padded boxes, rounded off, so an L-shaped arrangement gets an L-shaped
+    frame — and the space between pictures of one group is always covered: pull a picture away
+    and the frame stretches with it as a full band, never thinning to a line. Only the frame
+    answers: click it
+    (or the label) to select the whole group, drag it to move the group as one, drag a card
+    inside it to move just that card, and right-click it to draw, rename, recolour or delete
+    it. A click in the empty corner of an L lands on the board, not the group. The label stays
     in view even when the group runs off the edge of the window. Grouped cards carry a small dot
     in their group's colour. A group only shows once it holds something.
-- **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
-  **link cards** (`L`) that open in your browser — right-click one for *Fetch preview* and the
-  picture the page advertises is saved onto the card; one-line **captions** (`F2`), **stars** (`S`)
+- **Two kinds of note** (`N`, or **+ ▾**). A **document note** shows only its title on the board
+  — its first `# heading`, else its first line — and a click opens the whole note in a popup,
+  rendered in a small Markdown: `# headings`, `**bold**`, `*italic*`, `` `code` ``, `-` and `1.`
+  lists, `---` rules, and `[text](url)` links that open in your browser. A **post-it** shows all
+  of its text exactly as typed, in a written hand, on paper sized to the text. Either way the
+  note stays plain text in the board file, with a paper colour and an optional heading style;
+  **link cards** (`L`): the title, underlined, and a click opens it in your browser (select one
+  with Ctrl+click, a drag, or right-click); *Fetch preview* on the right-click menu saves the
+  picture the page advertises beside the title; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
   captions, tags, note text and link addresses.
 - **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
-  them. In grid mode a section's name selects that group's cards — the way to group on the canvas. With nothing selected the same command starts an empty
+  them. In grid mode a section's name selects that group's cards
+- **Adding a card to a group later**: on the canvas, drag it onto one of the group's *pictures*
+  and let go — the frame brightens while a drop would file, and a line at the top says what
+  happened. Letting go merely near a group, or in the space between its pictures, files nothing:
+  a card only joins a group when you put it *on* the group. Or right-click → **Add to ‹group›**
+  (*Move to* when it is in another group already). In grid mode, drag it onto the group's header.
+- **Right-click a card → Remove from ‹group›** takes it out of its group: into the parent when it
+  was in a subgroup, otherwise into the Inbox.
+- **Subgroups**, one level deep: when you group a selection or make a new group, the dialog
+  offers *Inside…* a top-level group; a group's menu has *Move into…* and *Make top-level*. A
+  subgroup is an indented section under its parent in grid mode and a lighter area inside the
+  parent's on the canvas. The parent counts, draws, selects and drags its subgroups' cards as
+  its own; collapsing the parent folds them away. *Dissolve* on a subgroup lifts its cards into
+  the parent; deleting a parent lifts its subgroups to the top level. Anything deeper than one
+  level in a board file is flattened on load — the way to group on the canvas. With nothing selected the same command starts an empty
   group. `Ctrl`+`Shift`+`G` takes cards back out, and a group left holding nothing disappears by
   itself.
 - **Contents drawer** (`Ctrl`+`D`, or the *Contents* button): everything on the board as a list,

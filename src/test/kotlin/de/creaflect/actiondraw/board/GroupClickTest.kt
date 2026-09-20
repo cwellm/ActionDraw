@@ -119,7 +119,10 @@ class GroupClickTest {
         }
         rule.waitForIdle()
         // This is the reported case: the group runs off the left of the view and takes its
-        // top-left corner -- where its only handle used to sit -- with it.
+        // top-left corner -- where its only handle used to sit -- with it. Cards are now placed
+        // centred on the camera, so pan right until the hull's corner is genuinely off screen.
+        state.setZoom(state.zoom, state.camX + 500f, state.camY)
+        rule.waitForIdle()
         val hull = state.groupHulls.single()
         assertTrue(
             (hull.left - state.camX) * state.zoom + canvasSize().width / 2f < 0f,

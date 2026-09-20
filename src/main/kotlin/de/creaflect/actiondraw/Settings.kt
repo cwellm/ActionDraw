@@ -32,6 +32,15 @@ class Settings(private val dir: File = defaultDir()) {
 
     // ---- Idea Boards ----
 
+    /** Align dragged cards to their neighbours' centre lines. Off unless switched on. */
+    fun snapByDefault(): Boolean = runCatching { read().getProperty(KEY_SNAP)?.toBoolean() }.getOrNull() ?: false
+
+    fun setSnapByDefault(on: Boolean) {
+        val props = read()
+        props.setProperty(KEY_SNAP, on.toString())
+        write(props)
+    }
+
     /** Default parent directory for newly created boards. Doesn't have to exist yet. */
     fun boardsHome(): File = runCatching {
         read().getProperty(KEY_BOARDS_HOME)?.takeIf { it.isNotBlank() }?.let(::File)
@@ -86,6 +95,7 @@ class Settings(private val dir: File = defaultDir()) {
         const val FILE_NAME = "settings.properties"
         private const val KEY_LAST_FOLDER = "lastFolder"
         private const val KEY_BOARDS_HOME = "boardsHome"
+        private const val KEY_SNAP = "snapByDefault"
         private const val KEY_RECENT_BOARD = "recentBoard"
         private const val MAX_RECENT_BOARDS = 5
 

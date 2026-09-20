@@ -71,7 +71,7 @@ object BoardStore {
                 val taken = present.mapTo(mutableSetOf()) { it.path }
                 ImageScanner.scanTree(root)
                     .map { relKey(root, it) }
-                    .filter { it !in taken }
+                    .filter { it !in taken && !it.startsWith(BoardState.WALLPAPER_DIR + "/") }
                     .mapNotNull { path -> ContentId.of(File(root, path))?.let { it to path } }
                     .toMap()
             }
@@ -81,6 +81,7 @@ object BoardStore {
         val lost = missing.filter { it.id !in recovered }.mapTo(mutableSetOf()) { it.id }
 
         return board.copy(
+            groups = oneLevelDeep(board.groups),
             items = board.items.mapNotNull { item ->
                 when {
                     item !is ImageItem -> item
@@ -89,6 +90,23 @@ object BoardStore {
                 }
             },
         )
+    }
+
+    /**
+     * A subgroup's parent must exist and must itself be top-level. A parent that is missing or
+     * that is a subgroup itself is dropped, lifting the group to the top rather than losing it
+     * — an edited file, or a future version, should never make cards unreachable.
+     */
+    fun oneLevelDeep(groups: List<BoardGroup>): List<BoardGroup> {
+        val byId = groups.associateBy { it.id }
+        return groups.map { g ->
+            val parent = g.parentId?.let { byId[it] }
+            if (g.parentId != null && (parent == null || parent.parentId != null || parent.id == g.id)) {
+                g.copy(parentId = null)
+            } else {
+                g
+            }
+        }
     }
 
     /** Fills in a missing content id from the file on disk (cheap: a length + sampled hash). */

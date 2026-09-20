@@ -71,6 +71,29 @@ import androidx.compose.ui.platform.testTag
 import de.creaflect.actiondraw.samePathAs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import de.creaflect.actiondraw.board.WallpaperFit
+import de.creaflect.actiondraw.image.ImageLoader
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.border
+import androidx.compose.material.TextButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.FlowRowScope
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.TextFieldDefaults
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
+import de.creaflect.actiondraw.board.NoteKind
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -114,10 +137,18 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                 .then(background)
                 .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = dropTarget),
         ) {
+            // The wallpaper sits on the theme's texture and under everything else.
+            WallpaperLayer(state)
             Row(Modifier.fillMaxSize()) {
               if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
               Column(Modifier.weight(1f).fillMaxHeight()) {
-                if (!hideChrome) {
+                if (!hideChrome) Surface(
+                    // A stripe under the chrome: text-weight controls straight on cork or a
+                    // wallpaper were barely there. Slightly translucent so the board shows through.
+                    color = MaterialTheme.colors.surface.copy(alpha = 0.94f),
+                    elevation = 3.dp,
+                    modifier = Modifier.fillMaxWidth().testTag("board-header"),
+                ) { Column {
                     BoardHeader(state, board.name, board.theme, onImmersive = {
                         state.immersive = true
                         setFullscreen(true)
@@ -140,14 +171,15 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                                 .clickable { state.dismissImportNotice() },
                         )
                     }
-                    FilterBar(state)
-                }
+                    if (state.allTags.isNotEmpty()) FilterBar(state)
+                } }
                 if (state.layout == BoardLayouts.FREE) {
                     BoardCanvas(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
                 } else {
                     BoardGrid(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
                 }
-                if (!hideChrome) BoardActionBar(state)
+                // The empty board is just the board: the action bar exists for a selection.
+                if (!hideChrome && state.selection.isNotEmpty()) BoardActionBar(state)
               }
             }
             if (state.viewerOpen) BoardViewer(state, thumbs)
@@ -155,49 +187,235 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
     }
 }
 
+/**
+ * One line, most of the time: the board's name and where it sits, the layout, search, the
+ * contents drawer, a menu for adding things, and an overflow for everything used once a session.
+ * The header used to be a settings page sitting on top of the board; now it is a toolbar.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BoardHeader(state: BoardState, name: String, theme: String, onImmersive: () -> Unit) {
-    // The header carries a lot; let it wrap rather than squeeze the buttons on a narrow window.
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
     ) {
         Text(
             name,
-            style = MaterialTheme.typography.h5,
+            style = MaterialTheme.typography.subtitle1,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colors.primary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 320.dp).align(Alignment.CenterVertically),
+            modifier = Modifier
+                .widthIn(max = 280.dp)
+                .align(Alignment.CenterVertically)
+                .clickable { state.openEditor(BoardEditor.RenameBoard) }
+                .padding(end = 4.dp),
         )
         BoardSwitcher(state)
-        // One tap up out of a sub-board, without going round by the list.
         state.parentBoard?.let { parent ->
-            OutlinedButton(
-                onClick = { state.openBoard(parent.dir) },
-                modifier = Modifier.testTag("board-up"),
-            ) {
-                Text("↑ " + parent.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            FlatButton("↑ " + parent.name, Modifier.testTag("board-up")) { state.openBoard(parent.dir) }
+        }
+        Segmented(
+            options = listOf(BoardLayouts.GRID to "Grid", BoardLayouts.FREE to "Free"),
+            selected = state.layout,
+            tag = "layout",
+        ) { state.setLayout(it) }
+        CompactSearch(state)
+        FlatButton(if (state.drawerOpen) "Contents ✕" else "Contents") { state.drawerOpen = !state.drawerOpen }
+        AddMenu(state)
+        MoreMenu(state, theme, onImmersive)
+    }
+}
+
+/** Text-style button: the header's default weight, so the board stays the loudest thing. */
+@Composable
+private fun FlatButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.height(32.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.body2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * A search field that fits a 32 dp line. Material's `OutlinedTextField` will not go under 56 dp,
+ * so this is the same decoration on a `BasicTextField` with its padding taken in.
+ */
+@OptIn(ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
+@Composable
+private fun FlowRowScope.CompactSearch(state: BoardState) {
+    val interaction = remember { MutableInteractionSource() }
+    BasicTextField(
+        value = state.query,
+        onValueChange = state::search,
+        singleLine = true,
+        textStyle = MaterialTheme.typography.body2.copy(color = MaterialTheme.colors.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colors.primary),
+        interactionSource = interaction,
+        modifier = Modifier.width(180.dp).height(32.dp).align(Alignment.CenterVertically).testTag("board-search"),
+    ) { inner ->
+        TextFieldDefaults.OutlinedTextFieldDecorationBox(
+            value = state.query,
+            innerTextField = inner,
+            enabled = true,
+            singleLine = true,
+            visualTransformation = VisualTransformation.None,
+            interactionSource = interaction,
+            placeholder = { Text("Search", style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f)) },
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        )
+    }
+}
+
+/** One control with the options side by side, the chosen one filled: Grid | Free. */
+@Composable
+private fun <T> Segmented(options: List<Pair<T, String>>, selected: T, tag: String, onPick: (T) -> Unit) {
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .border(1.dp, MaterialTheme.colors.onSurface.copy(alpha = 0.25f), RoundedCornerShape(6.dp))
+            .testTag(tag),
+    ) {
+        options.forEach { (value, label) ->
+            val on = value == selected
+            Text(
+                label,
+                style = MaterialTheme.typography.body2,
+                color = if (on) MaterialTheme.colors.onPrimary else MaterialTheme.colors.onSurface,
+                modifier = Modifier
+                    .background(if (on) MaterialTheme.colors.primary else Color.Transparent)
+                    .clickable { onPick(value) }
+                    .testTag("$tag-$label")
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+            )
+        }
+    }
+}
+
+/** "+ ▾": the ways material gets onto the board. */
+@Composable
+private fun AddMenu(state: BoardState) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FlatButton("+ ▾", Modifier.testTag("board-add")) { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditNote(null)) }) { Text("New document note") }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditNote(null, NoteKind.POSTIT)) }) { Text("New post-it") }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditLink(null)) }) { Text("New link") }
+            DropdownMenuItem(onClick = { open = false; state.startGrouping() }) {
+                Text(if (state.selection.isEmpty()) "New group" else "Group the selection (${state.selection.size})")
+            }
+            Divider()
+            DropdownMenuItem(onClick = {
+                open = false
+                chooseImages(state.root).takeIf { it.isNotEmpty() }?.let { state.importExternal(it) }
+            }) { Text("Import pictures…") }
+            DropdownMenuItem(onClick = { open = false; state.importPasted() }) { Text("Paste") }
+        }
+    }
+}
+
+/** "⋯": what is used once a session, out of the way until then. */
+@Composable
+private fun MoreMenu(state: BoardState, theme: String, onImmersive: () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        FlatButton("⋯", Modifier.testTag("board-more")) { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.testTag("board-more-menu")) {
+            // First, where they cannot be missed: the board's settings and its hotkeys.
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Settings) }, modifier = Modifier.testTag("board-settings")) {
+                Text("Settings…")
+            }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Hotkeys) }, modifier = Modifier.testTag("board-hotkeys")) {
+                Text("Hotkeys…")
+            }
+            Divider()
+            // One row for the theme, cycling: three rows for three themes made the menu too long.
+            val themes = BoardThemes.ALL
+            val next = themes[(themes.indexOf(theme) + 1).mod(themes.size)]
+            DropdownMenuItem(onClick = { state.setTheme(next) }, modifier = Modifier.testTag("board-theme")) {
+                Text("Theme: " + theme.replaceFirstChar { it.uppercase() } + "  ›  " + next.replaceFirstChar { it.uppercase() })
+            }
+            if (state.layout == BoardLayouts.FREE) {
+                DropdownMenuItem(onClick = { open = false; state.setSnappingPreference(!state.snapping) }, modifier = Modifier.testTag("snap-toggle")) {
+                    Text((if (state.snapping) "• " else "   ") + "Snap to neighbours")
+                }
+            }
+            DropdownMenuItem(onClick = { open = false; if (state.stripOpen) state.closeStrip() else state.openStrip() }) {
+                Text(if (state.stripOpen) "Close float strip" else "Float strip")
+            }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Wallpaper) }) { Text("Wallpaper…") }
+            DropdownMenuItem(onClick = {
+                open = false
+                val items = state.sheetItems
+                chooseSaveFile(
+                    suggested = ContactSheet.suggestedName(state.board?.name ?: "board"),
+                    start = state.root,
+                )?.let { state.exportContactSheet(items, it) }
+            }) { Text("Contact sheet…") }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.EditSession) }) {
+                Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
+            }
+            Divider()
+            DropdownMenuItem(onClick = { open = false; onImmersive() }) { Text("Immersive") }
+            DropdownMenuItem(onClick = { open = false; state.closeBoard() }, modifier = Modifier.testTag("board-close")) {
+                Text("Close board")
             }
         }
-        OutlinedButton(onClick = { state.drawerOpen = !state.drawerOpen }) {
-            Text(if (state.drawerOpen) "Contents ✕" else "Contents")
+    }
+}
+
+/**
+ * The board's background picture, if it has one: fitted as asked, softened and dimmed as asked,
+ * and in free mode drifting at a third of the camera's pace so the board feels like a surface
+ * the cards lie on rather than a photograph they float over. Drawn a little larger than the view
+ * so the drift never shows an edge.
+ */
+@Composable
+private fun WallpaperLayer(state: BoardState) {
+    val paper = state.wallpaper ?: return
+    val file = state.wallpaperFile ?: return
+    val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
+        value = withContext(Dispatchers.IO) { runCatching { ImageLoader.load(file) }.getOrNull() }
+    }
+    val bmp = bitmap ?: return
+    val free = state.layout == BoardLayouts.FREE
+    val blurDp = (paper.blur * 24f).dp
+    Box(Modifier.fillMaxSize().clipToBounds().testTag("wallpaper")) {
+        val drift = Modifier.graphicsLayer {
+            if (free) {
+                translationX = -state.camX * state.zoom * 0.3f
+                translationY = -state.camY * state.zoom * 0.3f
+                scaleX = 1.3f
+                scaleY = 1.3f
+            }
         }
-        SelectChip("Grid", state.layout == BoardLayouts.GRID) { state.setLayout(BoardLayouts.GRID) }
-        SelectChip("Free", state.layout == BoardLayouts.FREE) { state.setLayout(BoardLayouts.FREE) }
-        if (state.layout == BoardLayouts.FREE) {
-            SelectChip("Snap", state.snapping) { state.snapping = !state.snapping }
+        when (paper.fit) {
+            WallpaperFit.TILE -> Box(
+                Modifier
+                    .fillMaxSize()
+                    .then(drift)
+                    .blur(blurDp)
+                    .background(ShaderBrush(ImageShader(bmp, TileMode.Repeated, TileMode.Repeated))),
+            )
+            WallpaperFit.CENTER -> Image(
+                bitmap = bmp,
+                contentDescription = null,
+                contentScale = ContentScale.None,
+                modifier = Modifier.fillMaxSize().then(drift).blur(blurDp),
+            )
+            else -> Image(
+                bitmap = bmp,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().then(drift).blur(blurDp),
+            )
         }
-        BoardThemes.ALL.forEach { id ->
-            SelectChip(id.replaceFirstChar { it.uppercase() }, theme == id) { state.setTheme(id) }
-        }
-        OutlinedButton(onClick = { if (state.stripOpen) state.closeStrip() else state.openStrip() }) {
-            Text(if (state.stripOpen) "Strip ✕" else "Float strip")
-        }
-        OutlinedButton(onClick = onImmersive) { Text("Immersive") }
-        OutlinedButton(onClick = { state.closeBoard() }) { Text("Close") }
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = paper.dim)))
     }
 }
 
@@ -213,9 +431,7 @@ private fun BoardSwitcher(state: BoardState) {
         if (open) value = withContext(Dispatchers.IO) { state.boardTree() }
     }
     Box {
-        OutlinedButton(onClick = { open = true }, modifier = Modifier.testTag("board-switcher")) {
-            Text("Boards ▾")
-        }
+        FlatButton("Boards ▾", Modifier.testTag("board-switcher")) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (tree.isEmpty()) {
                 DropdownMenuItem(onClick = { open = false }) { Text("Looking…") }
@@ -262,24 +478,32 @@ private fun BoardSwitcher(state: BoardState) {
 @Composable
 private fun FilterBar(state: BoardState) {
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 2.dp),
     ) {
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = state::search,
-            singleLine = true,
-            label = { Text("Search", style = MaterialTheme.typography.caption) },
-            modifier = Modifier.width(240.dp),
-        )
         state.allTags.forEach { tag ->
-            SelectChip("#$tag (${state.tagCount(tag)})", tag in state.filterTags) { state.toggleFilterTag(tag) }
+            FlatChip("#$tag (${state.tagCount(tag)})", tag in state.filterTags) { state.toggleFilterTag(tag) }
         }
         if (state.filterTags.isNotEmpty()) {
-            OutlinedButton(onClick = { state.clearFilter() }) { Text("Clear filter") }
+            FlatButton("Clear filter") { state.clearFilter() }
         }
     }
+}
+
+/** A chip without an outline: quiet until chosen, then filled. */
+@Composable
+private fun FlatChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        label,
+        style = MaterialTheme.typography.caption,
+        color = if (selected) MaterialTheme.colors.onPrimary else MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (selected) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface.copy(alpha = 0.08f))
+            .clickable { onClick() }
+            .padding(horizontal = 9.dp, vertical = 4.dp),
+    )
 }
 
 @Composable
@@ -316,13 +540,14 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
             }
         }
         state.sections.forEach { (group, itemsInGroup) ->
-            if (group != null || itemsInGroup.isNotEmpty()) {
+            // A subgroup's header hides with its parent's cards when the parent is collapsed.
+            if ((group != null || itemsInGroup.isNotEmpty()) && state.groupById(group?.parentId)?.collapsed != true) {
                 val headerKey = GridReorder.headerKey(group?.id ?: "inbox")
                 item(key = headerKey, span = { GridItemSpan(maxLineSpan) }) {
                     GroupHeader(state, group, itemsInGroup.size, dropTarget = reorder.targetKey == headerKey)
                 }
             }
-            if (group?.collapsed != true) {
+            if (!state.isFolded(group)) {
                 val section = group?.id ?: "inbox"
                 items(itemsInGroup, key = { GridReorder.cellKey(section, it.id) }) { item ->
                     BoardCard(
@@ -337,82 +562,42 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
     }
 }
 
+/** What can be done with the selection — shown only while there is one. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BoardActionBar(state: BoardState) {
-    Surface(elevation = 8.dp) {
-        Column(Modifier.fillMaxWidth().padding(10.dp)) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                val drawable = state.selectedImageFiles.size
-                Button(onClick = { state.drawSelection() }, enabled = drawable > 0) {
-                    Text("Draw selection ($drawable)")
-                }
-                val viewable = state.viewableIds.size
-                OutlinedButton(onClick = { state.openViewer() }, enabled = viewable > 0) {
-                    Text(if (state.selection.isEmpty()) "View all ($viewable)" else "View ($viewable)")
-                }
-                OutlinedButton(onClick = { state.openEditor(BoardEditor.EditSession) }) {
-                    Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
-                }
-                OutlinedButton(onClick = { state.startGrouping() }) {
-                    Text(if (state.selection.isEmpty()) "New group" else "Group (${state.selection.size})")
-                }
-                if (state.selection.any { id -> state.item(id)?.groups?.isNotEmpty() == true }) {
-                    OutlinedButton(onClick = { state.ungroupItems(state.selection) }) { Text("Ungroup") }
-                }
-                OutlinedButton(onClick = { state.openEditor(BoardEditor.EditNote(null)) }) { Text("New note") }
-                OutlinedButton(onClick = { state.openEditor(BoardEditor.EditLink(null)) }) { Text("New link") }
-                if (state.selection.any { state.item(it) is ImageItem }) {
-                    OutlinedButton(onClick = { state.openEditor(BoardEditor.ShowPalette(state.selection)) }) {
-                        Text("Palette")
-                    }
-                }
-                OutlinedButton(onClick = {
-                    val items = state.sheetItems
-                    chooseSaveFile(
-                        suggested = ContactSheet.suggestedName(state.board?.name ?: "board"),
-                        start = state.root,
-                    )?.let { state.exportContactSheet(items, it) }
-                }) { Text("Contact sheet…") }
-                OutlinedButton(onClick = {
-                    chooseImages(state.root).takeIf { it.isNotEmpty() }?.let { state.importExternal(it) }
-                }) { Text("Import…") }
-                OutlinedButton(onClick = { state.importPasted() }) { Text("Paste") }
-                OutlinedButton(onClick = { state.copySelection() }, enabled = state.selection.isNotEmpty()) {
-                    Text("Copy")
-                }
-                if (state.selection.isNotEmpty()) {
-                    var moveOpen by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(onClick = { moveOpen = true }) { Text("Move to ▾") }
-                        DropdownMenu(expanded = moveOpen, onDismissRequest = { moveOpen = false }) {
-                            DropdownMenuItem(onClick = {
-                                state.moveToGroup(state.selection, null)
-                                moveOpen = false
-                            }) { Text("Inbox") }
-                            state.sortedGroups.forEach { group ->
-                                DropdownMenuItem(onClick = {
-                                    state.moveToGroup(state.selection, group.id)
-                                    moveOpen = false
-                                }) { Text(group.name) }
-                            }
+    Surface(elevation = 8.dp, modifier = Modifier.testTag("action-bar")) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
+        ) {
+            val drawable = state.selectedImageFiles.size
+            Button(onClick = { state.drawSelection() }, enabled = drawable > 0) { Text("Draw ($drawable)") }
+            val viewable = state.viewableIds.size
+            FlatButton("View ($viewable)") { state.openViewer() }
+            FlatButton("Group (${state.selection.size})") { state.startGrouping() }
+            if (state.selection.any { id -> state.item(id)?.groups?.isNotEmpty() == true }) {
+                FlatButton("Ungroup") { state.ungroupItems(state.selection) }
+            }
+            if (state.selection.any { state.item(it) is ImageItem }) {
+                FlatButton("Palette") { state.openEditor(BoardEditor.ShowPalette(state.selection)) }
+            }
+            FlatButton("Copy") { state.copySelection() }
+            var moveOpen by remember { mutableStateOf(false) }
+            Box {
+                FlatButton("Move to ▾") { moveOpen = true }
+                DropdownMenu(expanded = moveOpen, onDismissRequest = { moveOpen = false }) {
+                    DropdownMenuItem(onClick = { state.moveToGroup(state.selection, null); moveOpen = false }) { Text("Inbox") }
+                    state.sortedGroups.forEach { group ->
+                        DropdownMenuItem(onClick = { state.moveToGroup(state.selection, group.id); moveOpen = false }) {
+                            Text((if (group.parentId != null) "    " else "") + group.name)
                         }
                     }
                 }
             }
-            Text(
-                "Click select · Ctrl/Shift multi · right-click menu · Ctrl+C/V copy/paste · Ctrl+↑/↓ reorder " +
-                    "(+Shift: all the way) · Space view large · Enter draw · N note · L link · G group · " +
-                    "S star · T tags · P palette · F2 caption · Del remove · F immersive · " +
-                    "G group the selection · Ctrl+Shift+G ungroup · Ctrl+D contents" +
-                    if (state.layout == BoardLayouts.FREE) " · Shift+drag marquee" else "",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.45f),
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-            )
+            Spacer(Modifier.weight(1f))
+            FlatButton("Deselect") { state.clearSelection() }
         }
     }
 }

@@ -658,3 +658,219 @@ So the check is deliberately doubled. `moveBoard` compares canonical paths, sinc
 pointing back into the board would slip past a string prefix; and `moveFolder` refuses the same
 thing again regardless of what asked it. That is more belt than this codebase usually wears, and
 the reason is written above it: it is the only thing standing between a misclick and the board.
+
+## 27. M5 begins: notes in Markdown (2026-09-20)
+
+The spec is [Board-Handling-Spec.md](Board-Handling-Spec.md); this is what building its first
+piece taught.
+
+The renderer is a hand-written subset, not a library, for the reason the spec gives — the target
+is a card — and because the note must stay plain text in the sidecar (D4 still holds). It knows
+nothing about notes: `Markdown.parse` gives blocks, `Markdown.annotate` gives a styled string
+with `LinkAnnotation`s, and `Markdown.Rendered` lays blocks out; the same three calls will draw a
+concept's document. Links use Compose's `LinkAnnotation.Url`, which exists in 1.7.3 and makes a
+link clickable inside an ordinary `Text` — no `ClickableText`, no manual hit-testing.
+
+Two things the canvas note had quietly been getting wrong were found by wiring it up: it drew the
+raw text, markers and all (only the grid card formatted), and a lone new card was placed at
+x = −572 — the placer centred a row of *five* around the origin regardless of how many cards it
+had. That second one showed up as a test that found its note node but got a zero rectangle for
+its bounds: the text was entirely off-screen. §25's rule held again — measure, do not guess — and
+the fix is a line: centre the row over the cards actually in it.
+
+`NoteLinkTest` clicks the link on the real canvas and sees `openUrl` called; making the link
+inert fails it. Search now matches the words rather than the markup, though that wiring is a
+single line and was not mutation-checked — noted here so it is not mistaken for tested.
+
+## 28. One level of subgroups (2026-09-20)
+
+The model change is one field, `parentId`, and the limit is enforced in three places on
+purpose: at creation (a parent that is itself a subgroup is ignored), at re-parenting (refused
+both ways — a group with children cannot become a child, a child cannot become a parent), and on
+load (`BoardStore.oneLevelDeep` drops a parent that is missing or nested, lifting the group to
+the top rather than losing its cards). Three places rather than one because a board file is
+plain JSON that anyone, including a future version, may write; the load-time rule is the one
+that actually protects the cards, and the others keep the UI from ever producing something the
+loader would then quietly undo.
+
+What "in the group" means once there is a tree was the real design work, and it comes down to
+one rule: **a parent owns its subgroups' cards for everything that acts on the group, and only
+its own cards for everything that files them.** Draw, count, select, drag, collapse — the tree.
+Sections, the drawer's item rows, "move to group" — the group itself. The hull follows the same
+rule structurally: a parent's hull takes its children's *finished* hulls in as boxes, computed
+children-first, so the parent always encloses them and is drawn underneath.
+
+Two smaller decisions. Dissolving a subgroup lifts its cards into the parent — that is the group
+they were in as well, and dropping them to the Inbox would have been a surprise. Deleting a
+parent lifts its subgroups to the top level: nothing about *them* was deleted. And the "shared
+parent" offered when grouping a selection resolves each card up to the top level first, so a card
+in Flügel and one in Membran both count as "under Flügel" — the first version compared raw
+memberships and offered nothing, which the test caught.
+
+The `source` field went in at the same time, unused, so that concept groups (M7) do not change
+the sidecar's shape a second time; a test shows it round-trips.
+
+## 29. Frames shaped to the arrangement (2026-09-20)
+
+The bounding box was never the group; it was the cheapest thing that contained it. Three cards
+in an L got a rectangle a third empty, and the empty third answered clicks as if it were cards.
+
+The frame is now the union of the cards' padded boxes — each a rounded rectangle, combined with
+Skia's path ops — plus, where the union falls into pieces that do not touch, a thin bridge from
+one piece's nearest edge to the next's. Bridges go neighbour to neighbour in x-order, so three
+clusters get two bridges rather than three; the point of a bridge is that a group never looks
+like two groups, not that every piece is wired to every other.
+
+The rule that made it worth doing: **the drawn path is the hit-tested path.** `GroupArea` builds
+one Skia path, draws it, and gates its gesture on `path.contains(x, y)`; a press outside the
+shape is not consumed and falls through to the card or board beneath. §25's "what shows is what
+clicks" is now literally true rather than approximately.
+
+Two details worth recording. The boxes are padded *once*, in the state, so the union the canvas
+draws and the bounds the label and camera use agree on where the edge is — padding at both
+ends had them disagree by a band. And "touching" is decided on the padded boxes: two cards a
+whole card apart are one piece if their padding overlaps, two pieces with a bridge if not. The
+first version of the L test put the third card too far down, got a bridge, and failed its own
+precondition — the geometry was right and the test's idea of an L was wrong, which is the
+better way round.
+
+Subgroups compose: a parent's union takes its children's finished bounds in as one more box, so
+the parent's frame always encloses the child's, and the child is drawn on top of the parent's
+tint, lighter. The inner corners where rectangles meet stay sharp in this first build — the spec
+allowed either that or a blur-and-threshold, and the sharp version reads well enough that the
+extra pass is not worth its cost yet.
+
+## 30. Wallpaper (2026-09-20)
+
+Small feature, two decisions worth writing down.
+
+**The wallpaper is a copy, always.** A picture chosen from anywhere is copied into
+`_wallpaper/`; a picture already on the board is copied too, rather than referenced. The
+reference would have been the elegant choice and the wrong one: remove the card later and the
+background vanishes with it, for no reason the user can see. A copy costs one file. One copy at a
+time — replacing clears the old one and removing deletes it — because nothing else ever refers
+to the wallpaper's file, so leaving it would only be litter.
+
+**The copy must not come back as a card.** M2's rename-proof identity recovers a card whose
+file has gone by finding another file with the same content, which is precisely what a wallpaper
+made from a card is. The recovery now skips `_wallpaper/`. The first test for that did not
+actually exercise the case (no card was missing), which the mutation run showed by *not* failing;
+the test now loses the card's file first, and then the mutation is caught. A test that cannot go
+red has not tested anything — §21's rule, again.
+
+Left out on purpose: the spec's `Alt`+drop. Whether a modifier is held during an external
+drag-and-drop is not something Compose Desktop reports reliably, and *Use as wallpaper* on a card
+plus the dialog's chooser cover the need without a gesture that would work only sometimes.
+
+## 31. Menus that get out of the way (2026-09-20)
+
+The header had grown the way headers do: every feature since M1 added a button, and the board
+opened under two or three lines of outlined controls that read as a settings page. The action bar
+below did the same, with a footer listing every shortcut.
+
+The redesign is one rule applied twice. **What is used every session stays visible; what is used
+once a session goes into a menu.** Name, layout, search, contents and the two menus stay. Theme,
+snap, the float strip, the wallpaper, the contact sheet, the session recipe, immersive and close go
+into ⋯; the ways of adding material go into + ▾. And **the action bar exists for a selection**:
+with nothing selected there is nothing for it to act on, and an empty board should be just the
+board. The shortcut footer became a sheet behind ⋯ → *Shortcuts…*, where it costs nothing until
+wanted.
+
+Two things were deliberately not done. The shared `SelectChip` was left alone and the board got
+its own flat chips and a segmented control — the practice screen's chips are part of a different
+surface and were not the complaint. And the header's tags for tests (`board-switcher`,
+`board-up`) were kept exactly, so the switcher and sub-board tests from §25 still pass unchanged
+through the rewrite, which is the point of tags over text.
+
+`BoardChromeTest` drives the new chrome on the real screen. This is the last piece of M5; the
+board is now what [Board-Handling-Spec.md](Board-Handling-Spec.md) described, minus the one
+gesture §30 declined.
+
+## 32. What using M5 asked for (2026-09-21)
+
+Six remarks from the first day with the new board, and what each turned into.
+
+**The frame, again.** The union-of-boxes frame was "better, but": a bit angular, and when a
+picture was pulled away from its group the thin bridge between them left the space "very empty".
+The second point is the interesting one, because it corrects §29's design, not its execution. A
+bridge says "these belong together"; what the user wanted the frame to say is "this is the
+group's ground, including the space between its pictures" — which is the convex hull of the two
+pieces, a full band. So the connector became exactly that, neighbour to neighbour, and the L
+stays an L because touching pieces need no connector at all. Rounder came from two things: a
+wider corner radius, and thickening the finished union with a round-joined stroke and uniting it
+back — the one trick that softens the *inner* corners a union leaves sharp, which no radius on
+the rectangles can reach.
+
+**Snapping off by default.** It had been on since M3 as a convenience; in use it fought the hand.
+It is now a preference in `Settings`, off unless switched on, remembered across runs, reachable
+from a board's ⋯ and from the menu's Settings. The `BoardStateTest` that exercised snapping had
+silently depended on the old default and needed to switch it on first — a small reminder that a
+default is part of the contract.
+
+**Remove from group.** Right-click on a card now offers it, and it lands where §28's rule says:
+in the parent when the card was in a subgroup, otherwise in the Inbox.
+
+**Enter confirms.** Every single-line prompt — a group's name, a rename — takes Enter as the
+confirm button, through one modifier on the field. Testing it needed the dialogs composed
+alongside the screen: in the app shell they float above every screen from `App`, so a screen on
+its own never shows one.
+
+**Settings and Hotkeys on the menu.** Two quiet links under Draw and Boards. The hotkey tables
+live in one object that both the menu's sheet and the board's *Shortcuts…* read, so they cannot
+drift apart — the same reasoning as one Markdown renderer for notes and documents.
+
+## 33. Dropping a card into a group (2026-09-21)
+
+Two follow-ups to §32. *Settings* and *Hotkeys* had been small text links on the start menu
+only, which read as nothing at all; they are buttons there now and entries in the board's ⋯ as
+well, both drawing from the same sheets.
+
+And adding a picture to a group later. The menu path existed (*Move to ‹group›*), but the
+gesture a person tries first on a canvas is to drag the picture onto the group — so that works
+now: let go over a group's frame and the card, or the selection it belongs to, joins. Two rules
+keep it from surprising. The **innermost** frame wins, so a drop on a subgroup files into the
+subgroup rather than its parent. And a card **already in the group's tree is never re-filed**
+by being moved about inside its own frame — §32 made moving a picture away stretch the frame
+rather than leave the group, and dropping must not undo that from the other side.
+
+"Which frame is under this point" is the same union the canvas draws (§29's rule), asked in
+board units with a little pure geometry: inside any padded box, or inside any convex connector.
+The real-canvas test drags a loose card onto a frame and sees it filed; reverting the frame
+gate, the stay rule and the canvas wiring each failed exactly one test.
+
+Refined the same day: inside a board, *Settings* and *Hotkeys* show only what pertains to the
+board — *Board settings* (the boards home and snapping) and the board's own hotkeys — with the
+start menu's sheets holding everything. Same components, one list each; the board merely asks
+for its section.
+
+## 34. Two kinds of note, links that open, and a drop that asks less (2026-09-22)
+
+**The bug first**, because it was mine and recent. "The note and the link move with my group,
+even though they are not part of it." Only members move — `dragGroupBy` filters by membership —
+so they *were* members, and the only silent way in was §33's drop-into-group: after §32 gave the
+frames generous convex bands, letting a note go anywhere inside one filed it, with no sign that
+anything had happened. Tidy a note up next to a group and it was in the group. The fix is a
+narrower target and a louder act: a card files only when let go **on one of the group's cards**
+(their own boxes, not the padding, not the band), the frame brightens while a drop would file,
+and a notice says what was filed where. The frame's shape still selects and drags the group —
+that is what it is for — it just no longer swallows what lands near it.
+
+**Links** had been square cards with an icon and a host line; a link is a title. It is one now,
+underlined, and a plain tap opens it — selecting is Ctrl/Shift+click, a drag, or the right-click
+menu, all of which still work because the tap detector sits beside the existing press handling
+rather than replacing it.
+
+**Notes** split into two kinds, which the user named. A **document note** shows only its title on
+the board — the first `#` heading, else the first line, markers stripped — and a tap opens the
+whole note to read, rendered, with a way into editing. A **post-it** shows all of its text as
+typed, in a written hand (`FontFamily.Cursive`, whatever the system provides), on paper as tall
+as the text. Existing notes are documents by default, so old boards read as before.
+
+The shape of a card on the canvas became one rule, `aspectOf`, shared by the canvas that draws
+and the frames that measure: a picture has its own, a link and a document note are a strip, a
+post-it estimates its height from its text — an estimate in the state rather than a measurement
+in the UI, so the frame around a post-it needs no round trip to agree with it.
+
+One test moved with the design: the old check that clicked a link *on* a canvas note now opens
+the note first and clicks the link in the popup, which is where links live once the card is a
+title. Three behaviours were checked by reverting them.

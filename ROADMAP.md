@@ -6,8 +6,11 @@ it. Tasks are broken out when their milestone becomes active; later milestones s
 level on purpose.
 
 Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (exploration/ideation) ·
-[docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) (Phase-1 shape) · [IDEAS.md](IDEAS.md)
-(filter scratchpad).
+[docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) (the board's design history) ·
+[IDEAS.md](IDEAS.md) (practice-side scratchpad). The next phase has its own:
+[docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md) (M5) ·
+[docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md) (M6, with findings in
+[LEARNINGS.md](LEARNINGS.md)) · [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7).
 
 ---
 
@@ -347,6 +350,150 @@ two reports that came out of using one.
 - ✅ A name already taken at the destination gets its own folder rather than merging
 - ✅ Covered by `MoveBoardTest`; the behaviours were checked by reverting them, and the self-move
   guard proved itself by producing `Flügel/Membran/Flügel/Membran/…` 28 levels deep when removed
+
+## ✅ M5 — Idea Board: handling, second round
+
+Spec: [docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md). The board as a free surface
+of ideas and inspiration; what daily use asked for.
+
+### ✅ F6.1 Notes in Markdown
+- ✅ Headings, bold, italic, bullet and numbered lists, clickable links, inline code, rules —
+  rendered on the card (grid *and* canvas, which used to draw the raw markers) and previewed in
+  the dialog once there is markup to show; the sidecar stays plain text; search reads the words
+- ✅ One renderer, `Markdown`, outside the note code, for Concepts' documents to reuse; links go
+  through `BoardState.openUrl`, replaceable so a test can see a link followed
+- ✅ Covered by `MarkdownTest` (the parser) and `NoteLinkTest`, which clicks a link inside a note
+  on the real canvas — checked by making the link inert and watching it fail
+- ✅ Found on the way: a lone new card was placed two widths off the left of the screen, because
+  the placer centred a row of five whatever the count; it now centres over the cards it places
+
+### ✅ F6.2 One level of subgroups
+- ✅ `BoardGroup.parentId`, flattened to one level on load (a missing or nested parent is
+  dropped, lifting the group rather than losing it); `source` reserved for concept groups and
+  shown to round-trip
+- ✅ Grid: a subgroup is an indented section under its parent and folds with it · Free: its
+  area sits lighter inside the parent's, whose hull takes the child's hull in; dragging the
+  parent moves everything, dragging the subgroup only itself
+- ✅ A parent counts, draws and selects its subgroups' cards as its own; dissolving a subgroup
+  lifts its cards into the parent; deleting a parent lifts its subgroups to the top level; a
+  parent holding only a subgroup is not pruned as empty
+- ✅ Grouping a selection offers *Inside…* with the group the cards already share under
+  pre-picked; *Move into…* / *Make top-level* / *New subgroup…* on a group's menu and the drawer
+- ✅ Covered by `SubgroupTest` (fourteen cases) and `SubgroupGridTest` on the real screen; five
+  behaviours checked by reverting them — flattening, parent drag, dissolve-into-parent, the
+  prune rule and the hull union
+
+### ✅ F6.3 Frames shaped to the arrangement
+- ✅ A group's frame is the union of its cards' padded boxes (and its subgroups' frames), drawn as
+  one Skia path of rounded rectangles; pieces that do not touch get a thin bridge between their
+  nearest edges, neighbour to neighbour, so a group in three clusters gets two bridges
+- ✅ The same path is hit-tested: a press outside the shape — the empty corner of an L — is not
+  the group's and falls through to whatever is under it; inside, a tap selects and a drag moves
+- ✅ The geometry (`FrameShape`) is pure and tested on its own; `FrameClickTest` clicks the notch
+  of an L on the real canvas and sees the group *not* selected — checked by letting the whole
+  bounding box answer again and watching it fail
+
+### ✅ F6.4 Custom board background
+- ✅ A wallpaper per board, copied into `_wallpaper/` (one copy at a time — replacing clears the
+  old one, removing deletes it); cover / tile / centre, dim, blur; under the grid and the canvas,
+  drifting at a third of the camera's pace there; the look survives a change of picture
+- ✅ Set from *Wallpaper…* in the header (into the overflow menu with F6.5) or *Use as wallpaper*
+  on a picture card, which copies it so the card and the background are then independent
+- ✅ The copy is never offered back as a card: recovery by content id skips `_wallpaper/`, which
+  matters exactly when a card's own file goes missing and the wallpaper has the same content
+- ✅ *Not built:* dropping a picture with `Alt` held. The modifier state during an external
+  drag-and-drop is not reliably readable in Compose Desktop, and two working ways to set a
+  wallpaper are enough
+- ✅ Covered by `WallpaperTest` (nine cases, one on the real screen); the one-copy rule and the
+  recovery exclusion were checked by reverting them
+
+### ✅ F6.6 What using it asked for (remarks of 2026-09-21)
+- ✅ Right-click → *Remove from ‹group›*: into the parent for a subgroup's card, else the Inbox;
+  a group left empty is tidied away
+- ✅ **Settings** and **Hotkeys** as menu points in both places — buttons on the start menu, entries
+  in the board's ⋯. Inside a board they show only what pertains to the board; the sheets are the
+  same components, so the two cannot drift apart
+- ✅ A card is added to a group later by dropping it **on one of the group's cards** (the innermost
+  group wins; a card already in the group is never re-filed by moving inside its own frame), with
+  the frame brightening while a drop would file and a notice once it has; or by right-click →
+  *Add to ‹group›*. Dropping anywhere in the frame was too eager: with the generous bands of
+  the previous round, a note let go near a group joined it silently — which is what "my note
+  moves with the group" turned out to be (2026-09-22)
+- ✅ Links are a title that opens on a click; notes come in two kinds — a **document note** shows
+  its title and opens in a popup, a **post-it** shows its text as typed in a written hand, sized
+  to the text (2026-09-22)
+- ✅ Enter in a name field confirms — new group, rename, any single-line prompt
+- ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
+  inner corners soften too), and the space between separated pictures is always covered: the
+  connector is the convex hull of the two pieces, a full band, never a thin bridge
+- ✅ Snapping is a preference, **off** by default, remembered across runs; switched in ⋯ or in
+  Settings
+- ✅ `RemarksTest`, `MenuExtrasTest`, `DropIntoGroupTest` (with a real drag on the canvas), and
+  cases in `FrameClickTest` and `BoardChromeTest`; six behaviours checked by reverting them
+
+### ✅ F6.5 Menus that get out of the way
+- ✅ One-line header: name (click renames) · Boards ▾ · ↑ Parent · segmented Grid | Free ·
+  Search · Contents · + ▾ (note, link, group, import, paste) · ⋯
+- ✅ Once-a-session things live in ⋯: theme, snap, float strip, wallpaper, contact sheet, session
+  recipe, a shortcuts sheet, immersive, close. Tag chips only when there are tags; the action bar
+  only while something is selected, and only with what acts on the selection
+- ✅ Buttons drop to text weight and chips lose their outline on the board; the practice side's
+  controls are untouched
+- ✅ Covered by `BoardChromeTest` on the real screen: the action bar's presence follows the
+  selection, the segmented control switches layouts, search sets the query, ⋯ closes the board,
+  + ▾ opens the note dialog
+
+---
+
+## ⬜ M6 — Live Sketch
+
+Exploration and spec: [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md);
+findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colour, an XPPen.
+
+### ⬜ F7.1 Pressure probe
+- ⬜ Compose Desktop delivers no pen pressure (LEARNINGS L1); probe `WM_POINTER` via JNA on the
+  XPPen, then WinTab if needed. Written up whatever the answer.
+
+### ⬜ F7.2 The engine, as a library
+- ⬜ `:sketch-engine` module, Kotlin/JVM over Skia, no Compose dependency, testable headless
+- ⬜ Input filter (One-Euro, resampling, velocity) · brush model · rasteriser · sketch document
+
+### ⬜ F7.3 The pencil study
+- ⬜ Hard / medium / soft as parameter sets over one `(pressure, speed) → (width, alpha)` model;
+  stamp rendering against a paper-space grain; eraser
+- ⬜ Debug panel with every tunable live; the numbers that survive go into LEARNINGS
+
+### ⬜ F7.4 The screen
+- ⬜ New sketch at A4/A5/A3 or W×H px · thin toolbar · colour picker with recents and the
+  board's palettes · undo/redo · zoom with the dial · save PNG + `.sketch.json`
+
+### ⬜ F7.5 Into the loop
+- ⬜ Save to a board or a concept; open from a session with the reference in the float strip
+
+---
+
+## ⬜ M7 — Concepts
+
+Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md). A thing that lives once and
+is linked onto many boards.
+
+### ⬜ F8.1 Concepts as folders
+- ⬜ `ConceptRegistry`, concept folder and sidecar (id, name, kind, notes, items), the Concepts
+  list screen; pictures and notes first
+
+### ⬜ F8.2 Documents
+- ⬜ `.md` files in a concept, rendered with the M5 renderer, edited with a live preview
+
+### ⬜ F8.3 Linked onto boards
+- ⬜ `BoardFile.concepts` by id; a concept group per link with `source = concept:<id>` —
+  non-resolvable, its one action *Unlink*; draw, view, strip, search all work on it
+- ⬜ Deleting a concept names the boards it will vanish from, first
+
+### ⬜ F8.4 Sketches and per-board opinions
+- ⬜ Live Sketch saves into a concept (needs M6)
+- ⬜ Stars and tags on borrowed cards live on the board, keyed by content id
+
+---
 
 ## 🔄 M+ — Practice backlog (independent of the board)
 

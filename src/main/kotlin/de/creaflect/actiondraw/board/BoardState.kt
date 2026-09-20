@@ -17,6 +17,7 @@ import java.io.File
 import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import de.creaflect.actiondraw.board.ui.Markdown
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
@@ -39,20 +40,37 @@ sealed class BoardEditor {
 
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
-    data object NewGroup : BoardEditor()
+    /** [parentId] nests the new group inside an existing top-level group. */
+    data class NewGroup(val parentId: String? = null) : BoardEditor()
 
     /** Names a group made out of whatever is selected. */
-    data object GroupSelection : BoardEditor()
+    /** [parentId] nests the group made from the selection inside an existing top-level group. */
+    data class GroupSelection(val parentId: String? = null) : BoardEditor()
     data class RenameGroup(val groupId: String) : BoardEditor()
 
     /** `itemId == null` creates a new note. */
-    data class EditNote(val itemId: String?) : BoardEditor()
+    data class EditNote(val itemId: String?, val kind: String = NoteKind.DOCUMENT) : BoardEditor()
+
+    /** A document note opened to read: the whole text, rendered. */
+    data class ShowNote(val itemId: String) : BoardEditor()
 
     /** `itemId == null` creates a new link card. */
     data class EditLink(val itemId: String?) : BoardEditor()
 
     /** Picks a new home in the tree for the board at [dir]. */
     data class MoveBoard(val dir: File, val name: String) : BoardEditor()
+
+    /** The board's background picture: choose, fit, dim, blur, remove. */
+    data object Wallpaper : BoardEditor()
+
+    /** Every hotkey on one sheet — the same one the start menu shows. */
+    data object Hotkeys : BoardEditor()
+
+    /** The app's settings, reachable from the board as well as from the start menu. */
+    data object Settings : BoardEditor()
+
+    /** A new name for the open board, from clicking its name in the header. */
+    data object RenameBoard : BoardEditor()
 
     /** Asks before the app contacts a site for a link's preview picture. */
     data class FetchPreview(val itemId: String) : BoardEditor()
@@ -305,7 +323,7 @@ class BoardState(
                     item.caption?.lowercase()?.contains(needle) == true ||
                     item.tags.any { it.lowercase().contains(needle) }
 
-            is NoteItem -> item.text.lowercase().contains(needle)
+            is NoteItem -> Markdown.plain(item.text).lowercase().contains(needle)
             is LinkItem ->
                 item.title.lowercase().contains(needle) || item.url.lowercase().contains(needle)
         }
@@ -369,17 +387,48 @@ class BoardState(
             .filter { if (groupId == null) it.groups.isEmpty() else groupId in it.groups }
             .filter(::visible)
 
-    /** Inbox first, then the groups by order — the board's display structure. */
+    // ---- One level of subgroups ----
+
+    fun groupById(id: String?): BoardGroup? = id?.let { g -> sortedGroups.find { it.id == g } }
+
+    /** The group [id] sits inside, if any. */
+    fun parentOf(id: String): BoardGroup? = groupById(groupById(id)?.parentId)
+
+    /** Groups directly inside [parentId] (null = the top level), in order. */
+    fun subgroupsOf(parentId: String?): List<BoardGroup> = sortedGroups.filter { it.parentId == parentId }
+
+    /** A group's cards *and* its subgroups' cards: what "draw the group" and its count mean. */
+    fun itemsInTree(groupId: String): List<BoardItem> =
+        itemsIn(groupId) + subgroupsOf(groupId).flatMap { itemsIn(it.id) }
+
+    /** Top-level groups a group could be moved into — not itself, and none that has subgroups
+     *  of its own if the group in question holds any, since the tree stays one level deep. */
+    fun possibleParents(groupId: String?): List<BoardGroup> =
+        subgroupsOf(null).filter { candidate ->
+            candidate.id != groupId && (groupId == null || subgroupsOf(groupId).isEmpty())
+        }
+
+    /**
+     * Inbox first, then each top-level group followed by its subgroups — the board's display
+     * structure, which is also why a subgroup sits right under its parent in grid mode.
+     */
     val sections: List<Pair<BoardGroup?, List<BoardItem>>>
         get() {
             val result = mutableListOf<Pair<BoardGroup?, List<BoardItem>>>(null to itemsIn(null))
-            sortedGroups.forEach { result += it to itemsIn(it.id) }
+            subgroupsOf(null).forEach { parent ->
+                result += parent to itemsIn(parent.id)
+                subgroupsOf(parent.id).forEach { child -> result += child to itemsIn(child.id) }
+            }
             return result
         }
 
     /** Flattened display order (collapsed groups excluded) — basis for range select and focus. */
     val visibleOrder: List<BoardItem>
-        get() = sections.flatMap { (group, items) -> if (group?.collapsed == true) emptyList() else items }
+        get() = sections.flatMap { (group, items) -> if (isFolded(group)) emptyList() else items }
+
+    /** A section is folded when its group, or the group above it, is collapsed. */
+    fun isFolded(group: BoardGroup?): Boolean =
+        group != null && (group.collapsed || groupById(group.parentId)?.collapsed == true)
 
     /** The freeform canvas' items (tag filter applied), in z-order (last = frontmost). */
     val freeItems: List<BoardItem>
@@ -616,13 +665,29 @@ class BoardState(
 
     // Groups
 
-    fun addGroup(name: String) {
+    fun addGroup(name: String, parentId: String? = null) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
+        val parent = parentId?.takeIf { groupById(it)?.parentId == null } // one level, no deeper
         update { b ->
             val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
-            b.copy(groups = b.groups + BoardGroup(id = Importer.newId(), name = trimmed, order = order))
+            b.copy(groups = b.groups + BoardGroup(id = Importer.newId(), name = trimmed, order = order, parentId = parent))
         }
+    }
+
+    /**
+     * Puts a group inside [parentId], or at the top level with null. Refused when it would make
+     * the tree deeper than one level: a group that has subgroups cannot become one, and a
+     * subgroup cannot be the parent.
+     */
+    fun setGroupParent(id: String, parentId: String?): Boolean {
+        if (parentId == id) return false
+        if (parentId != null) {
+            if (groupById(parentId)?.parentId != null) return false
+            if (subgroupsOf(id).isNotEmpty()) return false
+        }
+        update { b -> b.copy(groups = b.groups.map { if (it.id == id) it.copy(parentId = parentId) else it }) }
+        return true
     }
 
     fun renameGroup(id: String, name: String) {
@@ -651,10 +716,13 @@ class BoardState(
         b.copy(groups = ordered.mapIndexed { i, g -> g.copy(order = i + 1) })
     }
 
-    /** Removes the group; its items simply lose the membership and fall back into the Inbox. */
+    /**
+     * Removes the group; its own cards fall back into the Inbox, and any subgroups it held move
+     * up to the top level with their cards, since nothing about *them* was deleted.
+     */
     fun deleteGroup(id: String) = update { b ->
         b.copy(
-            groups = b.groups.filterNot { it.id == id },
+            groups = b.groups.filterNot { it.id == id }.map { if (it.parentId == id) it.copy(parentId = null) else it },
             items = b.items.map { if (id in it.groups) it.withGroups(it.groups - id) else it },
         )
     }
@@ -666,19 +734,34 @@ class BoardState(
      * there are no sections to drop things into. Returns the new group's id, or null if nothing
      * was selected.
      */
-    fun groupSelection(name: String): String? {
+    fun groupSelection(name: String, parentId: String? = null): String? {
         val ids = selection
         if (ids.isEmpty()) return null
         val id = Importer.newId()
         val trimmed = name.trim().ifEmpty { "Group" }
+        val parent = parentId?.takeIf { groupById(it)?.parentId == null }
         update { b ->
             val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
             b.copy(
-                groups = b.groups + BoardGroup(id = id, name = trimmed, order = order),
+                groups = b.groups + BoardGroup(id = id, name = trimmed, order = order, parentId = parent),
                 items = b.items.map { if (it.id in ids) it.withGroups(listOf(id)) else it },
             )
         }
+        pruneEmptyGroups()
         return id
+    }
+
+    /**
+     * The group the selected cards would naturally nest under: the one top-level group they all
+     * belong to, if there is one. Offered as the default when grouping a selection.
+     */
+    fun sharedParentOfSelection(): BoardGroup? {
+        // Each card's group, resolved up to the top level: a card in Membran is under Flügel too.
+        val tops = selection.mapNotNull { id ->
+            val group = groupById(item(id)?.groups?.firstOrNull()) ?: return@mapNotNull null
+            if (group.parentId == null) group else groupById(group.parentId)
+        }.toSet()
+        return tops.singleOrNull()
     }
 
     /**
@@ -687,7 +770,28 @@ class BoardState(
      * group while cards were selected) was a trap.
      */
     fun startGrouping() {
-        openEditor(if (selection.isEmpty()) BoardEditor.NewGroup else BoardEditor.GroupSelection)
+        openEditor(
+            if (selection.isEmpty()) BoardEditor.NewGroup()
+            else BoardEditor.GroupSelection(sharedParentOfSelection()?.id),
+        )
+    }
+
+    /**
+     * Takes the cards out of the group they are in. A card in a subgroup lands in the parent —
+     * that is the group it was in as well; a card in a top-level group lands in the Inbox.
+     */
+    fun removeFromGroup(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        update { b ->
+            b.copy(items = b.items.map { item ->
+                if (item.id !in ids || item.groups.isEmpty()) item
+                else {
+                    val parent = b.groups.find { it.id == item.groups.first() }?.parentId
+                    item.withGroups(listOfNotNull(parent))
+                }
+            })
+        }
+        pruneEmptyGroups()
     }
 
     /** Takes the given cards out of every group they are in; the cards themselves stay put. */
@@ -697,8 +801,25 @@ class BoardState(
         pruneEmptyGroups()
     }
 
-    /** Dissolves a group: the group disappears, its cards stay exactly where they are. */
-    fun ungroup(groupId: String) = deleteGroup(groupId)
+    /**
+     * Dissolves a group: the group disappears, its cards stay exactly where they are — inside
+     * the parent, when the group was a subgroup, since that is the group they were in as well.
+     */
+    fun ungroup(groupId: String) {
+        val parent = groupById(groupId)?.parentId
+        if (parent == null) {
+            deleteGroup(groupId)
+        } else {
+            update { b ->
+                b.copy(
+                    groups = b.groups.filterNot { it.id == groupId },
+                    items = b.items.map {
+                        if (groupId in it.groups) it.withGroups((it.groups - groupId + parent).distinct()) else it
+                    },
+                )
+            }
+        }
+    }
 
     /**
      * Drops groups that no longer hold anything. Without this, ungrouping would leave empty
@@ -706,7 +827,8 @@ class BoardState(
      */
     private fun pruneEmptyGroups() = update { b ->
         val used = b.items.flatMap { it.groups }.toSet()
-        b.copy(groups = b.groups.filter { it.id in used })
+        val parentsInUse = b.groups.filter { it.id in used }.mapNotNull { it.parentId }.toSet()
+        b.copy(groups = b.groups.filter { it.id in used || it.id in parentsInUse })
     }
 
     fun moveToGroup(ids: Set<String>, groupId: String?) = update { b ->
@@ -743,11 +865,13 @@ class BoardState(
         filterTags = filterTags.filter { it in allTags }.toSet() // a removed tag may be gone entirely
     }
 
-    fun saveNote(itemId: String?, text: String) {
+    fun setNoteKind(id: String, kind: String) = updateItem<NoteItem>(id) { it.copy(kind = kind) }
+
+    fun saveNote(itemId: String?, text: String, kind: String = NoteKind.DOCUMENT) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         if (itemId == null) {
-            val note = NoteItem(id = Importer.newId(), text = trimmed)
+            val note = NoteItem(id = Importer.newId(), text = trimmed, kind = kind)
             update { it.copy(items = it.items + note) }
             selection = setOf(note.id)
             focusId = note.id
@@ -803,12 +927,20 @@ class BoardState(
         root?.let { dir -> item.preview?.let { File(dir, it) } }?.takeIf { it.isFile }
 
     /** Opens a link card in the system browser — ActionDraw never loads a page itself. */
-    fun openLink(item: LinkItem) {
+    fun openLink(item: LinkItem) = openUrl(item.url)
+
+    /**
+     * How a url leaves the app: the system browser. Replaceable so a test can see that a link
+     * inside a note was followed without a browser window opening on the build machine.
+     */
+    var linkOpener: (String) -> Unit = { url ->
         runCatching {
-            val uri = URI(if (item.url.contains("://")) item.url else "https://${item.url}")
-            Desktop.getDesktop().browse(uri)
+            Desktop.getDesktop().browse(URI(if (url.contains("://")) url else "https://$url"))
         }
     }
+
+    /** Opens any address — a link card's, or a `[text](url)` inside a note. */
+    fun openUrl(url: String) = linkOpener(url)
 
     /** Dominant colours of the given cards, in display order (empty for notes and links). */
     fun palettesOf(ids: Set<String>): List<Pair<ImageItem, List<Int>>> =
@@ -850,6 +982,12 @@ class BoardState(
         val right: Float,
         val bottom: Float,
         val count: Int,
+        /** The padded boxes the frame is the union of — the cards', plus any subgroup's bounds. */
+        val boxes: List<List<Float>> = emptyList(),
+        /** Convex bands joining pieces of the union that do not touch, as flat polygons. */
+        val connectors: List<List<Float>> = emptyList(),
+        /** The member cards' own boxes, unpadded — where a dropped card actually lands *on* the group. */
+        val cards: List<List<Float>> = emptyList(),
     )
 
     /** Padding between a group's cards and the edge of its hull, in board units. */
@@ -863,34 +1001,59 @@ class BoardState(
      */
     private fun halfSizeOf(item: BoardItem): Pair<Float, Float> {
         val scale = item.pos?.scale ?: 1f
-        val aspect = ((item as? ImageItem)?.aspect ?: 1f).coerceIn(0.2f, 5f)
         val width = BASE_SIZE * scale
-        return (width / 2f) to (width / aspect / 2f)
+        return (width / 2f) to (width / aspectOf(item) / 2f)
+    }
+
+    /**
+     * Width over height of a card on the canvas — the one rule the canvas draws by and the
+     * frames measure by. Pictures have their own; a link and a document note are a title strip;
+     * a post-it is as tall as its text.
+     */
+    fun aspectOf(item: BoardItem): Float = when (item) {
+        is ImageItem -> (item.aspect ?: 1f).coerceIn(0.2f, 5f)
+        is LinkItem -> STRIP_ASPECT
+        is NoteItem -> if (item.kind == NoteKind.POSTIT) item.estimatedAspect() else STRIP_ASPECT
     }
 
     /** One hull per group that has placed, currently visible cards. */
     val groupHulls: List<GroupHull>
         get() {
             val shown = freeItems
-            return sortedGroups.mapIndexedNotNull { index, group ->
-                val members = shown.filter { group.id in it.groups && it.pos != null }
-                if (members.isEmpty()) return@mapIndexedNotNull null
-                val boxes = members.map { item ->
+            // Subgroups first, so a parent can take its children's finished hulls into its own.
+            val childHulls = mutableMapOf<String, List<Float>>()
+            fun boxesOf(group: BoardGroup): List<List<Float>> =
+                shown.filter { group.id in it.groups && it.pos != null }.map { item ->
                     val pos = item.pos!!
                     val (halfW, halfH) = halfSizeOf(item)
                     listOf(pos.x - halfW, pos.y - halfH, pos.x + halfW, pos.y + halfH)
                 }
+            val ordered = sortedGroups.sortedBy { if (it.parentId == null) 1 else 0 }
+            val hulls = ordered.mapNotNull { group ->
+                val index = sortedGroups.indexOf(group)
+                val own = boxesOf(group)
+                val raw = own + sortedGroups.filter { it.parentId == group.id }.mapNotNull { childHulls[it.id] }
+                if (raw.isEmpty()) return@mapNotNull null
+                // Grown by the padding here, so the union the canvas draws and the bounds below
+                // agree on where the frame's edge is.
+                val boxes = raw.map { listOf(it[0] - hullPadding, it[1] - hullPadding, it[2] + hullPadding, it[3] + hullPadding) }
+                val members = shown.count { it.pos != null && it.groups.any { g -> g == group.id || groupById(g)?.parentId == group.id } }
                 GroupHull(
                     group = group,
                     // A group without its own accent still needs to be told apart from the next.
                     color = group.color ?: fallbackGroupColor(index),
-                    left = boxes.minOf { it[0] } - hullPadding,
-                    top = boxes.minOf { it[1] } - hullPadding,
-                    right = boxes.maxOf { it[2] } + hullPadding,
-                    bottom = boxes.maxOf { it[3] } + hullPadding,
-                    count = members.size,
-                )
+                    left = boxes.minOf { it[0] },
+                    top = boxes.minOf { it[1] },
+                    right = boxes.maxOf { it[2] },
+                    bottom = boxes.maxOf { it[3] },
+                    count = members,
+                    boxes = boxes,
+                    connectors = FrameShape.connectors(boxes),
+                    cards = own + sortedGroups.filter { it.parentId == group.id }.flatMap { boxesOf(it) },
+                ).also { hull -> childHulls[group.id] = listOf(hull.left, hull.top, hull.right, hull.bottom) }
             }
+            // Parents drawn first (underneath), then their subgroups on top of the tint.
+            return hulls.sortedBy { if (it.group.parentId == null) 0 else 1 }
         }
 
     /** The colour a group is drawn in: its own accent, or a distinct one derived from its place. */
@@ -909,9 +1072,10 @@ class BoardState(
 
     /** Moves every card of a group together — the group behaves as one object. */
     fun dragGroupBy(groupId: String, dx: Float, dy: Float) = updateTransient { b ->
+        val inTree = setOf(groupId) + b.groups.filter { it.parentId == groupId }.map { it.id }
         b.copy(items = b.items.map { item ->
             val pos = item.pos
-            if (groupId in item.groups && pos != null) {
+            if (item.groups.any { it in inTree } && pos != null) {
                 item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
             } else {
                 item
@@ -919,12 +1083,134 @@ class BoardState(
         })
     }
 
+    /**
+     * The group whose frame covers the board point ([x], [y]) — the innermost one, so a point on
+     * a subgroup is the subgroup's, not its parent's. Null on open board.
+     */
+    fun groupAt(x: Float, y: Float): BoardGroup? =
+        groupHulls
+            .filter { FrameShape.contains(it.boxes, it.connectors, x, y) }
+            .maxByOrNull { if (it.group.parentId != null) 1 else 0 }
+            ?.group
+
+    /**
+     * A card dragged onto a group's frame joins that group — the way to file a card into a group
+     * on the canvas, where there are no sections to drop it into. Acts on the whole selection when
+     * the card is part of it. Cards already in the group, or in one of its subgroups, stay as they
+     * are: moving a picture about inside its own group's frame must never re-file it. Returns the
+     * group joined, or null when nothing changed.
+     */
+    /**
+     * The group whose *cards* cover the board point — not its padding, not the band between two
+     * of its pictures. That is the target for dropping: a card let go merely near a group, or in
+     * the space between its pictures, stays as it is. The innermost group wins.
+     */
+    fun groupAtCard(x: Float, y: Float): BoardGroup? =
+        groupHulls
+            .filter { hull -> hull.cards.any { x >= it[0] && x <= it[2] && y >= it[1] && y <= it[3] } }
+            .maxByOrNull { if (it.group.parentId != null) 1 else 0 }
+            ?.group
+
+    /** The group a card being dragged would join if let go now; the canvas shows it. */
+    var dropTargetGroup by mutableStateOf<String?>(null)
+        private set
+
+    /** Called while a card drags: remembers which group it is over, for the frame to show. */
+    fun trackDropTarget(id: String) {
+        val pos = item(id)?.pos
+        val target = pos?.let { groupAtCard(it.x, it.y) }
+        val inTree = target?.let { t -> setOf(t.id) + subgroupsOf(t.id).map { it.id } }.orEmpty()
+        val already = item(id)?.groups?.any { it in inTree } == true
+        dropTargetGroup = target?.id?.takeUnless { already }
+    }
+
+    fun dropIntoGroupAt(id: String): BoardGroup? {
+        dropTargetGroup = null
+        val pos = item(id)?.pos ?: return null
+        val target = groupAtCard(pos.x, pos.y) ?: return null
+        val ids = if (id in selection) selection else setOf(id)
+        val inTree = setOf(target.id) + subgroupsOf(target.id).map { it.id }
+        val movers = ids.filter { cardId -> item(cardId)?.groups?.none { it in inTree } == true }
+        if (movers.isEmpty()) return null
+        moveToGroup(movers.toSet(), target.id)
+        pruneEmptyGroups()
+        // Never silent: a card changing group is worth a line.
+        importNotice = if (movers.size == 1) "${labelOf(movers.single())} is now in ${target.name}."
+        else "${movers.size} cards are now in ${target.name}."
+        return target
+    }
+
+    /** A short name for a card in a message. */
+    private fun labelOf(id: String): String = when (val it = item(id)) {
+        is ImageItem -> it.caption ?: File(it.path).name
+        is NoteItem -> it.title
+        is LinkItem -> it.title.ifBlank { it.url }
+        null -> "card"
+    }
+
     /** Selects a whole group — clicking its label picks the group up as a unit. */
     fun selectGroup(groupId: String) {
-        val ids = freeItems.filter { groupId in it.groups }.map { it.id }
+        val inTree = setOf(groupId) + subgroupsOf(groupId).map { it.id }
+        val ids = freeItems.filter { it.groups.any { g -> g in inTree } }.map { it.id }
         selection = ids.toSet()
         focusId = ids.firstOrNull()
     }
+
+    /** Renames the open board — the sidecar's name and the registry's record, not the folder. */
+    fun renameBoard(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        update { it.copy(name = trimmed) }
+        root?.let { dir -> registry.register(trimmed, dir, ownsFolder = entryFor(dir)?.ownsFolder ?: false) }
+        boardsHomeTick++
+    }
+
+    // ---- Wallpaper ----
+
+    val wallpaper: de.creaflect.actiondraw.board.Wallpaper? get() = board?.wallpaper
+
+    /** The wallpaper's file, if the board has one and it is still there. */
+    val wallpaperFile: File?
+        get() = root?.let { dir -> wallpaper?.path?.let { File(dir, it) } }?.takeIf { it.isFile }
+
+    /**
+     * Makes [picture] the board's background. It is copied into `_wallpaper/` so the board stays
+     * self-contained and moves as one; the previous wallpaper's copy is removed, since nothing
+     * else refers to it. A picture already on the board is copied too — the card and the
+     * background are then independent, which is what you want when the card is later removed.
+     */
+    fun setWallpaper(picture: File): String? {
+        val dir = root ?: return "No board open."
+        if (!picture.isFile) return "That file is not there."
+        val folder = File(dir, WALLPAPER_DIR).apply { mkdirs() }
+        val target = Importer.collisionFree(File(folder, picture.name))
+        runCatching { picture.copyTo(target) }.onFailure { return "Couldn't copy ${picture.name}." }
+        val previous = wallpaperFile
+        val kept = wallpaper
+        update { b ->
+            b.copy(wallpaper = de.creaflect.actiondraw.board.Wallpaper(
+                path = WALLPAPER_DIR + "/" + target.name,
+                fit = kept?.fit ?: WallpaperFit.COVER,
+                dim = kept?.dim ?: 0.35f,
+                blur = kept?.blur ?: 0f,
+            ))
+        }
+        if (previous != null && !previous.samePathAs(target)) previous.delete()
+        return null
+    }
+
+    /** Removes the background and its copy; the theme's texture shows again. */
+    fun clearWallpaper() {
+        val file = wallpaperFile
+        update { it.copy(wallpaper = null) }
+        file?.delete()
+    }
+
+    fun setWallpaperLook(fit: String = wallpaper?.fit ?: WallpaperFit.COVER, dim: Float = wallpaper?.dim ?: 0.35f, blur: Float = wallpaper?.blur ?: 0f) =
+        update { b ->
+            val current = b.wallpaper ?: return@update b
+            b.copy(wallpaper = current.copy(fit = fit, dim = dim.coerceIn(0f, 0.9f), blur = blur.coerceIn(0f, 1f)))
+        }
 
     // ---- Always-on-top reference strip ----
 
@@ -964,8 +1250,14 @@ class BoardState(
 
     // ---- Freeform: snapping and marquee selection ----
 
-    /** Align dragged cards to their neighbours' centres. */
-    var snapping by mutableStateOf(true)
+    /** Align dragged cards to their neighbours' centres — a preference, off unless switched on. */
+    var snapping by mutableStateOf(settings.snapByDefault())
+        private set
+
+    fun setSnappingPreference(on: Boolean) {
+        snapping = on
+        settings.setSnapByDefault(on)
+    }
 
     /** Guides to draw while dragging (board-space x / y of the lines that matched). */
     var snapGuideX by mutableStateOf<Float?>(null)
@@ -1389,7 +1681,7 @@ class BoardState(
     fun drawSelection() = draw(selectedImageFiles)
 
     fun drawGroup(groupId: String?) =
-        draw(itemsIn(groupId).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
+        draw((if (groupId == null) itemsIn(null) else itemsInTree(groupId)).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
 
     /** Draw exactly these cards — used by the smart sections' Draw buttons. */
     fun drawItems(items: List<BoardItem>) =
@@ -1550,6 +1842,12 @@ class BoardState(
     }
 
     companion object {
+        /** Width over height of a link or document-note strip on the canvas. */
+        const val STRIP_ASPECT = 3.4f
+
+        /** Where a board keeps the copy of its background picture. */
+        const val WALLPAPER_DIR = "_wallpaper"
+
         /** One wheel tick or key press: enough to feel, few enough to steer. */
         const val VIEWER_ZOOM_STEP = 1.2f
         const val VIEWER_MAX_ZOOM = 8f
@@ -1584,7 +1882,10 @@ class BoardState(
             val rowGap = BASE_SIZE * 1.9f
             val perRow = 5
             val startY = (board.items.mapNotNull { it.pos }.maxOfOrNull { it.y + BASE_SIZE } ?: originY)
-            val startX = originX - (perRow - 1) * gap / 2
+            // Centre the row over the cards that will actually be in it: centring a full row of
+            // five put a lone new note two cards' widths off the left of the screen.
+            val inRow = minOf(unplaced, perRow)
+            val startX = originX - (inRow - 1) * gap / 2
             var i = 0
             return board.copy(items = board.items.map { item ->
                 if (item.pos != null) item
