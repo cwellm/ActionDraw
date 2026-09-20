@@ -739,3 +739,25 @@ the parent's frame always encloses the child's, and the child is drawn on top of
 tint, lighter. The inner corners where rectangles meet stay sharp in this first build — the spec
 allowed either that or a blur-and-threshold, and the sharp version reads well enough that the
 extra pass is not worth its cost yet.
+
+## 30. Wallpaper (2026-09-20)
+
+Small feature, two decisions worth writing down.
+
+**The wallpaper is a copy, always.** A picture chosen from anywhere is copied into
+`_wallpaper/`; a picture already on the board is copied too, rather than referenced. The
+reference would have been the elegant choice and the wrong one: remove the card later and the
+background vanishes with it, for no reason the user can see. A copy costs one file. One copy at a
+time — replacing clears the old one and removing deletes it — because nothing else ever refers
+to the wallpaper's file, so leaving it would only be litter.
+
+**The copy must not come back as a card.** M2's rename-proof identity recovers a card whose
+file has gone by finding another file with the same content, which is precisely what a wallpaper
+made from a card is. The recovery now skips `_wallpaper/`. The first test for that did not
+actually exercise the case (no card was missing), which the mutation run showed by *not* failing;
+the test now loses the card's file first, and then the mutation is caught. A test that cannot go
+red has not tested anything — §21's rule, again.
+
+Left out on purpose: the spec's `Alt`+drop. Whether a modifier is held during an external
+drag-and-drop is not something Compose Desktop reports reliably, and *Use as wallpaper* on a card
+plus the dialog's chooser cover the need without a gesture that would work only sometimes.

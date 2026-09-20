@@ -124,6 +124,7 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
             menu += ContextMenuItem("Caption…") { state.openEditor(BoardEditor.EditCaption(item.id)) }
             menu += ContextMenuItem("Tags…") { state.openEditor(BoardEditor.EditTags(ids)) }
             menu += ContextMenuItem(if (item.starred) "Unstar" else "Star") { state.toggleStar(ids) }
+            menu += ContextMenuItem("Use as wallpaper") { state.fileOf(item)?.let { state.setWallpaper(it) } }
         }
 
         is NoteItem -> {

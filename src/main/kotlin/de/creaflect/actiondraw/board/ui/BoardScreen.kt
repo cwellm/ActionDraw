@@ -71,6 +71,15 @@ import androidx.compose.ui.platform.testTag
 import de.creaflect.actiondraw.samePathAs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.Image
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import de.creaflect.actiondraw.board.WallpaperFit
+import de.creaflect.actiondraw.image.ImageLoader
+import androidx.compose.ui.graphics.Color
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -114,6 +123,8 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                 .then(background)
                 .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = dropTarget),
         ) {
+            // The wallpaper sits on the theme's texture and under everything else.
+            WallpaperLayer(state)
             Row(Modifier.fillMaxSize()) {
               if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
               Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -196,8 +207,59 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onImmers
         OutlinedButton(onClick = { if (state.stripOpen) state.closeStrip() else state.openStrip() }) {
             Text(if (state.stripOpen) "Strip ✕" else "Float strip")
         }
+        OutlinedButton(onClick = { state.openEditor(BoardEditor.Wallpaper) }) { Text("Wallpaper…") }
         OutlinedButton(onClick = onImmersive) { Text("Immersive") }
         OutlinedButton(onClick = { state.closeBoard() }) { Text("Close") }
+    }
+}
+
+/**
+ * The board's background picture, if it has one: fitted as asked, softened and dimmed as asked,
+ * and in free mode drifting at a third of the camera's pace so the board feels like a surface
+ * the cards lie on rather than a photograph they float over. Drawn a little larger than the view
+ * so the drift never shows an edge.
+ */
+@Composable
+private fun WallpaperLayer(state: BoardState) {
+    val paper = state.wallpaper ?: return
+    val file = state.wallpaperFile ?: return
+    val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
+        value = withContext(Dispatchers.IO) { runCatching { ImageLoader.load(file) }.getOrNull() }
+    }
+    val bmp = bitmap ?: return
+    val free = state.layout == BoardLayouts.FREE
+    val blurDp = (paper.blur * 24f).dp
+    Box(Modifier.fillMaxSize().clipToBounds().testTag("wallpaper")) {
+        val drift = Modifier.graphicsLayer {
+            if (free) {
+                translationX = -state.camX * state.zoom * 0.3f
+                translationY = -state.camY * state.zoom * 0.3f
+                scaleX = 1.3f
+                scaleY = 1.3f
+            }
+        }
+        when (paper.fit) {
+            WallpaperFit.TILE -> Box(
+                Modifier
+                    .fillMaxSize()
+                    .then(drift)
+                    .blur(blurDp)
+                    .background(ShaderBrush(ImageShader(bmp, TileMode.Repeated, TileMode.Repeated))),
+            )
+            WallpaperFit.CENTER -> Image(
+                bitmap = bmp,
+                contentDescription = null,
+                contentScale = ContentScale.None,
+                modifier = Modifier.fillMaxSize().then(drift).blur(blurDp),
+            )
+            else -> Image(
+                bitmap = bmp,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().then(drift).blur(blurDp),
+            )
+        }
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = paper.dim)))
     }
 }
 

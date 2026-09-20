@@ -71,7 +71,7 @@ object BoardStore {
                 val taken = present.mapTo(mutableSetOf()) { it.path }
                 ImageScanner.scanTree(root)
                     .map { relKey(root, it) }
-                    .filter { it !in taken }
+                    .filter { it !in taken && !it.startsWith(BoardState.WALLPAPER_DIR + "/") }
                     .mapNotNull { path -> ContentId.of(File(root, path))?.let { it to path } }
                     .toMap()
             }

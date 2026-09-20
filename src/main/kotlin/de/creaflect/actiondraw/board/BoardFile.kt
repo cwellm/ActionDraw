@@ -22,7 +22,29 @@ data class BoardFile(
     val session: SessionRecipe? = null,
     val groups: List<BoardGroup> = emptyList(),
     val items: List<BoardItem> = emptyList(),
+    /** A picture behind the cards, or null for the theme's texture alone. */
+    val wallpaper: Wallpaper? = null,
 )
+
+/**
+ * The board's background picture. [path] is relative to the board (the file is copied into
+ * `_wallpaper/`), so it moves with the board. [fit] is one of [WallpaperFit]; [dim] darkens it so
+ * the cards stay readable; [blur] softens it, in 0..1.
+ */
+@Serializable
+data class Wallpaper(
+    val path: String,
+    val fit: String = WallpaperFit.COVER,
+    val dim: Float = 0.35f,
+    val blur: Float = 0f,
+)
+
+object WallpaperFit {
+    const val COVER = "cover"
+    const val TILE = "tile"
+    const val CENTER = "center"
+    val ALL = listOf(COVER, TILE, CENTER)
+}
 
 /**
  * A board's remembered session settings ("Drachenbuch is always 60 s in Notan"). Stored as plain

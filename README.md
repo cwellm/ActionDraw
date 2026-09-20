@@ -87,6 +87,15 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### Wallpaper
+- **Wallpaper…** in the header gives a board a picture behind the cards: choose one, or
+  right-click a picture already on the board and *Use as wallpaper*. It is copied into the board's
+  `_wallpaper/` folder, so it moves with the board and is never offered back as a card. Fit it as
+  *cover*, *tile* or *centre*; dim it so the cards stay readable; blur it if it is busy. On the
+  canvas it drifts at a third of the camera's pace, so the board reads as a surface the cards lie
+  on. The theme's texture shows through wherever it does not reach, and the contact sheet leaves
+  it out — the sheet is the material.
+
 ### Boards inside boards
 - A board made **inside another board's folder** is a sub-board of it. Nothing extra is stored —
   it simply follows from where the folders are — and nesting goes as deep as you like, each board

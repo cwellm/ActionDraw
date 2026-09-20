@@ -393,10 +393,19 @@ of ideas and inspiration; what daily use asked for.
   of an L on the real canvas and sees the group *not* selected — checked by letting the whole
   bounding box answer again and watching it fail
 
-### ⬜ F6.4 Custom board background
-- ⬜ A wallpaper per board, copied into `_wallpaper/`: cover / tile / centre, dim, blur; behind
-  grid sections too; slight parallax on the canvas
-- ⬜ Set and removed from the overflow menu, or dropped onto the board with `Alt`
+### ✅ F6.4 Custom board background
+- ✅ A wallpaper per board, copied into `_wallpaper/` (one copy at a time — replacing clears the
+  old one, removing deletes it); cover / tile / centre, dim, blur; under the grid and the canvas,
+  drifting at a third of the camera's pace there; the look survives a change of picture
+- ✅ Set from *Wallpaper…* in the header (into the overflow menu with F6.5) or *Use as wallpaper*
+  on a picture card, which copies it so the card and the background are then independent
+- ✅ The copy is never offered back as a card: recovery by content id skips `_wallpaper/`, which
+  matters exactly when a card's own file goes missing and the wallpaper has the same content
+- ✅ *Not built:* dropping a picture with `Alt` held. The modifier state during an external
+  drag-and-drop is not reliably readable in Compose Desktop, and two working ways to set a
+  wallpaper are enough
+- ✅ Covered by `WallpaperTest` (nine cases, one on the real screen); the one-copy rule and the
+  recovery exclusion were checked by reverting them
 
 ### ⬜ F6.5 Menus that get out of the way
 - ⬜ One-line header: name · Boards ▾ · segmented Grid | Free · Search · Contents · ⋯

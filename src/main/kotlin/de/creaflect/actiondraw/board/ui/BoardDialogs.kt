@@ -65,6 +65,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.platform.testTag
 import de.creaflect.actiondraw.samePathAs
+import androidx.compose.material.Slider
+import de.creaflect.actiondraw.board.WallpaperFit
+import de.creaflect.actiondraw.ui.chooseImages
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
 @Composable
@@ -109,6 +112,8 @@ fun BoardDialogs(state: BoardState) {
         is BoardEditor.FetchPreview -> FetchPreviewDialog(state, editor.itemId)
 
         is BoardEditor.MoveBoard -> MoveBoardDialog(state, editor.dir, editor.name)
+
+        BoardEditor.Wallpaper -> WallpaperDialog(state)
 
         is BoardEditor.ShowPalette -> PaletteDialog(state, editor.itemIds)
 
@@ -306,6 +311,47 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
             onOk = { state.saveLink(itemId, url, title); state.closeEditor() },
             onCancel = state::closeEditor,
         )
+    }
+}
+
+/** The board's background: pick a picture, say how it fits, dim and soften it, or take it away. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WallpaperDialog(state: BoardState) {
+    val paper = state.wallpaper
+    var error by remember { mutableStateOf<String?>(null) }
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Wallpaper", style = MaterialTheme.typography.h6)
+        Text(
+            if (paper == null) "A picture behind the cards. The theme's texture shows through where it does not reach."
+            else "Copied into the board's _wallpaper folder, so it moves with the board.",
+            style = MaterialTheme.typography.body2,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.75f),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                chooseImages(state.root).firstOrNull()?.let { error = state.setWallpaper(it) }
+            }) { Text(if (paper == null) "Choose picture…" else "Change picture…") }
+            if (paper != null) {
+                OutlinedButton(onClick = { state.clearWallpaper() }) { Text("Remove") }
+            }
+        }
+        if (paper != null) {
+            Text("Fit", style = MaterialTheme.typography.caption)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                WallpaperFit.ALL.forEach { fit ->
+                    SelectChip(fit.replaceFirstChar { it.uppercase() }, paper.fit == fit) { state.setWallpaperLook(fit = fit) }
+                }
+            }
+            Text("Dim: ${(paper.dim * 100).toInt()}%", style = MaterialTheme.typography.caption)
+            Slider(value = paper.dim, onValueChange = { state.setWallpaperLook(dim = it) }, valueRange = 0f..0.9f)
+            Text("Blur: ${(paper.blur * 100).toInt()}%", style = MaterialTheme.typography.caption)
+            Slider(value = paper.blur, onValueChange = { state.setWallpaperLook(blur = it) }, valueRange = 0f..1f)
+        }
+        error?.let { Text(it, color = MaterialTheme.colors.error, style = MaterialTheme.typography.caption) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = state::closeEditor) { Text("Done") }
+        }
     }
 }
 

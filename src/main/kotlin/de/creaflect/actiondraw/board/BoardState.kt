@@ -57,6 +57,9 @@ sealed class BoardEditor {
     /** Picks a new home in the tree for the board at [dir]. */
     data class MoveBoard(val dir: File, val name: String) : BoardEditor()
 
+    /** The board's background picture: choose, fit, dim, blur, remove. */
+    data object Wallpaper : BoardEditor()
+
     /** Asks before the app contacts a site for a link's preview picture. */
     data class FetchPreview(val itemId: String) : BoardEditor()
 
@@ -1042,6 +1045,53 @@ class BoardState(
         focusId = ids.firstOrNull()
     }
 
+    // ---- Wallpaper ----
+
+    val wallpaper: de.creaflect.actiondraw.board.Wallpaper? get() = board?.wallpaper
+
+    /** The wallpaper's file, if the board has one and it is still there. */
+    val wallpaperFile: File?
+        get() = root?.let { dir -> wallpaper?.path?.let { File(dir, it) } }?.takeIf { it.isFile }
+
+    /**
+     * Makes [picture] the board's background. It is copied into `_wallpaper/` so the board stays
+     * self-contained and moves as one; the previous wallpaper's copy is removed, since nothing
+     * else refers to it. A picture already on the board is copied too — the card and the
+     * background are then independent, which is what you want when the card is later removed.
+     */
+    fun setWallpaper(picture: File): String? {
+        val dir = root ?: return "No board open."
+        if (!picture.isFile) return "That file is not there."
+        val folder = File(dir, WALLPAPER_DIR).apply { mkdirs() }
+        val target = Importer.collisionFree(File(folder, picture.name))
+        runCatching { picture.copyTo(target) }.onFailure { return "Couldn't copy ${picture.name}." }
+        val previous = wallpaperFile
+        val kept = wallpaper
+        update { b ->
+            b.copy(wallpaper = de.creaflect.actiondraw.board.Wallpaper(
+                path = WALLPAPER_DIR + "/" + target.name,
+                fit = kept?.fit ?: WallpaperFit.COVER,
+                dim = kept?.dim ?: 0.35f,
+                blur = kept?.blur ?: 0f,
+            ))
+        }
+        if (previous != null && !previous.samePathAs(target)) previous.delete()
+        return null
+    }
+
+    /** Removes the background and its copy; the theme's texture shows again. */
+    fun clearWallpaper() {
+        val file = wallpaperFile
+        update { it.copy(wallpaper = null) }
+        file?.delete()
+    }
+
+    fun setWallpaperLook(fit: String = wallpaper?.fit ?: WallpaperFit.COVER, dim: Float = wallpaper?.dim ?: 0.35f, blur: Float = wallpaper?.blur ?: 0f) =
+        update { b ->
+            val current = b.wallpaper ?: return@update b
+            b.copy(wallpaper = current.copy(fit = fit, dim = dim.coerceIn(0f, 0.9f), blur = blur.coerceIn(0f, 1f)))
+        }
+
     // ---- Always-on-top reference strip ----
 
     /** Pictures the floating strip is showing; empty = the strip window is closed. */
@@ -1666,6 +1716,9 @@ class BoardState(
     }
 
     companion object {
+        /** Where a board keeps the copy of its background picture. */
+        const val WALLPAPER_DIR = "_wallpaper"
+
         /** One wheel tick or key press: enough to feel, few enough to steer. */
         const val VIEWER_ZOOM_STEP = 1.2f
         const val VIEWER_MAX_ZOOM = 8f
