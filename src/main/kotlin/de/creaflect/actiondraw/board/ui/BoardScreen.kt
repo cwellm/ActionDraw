@@ -85,6 +85,14 @@ import androidx.compose.material.TextButton
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.FlowRowScope
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.TextFieldDefaults
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -133,7 +141,13 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
             Row(Modifier.fillMaxSize()) {
               if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
               Column(Modifier.weight(1f).fillMaxHeight()) {
-                if (!hideChrome) {
+                if (!hideChrome) Surface(
+                    // A stripe under the chrome: text-weight controls straight on cork or a
+                    // wallpaper were barely there. Slightly translucent so the board shows through.
+                    color = MaterialTheme.colors.surface.copy(alpha = 0.94f),
+                    elevation = 3.dp,
+                    modifier = Modifier.fillMaxWidth().testTag("board-header"),
+                ) { Column {
                     BoardHeader(state, board.name, board.theme, onImmersive = {
                         state.immersive = true
                         setFullscreen(true)
@@ -157,7 +171,7 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                         )
                     }
                     if (state.allTags.isNotEmpty()) FilterBar(state)
-                }
+                } }
                 if (state.layout == BoardLayouts.FREE) {
                     BoardCanvas(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
                 } else {
@@ -181,13 +195,14 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
 @Composable
 private fun BoardHeader(state: BoardState, name: String, theme: String, onImmersive: () -> Unit) {
     FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxWidth().padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
     ) {
         Text(
             name,
-            style = MaterialTheme.typography.h6,
+            style = MaterialTheme.typography.subtitle1,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colors.primary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -206,14 +221,7 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onImmers
             selected = state.layout,
             tag = "layout",
         ) { state.setLayout(it) }
-        OutlinedTextField(
-            value = state.query,
-            onValueChange = state::search,
-            singleLine = true,
-            placeholder = { Text("Search", style = MaterialTheme.typography.caption) },
-            textStyle = MaterialTheme.typography.body2,
-            modifier = Modifier.width(200.dp).height(44.dp).testTag("board-search"),
-        )
+        CompactSearch(state)
         FlatButton(if (state.drawerOpen) "Contents ✕" else "Contents") { state.drawerOpen = !state.drawerOpen }
         AddMenu(state)
         MoreMenu(state, theme, onImmersive)
@@ -223,8 +231,42 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onImmers
 /** Text-style button: the header's default weight, so the board stays the loudest thing. */
 @Composable
 private fun FlatButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = modifier, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
-        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.height(32.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.body2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * A search field that fits a 32 dp line. Material's `OutlinedTextField` will not go under 56 dp,
+ * so this is the same decoration on a `BasicTextField` with its padding taken in.
+ */
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+private fun FlowRowScope.CompactSearch(state: BoardState) {
+    val interaction = remember { MutableInteractionSource() }
+    BasicTextField(
+        value = state.query,
+        onValueChange = state::search,
+        singleLine = true,
+        textStyle = MaterialTheme.typography.body2.copy(color = MaterialTheme.colors.onSurface),
+        cursorBrush = SolidColor(MaterialTheme.colors.primary),
+        interactionSource = interaction,
+        modifier = Modifier.width(180.dp).height(32.dp).align(Alignment.CenterVertically).testTag("board-search"),
+    ) { inner ->
+        TextFieldDefaults.OutlinedTextFieldDecorationBox(
+            value = state.query,
+            innerTextField = inner,
+            enabled = true,
+            singleLine = true,
+            visualTransformation = VisualTransformation.None,
+            interactionSource = interaction,
+            placeholder = { Text("Search", style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f)) },
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        )
     }
 }
 
@@ -247,7 +289,7 @@ private fun <T> Segmented(options: List<Pair<T, String>>, selected: T, tag: Stri
                     .background(if (on) MaterialTheme.colors.primary else Color.Transparent)
                     .clickable { onPick(value) }
                     .testTag("$tag-$label")
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
             )
         }
     }
@@ -387,9 +429,7 @@ private fun BoardSwitcher(state: BoardState) {
         if (open) value = withContext(Dispatchers.IO) { state.boardTree() }
     }
     Box {
-        OutlinedButton(onClick = { open = true }, modifier = Modifier.testTag("board-switcher")) {
-            Text("Boards ▾")
-        }
+        FlatButton("Boards ▾", Modifier.testTag("board-switcher")) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             if (tree.isEmpty()) {
                 DropdownMenuItem(onClick = { open = false }) { Text("Looking…") }

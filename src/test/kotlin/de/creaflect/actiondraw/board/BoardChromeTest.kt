@@ -82,6 +82,14 @@ class BoardChromeTest {
     }
 
     @Test
+    fun theHeaderIsOneCompactStripe() {
+        shownBoard()
+        val header = rule.onNodeWithTag("board-header").fetchSemanticsNode().boundsInRoot
+        assertTrue(header.height in 24f..64f, "one line of controls on a stripe, not a settings page: ${header.height} px")
+        assertTrue(header.width >= 1000f, "spanning the window")
+    }
+
+    @Test
     fun theSegmentedControlSwitchesTheLayout() {
         val (state, _) = shownBoard()
         assertEquals(BoardLayouts.GRID, state.layout)
