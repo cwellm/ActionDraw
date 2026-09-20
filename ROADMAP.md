@@ -6,8 +6,11 @@ it. Tasks are broken out when their milestone becomes active; later milestones s
 level on purpose.
 
 Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (exploration/ideation) ·
-[docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) (Phase-1 shape) · [IDEAS.md](IDEAS.md)
-(filter scratchpad).
+[docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) (the board's design history) ·
+[IDEAS.md](IDEAS.md) (practice-side scratchpad). The next phase has its own:
+[docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md) (M5) ·
+[docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md) (M6, with findings in
+[LEARNINGS.md](LEARNINGS.md)) · [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7).
 
 ---
 
@@ -347,6 +350,90 @@ two reports that came out of using one.
 - ✅ A name already taken at the destination gets its own folder rather than merging
 - ✅ Covered by `MoveBoardTest`; the behaviours were checked by reverting them, and the self-move
   guard proved itself by producing `Flügel/Membran/Flügel/Membran/…` 28 levels deep when removed
+
+## ⬜ M5 — Idea Board: handling, second round
+
+Spec: [docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md). The board as a free surface
+of ideas and inspiration; what daily use asked for.
+
+### ⬜ F6.1 Notes in Markdown
+- ⬜ Headings, bold, italic, bullet and numbered lists, clickable links, inline code, rules —
+  rendered on the card and previewed in the dialog; the sidecar stays plain text
+- ⬜ One renderer, outside the note code, for Concepts' documents to reuse
+
+### ⬜ F6.2 One level of subgroups
+- ⬜ `BoardGroup.parentId`, depth limited to one on load; `source` reserved for concept groups
+- ⬜ Grid: nested sections, collapsing with the parent · Free: the subgroup's frame inside the
+  parent's, the parent moving everything
+- ⬜ A card in a subgroup counts as in the parent for draw, count and select; ungrouping lifts
+  into the parent
+- ⬜ "Group the selection" offers "as a subgroup of X"; "Move into…" for existing groups
+
+### ⬜ F6.3 Frames shaped to the arrangement
+- ⬜ A group's frame is the union of its cards' padded boxes, one smooth outline, lobes with a
+  bridge when the cards sit apart; recomputed only when a member moves
+- ⬜ Hit-testing uses the same path, so what shows is what clicks
+
+### ⬜ F6.4 Custom board background
+- ⬜ A wallpaper per board, copied into `_wallpaper/`: cover / tile / centre, dim, blur; behind
+  grid sections too; slight parallax on the canvas
+- ⬜ Set and removed from the overflow menu, or dropped onto the board with `Alt`
+
+### ⬜ F6.5 Menus that get out of the way
+- ⬜ One-line header: name · Boards ▾ · segmented Grid | Free · Search · Contents · ⋯
+- ⬜ Once-a-session things move into ⋯; the action bar shows only when something is selected
+
+---
+
+## ⬜ M6 — Live Sketch
+
+Exploration and spec: [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md);
+findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colour, an XPPen.
+
+### ⬜ F7.1 Pressure probe
+- ⬜ Compose Desktop delivers no pen pressure (LEARNINGS L1); probe `WM_POINTER` via JNA on the
+  XPPen, then WinTab if needed. Written up whatever the answer.
+
+### ⬜ F7.2 The engine, as a library
+- ⬜ `:sketch-engine` module, Kotlin/JVM over Skia, no Compose dependency, testable headless
+- ⬜ Input filter (One-Euro, resampling, velocity) · brush model · rasteriser · sketch document
+
+### ⬜ F7.3 The pencil study
+- ⬜ Hard / medium / soft as parameter sets over one `(pressure, speed) → (width, alpha)` model;
+  stamp rendering against a paper-space grain; eraser
+- ⬜ Debug panel with every tunable live; the numbers that survive go into LEARNINGS
+
+### ⬜ F7.4 The screen
+- ⬜ New sketch at A4/A5/A3 or W×H px · thin toolbar · colour picker with recents and the
+  board's palettes · undo/redo · zoom with the dial · save PNG + `.sketch.json`
+
+### ⬜ F7.5 Into the loop
+- ⬜ Save to a board or a concept; open from a session with the reference in the float strip
+
+---
+
+## ⬜ M7 — Concepts
+
+Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md). A thing that lives once and
+is linked onto many boards.
+
+### ⬜ F8.1 Concepts as folders
+- ⬜ `ConceptRegistry`, concept folder and sidecar (id, name, kind, notes, items), the Concepts
+  list screen; pictures and notes first
+
+### ⬜ F8.2 Documents
+- ⬜ `.md` files in a concept, rendered with the M5 renderer, edited with a live preview
+
+### ⬜ F8.3 Linked onto boards
+- ⬜ `BoardFile.concepts` by id; a concept group per link with `source = concept:<id>` —
+  non-resolvable, its one action *Unlink*; draw, view, strip, search all work on it
+- ⬜ Deleting a concept names the boards it will vanish from, first
+
+### ⬜ F8.4 Sketches and per-board opinions
+- ⬜ Live Sketch saves into a concept (needs M6)
+- ⬜ Stars and tags on borrowed cards live on the board, keyed by content id
+
+---
 
 ## 🔄 M+ — Practice backlog (independent of the board)
 
