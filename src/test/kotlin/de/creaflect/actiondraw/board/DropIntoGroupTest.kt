@@ -231,4 +231,26 @@ class DropIntoGroupTest {
         rule.onNode(androidx.compose.ui.test.hasText("Idea Board hotkeys")).assertIsDisplayed()
         rule.onNode(androidx.compose.ui.test.hasText("Drawing session")).assertDoesNotExist()
     }
+
+    @Test
+    fun settingsAndHotkeysComeFirstInTheOverflowAndTheThemeRowCycles() {
+        val (state, _) = boardWithAGroup()
+        rule.setContent {
+            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardDialogs(state)
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("board-more").performClick()
+        rule.waitForIdle()
+        val settings = rule.onNodeWithTag("board-settings").fetchSemanticsNode().boundsInRoot.top
+        val hotkeys = rule.onNodeWithTag("board-hotkeys").fetchSemanticsNode().boundsInRoot.top
+        val theme = rule.onNodeWithTag("board-theme").fetchSemanticsNode().boundsInRoot.top
+        val close = rule.onNodeWithTag("board-close").fetchSemanticsNode().boundsInRoot.top
+        assertTrue(settings < hotkeys && hotkeys < theme && theme < close, "Settings, Hotkeys, then the rest")
+
+        val before = state.theme
+        rule.onNodeWithTag("board-theme").performClick()
+        rule.waitForIdle()
+        assertTrue(state.theme != before, "one row cycles the theme: $before -> ${state.theme}")
+    }
 }

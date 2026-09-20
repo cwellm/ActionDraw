@@ -282,18 +282,20 @@ private fun MoreMenu(state: BoardState, theme: String, onImmersive: () -> Unit) 
     Box {
         FlatButton("⋯", Modifier.testTag("board-more")) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.testTag("board-more-menu")) {
-            Text(
-                "Theme",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-            BoardThemes.ALL.forEach { id ->
-                DropdownMenuItem(onClick = { open = false; state.setTheme(id) }) {
-                    Text((if (theme == id) "• " else "   ") + id.replaceFirstChar { it.uppercase() })
-                }
+            // First, where they cannot be missed: the board's settings and its hotkeys.
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Settings) }, modifier = Modifier.testTag("board-settings")) {
+                Text("Settings…")
+            }
+            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Hotkeys) }, modifier = Modifier.testTag("board-hotkeys")) {
+                Text("Hotkeys…")
             }
             Divider()
+            // One row for the theme, cycling: three rows for three themes made the menu too long.
+            val themes = BoardThemes.ALL
+            val next = themes[(themes.indexOf(theme) + 1).mod(themes.size)]
+            DropdownMenuItem(onClick = { state.setTheme(next) }, modifier = Modifier.testTag("board-theme")) {
+                Text("Theme: " + theme.replaceFirstChar { it.uppercase() } + "  ›  " + next.replaceFirstChar { it.uppercase() })
+            }
             if (state.layout == BoardLayouts.FREE) {
                 DropdownMenuItem(onClick = { open = false; state.setSnappingPreference(!state.snapping) }, modifier = Modifier.testTag("snap-toggle")) {
                     Text((if (state.snapping) "• " else "   ") + "Snap to neighbours")
@@ -315,12 +317,6 @@ private fun MoreMenu(state: BoardState, theme: String, onImmersive: () -> Unit) 
                 Text(state.recipe?.let { "Session: ${recipeSummary(it)}" } ?: "Session…")
             }
             Divider()
-            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Settings) }, modifier = Modifier.testTag("board-settings")) {
-                Text("Settings…")
-            }
-            DropdownMenuItem(onClick = { open = false; state.openEditor(BoardEditor.Hotkeys) }, modifier = Modifier.testTag("board-hotkeys")) {
-                Text("Hotkeys…")
-            }
             DropdownMenuItem(onClick = { open = false; onImmersive() }) { Text("Immersive") }
             DropdownMenuItem(onClick = { open = false; state.closeBoard() }, modifier = Modifier.testTag("board-close")) {
                 Text("Close board")
