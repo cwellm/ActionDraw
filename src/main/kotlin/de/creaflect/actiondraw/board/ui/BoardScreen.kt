@@ -244,7 +244,7 @@ private fun FlatButton(label: String, modifier: Modifier = Modifier, onClick: ()
  * A search field that fits a 32 dp line. Material's `OutlinedTextField` will not go under 56 dp,
  * so this is the same decoration on a `BasicTextField` with its padding taken in.
  */
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterialApi::class, ExperimentalLayoutApi::class)
 @Composable
 private fun FlowRowScope.CompactSearch(state: BoardState) {
     val interaction = remember { MutableInteractionSource() }
