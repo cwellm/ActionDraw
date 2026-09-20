@@ -115,6 +115,16 @@ fun BoardDialogs(state: BoardState) {
 
         BoardEditor.Wallpaper -> WallpaperDialog(state)
 
+        BoardEditor.Shortcuts -> ShortcutsDialog(state)
+
+        BoardEditor.RenameBoard -> TextPromptDialog(
+            title = "Rename board",
+            initial = state.board?.name ?: "",
+            confirm = "Rename",
+            onOk = { state.renameBoard(it); state.closeEditor() },
+            onCancel = state::closeEditor,
+        )
+
         is BoardEditor.ShowPalette -> PaletteDialog(state, editor.itemIds)
 
         is BoardEditor.EditCaption -> TextPromptDialog(
@@ -311,6 +321,37 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
             onOk = { state.saveLink(itemId, url, title); state.closeEditor() },
             onCancel = state::closeEditor,
         )
+    }
+}
+
+/** The keyboard, on one sheet, now that the action bar no longer carries it as a footer. */
+@Composable
+private fun ShortcutsDialog(state: BoardState) {
+    DialogScrim(onDismiss = state::closeEditor) {
+        Text("Shortcuts", style = MaterialTheme.typography.h6)
+        listOf(
+            "Click · Ctrl+click · Shift+click" to "select · toggle · range",
+            "Ctrl+A · Ctrl+C · Ctrl+V" to "select all · copy · paste",
+            "← → ↑ ↓" to "move focus (grid) · nudge the selection (free)",
+            "Ctrl+↑ / ↓ (+Shift)" to "reorder one step (all the way)",
+            "Space" to "view the selection large",
+            "wheel · + / − · 0" to "zoom the large view · fit",
+            "Enter" to "draw the selection",
+            "N · L · G" to "new note · new link · group the selection",
+            "Ctrl+Shift+G · Ctrl+D" to "ungroup · contents drawer",
+            "S · T · P · F2" to "star · tags · palette · caption",
+            "Del" to "remove the card (the file stays)",
+            "F · Esc" to "immersive · leave immersive / close",
+            "Shift+drag" to "rubber-band select (free)",
+        ).forEach { (keys, what) ->
+            Row(Modifier.fillMaxWidth()) {
+                Text(keys, style = MaterialTheme.typography.body2, modifier = Modifier.width(220.dp))
+                Text(what, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.75f))
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = state::closeEditor) { Text("Close") }
+        }
     }
 }
 

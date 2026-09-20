@@ -351,7 +351,7 @@ two reports that came out of using one.
 - ✅ Covered by `MoveBoardTest`; the behaviours were checked by reverting them, and the self-move
   guard proved itself by producing `Flügel/Membran/Flügel/Membran/…` 28 levels deep when removed
 
-## 🔄 M5 — Idea Board: handling, second round
+## ✅ M5 — Idea Board: handling, second round
 
 Spec: [docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md). The board as a free surface
 of ideas and inspiration; what daily use asked for.
@@ -407,9 +407,17 @@ of ideas and inspiration; what daily use asked for.
 - ✅ Covered by `WallpaperTest` (nine cases, one on the real screen); the one-copy rule and the
   recovery exclusion were checked by reverting them
 
-### ⬜ F6.5 Menus that get out of the way
-- ⬜ One-line header: name · Boards ▾ · segmented Grid | Free · Search · Contents · ⋯
-- ⬜ Once-a-session things move into ⋯; the action bar shows only when something is selected
+### ✅ F6.5 Menus that get out of the way
+- ✅ One-line header: name (click renames) · Boards ▾ · ↑ Parent · segmented Grid | Free ·
+  Search · Contents · + ▾ (note, link, group, import, paste) · ⋯
+- ✅ Once-a-session things live in ⋯: theme, snap, float strip, wallpaper, contact sheet, session
+  recipe, a shortcuts sheet, immersive, close. Tag chips only when there are tags; the action bar
+  only while something is selected, and only with what acts on the selection
+- ✅ Buttons drop to text weight and chips lose their outline on the board; the practice side's
+  controls are untouched
+- ✅ Covered by `BoardChromeTest` on the real screen: the action bar's presence follows the
+  selection, the segmented control switches layouts, search sets the query, ⋯ closes the board,
+  + ▾ opens the note dialog
 
 ---
 

@@ -115,12 +115,18 @@ two or three lines. It reads as a settings page sitting on top of the board.
 Each step ships with its own tests, and the ones about clicking and rendering go through the
 real composable, as everything since §19 has.
 
-## 7. Open questions
+## 7. Open questions — and what was done (2026-09-20)
 
-- §1 frame: "cloud" outline as specified, or would a convex hull do? The cloud is the
-  recommendation; it is also what makes subgroups read as inside their parent.
-- §3: is a **Markdown document card** (a whole `.md` file opened in a viewer) wanted on the
-  board now, or does that belong to Concepts, where documents are first-class? Assumed: with
-  Concepts.
-- §4: which of the current buttons are actually used every session? The overflow list above is
-  a guess at what is not.
+Built in the order of §6, all five parts; the decisions taken where the questions were still open:
+
+- §1 frame: built as the cloud — the union of padded boxes with bridges — and hit-tested by the
+  same path. A convex hull was not tried; the L-shaped case, which is the one that matters,
+  reads right. Inner corners where boxes meet are left sharp in this build.
+- §3: notes render the full subset; a **Markdown document card** was *not* added to the board.
+  Documents arrive with Concepts, where they are first-class and the same renderer is waiting.
+- §4: the overflow list stood as guessed. It is a menu, so moving something back out is a
+  one-line change once daily use says otherwise.
+- §5: the `Alt`+drop gesture was declined (see IdeaBoard-Shaping §30) — modifier state during an
+  external drop is not reliably readable; *Use as wallpaper* on a card and the chooser cover it.
+
+Design history for each part: [IdeaBoard-Shaping.md](IdeaBoard-Shaping.md) §27–§31.

@@ -87,8 +87,16 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - **`Ctrl+C`** puts the selected pictures on the clipboard as files — paste them in Explorer and
   you get copies. A notes-only selection copies as plain text.
 
+### The header
+- One line: the board's **name** (click it to rename) · **Boards ▾** · **↑ Parent** when nested ·
+  **Grid | Free** · **Search** · **Contents** · **+ ▾** (new note, new link, group, import,
+  paste) · **⋯** (theme, snap, float strip, wallpaper, contact sheet, session recipe, shortcuts,
+  immersive, close). Tag chips appear under it only when the board has tags, and the action bar
+  at the bottom — draw, view, group, palette, copy, move to — appears only while something is
+  selected. An empty board is just the board.
+
 ### Wallpaper
-- **Wallpaper…** in the header gives a board a picture behind the cards: choose one, or
+- **⋯ → Wallpaper…** gives a board a picture behind the cards: choose one, or
   right-click a picture already on the board and *Use as wallpaper*. It is copied into the board's
   `_wallpaper/` folder, so it moves with the board and is never offered back as a card. Fit it as
   *cover*, *tile* or *centre*; dim it so the cards stay readable; blur it if it is busy. On the

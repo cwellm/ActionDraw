@@ -761,3 +761,27 @@ red has not tested anything — §21's rule, again.
 Left out on purpose: the spec's `Alt`+drop. Whether a modifier is held during an external
 drag-and-drop is not something Compose Desktop reports reliably, and *Use as wallpaper* on a card
 plus the dialog's chooser cover the need without a gesture that would work only sometimes.
+
+## 31. Menus that get out of the way (2026-09-20)
+
+The header had grown the way headers do: every feature since M1 added a button, and the board
+opened under two or three lines of outlined controls that read as a settings page. The action bar
+below did the same, with a footer listing every shortcut.
+
+The redesign is one rule applied twice. **What is used every session stays visible; what is used
+once a session goes into a menu.** Name, layout, search, contents and the two menus stay. Theme,
+snap, the float strip, the wallpaper, the contact sheet, the session recipe, immersive and close go
+into ⋯; the ways of adding material go into + ▾. And **the action bar exists for a selection**:
+with nothing selected there is nothing for it to act on, and an empty board should be just the
+board. The shortcut footer became a sheet behind ⋯ → *Shortcuts…*, where it costs nothing until
+wanted.
+
+Two things were deliberately not done. The shared `SelectChip` was left alone and the board got
+its own flat chips and a segmented control — the practice screen's chips are part of a different
+surface and were not the complaint. And the header's tags for tests (`board-switcher`,
+`board-up`) were kept exactly, so the switcher and sub-board tests from §25 still pass unchanged
+through the rewrite, which is the point of tags over text.
+
+`BoardChromeTest` drives the new chrome on the real screen. This is the last piece of M5; the
+board is now what [Board-Handling-Spec.md](Board-Handling-Spec.md) described, minus the one
+gesture §30 declined.

@@ -60,6 +60,12 @@ sealed class BoardEditor {
     /** The board's background picture: choose, fit, dim, blur, remove. */
     data object Wallpaper : BoardEditor()
 
+    /** The keyboard shortcuts, in a sheet, since the header no longer carries them as a footer. */
+    data object Shortcuts : BoardEditor()
+
+    /** A new name for the open board, from clicking its name in the header. */
+    data object RenameBoard : BoardEditor()
+
     /** Asks before the app contacts a site for a link's preview picture. */
     data class FetchPreview(val itemId: String) : BoardEditor()
 
@@ -1043,6 +1049,15 @@ class BoardState(
         val ids = freeItems.filter { it.groups.any { g -> g in inTree } }.map { it.id }
         selection = ids.toSet()
         focusId = ids.firstOrNull()
+    }
+
+    /** Renames the open board — the sidecar's name and the registry's record, not the folder. */
+    fun renameBoard(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        update { it.copy(name = trimmed) }
+        root?.let { dir -> registry.register(trimmed, dir, ownsFolder = entryFor(dir)?.ownsFolder ?: false) }
+        boardsHomeTick++
     }
 
     // ---- Wallpaper ----
