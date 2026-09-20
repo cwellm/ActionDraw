@@ -120,7 +120,9 @@ fun BoardDialogs(state: BoardState) {
 
         BoardEditor.Wallpaper -> WallpaperDialog(state)
 
-        BoardEditor.Hotkeys -> DialogScrim(onDismiss = state::closeEditor) { HotkeysSheet(onClose = state::closeEditor) }
+        BoardEditor.Hotkeys -> DialogScrim(onDismiss = state::closeEditor) {
+            HotkeysSheet(sections = Hotkeys.SECTIONS.filter { it.first == Hotkeys.BOARD_TITLE }, onClose = state::closeEditor)
+        }
 
         BoardEditor.Settings -> DialogScrim(onDismiss = state::closeEditor) {
             SettingsSheet(app = null, boards = state, onClose = state::closeEditor)

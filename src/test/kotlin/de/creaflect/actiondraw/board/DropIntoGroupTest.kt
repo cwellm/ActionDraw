@@ -212,5 +212,23 @@ class DropIntoGroupTest {
         rule.onNodeWithTag("board-settings").performClick()
         rule.waitForIdle()
         rule.onNodeWithTag("settings-snap").assertIsDisplayed()
+        rule.onNode(androidx.compose.ui.test.hasText("Board settings")).assertIsDisplayed()
+        rule.onNode(androidx.compose.ui.test.hasText("Reference folder")).assertDoesNotExist()
+    }
+
+    @Test
+    fun theBoardsHotkeysShowOnlyTheBoards() {
+        val (state, _) = boardWithAGroup()
+        rule.setContent {
+            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardDialogs(state)
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("board-more").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("board-hotkeys").performClick()
+        rule.waitForIdle()
+        rule.onNode(androidx.compose.ui.test.hasText("Idea Board hotkeys")).assertIsDisplayed()
+        rule.onNode(androidx.compose.ui.test.hasText("Drawing session")).assertDoesNotExist()
     }
 }

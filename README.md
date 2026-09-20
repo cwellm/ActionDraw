@@ -89,10 +89,11 @@ still have an ordinary folder of images; the board never renames, moves or delet
 
 ### Settings and hotkeys
 - **Settings** and **Hotkeys** are buttons on the start menu, under *Draw* and *Boards*, and
-  entries in every board's **⋯** menu. Settings holds the boards home, the reference folder, and
-  whether dragged cards snap to their neighbours' centre lines — **off** unless you switch it on
-  (the same switch is a line in ⋯). Hotkeys is every shortcut for the session and the board on
-  one sheet; both places show the same list.
+  entries in every board's **⋯** menu. On the start menu, Settings holds the boards home, the
+  reference folder, and whether dragged cards snap to their neighbours' centre lines — **off**
+  unless you switch it on — and Hotkeys lists every shortcut for the session and the board.
+  Inside a board, both show only what pertains to the board: *Board settings* (boards home,
+  snapping) and the board's hotkeys.
 - Pressing **Enter** in a name field — a new group, a rename — confirms it.
 
 ### The header

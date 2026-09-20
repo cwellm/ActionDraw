@@ -837,3 +837,8 @@ rather than leave the group, and dropping must not undo that from the other side
 board units with a little pure geometry: inside any padded box, or inside any convex connector.
 The real-canvas test drags a loose card onto a frame and sees it filed; reverting the frame
 gate, the stay rule and the canvas wiring each failed exactly one test.
+
+Refined the same day: inside a board, *Settings* and *Hotkeys* show only what pertains to the
+board — *Board settings* (the boards home and snapping) and the board's own hotkeys — with the
+start menu's sheets holding everything. Same components, one list each; the board merely asks
+for its section.

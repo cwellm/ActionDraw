@@ -411,7 +411,8 @@ of ideas and inspiration; what daily use asked for.
 - ✅ Right-click → *Remove from ‹group›*: into the parent for a subgroup's card, else the Inbox;
   a group left empty is tidied away
 - ✅ **Settings** and **Hotkeys** as menu points in both places — buttons on the start menu, entries
-  in the board's ⋯ — showing the same sheets, so the two cannot drift apart
+  in the board's ⋯. Inside a board they show only what pertains to the board; the sheets are the
+  same components, so the two cannot drift apart
 - ✅ A card is added to a group later by dropping it on the group's frame (the innermost frame
   wins; a card already in the group is never re-filed by moving inside its own frame), or by
   right-click → *Add to ‹group›*

@@ -59,7 +59,15 @@ fun MenuExtras(app: AppState, boards: BoardState) {
 /** What the app remembers between runs, in one place. [app] is null when opened from a board. */
 @Composable
 internal fun ColumnScope.SettingsSheet(app: AppState?, boards: BoardState, onClose: () -> Unit) {
-    Text("Settings", style = MaterialTheme.typography.h6)
+    // From a board ([app] null) only what pertains to boards is shown, under its own title.
+    Text(if (app == null) "Board settings" else "Settings", style = MaterialTheme.typography.h6)
+    if (app == null) {
+        Text(
+            "What concerns boards. The rest is under Settings on the start menu.",
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+        )
+    }
 
     Text("Boards home", style = MaterialTheme.typography.caption)
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -105,10 +113,13 @@ internal fun ColumnScope.SettingsSheet(app: AppState?, boards: BoardState, onClo
 
 /** Every hotkey, session and board, on one sheet. */
 @Composable
-internal fun ColumnScope.HotkeysSheet(onClose: () -> Unit) {
-    Text("Hotkeys", style = MaterialTheme.typography.h6)
+internal fun ColumnScope.HotkeysSheet(
+    sections: List<Pair<String, List<Pair<String, String>>>> = Hotkeys.SECTIONS,
+    onClose: () -> Unit,
+) {
+    Text(if (sections.size == 1) "${sections.single().first} hotkeys" else "Hotkeys", style = MaterialTheme.typography.h6)
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-        Hotkeys.SECTIONS.forEach { (title, rows) ->
+        sections.forEach { (title, rows) ->
             Text(
                 title,
                 style = MaterialTheme.typography.subtitle2,
@@ -177,5 +188,7 @@ object Hotkeys {
         "F · Esc" to "immersive · leave immersive / close",
         "Shift+drag" to "rubber-band select (free)",
     )
-    val SECTIONS: List<Pair<String, List<Pair<String, String>>>> = listOf("Drawing session" to SESSION, "Idea Board" to BOARD)
+    const val SESSION_TITLE = "Drawing session"
+    const val BOARD_TITLE = "Idea Board"
+    val SECTIONS: List<Pair<String, List<Pair<String, String>>>> = listOf(SESSION_TITLE to SESSION, BOARD_TITLE to BOARD)
 }
