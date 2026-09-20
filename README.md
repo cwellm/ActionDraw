@@ -129,7 +129,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
     that card, and right-click the area to draw, rename, recolour or delete it. The label stays
     in view even when the group runs off the edge of the window. Grouped cards carry a small dot
     in their group's colour. A group only shows once it holds something.
-- **Note cards** (`N`) with `**bold**`/`*italic*`, a paper colour and an optional heading style;
+- **Note cards** (`N`) in a small Markdown: `# headings`, `**bold**`, `*italic*`, `` `code` ``,
+  `-` and `1.` lists, `---` rules, and `[text](url)` links that open in your browser when clicked
+  (so a note can carry several links); the dialog previews the result, and the note stays plain
+  text in the board file. Plus a paper colour and an optional heading style;
   **link cards** (`L`) that open in your browser — right-click one for *Fetch preview* and the
   picture the page advertises is saved onto the card; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,

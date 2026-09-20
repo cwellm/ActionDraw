@@ -351,15 +351,21 @@ two reports that came out of using one.
 - ✅ Covered by `MoveBoardTest`; the behaviours were checked by reverting them, and the self-move
   guard proved itself by producing `Flügel/Membran/Flügel/Membran/…` 28 levels deep when removed
 
-## ⬜ M5 — Idea Board: handling, second round
+## 🔄 M5 — Idea Board: handling, second round
 
 Spec: [docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md). The board as a free surface
 of ideas and inspiration; what daily use asked for.
 
-### ⬜ F6.1 Notes in Markdown
-- ⬜ Headings, bold, italic, bullet and numbered lists, clickable links, inline code, rules —
-  rendered on the card and previewed in the dialog; the sidecar stays plain text
-- ⬜ One renderer, outside the note code, for Concepts' documents to reuse
+### ✅ F6.1 Notes in Markdown
+- ✅ Headings, bold, italic, bullet and numbered lists, clickable links, inline code, rules —
+  rendered on the card (grid *and* canvas, which used to draw the raw markers) and previewed in
+  the dialog once there is markup to show; the sidecar stays plain text; search reads the words
+- ✅ One renderer, `Markdown`, outside the note code, for Concepts' documents to reuse; links go
+  through `BoardState.openUrl`, replaceable so a test can see a link followed
+- ✅ Covered by `MarkdownTest` (the parser) and `NoteLinkTest`, which clicks a link inside a note
+  on the real canvas — checked by making the link inert and watching it fail
+- ✅ Found on the way: a lone new card was placed two widths off the left of the screen, because
+  the placer centred a row of five whatever the count; it now centres over the cards it places
 
 ### ⬜ F6.2 One level of subgroups
 - ⬜ `BoardGroup.parentId`, depth limited to one on load; `source` reserved for concept groups

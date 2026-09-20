@@ -1061,4 +1061,18 @@ class BoardStateTest {
         val names = state.availableBoards().map { it.first }.toSet()
         assertEquals(setOf("Alpha", "Beta", "Gamma"), names)
     }
+
+    // ---- Placement ----
+
+    @Test
+    fun aLoneNewCardIsPlacedAtTheOriginNotOffToTheLeft() {
+        val one = BoardFile(name = "one", items = listOf(NoteItem(id = "n", text = "hi")))
+        val placed = BoardState.placeMissing(one)
+        assertEquals(0f, placed.items.single().pos!!.x, "one card: centred where the camera looks")
+
+        val three = BoardFile(name = "three", items = (1..3).map { NoteItem(id = "n$it", text = "hi") })
+        val xs = BoardState.placeMissing(three).items.map { it.pos!!.x }
+        assertEquals(0f, xs[1], "three cards: the middle one on the origin")
+        assertEquals(-xs[0], xs[2], "and the outer two symmetric about it")
+    }
 }

@@ -357,12 +357,12 @@ private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
             .background(if (textured) Themes.noteBacking else Themes.noteBackingDark)
             .border(2.dp, selectionBorder(state, item.id), shape),
     ) {
-        Text(
+        Markdown.Rendered(
             item.text,
             style = MaterialTheme.typography.body2,
             color = if (textured) Themes.noteInk else Themes.noteInkDark,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(10.dp),
+            onLink = state::openUrl,
+            modifier = Modifier.padding(10.dp).testTag("note-" + item.id),
         )
     }
 }

@@ -658,3 +658,26 @@ So the check is deliberately doubled. `moveBoard` compares canonical paths, sinc
 pointing back into the board would slip past a string prefix; and `moveFolder` refuses the same
 thing again regardless of what asked it. That is more belt than this codebase usually wears, and
 the reason is written above it: it is the only thing standing between a misclick and the board.
+
+## 27. M5 begins: notes in Markdown (2026-09-20)
+
+The spec is [Board-Handling-Spec.md](Board-Handling-Spec.md); this is what building its first
+piece taught.
+
+The renderer is a hand-written subset, not a library, for the reason the spec gives — the target
+is a card — and because the note must stay plain text in the sidecar (D4 still holds). It knows
+nothing about notes: `Markdown.parse` gives blocks, `Markdown.annotate` gives a styled string
+with `LinkAnnotation`s, and `Markdown.Rendered` lays blocks out; the same three calls will draw a
+concept's document. Links use Compose's `LinkAnnotation.Url`, which exists in 1.7.3 and makes a
+link clickable inside an ordinary `Text` — no `ClickableText`, no manual hit-testing.
+
+Two things the canvas note had quietly been getting wrong were found by wiring it up: it drew the
+raw text, markers and all (only the grid card formatted), and a lone new card was placed at
+x = −572 — the placer centred a row of *five* around the origin regardless of how many cards it
+had. That second one showed up as a test that found its note node but got a zero rectangle for
+its bounds: the text was entirely off-screen. §25's rule held again — measure, do not guess — and
+the fix is a line: centre the row over the cards actually in it.
+
+`NoteLinkTest` clicks the link on the real canvas and sees `openUrl` called; making the link
+inert fails it. Search now matches the words rather than the markup, though that wiring is a
+single line and was not mutation-checked — noted here so it is not mistaken for tested.

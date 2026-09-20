@@ -1,6 +1,6 @@
 package de.creaflect.actiondraw.board
 
-import de.creaflect.actiondraw.board.ui.NoteText
+import de.creaflect.actiondraw.board.ui.Markdown
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Image
@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import androidx.compose.ui.graphics.Color
 
 /** Phase-3 pieces that are pure enough to test on their own: note markup, palettes, sheets. */
 class M3Test {
@@ -37,7 +38,7 @@ class M3Test {
 
     @Test
     fun noteMarkupTurnsIntoBoldAndItalicSpans() {
-        val formatted = NoteText.format("draw **wings** and *scales*")
+        val formatted = Markdown.annotate(Markdown.inline("draw **wings** and *scales*"), Color.Unspecified) {}
         assertEquals("draw wings and scales", formatted.text, "markers are not shown")
         assertEquals(2, formatted.spanStyles.size, "one span per marked run")
     }
@@ -45,13 +46,14 @@ class M3Test {
     @Test
     fun noteMarkupLeavesPlainTextAlone() {
         val text = "just a plain note"
-        assertEquals(text, NoteText.format(text).text)
-        assertTrue(NoteText.format(text).spanStyles.isEmpty())
+        val rendered = Markdown.annotate(Markdown.inline(text), Color.Unspecified) {}
+        assertEquals(text, rendered.text)
+        assertTrue(rendered.spanStyles.isEmpty())
     }
 
     @Test
     fun plainStripsTheMarkers() {
-        assertEquals("wings and scales", NoteText.plain("**wings** and *scales*"))
+        assertEquals("wings and scales", Markdown.plain("**wings** and *scales*"))
     }
 
     // ---- Palette ----

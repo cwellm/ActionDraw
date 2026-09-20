@@ -225,10 +225,25 @@ private fun NoteDialog(state: BoardState, itemId: String?) {
             modifier = Modifier.fillMaxWidth().height(150.dp),
         )
         Text(
-            "**bold** and *italic* work; the note stays plain text in the board file.",
+            "# heading · **bold** · *italic* · `code` · [text](url) · - list · 1. list · --- ; " +
+                "the note stays plain text in the board file.",
             style = MaterialTheme.typography.caption,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
         )
+        if (Markdown.hasMarkup(text)) {
+            // Only when there is markup to show: a plain note previewing itself is noise.
+            Markdown.Rendered(
+                text,
+                style = MaterialTheme.typography.body2,
+                color = MaterialTheme.colors.onSurface,
+                onLink = state::openUrl,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 160.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(vertical = 4.dp),
+            )
+        }
         if (existing != null) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Paper", style = MaterialTheme.typography.caption)

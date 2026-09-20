@@ -165,7 +165,7 @@ private fun DrawerItemRow(state: BoardState, thumbs: ThumbCache, item: BoardItem
     val selected = item.id in state.selection
     val label = when (item) {
         is ImageItem -> item.caption ?: state.fileOf(item)?.name ?: item.path
-        is NoteItem -> NoteText.plain(item.text).lineSequence().firstOrNull().orEmpty().ifBlank { "note" }
+        is NoteItem -> Markdown.plain(item.text).lineSequence().firstOrNull().orEmpty().ifBlank { "note" }
         is LinkItem -> item.title.ifBlank { item.url }
     }
     Row(

@@ -248,13 +248,12 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
             .cardClicks(state, item.id)
             .aspectRatio(1f),
     ) {
-        Text(
-            NoteText.format(item.text),
+        Markdown.Rendered(
+            item.text,
             style = if (item.heading) MaterialTheme.typography.h6 else MaterialTheme.typography.body2,
             color = noteInk(item, textured),
-            maxLines = if (item.heading) 4 else 9,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(10.dp),
+            onLink = state::openUrl,
+            modifier = Modifier.padding(10.dp).testTag("note-" + item.id),
         )
     }
 }

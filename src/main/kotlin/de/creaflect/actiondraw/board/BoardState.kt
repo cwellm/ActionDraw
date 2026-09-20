@@ -17,6 +17,7 @@ import java.io.File
 import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import de.creaflect.actiondraw.board.ui.Markdown
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
@@ -305,7 +306,7 @@ class BoardState(
                     item.caption?.lowercase()?.contains(needle) == true ||
                     item.tags.any { it.lowercase().contains(needle) }
 
-            is NoteItem -> item.text.lowercase().contains(needle)
+            is NoteItem -> Markdown.plain(item.text).lowercase().contains(needle)
             is LinkItem ->
                 item.title.lowercase().contains(needle) || item.url.lowercase().contains(needle)
         }
@@ -803,12 +804,20 @@ class BoardState(
         root?.let { dir -> item.preview?.let { File(dir, it) } }?.takeIf { it.isFile }
 
     /** Opens a link card in the system browser — ActionDraw never loads a page itself. */
-    fun openLink(item: LinkItem) {
+    fun openLink(item: LinkItem) = openUrl(item.url)
+
+    /**
+     * How a url leaves the app: the system browser. Replaceable so a test can see that a link
+     * inside a note was followed without a browser window opening on the build machine.
+     */
+    var linkOpener: (String) -> Unit = { url ->
         runCatching {
-            val uri = URI(if (item.url.contains("://")) item.url else "https://${item.url}")
-            Desktop.getDesktop().browse(uri)
+            Desktop.getDesktop().browse(URI(if (url.contains("://")) url else "https://$url"))
         }
     }
+
+    /** Opens any address — a link card's, or a `[text](url)` inside a note. */
+    fun openUrl(url: String) = linkOpener(url)
 
     /** Dominant colours of the given cards, in display order (empty for notes and links). */
     fun palettesOf(ids: Set<String>): List<Pair<ImageItem, List<Int>>> =
@@ -1584,7 +1593,10 @@ class BoardState(
             val rowGap = BASE_SIZE * 1.9f
             val perRow = 5
             val startY = (board.items.mapNotNull { it.pos }.maxOfOrNull { it.y + BASE_SIZE } ?: originY)
-            val startX = originX - (perRow - 1) * gap / 2
+            // Centre the row over the cards that will actually be in it: centring a full row of
+            // five put a lone new note two cards' widths off the left of the screen.
+            val inRow = minOf(unplaced, perRow)
+            val startX = originX - (inRow - 1) * gap / 2
             var i = 0
             return board.copy(items = board.items.map { item ->
                 if (item.pos != null) item
