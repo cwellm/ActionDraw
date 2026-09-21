@@ -16,6 +16,10 @@ import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.board.ConceptSnapshot
 import de.creaflect.actiondraw.board.ConceptSource
+import de.creaflect.actiondraw.board.BoardFile
+import de.creaflect.actiondraw.board.BoardLayouts
+import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.Camera
 
 /**
  * Everything the concept module is allowed to ask of the rest of the app — the same kind of seam
@@ -72,6 +76,14 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     var listTick by mutableStateOf(0)
         private set
     var selection by mutableStateOf<Set<String>>(emptySet())
+        private set
+
+    // The free layout's viewport — the concept's own, never a board's.
+    var camX by mutableStateOf(0f)
+        private set
+    var camY by mutableStateOf(0f)
+        private set
+    var zoom by mutableStateOf(1f)
         private set
 
     val isOpen: Boolean get() = root != null && concept != null
@@ -151,11 +163,17 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     private fun afterOpen() {
         selection = emptySet()
         editor = null
+        val camera = concept?.camera ?: Camera()
+        camX = camera.x
+        camY = camera.y
+        zoom = camera.zoom
+        placeMissingIfFree()
         listTick++
         host.showConcept()
     }
 
     fun closeConcept() {
+        commitCamera()
         root = null
         concept = null
         selection = emptySet()
@@ -248,8 +266,84 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val added = outcome.items + others.map { it.withGroups(emptyList()) }
         val next = current.copy(items = current.items + added)
         if (!ConceptStore.save(dir, next)) return null
-        if (openHere) concept = next
+        if (openHere) {
+            concept = next
+            placeMissingIfFree()
+        }
         return added
+    }
+
+    // ---- Layout ----
+
+    val layout: String get() = concept?.layout ?: BoardLayouts.GRID
+
+    fun setLayout(layout: String) {
+        if (layout == this.layout) return
+        update { it.copy(layout = layout) }
+        placeMissingIfFree()
+    }
+
+    /** Cards without a place yet go in rows near the camera — the board's rule, reused as it is. */
+    private fun placeMissingIfFree() {
+        if (layout != BoardLayouts.FREE) return
+        if (items.none { it.pos == null }) return
+        update { c -> c.copy(items = BoardState.placeMissing(BoardFile(items = c.items), camX, camY).items) }
+    }
+
+    /** Width over height of a card on the canvas: the board's rule, so the two look alike. */
+    fun aspectOf(item: BoardItem): Float = when (item) {
+        is ImageItem -> (item.aspect ?: 1f).coerceIn(0.2f, 5f)
+        is LinkItem -> BoardState.STRIP_ASPECT
+        is NoteItem -> if (item.kind == NoteKind.POSTIT) item.estimatedAspect() else BoardState.STRIP_ASPECT
+    }
+
+    /** A picture's shape once decoded, kept so the layout is stable from then on. */
+    fun rememberAspect(id: String, aspect: Float) {
+        val item = item(id) as? ImageItem ?: return
+        if (item.aspect == aspect) return
+        update { c -> c.copy(items = c.items.map { if (it.id == id && it is ImageItem) it.copy(aspect = aspect) else it }) }
+    }
+
+    fun pan(dx: Float, dy: Float) {
+        camX += dx
+        camY += dy
+    }
+
+    fun setZoom(newZoom: Float, newCamX: Float, newCamY: Float) {
+        zoom = newZoom.coerceIn(0.1f, 5f)
+        camX = newCamX
+        camY = newCamY
+    }
+
+    fun commitCamera() {
+        if (!isOpen) return
+        val camera = Camera(camX, camY, zoom)
+        if (concept?.camera != camera) update { it.copy(camera = camera) }
+    }
+
+    /** Moves a card (or the whole selection, if it is part of it); [commitLayout] persists it. */
+    fun dragBy(id: String, dx: Float, dy: Float) {
+        val ids = if (id in selection) selection else setOf(id)
+        concept = concept?.let { c ->
+            c.copy(items = c.items.map { item ->
+                val pos = item.pos
+                if (item.id in ids && pos != null) item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else item
+            })
+        }
+    }
+
+    fun resizeBy(id: String, factor: Float) {
+        concept = concept?.let { c ->
+            c.copy(items = c.items.map { item ->
+                val pos = item.pos
+                if (item.id == id && pos != null) item.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.3f, 4f))) else item
+            })
+        }
+    }
+
+    fun commitLayout() {
+        val dir = root ?: return
+        ConceptStore.save(dir, concept ?: return)
     }
 
     // ---- Cards ----
@@ -265,6 +359,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val existing = items.filterIsInstance<ImageItem>().map { it.path }.toSet()
         val outcome = Importer.importFiles(dir, files, groupId = null, existingPaths = existing)
         if (outcome.items.isNotEmpty()) update { it.copy(items = it.items + outcome.items) }
+        placeMissingIfFree()
         notice = when {
             outcome.items.isEmpty() && outcome.duplicates > 0 -> "Already here."
             outcome.duplicates > 0 -> "Added ${outcome.items.size}; ${outcome.duplicates} already here."
@@ -278,6 +373,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         if (trimmed.isEmpty()) return
         if (itemId == null) {
             update { it.copy(items = it.items + NoteItem(id = Importer.newId(), text = trimmed, kind = kind)) }
+            placeMissingIfFree()
         } else {
             update { c -> c.copy(items = c.items.map { if (it is NoteItem && it.id == itemId) it.copy(text = trimmed, kind = kind) else it }) }
         }
@@ -289,6 +385,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val name = title.trim()
         if (itemId == null) {
             update { it.copy(items = it.items + LinkItem(id = Importer.newId(), url = trimmed, title = name)) }
+            placeMissingIfFree()
         } else {
             update { c -> c.copy(items = c.items.map { if (it is LinkItem && it.id == itemId) it.copy(url = trimmed, title = name) else it }) }
         }

@@ -2,6 +2,8 @@ package de.creaflect.actiondraw.concept
 
 import de.creaflect.actiondraw.board.BoardItem
 import kotlinx.serialization.Serializable
+import de.creaflect.actiondraw.board.BoardLayouts
+import de.creaflect.actiondraw.board.Camera
 
 /**
  * The concept sidecar (`.actiondraw_concept.json`), stored in the concept's folder next to its
@@ -26,6 +28,10 @@ data class ConceptFile(
     val items: List<BoardItem> = emptyList(),
     /** Relative paths of the concept's documents, `/`-separated, in display order. */
     val documents: List<String> = emptyList(),
+    /** [BoardLayouts.GRID] (a grid of cards) or [BoardLayouts.FREE] (placed by hand — the concept's own arrangement). */
+    val layout: String = BoardLayouts.GRID,
+    /** Last free-layout viewport, so the concept reopens where it was left. */
+    val camera: Camera? = null,
 )
 
 object ConceptKinds {

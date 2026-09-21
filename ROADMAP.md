@@ -484,6 +484,11 @@ the answers taken to its open questions). A thing that lives once and is linked 
 - ✅ The Concepts list (tiles by kind, cover, counts, how many boards link it) and the concept's
   page (pictures, notes, links in a grid; documents rendered beside); Esc goes up
 - ✅ Pictures copied into `_imported/` by the board's importer; notes and links as on a board
+- ✅ Grid | Free on the concept's page: the concept's own arrangement and viewport, kept in its
+  file (`layout`, `camera`, each card's `pos`), never borrowed by a board; the board's placement
+  rule and card shapes reused (2026-09-21)
+- ✅ Dialogs focus their first field on show and dismiss by pointer only — a Space typed into a
+  new note once landed on the scrim and closed it; the same fix on the board's dialogs
 
 ### ✅ F8.2 Documents
 - ✅ `.md` files in `_docs/`, named from their first heading, rendered with the M5 renderer,

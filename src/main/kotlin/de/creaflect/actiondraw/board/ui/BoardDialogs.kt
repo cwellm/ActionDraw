@@ -3,7 +3,6 @@ package de.creaflect.actiondraw.board.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,12 +67,12 @@ import de.creaflect.actiondraw.samePathAs
 import androidx.compose.material.Slider
 import de.creaflect.actiondraw.board.WallpaperFit
 import de.creaflect.actiondraw.ui.chooseImages
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import de.creaflect.actiondraw.board.NoteKind
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import de.creaflect.actiondraw.ui.confirmOnEnter
+import de.creaflect.actiondraw.ui.focusOnShow
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
 @Composable
@@ -263,7 +262,7 @@ private fun NoteDialog(state: BoardState, itemId: String?, initialKind: String) 
         OutlinedTextField(
             value = text,
             onValueChange = { text = it },
-            modifier = Modifier.fillMaxWidth().height(150.dp),
+            modifier = Modifier.fillMaxWidth().height(150.dp).focusOnShow(),
         )
         Text(
             if (kind == NoteKind.POSTIT) "Shown exactly as typed, in a written hand."
@@ -357,7 +356,7 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
             onValueChange = { url = it },
             label = { Text("Address") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().focusOnShow(),
         )
         OutlinedTextField(
             value = title,
@@ -739,20 +738,11 @@ private fun TextPromptDialog(
             singleLine = !multiline,
             modifier = Modifier
                 .fillMaxWidth()
+                .focusOnShow()
                 .let { if (multiline) it.height(150.dp) else it.confirmOnEnter { onOk(value) } }
                 .testTag("prompt-field"),
         )
         DialogButtons(confirm = confirm, onOk = { onOk(value) }, onCancel = onCancel)
-    }
-}
-
-/** Enter in a single-line field means "yes, that" — the same as the confirm button. */
-private fun Modifier.confirmOnEnter(onOk: () -> Unit): Modifier = onPreviewKeyEvent { event ->
-    if (event.type == KeyEventType.KeyDown && (event.key == Key.Enter || event.key == Key.NumPadEnter)) {
-        onOk()
-        true
-    } else {
-        false
     }
 }
 
@@ -773,7 +763,9 @@ private fun DialogScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.
         Modifier
             .fillMaxSize()
             .background(Color(0x99000000))
-            .clickable(remember { MutableInteractionSource() }, indication = null) { onDismiss() },
+            // Pointer-only: a `clickable` here takes focus, and a Space or Enter meant for a note
+            // could then close the dialog from under it.
+            .pointerInput(onDismiss) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
         Surface(
@@ -781,8 +773,8 @@ private fun DialogScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.
             elevation = 16.dp,
             modifier = Modifier
                 .widthIn(min = 380.dp, max = 540.dp)
-                // Swallow clicks so the dialog body doesn't dismiss itself.
-                .clickable(remember { MutableInteractionSource() }, indication = null) {},
+                // Swallow taps so the dialog body doesn't dismiss itself.
+                .pointerInput(Unit) { detectTapGestures { } },
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
         }

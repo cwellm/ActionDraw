@@ -1,13 +1,21 @@
 package de.creaflect.actiondraw.concept
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.ItemPos
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
@@ -273,5 +281,89 @@ class ConceptTest {
         rule.onNodeWithTag("board-link-Zweites").performClick()
         rule.waitForIdle()
         assertEquals(listOf("Zweites" to true), toggled)
+    }
+
+    // ---- The free layout ----
+
+    @Test
+    fun theFreeLayoutPlacesEveryCardAndKeepsTheArrangement() {
+        val state = newState()
+        state.createConcept("Drache")
+        state.addPictures(listOf(File(elsewhere, "wing.jpg").apply { createNewFile() }))
+        state.saveNote(null, "# Wings")
+        assertEquals(BoardLayouts.GRID, state.layout)
+        assertTrue(state.items.all { it.pos == null }, "a grid has no places")
+
+        state.setLayout(BoardLayouts.FREE)
+        assertTrue(state.items.all { it.pos != null }, "switching to Free places what has no place")
+        state.saveLink(null, "https://example.com", "Dragons")
+        assertTrue(state.items.all { it.pos != null }, "and so does adding while Free")
+
+        val picture = state.items.first()
+        val before = picture.pos!!
+        state.dragBy(picture.id, 40f, -10f)
+        state.commitLayout()
+        state.pan(100f, 50f)
+        state.setZoom(2f, 100f, 50f)
+        state.commitCamera()
+
+        val fresh = newState().also { it.openConcept(state.root!!) }
+        assertEquals(BoardLayouts.FREE, fresh.layout)
+        assertEquals(ItemPos(before.x + 40f, before.y - 10f), fresh.item(picture.id)!!.pos)
+        assertEquals(Triple(100f, 50f, 2f), Triple(fresh.camX, fresh.camY, fresh.zoom))
+    }
+
+    @Test
+    fun aPicturesShapeIsRememberedOnceKnown() {
+        val state = newState()
+        state.createConcept("Drache")
+        state.addPictures(listOf(File(elsewhere, "wing.jpg").apply { createNewFile() }))
+        val id = state.items.single().id
+        assertEquals(1f, state.aspectOf(state.item(id)!!), "square until decoded")
+
+        state.rememberAspect(id, 1.5f)
+
+        assertEquals(1.5f, state.aspectOf(state.item(id)!!))
+        assertEquals(1.5f, (ConceptStore.peek(state.root!!)!!.items.single() as ImageItem).aspect, "and written down")
+    }
+
+    @Test
+    fun freeShowsACanvasWithTheCardsInPlace() {
+        val state = newState()
+        state.createConcept("Drache")
+        state.saveNote(null, "# Wings")
+        state.setLayout(BoardLayouts.FREE)
+        val id = state.items.single().id
+
+        rule.setContent { ConceptScreen(state, ThumbCache(config)) }
+        rule.waitForIdle()
+        rule.onNodeWithTag("concept-canvas").assertExists()
+        rule.onNodeWithTag("concept-card-$id", useUnmergedTree = true).assertExists()
+
+        rule.onNodeWithTag("concept-layout-Grid").performClick()
+        rule.waitForIdle()
+        assertEquals(BoardLayouts.GRID, state.layout)
+        rule.onNodeWithTag("concept-canvas").assertDoesNotExist()
+    }
+
+    // ---- Typing ----
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun aNewNoteTakesTheFirstKeystrokeItself() {
+        val state = newState()
+        state.createConcept("Drache")
+        state.openEditor(ConceptEditor.EditNote(null))
+        rule.setContent { ConceptDialogs(state) }
+        rule.waitForIdle()
+
+        // Nothing clicked first: the note's field must already hold the focus, so a Space goes to
+        // it — and not to the scrim, which used to take it as a click and close the note.
+        rule.onNodeWithTag("concept-note-text").assertIsFocused()
+        rule.onRoot().performKeyInput { pressKey(Key.Spacebar) }
+        rule.waitForIdle()
+
+        assertNotNull(state.editor, "still open")
+        rule.onNodeWithTag("concept-note-text").assertIsFocused()
     }
 }

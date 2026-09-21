@@ -135,3 +135,12 @@ open here.
 this code writes must be left exactly as found — the first reconcile dropped such a group *with
 its cards*, which on a hand-edited board would have been the board's own pictures. Only canonical
 `concept:<id>` groups without their link are stale, and their cards are borrowed by definition.
+
+**Addendum (2026-09-21).** Two remarks after use: the concept's page also wanted the board's
+*Free* arrangement, and a Space typed into a new note closed it. The first is a `Grid | Free`
+toggle on the page with a canvas of its own (`ConceptCanvas`): the same placement rule, card
+shapes and gestures as the board's, with `layout`, `camera` and each card's `pos` in the concept
+file — and `ConceptLink.borrow` keeps ignoring the concept's positions, so a board never inherits
+the concept's arrangement. The second was focus: nothing in the dialog held it, and the scrim's
+`clickable` took the Space as a click. Now every dialog focuses its first field on show and
+dismisses by pointer only; the board's dialogs got the same.

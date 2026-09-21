@@ -231,6 +231,17 @@ class ConceptLinkTest {
     }
 
     @Test
+    fun theConceptsOwnArrangementNeverReachesABoard() {
+        val (id, board) = setUp()
+        concepts.setLayout(BoardLayouts.FREE) // places every card in the concept's own space
+        assertTrue(concepts.items.all { it.pos != null })
+
+        board.linkConcept(id)
+
+        assertTrue(board.borrowed(id).all { it.pos == null }, "a grid board: no places, and none borrowed")
+    }
+
+    @Test
     fun aRenamedConceptRenamesItsGroupOnEveryBoard() {
         val (id, board) = setUp()
         board.linkConcept(id)

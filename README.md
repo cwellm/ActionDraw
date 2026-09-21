@@ -245,6 +245,12 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
 - A concept holds **pictures** (copied into its `_imported/` folder, exactly as a board does),
   **notes**, **links** and **documents** — Markdown files in its `_docs/` folder, rendered on the
   concept's page and edited in a text box with a live preview. **+ ▾** adds any of them.
+- **Grid | Free** in the header, as a board has: *Free* places the cards by hand — drag a card to
+  move it, drag empty space to pan, the wheel zooms about the cursor, `Ctrl`+wheel resizes the
+  selected cards. The arrangement and the viewport are the concept's own, kept in its file, and
+  never reach the boards that link it.
+- Every dialog puts the cursor in its first field, so typing starts at once; a name field
+  confirms on **Enter**.
 - Everything the concept knows lives in `.actiondraw_concept.json` next to its files, and
   `~/.actiondraw/concepts.json` records which folder belongs to which concept, by id — so a
   concept keeps its identity wherever its folder goes, and a concept folder found under the home

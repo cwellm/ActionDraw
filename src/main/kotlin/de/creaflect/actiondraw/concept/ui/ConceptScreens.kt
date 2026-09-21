@@ -78,6 +78,11 @@ import java.io.File
 import java.net.URI
 import androidx.compose.runtime.LaunchedEffect
 import de.creaflect.actiondraw.board.BoardLink
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import de.creaflect.actiondraw.board.BoardLayouts
+import de.creaflect.actiondraw.ui.confirmOnEnter
+import de.creaflect.actiondraw.ui.focusOnShow
 
 /** The Concepts entry on the menu, equal in weight to Draw and Boards. */
 @Composable
@@ -264,6 +269,8 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
                     color = MaterialTheme.colors.secondary,
                     modifier = Modifier.clickable { state.openEditor(ConceptEditor.Rename) },
                 )
+                Spacer(Modifier.width(8.dp))
+                LayoutToggle(state)
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { state.closeConcept() }, modifier = Modifier.testTag("concept-up")) { Text("↑ All concepts") }
                 AddMenu(state)
@@ -276,8 +283,20 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
                 modifier = Modifier.padding(horizontal = 12.dp).clickable { state.notice = null })
         }
         Row(Modifier.fillMaxSize()) {
-            // Cards: pictures, notes, links.
-            LazyVerticalGrid(
+            // Cards: pictures, notes, links — in a grid, or placed by hand.
+            if (state.layout == BoardLayouts.FREE) {
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    if (concept.notes.isNotBlank()) {
+                        Text(
+                            concept.notes,
+                            style = MaterialTheme.typography.body2,
+                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                    }
+                    ConceptCanvas(state, thumbs, Modifier.fillMaxWidth().weight(1f))
+                }
+            } else LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 140.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -319,6 +338,27 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
     }
 }
 
+/** Grid | Free, as a board has: the concept's own arrangement, kept in its file. */
+@Composable
+private fun LayoutToggle(state: ConceptState) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+        listOf(BoardLayouts.GRID to "Grid", BoardLayouts.FREE to "Free").forEach { (value, label) ->
+            val on = state.layout == value
+            Text(
+                label,
+                style = MaterialTheme.typography.body2,
+                color = if (on) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(4.dp))
+                    .clickable { state.setLayout(value) }
+                    .testTag("concept-layout-$label")
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun AddMenu(state: ConceptState) {
     var open by remember { mutableStateOf(false) }
@@ -339,15 +379,16 @@ private fun AddMenu(state: ConceptState) {
 }
 
 @Composable
-private fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageItem) {
+internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageItem, modifier: Modifier = Modifier.aspectRatio(1f)) {
     val file = state.fileOf(item)
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
         value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
     }
+    // Once the picture is decoded its shape is known, and the free layout sizes the card by it.
+    LaunchedEffect(thumb) { thumb?.let { state.rememberAspect(item.id, it.width.toFloat() / it.height) } }
     val selected = item.id in state.selection
     Box(
-        Modifier
-            .aspectRatio(1f)
+        modifier
             .clip(RoundedCornerShape(4.dp))
             .background(Color(0x14000000))
             .border(if (selected) 3.dp else 1.dp, if (selected) MaterialTheme.colors.primary else Color(0x33000000), RoundedCornerShape(4.dp))
@@ -366,9 +407,9 @@ private fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageItem
 }
 
 @Composable
-private fun NoteCard(state: ConceptState, item: NoteItem) {
+internal fun NoteCard(state: ConceptState, item: NoteItem, modifier: Modifier = Modifier) {
     Column(
-        Modifier
+        modifier
             .clip(RoundedCornerShape(4.dp))
             .background(Color(0xFFFFF3B8))
             .clickable { state.openEditor(ConceptEditor.EditNote(item.id)) }
@@ -383,10 +424,10 @@ private fun NoteCard(state: ConceptState, item: NoteItem) {
 }
 
 @Composable
-private fun LinkCard(state: ConceptState, item: LinkItem) {
+internal fun LinkCard(state: ConceptState, item: LinkItem, modifier: Modifier = Modifier) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(4.dp))
             .background(MaterialTheme.colors.surface)
             .clickable { browse(item.url) }
@@ -434,7 +475,16 @@ fun ConceptDialogs(state: ConceptState) {
             var error by remember { mutableStateOf<String?>(null) }
             Scrim(onDismiss = state::closeEditor) {
                 Text("New concept", style = MaterialTheme.typography.h6)
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("concept-name"))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().focusOnShow().confirmOnEnter {
+                        error = state.createConcept(name, kind)
+                        if (error == null) state.closeEditor()
+                    }.testTag("concept-name"),
+                )
                 Text("Kind", style = MaterialTheme.typography.caption)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ConceptKinds.SUGGESTED.forEach { k -> SelectChip(k, kind == k) { kind = if (kind == k) "" else k } }
@@ -451,7 +501,7 @@ fun ConceptDialogs(state: ConceptState) {
             var notes by remember { mutableStateOf(state.concept?.notes ?: "") }
             Scrim(onDismiss = state::closeEditor) {
                 Text("About this concept", style = MaterialTheme.typography.h6)
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusOnShow())
                 OutlinedTextField(value = kind, onValueChange = { kind = it }, label = { Text("Kind") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("A few words") }, modifier = Modifier.fillMaxWidth().height(100.dp))
                 Buttons("Save", onOk = { state.rename(name); state.setKind(kind); state.setNotes(notes); state.closeEditor() }, onCancel = state::closeEditor)
@@ -463,7 +513,7 @@ fun ConceptDialogs(state: ConceptState) {
             var text by remember(editor) { mutableStateOf(existing?.text ?: "") }
             Scrim(onDismiss = state::closeEditor) {
                 Text(if (existing == null) "New note" else "Edit note", style = MaterialTheme.typography.h6)
-                OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth().height(150.dp))
+                OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.fillMaxWidth().height(150.dp).focusOnShow().testTag("concept-note-text"))
                 if (existing != null) TextButton(onClick = { state.removeItems(setOf(existing.id)); state.closeEditor() }) { Text("Remove note") }
                 Buttons("Save", onOk = { state.saveNote(editor.itemId, text, existing?.kind ?: NoteKind.DOCUMENT); state.closeEditor() }, onCancel = state::closeEditor)
             }
@@ -475,7 +525,7 @@ fun ConceptDialogs(state: ConceptState) {
             var title by remember(editor) { mutableStateOf(existing?.title ?: "") }
             Scrim(onDismiss = state::closeEditor) {
                 Text(if (existing == null) "New link" else "Edit link", style = MaterialTheme.typography.h6)
-                OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Address") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Address") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusOnShow())
                 OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Buttons("Save", onOk = { state.saveLink(editor.itemId, url, title); state.closeEditor() }, onCancel = state::closeEditor)
             }
@@ -486,7 +536,7 @@ fun ConceptDialogs(state: ConceptState) {
             Scrim(onDismiss = state::closeEditor) {
                 Text(if (editor.path == null) "New document" else "Edit document", style = MaterialTheme.typography.h6)
                 Row(Modifier.fillMaxWidth().heightIn(max = 420.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.weight(1f).fillMaxHeight().testTag("document-text"))
+                    OutlinedTextField(value = text, onValueChange = { text = it }, modifier = Modifier.weight(1f).fillMaxHeight().focusOnShow().testTag("document-text"))
                     // The live preview, since a document is written to be read.
                     Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) {
                         Markdown.Rendered(text, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface, onLink = {})
@@ -583,14 +633,17 @@ private fun ColumnScope.Buttons(confirm: String, onOk: () -> Unit, onCancel: () 
 
 @Composable
 private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    // Pointer-only dismissal: a `clickable` here takes focus, and a Space or Enter meant for a
+    // note could then close the dialog from under it.
     Box(
-        Modifier.fillMaxSize().background(Color(0x99000000)).clickable(onClick = onDismiss),
+        Modifier.fillMaxSize().background(Color(0x99000000)).pointerInput(onDismiss) { detectTapGestures { onDismiss() } },
         contentAlignment = Alignment.Center,
     ) {
         Surface(
             elevation = 12.dp,
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.widthIn(max = 760.dp).padding(24.dp).clickable(enabled = false) {},
+            // Swallow taps so the dialog body doesn't dismiss itself.
+            modifier = Modifier.widthIn(max = 760.dp).padding(24.dp).pointerInput(Unit) { detectTapGestures { } },
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
         }
