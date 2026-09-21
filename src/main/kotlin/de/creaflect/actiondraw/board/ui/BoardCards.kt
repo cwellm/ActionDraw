@@ -122,18 +122,20 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
     // Right-clicking outside the selection retargets it (also done on press, belt and braces).
     val ids = if (item.id in state.selection) state.selection else setOf(item.id)
     val menu = mutableListOf<ContextMenuItem>()
+    // A borrowed card is its concept's: looked at, drawn, starred and tagged here, edited there.
+    val borrowed = state.isBorrowed(item)
     when (item) {
         is ImageItem -> {
             menu += ContextMenuItem("View large") { state.openViewer(item.id) }
             menu += ContextMenuItem("Palette…") { state.openEditor(BoardEditor.ShowPalette(ids)) }
-            menu += ContextMenuItem("Caption…") { state.openEditor(BoardEditor.EditCaption(item.id)) }
+            if (!borrowed) menu += ContextMenuItem("Caption…") { state.openEditor(BoardEditor.EditCaption(item.id)) }
             menu += ContextMenuItem("Tags…") { state.openEditor(BoardEditor.EditTags(ids)) }
             menu += ContextMenuItem(if (item.starred) "Unstar" else "Star") { state.toggleStar(ids) }
             menu += ContextMenuItem("Use as wallpaper") { state.fileOf(item)?.let { state.setWallpaper(it) } }
         }
 
         is NoteItem -> {
-            menu += ContextMenuItem("Edit note…") { state.openEditor(BoardEditor.EditNote(item.id)) }
+            if (!borrowed) menu += ContextMenuItem("Edit note…") { state.openEditor(BoardEditor.EditNote(item.id)) }
             menu += ContextMenuItem(if (item.heading) "Normal size" else "Make heading") {
                 state.toggleNoteHeading(item.id)
             }
@@ -145,7 +147,7 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
 
         is LinkItem -> {
             menu += ContextMenuItem("Open in browser") { state.openLink(item) }
-            menu += ContextMenuItem("Edit link…") { state.openEditor(BoardEditor.EditLink(item.id)) }
+            if (!borrowed) menu += ContextMenuItem("Edit link…") { state.openEditor(BoardEditor.EditLink(item.id)) }
             menu += ContextMenuItem(
                 if (item.preview == null) "Fetch preview (goes online)" else "Fetch preview again",
             ) { state.openEditor(BoardEditor.FetchPreview(item.id)) }
@@ -155,6 +157,12 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
         }
     }
     menu += ContextMenuItem("Copy") { state.copySelection() }
+    if (borrowed) {
+        val group = state.groupById(item.groups.firstOrNull())
+        menu += ContextMenuItem("Open concept") { group?.conceptId?.let(state::showConcept) }
+        menu += ContextMenuItem("Unlink ${group?.name ?: "concept"} from this board") { group?.conceptId?.let(state::unlinkConcept) }
+        return menu
+    }
     state.groupById(item.groups.firstOrNull())?.let { group ->
         // Out of the group it is in: into the parent for a subgroup's card, else the Inbox.
         val lands = state.groupById(group.parentId)?.name ?: "Inbox"
@@ -162,7 +170,7 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
     }
     val verb = if (item.groups.isEmpty()) "Add to" else "Move to"
     state.sortedGroups.filterNot { it.id in item.groups }.forEach { group ->
-        val label = (if (group.parentId != null) "  ↳ " else "") + group.name
+        val label = (if (group.parentId != null) "  ↳ " else "") + (if (group.isConcept) "⧉ " else "") + group.name
         menu += ContextMenuItem("$verb $label") { state.moveToGroup(ids, group.id) }
     }
     menu += ContextMenuItem("Remove from board") { state.removeItems(ids) }
@@ -393,7 +401,7 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                     }
                 }
                 Text(
-                    (if (nested) "↳ " else "") + "${group?.name ?: "Inbox"} ($count)",
+                    (if (nested) "↳ " else "") + (if (group?.isConcept == true) "⧉ " else "") + "${group?.name ?: "Inbox"} ($count)",
                     style = if (nested) MaterialTheme.typography.subtitle2 else MaterialTheme.typography.subtitle1,
                     fontWeight = FontWeight.Bold,
                     color = accent ?: MaterialTheme.colors.onBackground,
@@ -425,6 +433,16 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
 }
 
 private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMenuItem> = buildList {
+    if (group.isConcept) {
+        // A linked concept: the board can look at it, draw from it and let it go — nothing more.
+        add(ContextMenuItem("Draw ${state.itemsInTree(group.id).size}") { state.drawGroup(group.id) })
+        add(ContextMenuItem("Select group") { state.selectGroup(group.id) })
+        add(ContextMenuItem("Open concept") { group.conceptId?.let(state::showConcept) })
+        add(ContextMenuItem("Move up") { state.moveGroup(group.id, -1) })
+        add(ContextMenuItem("Move down") { state.moveGroup(group.id, +1) })
+        add(ContextMenuItem("Unlink from this board") { group.conceptId?.let(state::unlinkConcept) })
+        return@buildList
+    }
     add(ContextMenuItem("Rename…") { state.openEditor(BoardEditor.RenameGroup(group.id)) })
     add(ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) })
     add(ContextMenuItem("Move up") { state.moveGroup(group.id, -1) })

@@ -138,7 +138,7 @@ private fun DrawerGroupRow(state: BoardState, group: BoardGroup, count: Int, nes
             Box(Modifier.size(10.dp).clip(CircleShape).background(accent))
             Spacer(Modifier.width(6.dp))
             Text(
-                "${group.name} ($count)",
+                (if (group.isConcept) "⧉ " else "") + "${group.name} ($count)",
                 style = MaterialTheme.typography.body2,
                 fontWeight = FontWeight.Bold,
                 color = accent,
@@ -150,9 +150,14 @@ private fun DrawerGroupRow(state: BoardState, group: BoardGroup, count: Int, nes
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(start = 28.dp, top = 2.dp)) {
             DrawerAction("Select") { state.selectGroup(group.id) }
             DrawerAction("Draw") { state.drawGroup(group.id) }
-            DrawerAction("Rename") { state.openEditor(BoardEditor.RenameGroup(group.id)) }
-            DrawerAction(if (nested) "Dissolve" else "Ungroup") { state.ungroup(group.id) }
-            if (nested) DrawerAction("Top level") { state.setGroupParent(group.id, null) }
+            if (group.isConcept) {
+                DrawerAction("Open") { group.conceptId?.let(state::showConcept) }
+                DrawerAction("Unlink") { group.conceptId?.let(state::unlinkConcept) }
+            } else {
+                DrawerAction("Rename") { state.openEditor(BoardEditor.RenameGroup(group.id)) }
+                DrawerAction(if (nested) "Dissolve" else "Ungroup") { state.ungroup(group.id) }
+                if (nested) DrawerAction("Top level") { state.setGroupParent(group.id, null) }
+            }
         }
     }
 }

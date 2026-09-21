@@ -25,4 +25,10 @@ interface BoardHost {
 
     /** The practice side's current settings — what "remember what is on screen" saves. */
     fun currentSetup(): SessionSetup
+
+    /** Show the concept with [id] — a linked group's "Open concept". Ignored where there are none. */
+    fun showConcept(id: String) {}
+
+    /** Show the list of concepts. */
+    fun showConcepts() {}
 }

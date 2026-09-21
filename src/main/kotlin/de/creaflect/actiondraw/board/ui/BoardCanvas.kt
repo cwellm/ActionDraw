@@ -29,6 +29,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -85,6 +86,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 
 /**
  * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
@@ -102,12 +106,14 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
         modifier
             .clipToBounds()
             .testTag("canvas")
+            .pointerLogging("root")
             .onSizeChanged { viewSize = it }
             .pointerInput(state) {
                 // Plain drag pans the board; Shift+drag pulls a rubber band over the cards.
                 var marqueeing = false
                 detectDragGestures(
                     onDragStart = { start ->
+                        PointerLog.log("root: drag start at $start (marquee=$shiftHeld)")
                         marqueeing = shiftHeld
                         if (marqueeing) {
                             val (bx, by) = boardPoint(start, viewSize, state)
@@ -256,79 +262,93 @@ private fun CanvasItem(
     val density = LocalDensity.current
     val singleSelected = state.selection.size == 1 && item.id in state.selection
 
-    ContextMenuArea(items = {
-        listOf(
-            ContextMenuItem("Bring forward") { state.stepZ(item.id, forward = true) },
-            ContextMenuItem("Send backward") { state.stepZ(item.id, forward = false) },
-            ContextMenuItem("Bring to front") { state.bringToFront(item.id) },
-            ContextMenuItem("Send to back") { state.sendToBack(item.id) },
-        ) + cardMenuItems(state, item)
-    }) {
-        Box(
-            Modifier
-                .requiredSize(with(density) { wPx.toDp() }, with(density) { hPx.toDp() })
-                .graphicsLayer {
-                    translationX = cx - wPx / 2
-                    translationY = cy - hPx / 2
-                    rotationZ = pos.rotation
-                }
-                .testTag("card-" + item.id)
-                .cardClicks(state, item.id)
-                .pointerInput(item.id) {
-                    detectDragGestures(
-                        onDragStart = {
-                            if (item.id !in state.selection) state.clickItem(item.id, ctrl = false, shift = false)
-                        },
-                        onDrag = { change, drag ->
-                            change.consume()
-                            // The pointer delta arrives in the card's rotated space; rotate it
-                            // back so the card follows the cursor on screen.
-                            val rotation = state.item(item.id)?.pos?.rotation ?: 0f
-                            val rad = Math.toRadians(rotation.toDouble())
-                            val wx = drag.x * cos(rad).toFloat() - drag.y * sin(rad).toFloat()
-                            val wy = drag.x * sin(rad).toFloat() + drag.y * cos(rad).toFloat()
-                            state.dragBy(item.id, wx / state.zoom, wy / state.zoom)
-                            state.trackDropTarget(item.id)
-                            // Line the card up with its neighbours while it moves.
-                            state.item(item.id)?.pos?.let { moved ->
-                                val (sx, sy) = state.snapPosition(item.id, moved.x, moved.y, 10f / state.zoom)
-                                if (sx != moved.x || sy != moved.y) {
-                                    state.dragBy(item.id, sx - moved.x, sy - moved.y)
+    // Size and place go on a box *around* the menu area, so its hit box — and the card's — sit
+    // where the card is drawn. With the transform on the inner box, the menu area stayed at the
+    // canvas' top-left and swallowed presses meant for whatever was drawn there; the board then
+    // panned under the pointer, every card moving with the one the user had meant to drag.
+    Box(
+        Modifier
+            .requiredSize(with(density) { wPx.toDp() }, with(density) { hPx.toDp() })
+            .graphicsLayer {
+                translationX = cx - wPx / 2
+                translationY = cy - hPx / 2
+                rotationZ = pos.rotation
+            },
+    ) {
+        ContextMenuArea(items = {
+            listOf(
+                ContextMenuItem("Bring forward") { state.stepZ(item.id, forward = true) },
+                ContextMenuItem("Send backward") { state.stepZ(item.id, forward = false) },
+                ContextMenuItem("Bring to front") { state.bringToFront(item.id) },
+                ContextMenuItem("Send to back") { state.sendToBack(item.id) },
+            ) + cardMenuItems(state, item)
+        }) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .testTag("card-" + item.id)
+                    .cardClicks(state, item.id)
+                    .pointerInput(item.id) {
+                        detectDragGestures(
+                            onDragStart = {
+                                PointerLog.log("card ${item.id.take(8)}: drag start")
+                                if (item.id !in state.selection) state.clickItem(item.id, ctrl = false, shift = false)
+                            },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                // The pointer delta arrives in the card's rotated space; rotate it
+                                // back so the card follows the cursor on screen.
+                                val rotation = state.item(item.id)?.pos?.rotation ?: 0f
+                                val rad = Math.toRadians(rotation.toDouble())
+                                val wx = drag.x * cos(rad).toFloat() - drag.y * sin(rad).toFloat()
+                                val wy = drag.x * sin(rad).toFloat() + drag.y * cos(rad).toFloat()
+                                state.dragBy(item.id, wx / state.zoom, wy / state.zoom)
+                                state.trackDropTarget(item.id)
+                                // Line the card up with its neighbours while it moves.
+                                state.item(item.id)?.pos?.let { moved ->
+                                    val (sx, sy) = state.snapPosition(item.id, moved.x, moved.y, 10f / state.zoom)
+                                    if (sx != moved.x || sy != moved.y) {
+                                        state.dragBy(item.id, sx - moved.x, sy - moved.y)
+                                    }
                                 }
-                            }
-                        },
-                        onDragEnd = {
-                            state.clearSnapGuides()
-                            // Let go over a group's frame: the card (or its selection) joins it.
-                            state.dropIntoGroupAt(item.id)
-                            state.commitLayout()
-                        },
-                        onDragCancel = { state.clearSnapGuides() },
-                    )
-                },
-        ) {
-            when (item) {
-                is ImageItem -> CanvasImage(state, thumbs, item, textured)
-                is NoteItem -> CanvasNote(state, item, textured)
-                is LinkItem -> CanvasLink(state, item, textured)
-            }
-            // A grouped card carries its group's colour, so it is recognisable even when
-            // dragged out of the group area.
-            state.accentOf(item)?.let { hex ->
-                Themes.parseColor(hex)?.let { accent ->
-                    Box(
-                        Modifier
-                            .align(Alignment.TopStart)
-                            .padding(3.dp)
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(accent),
-                    )
+                            },
+                            onDragEnd = {
+                                PointerLog.log("card ${item.id.take(8)}: drag end")
+                                state.clearSnapGuides()
+                                // Let go over a group's frame: the card (or its selection) joins it.
+                                state.dropIntoGroupAt(item.id)
+                                state.commitLayout()
+                            },
+                            onDragCancel = {
+                                PointerLog.log("card ${item.id.take(8)}: drag cancelled")
+                                state.clearSnapGuides()
+                            },
+                        )
+                    },
+            ) {
+                when (item) {
+                    is ImageItem -> CanvasImage(state, thumbs, item, textured)
+                    is NoteItem -> CanvasNote(state, item, textured)
+                    is LinkItem -> CanvasLink(state, item, textured)
                 }
-            }
-            if (singleSelected) {
-                RotateHandle(state, item.id, Modifier.align(Alignment.TopCenter))
-                ScaleHandle(state, item.id, Modifier.align(Alignment.BottomEnd))
+                // A grouped card carries its group's colour, so it is recognisable even when
+                // dragged out of the group area.
+                state.accentOf(item)?.let { hex ->
+                    Themes.parseColor(hex)?.let { accent ->
+                        Box(
+                            Modifier
+                                .align(Alignment.TopStart)
+                                .padding(3.dp)
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(accent),
+                        )
+                    }
+                }
+                if (singleSelected) {
+                    RotateHandle(state, item.id, Modifier.align(Alignment.TopCenter))
+                    ScaleHandle(state, item.id, Modifier.align(Alignment.BottomEnd))
+                }
             }
         }
     }
@@ -501,6 +521,7 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
  * in the corner. Dragging the area (or its label) moves the whole group; the cards on top keep
  * their own drag, so a single card can still be moved out of place inside it.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
     val zoom = state.zoom
@@ -519,57 +540,81 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
         frameShape(hull.boxes, hull.connectors, originX = hull.left, originY = hull.top, zoom = zoom)
     }
     val composePath = remember(shape) { shape.asComposePath() }
+    // The frame's layer clips to its own shape, and Compose hit-tests a clipping layer by its
+    // outline: a press outside the shape is not a hit here at all and goes on to whatever is
+    // drawn underneath. Without this, a frame's rectangle swallowed presses meant for another
+    // group's frame lying inside it (and the canvas panned instead).
+    val frameClip = remember(composePath) { GenericShape { _, _ -> addPath(composePath) } }
     val receiving = state.dropTargetGroup == hull.group.id
     val fill = accent.copy(alpha = if (receiving) 0.28f else if (nested) 0.10f else 0.14f)
-    val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() }
+    // Twice the width it shows: the clip takes the outer half of a stroke centred on the edge.
+    val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() } * 2f
+    // A concept's group is outlined in dashes: borrowed, not the board's own.
+    val borrowedDash = if (hull.group.isConcept) PathEffect.dashPathEffect(floatArrayOf(12f, 8f)) else null
 
-    ContextMenuArea(items = {
-        listOf(
-            ContextMenuItem("Draw " + hull.count) { state.drawGroup(hull.group.id) },
-            ContextMenuItem("Select group") { state.selectGroup(hull.group.id) },
-            ContextMenuItem("Rename group…") { state.openEditor(BoardEditor.RenameGroup(hull.group.id)) },
-            ContextMenuItem("Cycle colour") { state.cycleGroupColor(hull.group.id) },
-            ContextMenuItem("Delete group (cards stay)") { state.deleteGroup(hull.group.id) },
-        )
-    }) {
-        Box(
-            Modifier
-                .requiredSize(with(density) { w.toDp() }, with(density) { h.toDp() })
-                .graphicsLayer {
-                    translationX = x
-                    translationY = y
-                }
-                .drawBehind {
-                    drawPath(composePath, fill)
-                    drawPath(composePath, accent.copy(alpha = 0.7f), style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round))
-                }
-                // Clicking the frame picks the group up; dragging it moves the group as one. A
-                // press outside the shape -- in the empty notch of an L, say -- is not the
-                // group's business and falls through to whatever is under it.
-                .pointerInput(shape, hull.group.id) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        if (!shape.contains(down.position.x, down.position.y)) return@awaitEachGesture
-                        down.consume()
-                        var moved = false
-                        val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
-                            change.consume()
-                            moved = true
-                            state.dragGroupBy(hull.group.id, over.x / state.zoom, over.y / state.zoom)
-                        }
-                        if (slop != null) {
-                            drag(slop.id) { change ->
-                                val delta = change.positionChange()
-                                change.consume()
-                                state.dragGroupBy(hull.group.id, delta.x / state.zoom, delta.y / state.zoom)
-                            }
-                            state.commitLayout()
-                        } else if (!moved) {
+    // As for a card: the frame's size and place on a box around the menu area (see CanvasItem),
+    // clipped to the frame's shape so that only the shape is a hit.
+    Box(
+        Modifier
+            .requiredSize(with(density) { w.toDp() }, with(density) { h.toDp() })
+            .graphicsLayer {
+                translationX = x
+                translationY = y
+                clip = true
+                this.shape = frameClip // `shape` alone is the Skia path above
+            },
+    ) {
+        ContextMenuArea(items = {
+            val group = hull.group
+            if (group.isConcept) listOf(
+                ContextMenuItem("Draw " + hull.count) { state.drawGroup(group.id) },
+                ContextMenuItem("Select group") { state.selectGroup(group.id) },
+                ContextMenuItem("Open concept") { group.conceptId?.let(state::showConcept) },
+                ContextMenuItem("Unlink from this board") { group.conceptId?.let(state::unlinkConcept) },
+            ) else listOf(
+                ContextMenuItem("Draw " + hull.count) { state.drawGroup(group.id) },
+                ContextMenuItem("Select group") { state.selectGroup(group.id) },
+                ContextMenuItem("Rename group…") { state.openEditor(BoardEditor.RenameGroup(group.id)) },
+                ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) },
+                ContextMenuItem("Delete group (cards stay)") { state.deleteGroup(group.id) },
+            )
+        }) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        drawPath(composePath, fill)
+                        drawPath(composePath, accent.copy(alpha = 0.7f), style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round, pathEffect = borrowedDash))
+                    }
+                    // A press on the frame picks the group up; a drag moves it as one. The layer
+                    // above clips to the frame's shape, so a press in the empty notch of an L never
+                    // arrives here. The drag detector is the one the cards use: its slop follows the
+                    // pointer type — a fraction of a pixel for a mouse — as the canvas' own pan does.
+                    // A handler waiting for the touch slop (some twenty pixels) lost every real mouse
+                    // drag to the pan underneath, which took the first four-pixel move and everything
+                    // after it: "everything moves with the group".
+                    .onPointerEvent(PointerEventType.Press) { event ->
+                        if (event.buttons.isPrimaryPressed) {
+                            PointerLog.log("frame ${hull.group.name}: press -> select")
                             state.selectGroup(hull.group.id)
                         }
                     }
-                },
-        )
+                    .pointerInput(hull.group.id) {
+                        detectDragGestures(
+                            onDragStart = { PointerLog.log("frame ${hull.group.name}: drag start at $it") },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                            },
+                            onDragEnd = {
+                                PointerLog.log("frame ${hull.group.name}: drag end")
+                                state.commitLayout()
+                            },
+                            onDragCancel = { state.commitLayout() },
+                        )
+                    },
+            )
+        }
     }
 }
 
@@ -620,6 +665,7 @@ internal fun frameShape(
  * part of its group is: a hull is often far wider than the view, and pinning the label to the
  * hull's top-left corner meant the handle disappeared with the corner.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
     val zoom = state.zoom
@@ -643,10 +689,31 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .onSizeChanged { size = it }
             .testTag("group-label-" + hull.group.id)
-            .clickable { state.selectGroup(hull.group.id) },
+            // The label is the group's handle: a press picks the group up, a drag moves it — the
+            // same as the frame, with the same drag detector (see GroupArea for why that one).
+            .onPointerEvent(PointerEventType.Press) { event ->
+                if (event.buttons.isPrimaryPressed) {
+                    PointerLog.log("label ${hull.group.name}: press -> select")
+                    state.selectGroup(hull.group.id)
+                }
+            }
+            .pointerInput(hull.group.id) {
+                detectDragGestures(
+                    onDragStart = { PointerLog.log("label ${hull.group.name}: drag start at $it") },
+                    onDrag = { change, drag ->
+                        change.consume()
+                        state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                    },
+                    onDragEnd = {
+                        PointerLog.log("label ${hull.group.name}: drag end")
+                        state.commitLayout()
+                    },
+                    onDragCancel = { state.commitLayout() },
+                )
+            },
     ) {
         Text(
-            hull.group.name + "  ·  " + hull.count,
+            (if (hull.group.isConcept) "⧉ " else "") + hull.group.name + "  ·  " + hull.count,
             style = MaterialTheme.typography.caption,
             color = Color(0xFF1A1A1A),
             maxLines = 1,

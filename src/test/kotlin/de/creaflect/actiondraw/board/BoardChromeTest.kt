@@ -149,6 +149,20 @@ class BoardChromeTest {
     }
 
     @Test
+    fun enterInTheBoardNameCreatesTheBoard() {
+        val (state, _) = shownBoard()
+        state.openEditor(BoardEditor.NewBoard(null))
+        rule.waitForIdle()
+
+        rule.onNodeWithTag("board-name").performTextInput("Neu")
+        rule.onNodeWithTag("board-name").performKeyInput { pressKey(Key.Enter) }
+        rule.waitForIdle()
+
+        assertEquals("Neu", state.board?.name, "Enter is the Create button, and the new board opens")
+        assertTrue(state.editor == null, "and the dialog closed")
+    }
+
+    @Test
     fun theOverflowsSnapItemTogglesThePreference() {
         val (state, _) = shownBoard()
         state.setLayout(BoardLayouts.FREE)

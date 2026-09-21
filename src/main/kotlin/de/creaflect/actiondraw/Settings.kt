@@ -32,6 +32,17 @@ class Settings(private val dir: File = defaultDir()) {
 
     // ---- Idea Boards ----
 
+    /** Default parent directory for concepts, beside the boards home. Doesn't have to exist yet. */
+    fun conceptsHome(): File = runCatching {
+        read().getProperty(KEY_CONCEPTS_HOME)?.takeIf { it.isNotBlank() }?.let(::File)
+    }.getOrNull() ?: File(System.getProperty("user.home") ?: ".", "ActionDraw Concepts")
+
+    fun setConceptsHome(dir: File) {
+        val props = read()
+        props.setProperty(KEY_CONCEPTS_HOME, dir.absolutePath)
+        write(props)
+    }
+
     /** Align dragged cards to their neighbours' centre lines. Off unless switched on. */
     fun snapByDefault(): Boolean = runCatching { read().getProperty(KEY_SNAP)?.toBoolean() }.getOrNull() ?: false
 
@@ -96,6 +107,7 @@ class Settings(private val dir: File = defaultDir()) {
         private const val KEY_LAST_FOLDER = "lastFolder"
         private const val KEY_BOARDS_HOME = "boardsHome"
         private const val KEY_SNAP = "snapByDefault"
+        private const val KEY_CONCEPTS_HOME = "conceptsHome"
         private const val KEY_RECENT_BOARD = "recentBoard"
         private const val MAX_RECENT_BOARDS = 5
 

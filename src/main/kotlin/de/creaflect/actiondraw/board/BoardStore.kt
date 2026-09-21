@@ -62,7 +62,9 @@ object BoardStore {
      * dropped. Changes become permanent with the next save.
      */
     fun validate(board: BoardFile, root: File): BoardFile {
+        // Borrowed pictures (a linked concept's) are checked against the concept, not this folder.
         val (present, missing) = board.items.filterIsInstance<ImageItem>()
+            .filterNot { ConceptLink.isBorrowedPath(it.path) }
             .partition { File(root, it.path).isFile }
         // Index the folder by content only when something actually has to be found again.
         val candidates: Map<String, String> =
@@ -85,6 +87,7 @@ object BoardStore {
             items = board.items.mapNotNull { item ->
                 when {
                     item !is ImageItem -> item
+                    ConceptLink.isBorrowedPath(item.path) -> item
                     item.id in lost -> null
                     else -> recovered[item.id] ?: item.withContentId(root)
                 }

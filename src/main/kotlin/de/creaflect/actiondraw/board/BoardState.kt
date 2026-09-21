@@ -18,6 +18,7 @@ import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import de.creaflect.actiondraw.board.ui.Markdown
+import de.creaflect.actiondraw.image.relKey
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
@@ -92,6 +93,8 @@ class BoardState(
     private val timestamp: () -> String = {
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
     },
+    /** Where linked concepts are read from; a board without concepts uses [ConceptSource.None]. */
+    private val concepts: ConceptSource = ConceptSource.None,
 ) {
     var root by mutableStateOf<File?>(null)
         private set
@@ -351,11 +354,22 @@ class BoardState(
 
     fun practiceOf(item: ImageItem): Practice {
         practiceTick // snapshot read: recompose when the stores are re-read
+        val key = practiceKey(item)
         return when {
-            item.path in redo -> Practice.REDO
-            item.path in seen -> Practice.SEEN
+            key in redo -> Practice.REDO
+            key in seen -> Practice.SEEN
             else -> Practice.UNSEEN
         }
+    }
+
+    /**
+     * What the seen/redo stores call a picture: its path in the board, which for a borrowed card
+     * is the concept file's path relative to the board — the key a session started here writes.
+     */
+    private fun practiceKey(item: ImageItem): String {
+        if (!ConceptLink.isBorrowedPath(item.path)) return item.path
+        val dir = root ?: return item.path
+        return fileOf(item)?.let { relKey(dir, it) } ?: item.path
     }
 
     /** True once this board has any practice history — smart groups stay hidden until then. */
@@ -405,7 +419,7 @@ class BoardState(
      *  of its own if the group in question holds any, since the tree stays one level deep. */
     fun possibleParents(groupId: String?): List<BoardGroup> =
         subgroupsOf(null).filter { candidate ->
-            candidate.id != groupId && (groupId == null || subgroupsOf(groupId).isEmpty())
+            candidate.id != groupId && !candidate.isConcept && (groupId == null || subgroupsOf(groupId).isEmpty())
         }
 
     /**
@@ -450,7 +464,15 @@ class BoardState(
 
     fun item(id: String): BoardItem? = board?.items?.find { it.id == id }
 
-    fun fileOf(item: ImageItem): File? = root?.let { File(it, item.path) }
+    /** The folders of the linked concepts, by id — filled when the board syncs with them. */
+    private var conceptRoots: Map<String, File> = emptyMap()
+
+    /** A picture's file: in the board's folder, or in its concept's for a borrowed card. */
+    fun fileOf(item: ImageItem): File? {
+        val dir = root ?: return null
+        val borrowed = ConceptLink.splitBorrowed(item.path) ?: return File(dir, item.path)
+        return conceptRoots[borrowed.first]?.let { File(it, borrowed.second) }
+    }
 
     val selectedItems: List<BoardItem> get() = board?.items.orEmpty().filter { it.id in selection }
 
@@ -619,6 +641,7 @@ class BoardState(
         camX = camera.x
         camY = camera.y
         zoom = camera.zoom
+        syncConcepts()
         if (layout == BoardLayouts.FREE) update { placeMissing(it) }
         refreshPractice()
         settings.addRecentBoard(dir)
@@ -639,6 +662,136 @@ class BoardState(
         host.leaveBoard()
     }
 
+
+    // ---- Concepts on the board ----
+
+    /** Ids of the concepts linked onto the open board, in link order. */
+    val linkedConcepts: List<String> get() = board?.concepts.orEmpty()
+
+    fun conceptsAvailable(): List<ConceptRef> = concepts.available()
+
+    /** A borrowed card is a linked concept's: shown and drawn here, but not the board's to change. */
+    fun isBorrowed(item: BoardItem): Boolean = ConceptLink.isBorrowed(item)
+
+    fun isBorrowed(id: String): Boolean = item(id)?.let(::isBorrowed) == true
+
+    fun showConcept(id: String) = host.showConcept(id)
+
+    fun showConcepts() = host.showConcepts()
+
+    /** Brings the borrowed cards up to date with their concepts — on open, and after a link. */
+    private fun syncConcepts() {
+        val b = board ?: return
+        if (b.concepts.isEmpty() && b.groups.none { it.isConcept }) {
+            conceptRoots = emptyMap()
+            return
+        }
+        val snapshots = b.concepts.associateWith { concepts.snapshot(it) }
+        conceptRoots = snapshots.mapNotNull { (id, snapshot) -> snapshot?.let { id to it.root } }.toMap()
+        val synced = ConceptLink.reconcile(b) { snapshots[it] }
+        if (synced != b) update { synced }
+        if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+    }
+
+    /** Links a concept onto the open board: its group appears with the concept's cards. */
+    fun linkConcept(id: String): Boolean {
+        if (id in linkedConcepts) return false
+        val snapshot = concepts.snapshot(id) ?: return false
+        update { it.copy(concepts = it.concepts + id) }
+        syncConcepts()
+        importNotice = "${snapshot.name} is linked to this board."
+        return true
+    }
+
+    /** Takes a concept off the open board. The concept itself is untouched. */
+    fun unlinkConcept(id: String) {
+        if (id !in linkedConcepts) return
+        val gid = ConceptLink.groupId(id)
+        val name = groupById(gid)?.name ?: "The concept"
+        update { b ->
+            b.copy(
+                concepts = b.concepts - id,
+                groups = b.groups.filterNot { it.id == gid },
+                items = b.items.filterNot { gid in it.groups },
+            )
+        }
+        conceptRoots = conceptRoots - id
+        selection = selection.filter { item(it) != null }.toSet()
+        if (focusId?.let { item(it) } == null) focusId = null
+        importNotice = "$name is no longer on this board. The concept itself is untouched."
+    }
+
+    /**
+     * Puts the board's own cards into a concept — what dropping them on its group means. The
+     * pictures are copied into the concept's folder; the board's cards make way for the borrowed
+     * ones, which take their places.
+     */
+    private fun addToConcept(conceptId: String, ids: Set<String>) {
+        val own = ids.mapNotNull { item(it) }.filterNot(::isBorrowed)
+        if (own.isEmpty()) return
+        val pictures = own.filterIsInstance<ImageItem>().filter { fileOf(it) != null }
+        val others = own.filterNot { it is ImageItem }.map {
+            when (it) {
+                is NoteItem -> it.copy(groups = emptyList(), pos = null)
+                is LinkItem -> it.copy(groups = emptyList(), pos = null)
+                is ImageItem -> it
+            }
+        }
+        val label = if (own.size == 1) labelOf(own.single().id) else "${own.size} cards"
+        val added = concepts.addToConcept(conceptId, pictures.mapNotNull(::fileOf), others)
+        if (added == null) {
+            importNotice = "Couldn't add to the concept."
+            return
+        }
+        // Where the board's cards stood, the borrowed ones go.
+        val places = mutableMapOf<String, ItemPos?>()
+        val newPictures = added.filterIsInstance<ImageItem>()
+        pictures.forEachIndexed { i, old -> newPictures.getOrNull(i)?.let { places[it.id] = old.pos } }
+        own.filterNot { it is ImageItem }.forEach { places[it.id] = it.pos }
+        val gone = own.map { it.id }.toSet()
+        update { b -> b.copy(items = b.items.filterNot { it.id in gone }) }
+        selection = selection - gone
+        if (focusId in gone) focusId = null
+        syncConcepts()
+        update { b -> b.copy(items = b.items.map { item -> places[item.id]?.let { item.withPos(it) } ?: item }) }
+        val name = groupById(ConceptLink.groupId(conceptId))?.name ?: "the concept"
+        importNotice = "$label now belongs to $name — on every board that links it."
+    }
+
+    /** Every board, with whether it links [conceptId]: the open one from memory, the rest from disk. */
+    fun boardsFor(conceptId: String): List<BoardLink> =
+        availableBoards().map { (name, dir) ->
+            val file = if (root?.samePathAs(dir) == true) board else BoardStore.peek(dir)
+            BoardLink(name, dir, conceptId in file?.concepts.orEmpty())
+        }
+
+    /** Links or unlinks [conceptId] on the board at [dir] — in memory if it is open, else on disk. */
+    fun setLinked(conceptId: String, dir: File, linked: Boolean): Boolean {
+        if (root?.samePathAs(dir) == true) {
+            if (linked) linkConcept(conceptId) else unlinkConcept(conceptId)
+            return true
+        }
+        val current = (BoardStore.load(dir) as? BoardStore.LoadResult.Loaded)?.board ?: return false
+        val next = if (linked) {
+            if (conceptId in current.concepts) return true
+            ConceptLink.reconcile(current.copy(concepts = current.concepts + conceptId), concepts::snapshot)
+                .let { if (it.layout == BoardLayouts.FREE) placeMissing(it) else it }
+        } else {
+            val gid = ConceptLink.groupId(conceptId)
+            current.copy(
+                concepts = current.concepts - conceptId,
+                groups = current.groups.filterNot { it.id == gid },
+                items = current.items.filterNot { gid in it.groups },
+            )
+        }
+        return BoardStore.save(dir, next)
+    }
+
+    /** Takes [conceptId] off every board that links it; returns their names. */
+    fun unlinkEverywhere(conceptId: String): List<String> =
+        boardsFor(conceptId).filter { it.linked }.mapNotNull { link ->
+            if (setLinked(conceptId, link.dir, false)) link.name else null
+        }
 
     // ---- Dialogs ----
 
@@ -668,7 +821,8 @@ class BoardState(
     fun addGroup(name: String, parentId: String? = null) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
-        val parent = parentId?.takeIf { groupById(it)?.parentId == null } // one level, no deeper
+        // One level, no deeper — and never inside a concept, whose group is not the board's.
+        val parent = parentId?.takeIf { groupById(it)?.let { g -> g.parentId == null && !g.isConcept } == true }
         update { b ->
             val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
             b.copy(groups = b.groups + BoardGroup(id = Importer.newId(), name = trimmed, order = order, parentId = parent))
@@ -682,6 +836,7 @@ class BoardState(
      */
     fun setGroupParent(id: String, parentId: String?): Boolean {
         if (parentId == id) return false
+        if (groupById(id)?.isConcept == true || groupById(parentId)?.isConcept == true) return false
         if (parentId != null) {
             if (groupById(parentId)?.parentId != null) return false
             if (subgroupsOf(id).isNotEmpty()) return false
@@ -693,14 +848,18 @@ class BoardState(
     fun renameGroup(id: String, name: String) {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
+        if (groupById(id)?.isConcept == true) return // named by the concept, not the board
         update { b -> b.copy(groups = b.groups.map { if (it.id == id) it.copy(name = trimmed) else it }) }
     }
 
-    fun cycleGroupColor(id: String) = update { b ->
-        b.copy(groups = b.groups.map { g ->
-            if (g.id == id) g.copy(color = GROUP_COLORS[(GROUP_COLORS.indexOf(g.color) + 1) % GROUP_COLORS.size])
-            else g
-        })
+    fun cycleGroupColor(id: String) {
+        if (groupById(id)?.isConcept == true) return // a concept's colour is not the board's to change
+        update { b ->
+            b.copy(groups = b.groups.map { g ->
+                if (g.id == id) g.copy(color = GROUP_COLORS[(GROUP_COLORS.indexOf(g.color) + 1) % GROUP_COLORS.size])
+                else g
+            })
+        }
     }
 
     fun toggleCollapsed(id: String) = update { b ->
@@ -720,11 +879,15 @@ class BoardState(
      * Removes the group; its own cards fall back into the Inbox, and any subgroups it held move
      * up to the top level with their cards, since nothing about *them* was deleted.
      */
-    fun deleteGroup(id: String) = update { b ->
-        b.copy(
-            groups = b.groups.filterNot { it.id == id }.map { if (it.parentId == id) it.copy(parentId = null) else it },
-            items = b.items.map { if (id in it.groups) it.withGroups(it.groups - id) else it },
-        )
+    fun deleteGroup(id: String) {
+        // A concept group is not deleted but unlinked: its cards are the concept's, not the board's.
+        groupById(id)?.conceptId?.let { unlinkConcept(it); return }
+        update { b ->
+            b.copy(
+                groups = b.groups.filterNot { it.id == id }.map { if (it.parentId == id) it.copy(parentId = null) else it },
+                items = b.items.map { if (id in it.groups) it.withGroups(it.groups - id) else it },
+            )
+        }
     }
 
     // Items
@@ -735,11 +898,12 @@ class BoardState(
      * was selected.
      */
     fun groupSelection(name: String, parentId: String? = null): String? {
-        val ids = selection
+        // Borrowed cards stay with their concept; the board's own cards make the group.
+        val ids = selection.filterNot(::isBorrowed).toSet()
         if (ids.isEmpty()) return null
         val id = Importer.newId()
         val trimmed = name.trim().ifEmpty { "Group" }
-        val parent = parentId?.takeIf { groupById(it)?.parentId == null }
+        val parent = parentId?.takeIf { groupById(it)?.let { g -> g.parentId == null && !g.isConcept } == true }
         update { b ->
             val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
             b.copy(
@@ -761,7 +925,7 @@ class BoardState(
             val group = groupById(item(id)?.groups?.firstOrNull()) ?: return@mapNotNull null
             if (group.parentId == null) group else groupById(group.parentId)
         }.toSet()
-        return tops.singleOrNull()
+        return tops.singleOrNull()?.takeUnless { it.isConcept }
     }
 
     /**
@@ -781,10 +945,11 @@ class BoardState(
      * that is the group it was in as well; a card in a top-level group lands in the Inbox.
      */
     fun removeFromGroup(ids: Set<String>) {
-        if (ids.isEmpty()) return
+        val own = withoutBorrowed(ids)
+        if (own.isEmpty()) return
         update { b ->
             b.copy(items = b.items.map { item ->
-                if (item.id !in ids || item.groups.isEmpty()) item
+                if (item.id !in own || item.groups.isEmpty()) item
                 else {
                     val parent = b.groups.find { it.id == item.groups.first() }?.parentId
                     item.withGroups(listOfNotNull(parent))
@@ -796,8 +961,9 @@ class BoardState(
 
     /** Takes the given cards out of every group they are in; the cards themselves stay put. */
     fun ungroupItems(ids: Set<String>) {
-        if (ids.isEmpty()) return
-        update { b -> b.copy(items = b.items.map { if (it.id in ids) it.withGroups(emptyList()) else it }) }
+        val own = withoutBorrowed(ids)
+        if (own.isEmpty()) return
+        update { b -> b.copy(items = b.items.map { if (it.id in own) it.withGroups(emptyList()) else it }) }
         pruneEmptyGroups()
     }
 
@@ -828,11 +994,24 @@ class BoardState(
     private fun pruneEmptyGroups() = update { b ->
         val used = b.items.flatMap { it.groups }.toSet()
         val parentsInUse = b.groups.filter { it.id in used }.mapNotNull { it.parentId }.toSet()
-        b.copy(groups = b.groups.filter { it.id in used || it.id in parentsInUse })
+        // A concept group stays even while empty: it is the link, not a container.
+        b.copy(groups = b.groups.filter { it.isConcept || it.id in used || it.id in parentsInUse })
     }
 
-    fun moveToGroup(ids: Set<String>, groupId: String?) = update { b ->
-        b.copy(items = b.items.map { if (it.id in ids) it.withGroups(listOfNotNull(groupId)) else it })
+    fun moveToGroup(ids: Set<String>, groupId: String?) {
+        val own = withoutBorrowed(ids)
+        if (own.isEmpty()) return
+        // Into a concept group means into the concept: the cards become the concept's, and every
+        // board that links it has them from now on.
+        groupById(groupId)?.conceptId?.let { addToConcept(it, own); return }
+        update { b -> b.copy(items = b.items.map { if (it.id in own) it.withGroups(listOfNotNull(groupId)) else it }) }
+    }
+
+    /** The board's own cards among [ids]; borrowed ones are left alone and said so. */
+    private fun withoutBorrowed(ids: Set<String>): Set<String> {
+        val own = ids.filterNot(::isBorrowed).toSet()
+        if (own.size < ids.size) importNotice = "Borrowed cards stay with their concept — unlink it to take them off the board."
+        return own
     }
 
     fun toggleStar(ids: Set<String>) = update { b ->
@@ -956,7 +1135,7 @@ class BoardState(
     fun exportContactSheet(items: List<BoardItem>, target: File): String {
         val dir = root ?: return "No board open."
         val name = board?.name ?: dir.name
-        val ok = ContactSheet.write(dir, items, name, target)
+        val ok = ContactSheet.write(dir, items, name, target, resolve = ::fileOf)
         importNotice = if (ok) "Contact sheet written to ${target.name}." else "Nothing to put on a sheet."
         return importNotice!!
     }
@@ -1120,7 +1299,7 @@ class BoardState(
         val pos = item(id)?.pos
         val target = pos?.let { groupAtCard(it.x, it.y) }
         val inTree = target?.let { t -> setOf(t.id) + subgroupsOf(t.id).map { it.id } }.orEmpty()
-        val already = item(id)?.groups?.any { it in inTree } == true
+        val already = item(id)?.let { isBorrowed(it) || it.groups.any { g -> g in inTree } } == true
         dropTargetGroup = target?.id?.takeUnless { already }
     }
 
@@ -1130,8 +1309,13 @@ class BoardState(
         val target = groupAtCard(pos.x, pos.y) ?: return null
         val ids = if (id in selection) selection else setOf(id)
         val inTree = setOf(target.id) + subgroupsOf(target.id).map { it.id }
-        val movers = ids.filter { cardId -> item(cardId)?.groups?.none { it in inTree } == true }
+        val movers = ids.filter { cardId -> item(cardId)?.let { !isBorrowed(it) && it.groups.none { g -> g in inTree } } == true }
         if (movers.isEmpty()) return null
+        if (target.isConcept) {
+            // Let go on a concept group: the cards join the concept, which says so itself.
+            moveToGroup(movers.toSet(), target.id)
+            return target
+        }
         moveToGroup(movers.toSet(), target.id)
         pruneEmptyGroups()
         // Never silent: a card changing group is worth a line.
@@ -1324,13 +1508,14 @@ class BoardState(
 
     /** Removes cards from the board — files on disk are never touched. */
     fun removeItems(ids: Set<String>) {
-        if (ids.isEmpty()) return
-        update { b -> b.copy(items = b.items.filterNot { it.id in ids }) }
-        selection = selection - ids
-        if (focusId?.let { it in ids } == true) focusId = null
+        val own = withoutBorrowed(ids)
+        if (own.isEmpty()) return
+        update { b -> b.copy(items = b.items.filterNot { it.id in own }) }
+        selection = selection - own
+        if (focusId?.let { it in own } == true) focusId = null
         // Keep the viewer honest when a card it is showing disappears.
         if (viewerOpen) {
-            viewerIds = viewerIds - ids
+            viewerIds = viewerIds - own
             viewerIndex = viewerIndex.coerceIn(0, (viewerIds.size - 1).coerceAtLeast(0))
         }
     }

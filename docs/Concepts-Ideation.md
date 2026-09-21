@@ -1,7 +1,8 @@
 # Concepts — ideation
 
 *2026-09-20. A fourth tool beside Draw, Board and Live Sketch. Tracked as **M7** in
-[ROADMAP.md](../ROADMAP.md). Ideation, not yet a frozen spec: the open questions in §7 are real.*
+[ROADMAP.md](../ROADMAP.md). Written as ideation; §8 records what was then built the same day and
+the answers taken to §7's questions.*
 
 ## 1. The idea
 
@@ -80,6 +81,8 @@ makes the same picture recognisable from two boards.
 
 ## 7. Open questions
 
+*Each was answered by building the assumed option — see §8.*
+
 - **Adding to a concept from a board.** Should dropping a picture onto a concept group add it
   to the concept (so every board gets it), or is a concept only edited on the Concepts screen?
   Assumed: **drop adds to the concept**, with the card showing that this is what happened.
@@ -91,3 +94,53 @@ makes the same picture recognisable from two boards.
   same dragon. Confirm.
 - **Kinds.** Is the fixed list above enough, or should kinds be free text with suggestions?
   Assumed: free text with those as suggestions.
+
+## 8. What was built (2026-09-20)
+
+Steps 1–3 and the per-board half of step 5 of §6, in that order; sketches (step 4) wait for M6.
+
+**A concept is a folder** under `~/ActionDraw Concepts` with `.actiondraw_concept.json` (id,
+name, kind, notes, items, documents), recorded by id in `~/.actiondraw/concepts.json`. A folder
+found under the home that the registry does not know is adopted and given an id, written back
+into its file. Pictures go through the board's importer into `_imported/`; documents are `.md`
+files in `_docs/`, named from their first heading, rendered with the M5 renderer and edited with
+a live preview. Deleting keeps or removes the folder as asked, and takes the concept off every
+board first.
+
+**On a board a linked concept is one group** whose id *and* `source` are `concept:<id>`, holding
+*borrowed* cards: the board's copies of the concept's items, with the same ids, the concept's
+picture, caption and text, and the board's own place, star and tags. A borrowed picture points
+at the concept's file by a `concept:<id>/<path>` path; `fileOf` resolves it through
+`ConceptSource`, the board's one seam to the concept side (the concept state implements it, the
+app wires it). Borrowed cards are persisted in the board file — so everything that reads items
+(selection, drag, z-order, search, the viewer, the strip, the contact sheet) is unchanged — and
+**reconciled** with the concept on every open and after a link. `BoardStore.validate` leaves
+borrowed pictures to the concept.
+
+**Non-resolvable is enforced in the state**, not only hidden in menus: rename, recolour, nesting,
+dissolving, removing, moving out and grouping are all refused for a concept's group and cards,
+with a notice where a refusal would otherwise be silent. *Unlink* is the one action. Dropping the
+board's own card on the group — or *Move to ⧉ …* — adds it to the concept: the file is copied
+into the concept's folder and the borrowed card takes the board's card's place.
+
+**The answers taken to §7:** drop adds to the concept (documents are still edited on the
+Concepts screen); the concepts home is beside the boards home; kinds are free text with the six
+suggestions. **Practice memory** went the other way from the assumption: a borrowed card's
+seen/redo state is the *board's*, keyed as a session started there writes it (the concept's file
+relative to the board). The practice core keeps one memory folder per session, and a
+concept-owned memory would need it to write to several; that is a practice-side change and stays
+open here.
+
+**One lesson from the old `source` test:** a group that carries a `source` but not the id form
+this code writes must be left exactly as found — the first reconcile dropped such a group *with
+its cards*, which on a hand-edited board would have been the board's own pictures. Only canonical
+`concept:<id>` groups without their link are stale, and their cards are borrowed by definition.
+
+**Addendum (2026-09-21).** Two remarks after use: the concept's page also wanted the board's
+*Free* arrangement, and a Space typed into a new note closed it. The first is a `Grid | Free`
+toggle on the page with a canvas of its own (`ConceptCanvas`): the same placement rule, card
+shapes and gestures as the board's, with `layout`, `camera` and each card's `pos` in the concept
+file — and `ConceptLink.borrow` keeps ignoring the concept's positions, so a board never inherits
+the concept's arrangement. The second was focus: nothing in the dialog held it, and the scrim's
+`clickable` took the Space as a click. Now every dialog focuses its first field on show and
+dismisses by pointer only; the board's dialogs got the same.

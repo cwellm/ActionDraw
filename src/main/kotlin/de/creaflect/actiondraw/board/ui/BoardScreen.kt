@@ -94,6 +94,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.board.ConceptRef
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -214,6 +215,7 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onImmers
                 .padding(end = 4.dp),
         )
         BoardSwitcher(state)
+        ConceptSwitcher(state)
         state.parentBoard?.let { parent ->
             FlatButton("↑ " + parent.name, Modifier.testTag("board-up")) { state.openBoard(parent.dir) }
         }
@@ -473,6 +475,43 @@ private fun BoardSwitcher(state: BoardState) {
     }
 }
 
+/** "Concepts ▾": link a concept onto this board, or jump to one that already is. */
+@Composable
+private fun ConceptSwitcher(state: BoardState) {
+    var open by remember { mutableStateOf(false) }
+    val available by produceState(emptyList<ConceptRef>(), open) {
+        if (open) value = withContext(Dispatchers.IO) { state.conceptsAvailable() }
+    }
+    Box {
+        FlatButton("Concepts ▾", Modifier.testTag("concept-switcher")) { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            val linked = state.linkedConcepts
+            if (available.isEmpty()) {
+                DropdownMenuItem(onClick = { open = false }) { Text("No concepts yet") }
+            }
+            available.forEach { ref ->
+                val here = ref.id in linked
+                DropdownMenuItem(
+                    onClick = {
+                        open = false
+                        if (here) state.showConcept(ref.id) else state.linkConcept(ref.id)
+                    },
+                    modifier = Modifier.testTag((if (here) "open-concept-" else "link-concept-") + ref.name),
+                ) {
+                    Text(
+                        if (here) "⧉ " + ref.name + "  →" else "Link " + ref.name,
+                        color = if (here) MaterialTheme.colors.primary else MaterialTheme.colors.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Divider()
+            DropdownMenuItem(onClick = { open = false; state.showConcepts() }) { Text("All concepts…") }
+        }
+    }
+}
+
 /** Free-text search plus the tag chips — everything that narrows what the board shows. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -577,7 +616,7 @@ private fun BoardActionBar(state: BoardState) {
             val viewable = state.viewableIds.size
             FlatButton("View ($viewable)") { state.openViewer() }
             FlatButton("Group (${state.selection.size})") { state.startGrouping() }
-            if (state.selection.any { id -> state.item(id)?.groups?.isNotEmpty() == true }) {
+            if (state.selection.any { id -> state.item(id)?.let { it.groups.isNotEmpty() && !state.isBorrowed(it) } == true }) {
                 FlatButton("Ungroup") { state.ungroupItems(state.selection) }
             }
             if (state.selection.any { state.item(it) is ImageItem }) {
@@ -585,13 +624,15 @@ private fun BoardActionBar(state: BoardState) {
             }
             FlatButton("Copy") { state.copySelection() }
             var moveOpen by remember { mutableStateOf(false) }
-            Box {
+            // Borrowed cards cannot be moved; the board's own can — into a concept group too, which
+            // makes them the concept's.
+            if (state.selection.any { !state.isBorrowed(it) }) Box {
                 FlatButton("Move to ▾") { moveOpen = true }
                 DropdownMenu(expanded = moveOpen, onDismissRequest = { moveOpen = false }) {
                     DropdownMenuItem(onClick = { state.moveToGroup(state.selection, null); moveOpen = false }) { Text("Inbox") }
                     state.sortedGroups.forEach { group ->
                         DropdownMenuItem(onClick = { state.moveToGroup(state.selection, group.id); moveOpen = false }) {
-                            Text((if (group.parentId != null) "    " else "") + group.name)
+                            Text((if (group.parentId != null) "    " else "") + (if (group.isConcept) "⧉ " else "") + group.name)
                         }
                     }
                 }

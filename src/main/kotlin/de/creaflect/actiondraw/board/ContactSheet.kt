@@ -28,7 +28,15 @@ object ContactSheet {
      * Draws [items] (pictures only) as a sheet [columns] wide and writes a PNG to [target].
      * Returns false if there was nothing to draw or the file could not be written.
      */
-    fun write(root: File, items: List<BoardItem>, title: String, target: File, columns: Int = 4): Boolean {
+    fun write(
+        root: File,
+        items: List<BoardItem>,
+        title: String,
+        target: File,
+        columns: Int = 4,
+        /** Where a picture's file is; a borrowed card's lives in its concept's folder. */
+        resolve: (ImageItem) -> File? = { File(root, it.path) },
+    ): Boolean {
         val pictures = items.filterIsInstance<ImageItem>()
         if (pictures.isEmpty()) return false
 
@@ -69,7 +77,7 @@ object ContactSheet {
             val cell = Rect.makeXYWH(x.toFloat(), y.toFloat(), CELL.toFloat(), CELL.toFloat())
             canvas.drawRect(cell, frame)
 
-            val thumb = Thumbnails.loadSkia(File(root, item.path), maxSize = CELL)
+            val thumb = resolve(item)?.let { Thumbnails.loadSkia(it, maxSize = CELL) }
             if (thumb != null) {
                 // Fit the picture into its cell, centred.
                 val scale = min(CELL.toFloat() / thumb.width, CELL.toFloat() / thumb.height)

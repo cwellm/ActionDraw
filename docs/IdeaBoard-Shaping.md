@@ -786,7 +786,7 @@ through the rewrite, which is the point of tags over text.
 board is now what [Board-Handling-Spec.md](Board-Handling-Spec.md) described, minus the one
 gesture §30 declined.
 
-## 32. What using M5 asked for (2026-09-21)
+## 32. What using M5 asked for (2026-09-20)
 
 Six remarks from the first day with the new board, and what each turned into.
 
@@ -819,7 +819,7 @@ its own never shows one.
 live in one object that both the menu's sheet and the board's *Shortcuts…* read, so they cannot
 drift apart — the same reasoning as one Markdown renderer for notes and documents.
 
-## 33. Dropping a card into a group (2026-09-21)
+## 33. Dropping a card into a group (2026-09-20)
 
 Two follow-ups to §32. *Settings* and *Hotkeys* had been small text links on the start menu
 only, which read as nothing at all; they are buttons there now and entries in the board's ⋯ as
@@ -843,7 +843,7 @@ board — *Board settings* (the boards home and snapping) and the board's own ho
 start menu's sheets holding everything. Same components, one list each; the board merely asks
 for its section.
 
-## 34. Two kinds of note, links that open, and a drop that asks less (2026-09-22)
+## 34. Two kinds of note, links that open, and a drop that asks less (2026-09-20)
 
 **The bug first**, because it was mine and recent. "The note and the link move with my group,
 even though they are not part of it." Only members move — `dragGroupBy` filters by membership —
@@ -874,3 +874,116 @@ in the UI, so the frame around a post-it needs no round trip to agree with it.
 One test moved with the design: the old check that clicked a link *on* a canvas note now opens
 the note first and clicks the link in the popup, which is where links live once the card is a
 title. Three behaviours were checked by reverting them.
+
+## 35. A concept on the board (2026-09-20)
+
+M7 asked the board to show something that is not its own: a linked concept as a group. The
+question was where the concept's cards live while they are on the board.
+
+**Borrowed cards, persisted.** The board file keeps a copy of each concept item — same id, the
+concept's picture and text, and a `concept:<id>/<path>` path in place of a file of its own — in
+a group whose id is `concept:<id>`. That is one more kind of path for `fileOf` to resolve and
+nothing else to change: selection, drag, z-order, search, the viewer, the strip and the contact
+sheet all read items as before, and the board's opinions about a borrowed card (place, star,
+tags) are ordinary fields on an ordinary item. The alternative — cards computed from the concept
+on the fly — would have meant every reader of `board.items` learning a second list, forty-five
+places in the state alone. The price is a **reconcile** on every open and after each link:
+`ConceptLink.reconcile` is pure, takes the board and a lookup, and returns the board with each
+concept group named after its concept and its cards brought up to date, the board's fields kept.
+
+**Not the board's to change, in the state.** Menus hide what a concept group cannot do, but the
+guards sit in `BoardState`: rename, recolour, nesting, dissolving, removing, moving out and
+grouping all refuse borrowed things, and say so where the refusal would be silent. A keyboard
+Delete on a borrowed card goes through the same `removeItems` as the menu, so it is refused the
+same way. *Unlink* is the one action, on the header, the frame and the drawer alike.
+
+**Into the concept by dropping.** Letting the board's own card go on a concept group could have
+been refused; the ideation assumed it should *add to the concept*, and that is what it does:
+the picture is copied into the concept's folder, the board's card makes way, and the borrowed
+card that comes back from the reconcile is put where the old one stood. Every other board that
+links the concept sees the picture on its next open.
+
+**The old `source` test taught caution.** M5 reserved `BoardGroup.source` and tested that it
+round-trips untouched. The first reconcile treated *any* group with a `source` as a concept
+group and dropped it — with its cards — when its concept was not linked; on that test's board
+the cards were the board's own. Now only a group in the exact form this code writes counts as
+stale, and its cards are borrowed by definition. Anything else with a `source` is left as found.
+
+**Practice memory stayed with the board.** A session started from a board records seen state in
+the board's folder, keyed by each file's path relative to it; a borrowed card's key is therefore
+the concept file's relative path, and the board's badge uses the same key. The ideation had
+assumed the concept would own the memory; that needs the practice core to write to several
+folders per session and stays open.
+
+Eleven guards were checked by breaking them: removing, moving and renaming refused; the empty
+concept group not pruned; borrowed pictures kept by `validate`; the board's star surviving a
+sync; a deleted concept unlinked everywhere; a drop adding to the concept; and, from the first
+step, vanished documents dropped, files kept on a keep-the-folder delete, an adopted folder's id
+written back, a moved folder followed by id.
+
+## 36. Where a press lands is where the thing is drawn (2026-09-21)
+
+"A note moves with a group, and the concept group moves with it, whichever of the two I drag."
+The board files said the memberships were clean — the note in no group, the concept's cards in
+the concept's — so nothing was being moved *as a member*. What moved was the camera: the press
+on the frame never reached the frame's gesture, the canvas underneath panned, and every card on
+the board slid along with the one the user meant to take.
+
+**The cause was a hit box left behind.** A card and a frame are each a `ContextMenuArea` around
+a `Box` that carries its size and a `graphicsLayer` translation to where it belongs. The layer
+moves the drawing and the inner box's hit-testing — but the menu area's own box is laid out at
+the canvas' origin with the card's or frame's size, and it never moved. Compose hit-tests
+siblings topmost first and stops at the first hit; a menu area's box at the origin *is* a hit
+for any press in that corner, so a press there reached that box (which answers nothing), never
+the frame or card actually drawn there — and, unconsumed, fell to the canvas' pan. The larger
+the frame laid out later, the more of the top-left of the screen it silently owned. The second
+half of the same bug: a card drawn in that corner could not be clicked at all once any later
+card existed.
+
+**The fix is one line moved:** size and transform go on a box *around* the menu area, so every
+hit box sits where its drawing is. `CanvasHitTest` pins both halves — a frame drawn under a
+later frame's old hit box is still the one that drags, and a card drawn there still answers a
+click — and both tests were red before the change.
+
+**And the second half, the same day:** "still not solved — and the concept group overlays the
+regular group a bit." Right: with the boxes now where the frames are, two frames whose
+rectangles overlap have the same problem between themselves. Compose stops at the first sibling
+whose box contains the press, and a box is a rectangle; a press on the lower frame, inside the
+upper frame's rectangle but outside its shape, reached the upper frame's box — which declined it,
+as it should — and then nothing, because a declined hit still ends the search. The way out is
+that Compose hit-tests a *clipping* layer by its outline: the frame's wrapper now clips to the
+frame's own path, so outside the shape there is no hit at all and the search goes on to the
+frame underneath. The stroke is drawn at twice its width, since the clip takes its outer half.
+A third `CanvasHitTest` case, a small group in the notch of a later L, was red before this.
+
+**Third time, the gesture itself.** "Still pans — and when I click the group's card in the
+upper left, it lights up, so selecting works." The card in the upper left of a group is its
+*name tag*. It selected on a click and did nothing else; a drag from it went, like any
+unclaimed drag, to the canvas, which panned. The tag is the obvious handle — the M5 notes even
+call it that — so it now drags the group exactly as the frame does, and a click still selects.
+The replica of the user's board (every position, the turned card, the big post-it, the
+zoomed-out camera) turned up one more thing: the frame's gesture was keyed on the frame's shape,
+which changes the moment the group moves, so the handler restarted mid-drag and the group
+followed the pointer only for the first few pixels. Keyed on the group, with the shape read
+through `rememberUpdatedState`, it follows to the end. The lesson for every canvas gesture: key
+it on the thing's identity, never on geometry the gesture itself changes.
+
+**Fourth time: what the tests could not know.** After the tag drag was in, "still moving
+everything". The board file showed the camera had moved and no card had; a test composed inside
+the real board screen still passed. So the difference was in the events themselves, and a
+pointer log, switched on by an environment variable, showed them: the press reached the tag,
+the *first* mouse move — four pixels — was taken by the canvas' pan, and the tag's handler
+cancelled. `awaitTouchSlopOrCancellation` waits for the touch slop, twenty-odd pixels, whatever
+the pointer; `detectDragGestures`, which the pan and the cards use, waits for the pointer's own
+slop, a fraction of a pixel for a mouse. A real mouse moves a few pixels per event, so the
+parent always won and the children never did. The tests had dragged in two big jumps, on which
+both reach their slop on the same event and the child, first in the Main pass, wins — a mouse
+that does not exist. The tag and the frame now use the same detector as the cards, selecting on
+the press, and the test helper drags in three-pixel steps; every tag and frame case was red
+before this change with that helper alone. Two rules from it: on the canvas, every gesture uses
+the pointer-aware detector; and a test drag moves the way a mouse does.
+
+**Enter, everywhere a name is all there is.** The same round asked for Enter to mean Save in
+every dialog that only takes a name. It already did for group names and the single-line
+prompts; now a new board, a link's two fields, and a concept's name, kind and rename confirm on
+Enter too, each through the one shared `confirmOnEnter`.

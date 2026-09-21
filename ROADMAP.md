@@ -422,7 +422,32 @@ of ideas and inspiration; what daily use asked for.
 - ✅ Links are a title that opens on a click; notes come in two kinds — a **document note** shows
   its title and opens in a popup, a **post-it** shows its text as typed in a written hand, sized
   to the text (2026-09-22)
-- ✅ Enter in a name field confirms — new group, rename, any single-line prompt
+- ✅ Enter in a name field confirms — new group, new board, rename, caption, tags, a link's
+  fields, a concept's name and kind: wherever a name is all there is to type (2026-09-21)
+- ✅ Hit boxes where the cards and frames are drawn: a card's and a frame's size and layer
+  transform now sit on a box *around* its context-menu area. With the transform inside, the menu
+  area stayed at the canvas' top-left and swallowed presses meant for whatever was drawn there —
+  the board panned instead, every card moving with the one being dragged, and a card drawn in
+  that corner could not be clicked at all. `CanvasHitTest`, written red first (2026-09-21)
+- ✅ A frame is a hit only within its shape: its layer clips to the frame path, and Compose
+  hit-tests a clipping layer by its outline. Before, a frame's whole rectangle counted, so a
+  press on another group's frame lying inside it (a concept group overlapping a regular one) went
+  to a box that declined it — and nothing below ever saw it; the canvas panned. Third case in
+  `CanvasHitTest`, red first (2026-09-21)
+- ✅ A group's name tag drags the group, as its frame does — it only *selected* before, so a drag
+  from it fell through to the canvas and panned, which is the gesture behind "everything moves
+  with the group". And the frame's gesture is keyed on the group, not its shape: keyed on the
+  shape, it restarted as soon as the group moved and dropped the rest of the drag. Pinned by a
+  label-drag case and by a replica of the user's own board (positions, a turned card, a big
+  post-it, the zoomed-out camera), red first (2026-09-21)
+- ✅ The real one, found with a pointer log on the user's machine: the frame's and the tag's
+  gestures waited for the *touch* slop (some twenty pixels), while the canvas' pan — and the
+  cards — use the drag detector whose slop follows the pointer type, a fraction of a pixel for
+  a mouse. A real mouse moves a few pixels per event, so the pan took the first move and every
+  one after it. Both gestures now use that detector, selecting on the press. The tests dragged in
+  two big jumps, on which both handlers fire at once and the child wins; they now drag in
+  mouse-sized steps, on which every tag and frame case went red before this fix. The log stays,
+  off unless `ACTIONDRAW_POINTER_LOG` is set (2026-09-21)
 - ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
   inner corners soften too), and the space between separated pictures is always covered: the
   connector is the convex hull of the two pieces, a full band, never a thin bridge
@@ -472,26 +497,52 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
 
 ---
 
-## ⬜ M7 — Concepts
+## 🔄 M7 — Concepts
 
-Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md). A thing that lives once and
-is linked onto many boards.
+Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (§8 records what was built and
+the answers taken to its open questions). A thing that lives once and is linked onto many boards.
 
-### ⬜ F8.1 Concepts as folders
-- ⬜ `ConceptRegistry`, concept folder and sidecar (id, name, kind, notes, items), the Concepts
-  list screen; pictures and notes first
+### ✅ F8.1 Concepts as folders
+- ✅ `ConceptRegistry` (`~/.actiondraw/concepts.json`, id → folder), the concept folder and its
+  sidecar `.actiondraw_concept.json` (id, name, kind, notes, items, documents), a concepts home
+  beside the boards home; folders found under it are adopted and given an id
+- ✅ The Concepts list (tiles by kind, cover, counts, how many boards link it) and the concept's
+  page (pictures, notes, links in a grid; documents rendered beside); Esc goes up
+- ✅ Pictures copied into `_imported/` by the board's importer; notes and links as on a board
+- ✅ Grid | Free on the concept's page: the concept's own arrangement and viewport, kept in its
+  file (`layout`, `camera`, each card's `pos`), never borrowed by a board; the board's placement
+  rule and card shapes reused (2026-09-21)
+- ✅ Dialogs focus their first field on show and dismiss by pointer only — a Space typed into a
+  new note once landed on the scrim and closed it; the same fix on the board's dialogs
 
-### ⬜ F8.2 Documents
-- ⬜ `.md` files in a concept, rendered with the M5 renderer, edited with a live preview
+### ✅ F8.2 Documents
+- ✅ `.md` files in `_docs/`, named from their first heading, rendered with the M5 renderer,
+  edited in a text box with a live preview; a document whose file vanished is dropped on load
 
-### ⬜ F8.3 Linked onto boards
-- ⬜ `BoardFile.concepts` by id; a concept group per link with `source = concept:<id>` —
-  non-resolvable, its one action *Unlink*; draw, view, strip, search all work on it
-- ⬜ Deleting a concept names the boards it will vanish from, first
+### ✅ F8.3 Linked onto boards
+- ✅ `BoardFile.concepts` by id; one group per link, id and `source` both `concept:<id>`, holding
+  *borrowed* cards that point at the concept's files by a `concept:<id>/<path>` path — resolved
+  through `ConceptSource`, the board's one seam to the concept side
+- ✅ Non-resolvable in the state, not just the menus: no rename, recolour, nesting or dissolving;
+  borrowed cards cannot be removed, moved out or grouped; *Unlink* is the one action (group menus
+  on the header, the canvas frame and the drawer); the group is marked ⧉ and outlined in dashes
+- ✅ Reconciled on every open and after a link: new items appear, vanished ones go, picture,
+  caption and text follow the concept; the board's place, stars and tags stay; a renamed concept
+  renames its groups
+- ✅ **Concepts ▾** in the board header (link one, jump to a linked one, all concepts); **Boards…**
+  on the concept's page with a tick per board, working on closed boards too, from disk
+- ✅ Dropping the board's own card on a concept group (or *Move to ⧉ …*) adds it to the concept;
+  the borrowed card takes the board's card's place
+- ✅ Deleting a concept names the boards it is linked on and takes it off them first
+- ✅ Covered by `ConceptTest` (14) and `ConceptLinkTest` (15); eleven guards checked by breaking them
 
-### ⬜ F8.4 Sketches and per-board opinions
+### 🔄 F8.4 Sketches and per-board opinions
 - ⬜ Live Sketch saves into a concept (needs M6)
-- ⬜ Stars and tags on borrowed cards live on the board, keyed by content id
+- ✅ Stars, tags and place of a borrowed card live on the board (matched by the card's id; the
+  content id is carried along for recovery)
+- ✅ Practice memory of a borrowed card is the board's, keyed the way a session started there
+  writes it — one folder per session is what the practice core knows; a concept-owned memory
+  would need the session to write to several folders (open, see the ideation §8)
 
 ---
 

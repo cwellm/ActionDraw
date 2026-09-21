@@ -1,11 +1,13 @@
 # ActionDraw
 
-A small desktop tool for **action drawing**, in two halves:
+A small desktop tool for **action drawing**, in three parts:
 
 - **Draw** — point it at a folder of reference images and it shows them one at a time, in random
   order, on a timer, to practice and improve your drawing skills.
 - **Idea Boards** — collect material (drawings, photos, studies) into boards with notes, groups
   and tags, then draw from any selection.
+- **Concepts** — a thing that lives once (a character, a creature, a landscape) in a folder of
+  its own, with pictures, notes, links and Markdown documents, linked onto any number of boards.
 
 Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows and Linux
 (e.g. ArchLinux).
@@ -67,7 +69,7 @@ board knows lives in one file next to the pictures — `.actiondraw_board.json`.
 still have an ordinary folder of images; the board never renames, moves or deletes your files.
 
 ### Getting started
-- The menu offers **Draw** and **Boards** as equal entry points. **Boards** opens the board list:
+- The menu offers **Draw**, **Boards** and **Concepts** as equal entry points. **Boards** opens the board list:
   a tile per board with its cover picture, counts and path, plus **New board…** and **Explore…**
   for a board folder elsewhere.
 - New boards are created under the **boards home** (`~/ActionDraw Boards` by default), which the
@@ -94,10 +96,12 @@ still have an ordinary folder of images; the board never renames, moves or delet
   unless you switch it on — and Hotkeys lists every shortcut for the session and the board.
   Inside a board, both show only what pertains to the board: *Board settings* (boards home,
   snapping) and the board's hotkeys.
-- Pressing **Enter** in a name field — a new group, a rename — confirms it.
+- Pressing **Enter** in a name field confirms it: a new group or board, a rename, a caption,
+  tags, a link's address or title, a concept's name or kind. Where a name is all there is to
+  type, Enter is the Save button.
 
 ### The header
-- One line: the board's **name** (click it to rename) · **Boards ▾** · **↑ Parent** when nested ·
+- One line: the board's **name** (click it to rename) · **Boards ▾** · **Concepts ▾** · **↑ Parent** when nested ·
   **Grid | Free** · **Search** · **Contents** · **+ ▾** (new note, new link, group, import,
   paste) · **⋯** (theme, snap, float strip, wallpaper, contact sheet, session recipe, shortcuts,
   immersive, close). Tag chips appear under it only when the board has tags, and the action bar
@@ -228,6 +232,54 @@ still have an ordinary folder of images; the board never renames, moves or delet
 - Cards remember their picture by content as well as by path, so renaming or moving a file
   outside the app keeps its caption, tags, group and position.
 
+## Concepts — things that live once
+
+A **board** is a place; a **concept** is a thing: this character, this creature, this landscape.
+Things recur across places, and copying their pictures onto every board lets the copies drift
+apart. A concept lives once, in a folder of its own, and is **linked** onto any number of boards.
+
+### A concept
+- **Concepts** on the start menu opens the list: tiles grouped by *kind* (character, creature,
+  landscape, prop, colour — a label with suggestions, not a fixed set), each with a cover, its
+  counts, and how many boards link it. **New concept…** makes a folder under the concepts home
+  (`~/ActionDraw Concepts` by default; **Change home…** moves it, and existing concepts stay where
+  they are and stay listed).
+- A concept holds **pictures** (copied into its `_imported/` folder, exactly as a board does),
+  **notes**, **links** and **documents** — Markdown files in its `_docs/` folder, rendered on the
+  concept's page and edited in a text box with a live preview. **+ ▾** adds any of them.
+- **Grid | Free** in the header, as a board has: *Free* places the cards by hand — drag a card to
+  move it, drag empty space to pan, the wheel zooms about the cursor, `Ctrl`+wheel resizes the
+  selected cards. The arrangement and the viewport are the concept's own, kept in its file, and
+  never reach the boards that link it.
+- Every dialog puts the cursor in its first field, so typing starts at once; a name field
+  confirms on **Enter**.
+- Everything the concept knows lives in `.actiondraw_concept.json` next to its files, and
+  `~/.actiondraw/concepts.json` records which folder belongs to which concept, by id — so a
+  concept keeps its identity wherever its folder goes, and a concept folder found under the home
+  is adopted as it is found.
+- **Delete…** names the boards the concept is linked on before it agrees, takes it off them, and
+  deletes the folder — or, with the tick cleared, only the sidecar, leaving the files.
+- `Esc` closes a dialog, then the concept, then the list.
+
+### On a board
+- **Concepts ▾** in a board's header lists every concept: *Link ‹name›* puts it on the board, a
+  linked one (⧉) jumps to it. **Boards…** on the concept's page does the same from the other
+  side, with a tick per board.
+- A linked concept is a **group of its own** on the board, marked ⧉ and outlined in dashes: the
+  concept itself, not a copy. Add a picture to the concept and every board that links it has the
+  picture; remove one and it is gone everywhere. The group cannot be renamed, recoloured, nested
+  or dissolved from the board, and its cards cannot be removed, moved out or captioned there —
+  the one thing to do with the group is **Unlink**, which takes it off this board and touches
+  nothing in the concept.
+- Everything a board does *with* cards works on a concept group: draw from it, view it large,
+  put it in the float strip, search it, star and tag its cards. Place, stars and tags are the
+  board's own opinions and stay with the board; the picture, caption and text follow the concept.
+- **Dropping the board's own card onto a concept group** (or *Move to ⧉ ‹name›*) adds it to the
+  concept: the picture is copied into the concept's folder, and the borrowed card takes the
+  board's card's place — here and on every other board that links the concept.
+- Practice memory of a borrowed card (drawn, never drawn, redo) is kept per board, like
+  everything else a board remembers about its cards.
+
 ## Keyboard shortcuts
 
 ### Session
@@ -269,7 +321,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
 | `Esc` | leave immersive · close the large view · close the board |
 
 In **Free** layout the mouse does the rest: drag a card to move it, drag the corner handle (or
-`Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag empty space to pan,
+`Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag a group by its name
+tag or its frame to move it whole (a click on either selects it); drag empty space to pan,
 `Shift`+drag it to rubber-band a selection, and use the wheel to zoom. In **Grid** layout a card
 can be dragged onto another to reorder it, or onto a group header to file it there.
 
@@ -317,6 +370,11 @@ on the board instead of silently ignoring the drop.
 ```
 
 ## Test
+
+Set `ACTIONDRAW_POINTER_LOG=1` before `gradlew run` and every pointer event that reaches a
+board's canvas, with every decision its gestures take, is appended to
+`~/.actiondraw/pointer.log` — the way to see what a real mouse or pen delivers when a drag
+misbehaves on one machine only. Unset, it costs nothing.
 ```sh
 ./gradlew test
 ```

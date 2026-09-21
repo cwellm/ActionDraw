@@ -462,6 +462,20 @@ class AppState(private val settings: Settings = Settings()) {
         screen = Screen.Menu
     }
 
+    // ---- Concept navigation (the same arrangement as for boards) ----
+
+    fun showConcepts() {
+        screen = Screen.Concepts
+    }
+
+    fun showConcept() {
+        screen = Screen.Concept
+    }
+
+    fun leaveConcepts() {
+        screen = Screen.Menu
+    }
+
     /** Undo what [startBoardSession] borrowed, so the menu shows the practice folder again. */
     private fun restorePractice() {
         practiceSnapshot?.let { (dir, images, sel) ->
