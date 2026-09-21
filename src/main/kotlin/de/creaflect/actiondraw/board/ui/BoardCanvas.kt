@@ -86,6 +86,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.foundation.shape.GenericShape
 
 /**
  * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
@@ -529,19 +530,28 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
         frameShape(hull.boxes, hull.connectors, originX = hull.left, originY = hull.top, zoom = zoom)
     }
     val composePath = remember(shape) { shape.asComposePath() }
+    // The frame's layer clips to its own shape, and Compose hit-tests a clipping layer by its
+    // outline: a press outside the shape is not a hit here at all and goes on to whatever is
+    // drawn underneath. Without this, a frame's rectangle swallowed presses meant for another
+    // group's frame lying inside it (and the canvas panned instead).
+    val frameClip = remember(composePath) { GenericShape { _, _ -> addPath(composePath) } }
     val receiving = state.dropTargetGroup == hull.group.id
     val fill = accent.copy(alpha = if (receiving) 0.28f else if (nested) 0.10f else 0.14f)
-    val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() }
+    // Twice the width it shows: the clip takes the outer half of a stroke centred on the edge.
+    val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() } * 2f
     // A concept's group is outlined in dashes: borrowed, not the board's own.
     val borrowedDash = if (hull.group.isConcept) PathEffect.dashPathEffect(floatArrayOf(12f, 8f)) else null
 
-    // As for a card: the frame's size and place on a box around the menu area (see CanvasItem).
+    // As for a card: the frame's size and place on a box around the menu area (see CanvasItem),
+    // clipped to the frame's shape so that only the shape is a hit.
     Box(
         Modifier
             .requiredSize(with(density) { w.toDp() }, with(density) { h.toDp() })
             .graphicsLayer {
                 translationX = x
                 translationY = y
+                clip = true
+                this.shape = frameClip // `shape` alone is the Skia path above
             },
     ) {
         ContextMenuArea(items = {

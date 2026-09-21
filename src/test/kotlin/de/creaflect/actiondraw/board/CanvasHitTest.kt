@@ -159,6 +159,49 @@ class CanvasHitTest {
         assertEquals(before, state.item(b1)!!.pos, "Breit stayed where it was")
     }
 
+    /**
+     * Group "Unten" sits in the empty corner of a later, L-shaped group's bounding box: inside
+     * that rectangle, outside that shape. A press on Unten's frame must reach Unten — the L's
+     * box, which has nothing to say there, must not swallow it and leave the canvas to pan.
+     */
+    @Test
+    fun aFrameInsideALaterFramesBoxButOutsideItsShapeIsStillTheOneThatIsDragged() {
+        val state = board()
+        val (u, l1, l2, l3) = state.addCards("u.jpg", "l1.jpg", "l2.jpg", "l3.jpg")
+        show(state)
+        val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
+        val (cx, cy) = state.toBoard(Offset(canvas.width / 2f, canvas.height / 2f))
+        val step = BoardState.BASE_SIZE * 1.35f
+        // The L: a corner card, one to its right, one below it. The notch is bottom-right.
+        state.place(l1, cx - step / 2, cy - step / 2)
+        state.place(l2, cx + step / 2, cy - step / 2)
+        state.place(l3, cx - step / 2, cy + step / 2)
+        // Unten: one card in the notch, made first so the L is the later, topmost frame.
+        state.place(u, cx + step / 2, cy + step / 2)
+        val unten = state.group("Unten", u)
+        val ell = state.group("Ell", l1, l2, l3)
+        rule.waitForIdle()
+
+        val lHull = state.groupHulls.first { it.group.id == ell }
+        val card = state.item(u)!!.pos!!
+        // Just under Unten's card: on Unten's frame, inside the L's bounding box, off the L's shape.
+        val fx = card.x
+        val fy = card.y + BoardState.BASE_SIZE / 2f + 8f
+        assertTrue(fx < lHull.right && fy < lHull.bottom, "the point is inside the L's bounding box")
+        assertEquals(unten, state.groupAt(fx, fy)?.id, "and on Unten's frame, not the L's")
+        val onFrame = state.toScreen(fx, fy)
+        val cam = state.camX to state.camY
+        val lBefore = state.item(l1)!!.pos!!
+
+        drag(onFrame, Offset(80f, 50f))
+
+        assertEquals(cam, state.camX to state.camY, "the board did not pan")
+        val moved = state.item(u)!!.pos!!
+        assertEquals(card.x + 80f, moved.x, 20f)
+        assertEquals(card.y + 50f, moved.y, 20f)
+        assertEquals(lBefore, state.item(l1)!!.pos, "the L stayed where it was")
+    }
+
     /** A card drawn in the top-left, with later cards elsewhere, still answers a click. */
     @Test
     fun aCardDrawnWhereALaterCardWasLaidOutIsStillClickable() {

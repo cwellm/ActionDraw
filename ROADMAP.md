@@ -429,6 +429,11 @@ of ideas and inspiration; what daily use asked for.
   area stayed at the canvas' top-left and swallowed presses meant for whatever was drawn there —
   the board panned instead, every card moving with the one being dragged, and a card drawn in
   that corner could not be clicked at all. `CanvasHitTest`, written red first (2026-09-21)
+- ✅ A frame is a hit only within its shape: its layer clips to the frame path, and Compose
+  hit-tests a clipping layer by its outline. Before, a frame's whole rectangle counted, so a
+  press on another group's frame lying inside it (a concept group overlapping a regular one) went
+  to a box that declined it — and nothing below ever saw it; the canvas panned. Third case in
+  `CanvasHitTest`, red first (2026-09-21)
 - ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
   inner corners soften too), and the space between separated pictures is always covered: the
   connector is the convex hull of the two pieces, a full band, never a thin bridge

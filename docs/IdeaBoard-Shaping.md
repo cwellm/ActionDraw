@@ -945,6 +945,17 @@ hit box sits where its drawing is. `CanvasHitTest` pins both halves — a frame 
 later frame's old hit box is still the one that drags, and a card drawn there still answers a
 click — and both tests were red before the change.
 
+**And the second half, the same day:** "still not solved — and the concept group overlays the
+regular group a bit." Right: with the boxes now where the frames are, two frames whose
+rectangles overlap have the same problem between themselves. Compose stops at the first sibling
+whose box contains the press, and a box is a rectangle; a press on the lower frame, inside the
+upper frame's rectangle but outside its shape, reached the upper frame's box — which declined it,
+as it should — and then nothing, because a declined hit still ends the search. The way out is
+that Compose hit-tests a *clipping* layer by its outline: the frame's wrapper now clips to the
+frame's own path, so outside the shape there is no hit at all and the search goes on to the
+frame underneath. The stroke is drawn at twice its width, since the clip takes its outer half.
+A third `CanvasHitTest` case, a small group in the notch of a later L, was red before this.
+
 **Enter, everywhere a name is all there is.** The same round asked for Enter to mean Save in
 every dialog that only takes a name. It already did for group names and the single-line
 prompts; now a new board, a link's two fields, and a concept's name, kind and rename confirm on
