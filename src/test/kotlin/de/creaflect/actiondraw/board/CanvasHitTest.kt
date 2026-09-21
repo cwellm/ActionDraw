@@ -202,6 +202,112 @@ class CanvasHitTest {
         assertEquals(lBefore, state.item(l1)!!.pos, "the L stayed where it was")
     }
 
+    /** The label is the group's handle: dragging it moves the group, and nothing else. */
+    @Test
+    fun draggingAGroupByItsLabelMovesTheGroupNotTheBoard() {
+        val state = board()
+        val (a, b, loose) = state.addCards("a.jpg", "b.jpg", "loose.jpg")
+        show(state)
+        val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
+        val (cx, cy) = state.toBoard(Offset(canvas.width / 2f, canvas.height / 2f))
+        state.place(a, cx - 150f, cy)
+        state.place(b, cx + 150f, cy)
+        state.place(loose, cx, cy + BoardState.BASE_SIZE * 2f)
+        val group = state.group("Paar", a, b)
+        rule.waitForIdle()
+        val label = rule.onNodeWithTag("group-label-$group").fetchSemanticsNode().boundsInRoot
+        assertTrue(label.width > 0f && label.height > 0f, "the label is on screen")
+        val before = state.item(a)!!.pos!!
+        val looseBefore = state.item(loose)!!.pos!!
+        val cam = state.camX to state.camY
+
+        drag(label.center, Offset(70f, 40f))
+
+        assertEquals(cam, state.camX to state.camY, "the board did not pan")
+        val moved = state.item(a)!!.pos!!
+        assertEquals(before.x + 70f, moved.x, 20f)
+        assertEquals(before.y + 40f, moved.y, 20f)
+        assertEquals(looseBefore, state.item(loose)!!.pos, "a card outside the group stayed")
+    }
+
+    /**
+     * The user's "Tests" board as it was saved on 2026-09-21: four pictures in "One" up and to
+     * the left, one of them turned; a second group down and to the right whose frame overlaps
+     * One's a little; two loose notes, one a big post-it; a loose link; the view zoomed out and
+     * off-centre. Three things must move only what they mean to: a card of One, One's label,
+     * and One's frame.
+     */
+    @Test
+    fun theTestBoardsGroupMovesByCardLabelAndFrameWithoutPanning() {
+        val state = board()
+        val ids = state.addCards("c1.jpg", "c2.jpg", "c3.jpg", "c4.jpg", "k1.jpg", "k2.jpg", "k3.jpg")
+        show(state)
+        state.place(ids[0], -196.96f, -182.72f)
+        state.place(ids[1], -447.75f, -62.31f)
+        state.place(ids[2], -762.84f, -62.31f)
+        state.rotateBy(ids[2], -13.54f)
+        state.place(ids[3], -924.19f, -162.61f)
+        val one = state.group("One", ids[0], ids[1], ids[2], ids[3])
+        state.place(ids[4], 600.2f, 163.75f)
+        state.place(ids[5], 0f, 157.69f)
+        state.place(ids[6], 286f, 157.69f)
+        state.group("Testconcept", ids[4], ids[5], ids[6])
+        state.saveNote(null, "# Hey\n## YOu\nWhat's up")
+        state.saveNote(null, "Post this to my wall, my", NoteKind.POSTIT)
+        state.saveLink(null, "www.google.de", "")
+        state.setLayout(BoardLayouts.GRID)
+        state.setLayout(BoardLayouts.FREE) // places whatever has no place yet
+        val notes = state.board!!.items.filterIsInstance<NoteItem>().map { it.id }
+        val link = state.board!!.items.filterIsInstance<LinkItem>().single().id
+        state.place(notes[0], -275.94f, -483.40f)
+        state.resizeBy(notes[0], 0.8777f)
+        state.place(notes[1], -1005.39f, -617.87f)
+        state.resizeBy(notes[1], 2.684f)
+        state.place(link, 272.81f, -292.99f)
+        state.commitLayout()
+        state.setZoom(0.81370616f, -99.77027f, -131.49394f)
+        state.commitCamera()
+        state.clearSelection()
+        rule.waitForIdle()
+        val zoom = state.zoom
+        fun cam() = state.camX to state.camY
+        fun pos(id: String) = state.item(id)!!.pos!!
+
+        // 1. The upper-left card that is on screen: it alone moves.
+        val card = pos(ids[1])
+        val other = pos(ids[0])
+        val camBefore = cam()
+        drag(state.toScreen(card.x, card.y), Offset(60f, 40f))
+        assertEquals(camBefore, cam(), "dragging a card did not pan")
+        assertEquals(card.x + 60f / zoom, pos(ids[1]).x, 25f)
+        assertEquals(card.y + 40f / zoom, pos(ids[1]).y, 25f)
+        assertEquals(other, pos(ids[0]), "the other card of One stayed")
+
+        // 2. One's label: the whole group moves, nothing else.
+        val label = rule.onNodeWithTag("group-label-$one").fetchSemanticsNode().boundsInRoot
+        assertTrue(label.width > 0f, "One's label is on screen")
+        val top = pos(ids[0])
+        val conceptCard = pos(ids[5])
+        val noteBefore = pos(notes[0])
+        drag(label.center, Offset(50f, 30f))
+        assertEquals(camBefore, cam(), "dragging the label did not pan")
+        assertEquals(top.x + 50f / zoom, pos(ids[0]).x, 25f)
+        assertEquals(top.y + 30f / zoom, pos(ids[0]).y, 25f)
+        assertEquals(conceptCard, pos(ids[5]), "the other group stayed")
+        assertEquals(noteBefore, pos(notes[0]), "the loose note stayed")
+
+        // 3. One's frame, just under its top card.
+        val topNow = pos(ids[0])
+        val fx = topNow.x
+        val fy = topNow.y + BoardState.BASE_SIZE / state.aspectOf(state.item(ids[0])!!) / 2f + 8f
+        assertEquals(one, state.groupAt(fx, fy)?.id, "the point is on One's frame")
+        drag(state.toScreen(fx, fy), Offset(-40f, 30f))
+        assertEquals(camBefore, cam(), "dragging the frame did not pan")
+        assertEquals(topNow.x - 40f / zoom, pos(ids[0]).x, 25f)
+        assertEquals(conceptCard, pos(ids[5]), "the other group still stayed")
+        assertEquals(noteBefore, pos(notes[0]), "the loose note still stayed")
+    }
+
     /** A card drawn in the top-left, with later cards elsewhere, still answers a click. */
     @Test
     fun aCardDrawnWhereALaterCardWasLaidOutIsStillClickable() {

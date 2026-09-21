@@ -321,7 +321,8 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
 | `Esc` | leave immersive · close the large view · close the board |
 
 In **Free** layout the mouse does the rest: drag a card to move it, drag the corner handle (or
-`Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag empty space to pan,
+`Ctrl`+wheel) to resize, the top handle (or `Shift`+wheel) to rotate; drag a group by its name
+tag or its frame to move it whole (a click on either selects it); drag empty space to pan,
 `Shift`+drag it to rubber-band a selection, and use the wheel to zoom. In **Grid** layout a card
 can be dragged onto another to reorder it, or onto a group header to file it there.
 

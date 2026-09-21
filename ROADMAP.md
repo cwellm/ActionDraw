@@ -434,6 +434,12 @@ of ideas and inspiration; what daily use asked for.
   press on another group's frame lying inside it (a concept group overlapping a regular one) went
   to a box that declined it — and nothing below ever saw it; the canvas panned. Third case in
   `CanvasHitTest`, red first (2026-09-21)
+- ✅ A group's name tag drags the group, as its frame does — it only *selected* before, so a drag
+  from it fell through to the canvas and panned, which is the gesture behind "everything moves
+  with the group". And the frame's gesture is keyed on the group, not its shape: keyed on the
+  shape, it restarted as soon as the group moved and dropped the rest of the drag. Pinned by a
+  label-drag case and by a replica of the user's own board (positions, a turned card, a big
+  post-it, the zoomed-out camera), red first (2026-09-21)
 - ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
   inner corners soften too), and the space between separated pictures is always covered: the
   connector is the convex hull of the two pieces, a full band, never a thin bridge

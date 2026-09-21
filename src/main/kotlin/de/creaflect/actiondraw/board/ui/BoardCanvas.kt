@@ -29,6 +29,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -530,6 +531,9 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
         frameShape(hull.boxes, hull.connectors, originX = hull.left, originY = hull.top, zoom = zoom)
     }
     val composePath = remember(shape) { shape.asComposePath() }
+    // The gesture below reads the shape through this, and is keyed on the group alone: keyed on
+    // the shape, it restarted the moment the group moved under it and lost the rest of the drag.
+    val currentShape by rememberUpdatedState(shape)
     // The frame's layer clips to its own shape, and Compose hit-tests a clipping layer by its
     // outline: a press outside the shape is not a hit here at all and goes on to whatever is
     // drawn underneath. Without this, a frame's rectangle swallowed presses meant for another
@@ -579,10 +583,10 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                     // Clicking the frame picks the group up; dragging it moves the group as one. A
                     // press outside the shape -- in the empty notch of an L, say -- is not the
                     // group's business and falls through to whatever is under it.
-                    .pointerInput(shape, hull.group.id) {
+                    .pointerInput(hull.group.id) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            if (!shape.contains(down.position.x, down.position.y)) return@awaitEachGesture
+                            if (!currentShape.contains(down.position.x, down.position.y)) return@awaitEachGesture
                             down.consume()
                             var moved = false
                             val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
@@ -677,7 +681,31 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .onSizeChanged { size = it }
             .testTag("group-label-" + hull.group.id)
-            .clickable { state.selectGroup(hull.group.id) },
+            // The label is the group's handle: a click picks the group up, a drag moves it — the
+            // same as the frame. With only a click here, a drag from the label fell through to
+            // the canvas and panned the whole board, which read as "everything moves with it".
+            .pointerInput(hull.group.id) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    down.consume()
+                    var moved = false
+                    val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
+                        change.consume()
+                        moved = true
+                        state.dragGroupBy(hull.group.id, over.x / state.zoom, over.y / state.zoom)
+                    }
+                    if (slop != null) {
+                        drag(slop.id) { change ->
+                            val delta = change.positionChange()
+                            change.consume()
+                            state.dragGroupBy(hull.group.id, delta.x / state.zoom, delta.y / state.zoom)
+                        }
+                        state.commitLayout()
+                    } else if (!moved) {
+                        state.selectGroup(hull.group.id)
+                    }
+                }
+            },
     ) {
         Text(
             (if (hull.group.isConcept) "⧉ " else "") + hull.group.name + "  ·  " + hull.count,

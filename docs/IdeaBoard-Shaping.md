@@ -956,6 +956,18 @@ frame's own path, so outside the shape there is no hit at all and the search goe
 frame underneath. The stroke is drawn at twice its width, since the clip takes its outer half.
 A third `CanvasHitTest` case, a small group in the notch of a later L, was red before this.
 
+**Third time, the gesture itself.** "Still pans — and when I click the group's card in the
+upper left, it lights up, so selecting works." The card in the upper left of a group is its
+*name tag*. It selected on a click and did nothing else; a drag from it went, like any
+unclaimed drag, to the canvas, which panned. The tag is the obvious handle — the M5 notes even
+call it that — so it now drags the group exactly as the frame does, and a click still selects.
+The replica of the user's board (every position, the turned card, the big post-it, the
+zoomed-out camera) turned up one more thing: the frame's gesture was keyed on the frame's shape,
+which changes the moment the group moves, so the handler restarted mid-drag and the group
+followed the pointer only for the first few pixels. Keyed on the group, with the shape read
+through `rememberUpdatedState`, it follows to the end. The lesson for every canvas gesture: key
+it on the thing's identity, never on geometry the gesture itself changes.
+
 **Enter, everywhere a name is all there is.** The same round asked for Enter to mean Save in
 every dialog that only takes a name. It already did for group names and the single-line
 prompts; now a new board, a link's two fields, and a concept's name, kind and rename confirm on
