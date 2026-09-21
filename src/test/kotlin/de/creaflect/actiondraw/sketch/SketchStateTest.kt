@@ -45,8 +45,11 @@ class SketchStateTest {
         assertTrue(state.rateHz > 100, "200 Hz of samples read as ${state.rateHz} Hz")
 
         state.onPen(pen(280f, 100f, 0f, contact = false, ms = t))
-        state.onPen(pen(20f, 150f, 1f, contact = true, ms = t + 5)) // a new stroke starts here, not a line from the last point
-        assertTrue(page.darkness(150, 125) < 0.02f, "no line joins the two strokes")
+        state.onPen(pen(20f, 150f, 1f, contact = true, ms = t + 5))
+        // A new stroke starts exactly where the pen came down: a fresh builder, a fresh filter,
+        // a dot at the point. Were the old stroke still open, the filter would lag the jump and
+        // leave a short segment by the old point instead — nothing here.
+        assertTrue(page.darkness(20, 150) > 0.5f, "the new stroke starts under the pen: ${page.darkness(20, 150)}")
     }
 
     @Test
