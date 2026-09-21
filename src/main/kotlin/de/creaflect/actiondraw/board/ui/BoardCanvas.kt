@@ -105,12 +105,14 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
         modifier
             .clipToBounds()
             .testTag("canvas")
+            .pointerLogging("root")
             .onSizeChanged { viewSize = it }
             .pointerInput(state) {
                 // Plain drag pans the board; Shift+drag pulls a rubber band over the cards.
                 var marqueeing = false
                 detectDragGestures(
                     onDragStart = { start ->
+                        PointerLog.log("root: drag start at $start (marquee=$shiftHeld)")
                         marqueeing = shiftHeld
                         if (marqueeing) {
                             val (bx, by) = boardPoint(start, viewSize, state)
@@ -288,6 +290,7 @@ private fun CanvasItem(
                     .pointerInput(item.id) {
                         detectDragGestures(
                             onDragStart = {
+                                PointerLog.log("card ${item.id.take(8)}: drag start")
                                 if (item.id !in state.selection) state.clickItem(item.id, ctrl = false, shift = false)
                             },
                             onDrag = { change, drag ->
@@ -309,12 +312,16 @@ private fun CanvasItem(
                                 }
                             },
                             onDragEnd = {
+                                PointerLog.log("card ${item.id.take(8)}: drag end")
                                 state.clearSnapGuides()
                                 // Let go over a group's frame: the card (or its selection) joins it.
                                 state.dropIntoGroupAt(item.id)
                                 state.commitLayout()
                             },
-                            onDragCancel = { state.clearSnapGuides() },
+                            onDragCancel = {
+                                PointerLog.log("card ${item.id.take(8)}: drag cancelled")
+                                state.clearSnapGuides()
+                            },
                         )
                     },
             ) {
@@ -586,10 +593,15 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                     .pointerInput(hull.group.id) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            if (!currentShape.contains(down.position.x, down.position.y)) return@awaitEachGesture
+                            if (!currentShape.contains(down.position.x, down.position.y)) {
+                                PointerLog.log("frame ${hull.group.name}: down outside the shape at ${down.position}")
+                                return@awaitEachGesture
+                            }
+                            PointerLog.log("frame ${hull.group.name}: down id=${down.id.value} at ${down.position} consumed=${down.isConsumed}")
                             down.consume()
                             var moved = false
                             val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
+                                PointerLog.log("frame ${hull.group.name}: slop reached, over=$over")
                                 change.consume()
                                 moved = true
                                 state.dragGroupBy(hull.group.id, over.x / state.zoom, over.y / state.zoom)
@@ -600,9 +612,13 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                                     change.consume()
                                     state.dragGroupBy(hull.group.id, delta.x / state.zoom, delta.y / state.zoom)
                                 }
+                                PointerLog.log("frame ${hull.group.name}: drag ended")
                                 state.commitLayout()
                             } else if (!moved) {
+                                PointerLog.log("frame ${hull.group.name}: cancelled before the slop -> select")
                                 state.selectGroup(hull.group.id)
+                            } else {
+                                PointerLog.log("frame ${hull.group.name}: cancelled after the slop")
                             }
                         }
                     },
@@ -687,9 +703,11 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
             .pointerInput(hull.group.id) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
+                    PointerLog.log("label ${hull.group.name}: down id=${down.id.value} at ${down.position} consumed=${down.isConsumed}")
                     down.consume()
                     var moved = false
                     val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
+                        PointerLog.log("label ${hull.group.name}: slop reached, over=$over")
                         change.consume()
                         moved = true
                         state.dragGroupBy(hull.group.id, over.x / state.zoom, over.y / state.zoom)
@@ -700,9 +718,13 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
                             change.consume()
                             state.dragGroupBy(hull.group.id, delta.x / state.zoom, delta.y / state.zoom)
                         }
+                        PointerLog.log("label ${hull.group.name}: drag ended")
                         state.commitLayout()
                     } else if (!moved) {
+                        PointerLog.log("label ${hull.group.name}: cancelled before the slop -> select")
                         state.selectGroup(hull.group.id)
+                    } else {
+                        PointerLog.log("label ${hull.group.name}: cancelled after the slop")
                     }
                 }
             },

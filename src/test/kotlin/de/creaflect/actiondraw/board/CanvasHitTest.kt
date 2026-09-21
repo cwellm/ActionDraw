@@ -12,6 +12,8 @@ import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
+import de.creaflect.actiondraw.board.ui.BoardDialogs
+import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
@@ -306,6 +308,42 @@ class CanvasHitTest {
         assertEquals(topNow.x - 40f / zoom, pos(ids[0]).x, 25f)
         assertEquals(conceptCard, pos(ids[5]), "the other group still stayed")
         assertEquals(noteBefore, pos(notes[0]), "the loose note still stayed")
+    }
+
+    /**
+     * The same, but inside the real board screen — header, wallpaper layer, drop target and all —
+     * rather than the bare canvas, since the app is the screen and not the canvas alone.
+     */
+    @Test
+    fun insideTheRealBoardScreenTheLabelStillDragsTheGroupNotTheBoard() {
+        val state = board()
+        val (a, b, loose) = state.addCards("a.jpg", "b.jpg", "loose.jpg")
+        rule.setContent {
+            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardDialogs(state)
+        }
+        rule.waitForIdle()
+        val canvasBounds = rule.onNodeWithTag("canvas").fetchSemanticsNode().boundsInRoot
+        assertTrue(canvasBounds.top > 0f, "the canvas sits under the header, not at the window's top")
+        val (cx, cy) = state.toBoard(Offset(canvasBounds.width / 2f, canvasBounds.height / 2f))
+        state.place(a, cx - 150f, cy)
+        state.place(b, cx + 150f, cy)
+        state.place(loose, cx, cy + BoardState.BASE_SIZE * 2f)
+        val group = state.group("Paar", a, b)
+        rule.waitForIdle()
+        val label = rule.onNodeWithTag("group-label-$group").fetchSemanticsNode().boundsInRoot
+        val onLabel = Offset(label.center.x - canvasBounds.left, label.center.y - canvasBounds.top)
+        val before = state.item(a)!!.pos!!
+        val looseBefore = state.item(loose)!!.pos!!
+        val cam = state.camX to state.camY
+
+        drag(onLabel, Offset(70f, 40f))
+
+        assertEquals(cam, state.camX to state.camY, "the board did not pan")
+        val moved = state.item(a)!!.pos!!
+        assertEquals(before.x + 70f, moved.x, 20f)
+        assertEquals(before.y + 40f, moved.y, 20f)
+        assertEquals(looseBefore, state.item(loose)!!.pos, "a card outside the group stayed")
     }
 
     /** A card drawn in the top-left, with later cards elsewhere, still answers a click. */
