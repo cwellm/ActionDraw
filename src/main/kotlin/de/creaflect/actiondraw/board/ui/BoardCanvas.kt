@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.input.pointer.isPrimaryPressed
 
 /**
  * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
@@ -520,6 +521,7 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
  * in the corner. Dragging the area (or its label) moves the whole group; the cards on top keep
  * their own drag, so a single card can still be moved out of place inside it.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
     val zoom = state.zoom
@@ -538,9 +540,6 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
         frameShape(hull.boxes, hull.connectors, originX = hull.left, originY = hull.top, zoom = zoom)
     }
     val composePath = remember(shape) { shape.asComposePath() }
-    // The gesture below reads the shape through this, and is keyed on the group alone: keyed on
-    // the shape, it restarted the moment the group moved under it and lost the rest of the drag.
-    val currentShape by rememberUpdatedState(shape)
     // The frame's layer clips to its own shape, and Compose hit-tests a clipping layer by its
     // outline: a press outside the shape is not a hit here at all and goes on to whatever is
     // drawn underneath. Without this, a frame's rectangle swallowed presses meant for another
@@ -587,40 +586,32 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                         drawPath(composePath, fill)
                         drawPath(composePath, accent.copy(alpha = 0.7f), style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round, pathEffect = borrowedDash))
                     }
-                    // Clicking the frame picks the group up; dragging it moves the group as one. A
-                    // press outside the shape -- in the empty notch of an L, say -- is not the
-                    // group's business and falls through to whatever is under it.
-                    .pointerInput(hull.group.id) {
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            if (!currentShape.contains(down.position.x, down.position.y)) {
-                                PointerLog.log("frame ${hull.group.name}: down outside the shape at ${down.position}")
-                                return@awaitEachGesture
-                            }
-                            PointerLog.log("frame ${hull.group.name}: down id=${down.id.value} at ${down.position} consumed=${down.isConsumed}")
-                            down.consume()
-                            var moved = false
-                            val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
-                                PointerLog.log("frame ${hull.group.name}: slop reached, over=$over")
-                                change.consume()
-                                moved = true
-                                state.dragGroupBy(hull.group.id, over.x / state.zoom, over.y / state.zoom)
-                            }
-                            if (slop != null) {
-                                drag(slop.id) { change ->
-                                    val delta = change.positionChange()
-                                    change.consume()
-                                    state.dragGroupBy(hull.group.id, delta.x / state.zoom, delta.y / state.zoom)
-                                }
-                                PointerLog.log("frame ${hull.group.name}: drag ended")
-                                state.commitLayout()
-                            } else if (!moved) {
-                                PointerLog.log("frame ${hull.group.name}: cancelled before the slop -> select")
-                                state.selectGroup(hull.group.id)
-                            } else {
-                                PointerLog.log("frame ${hull.group.name}: cancelled after the slop")
-                            }
+                    // A press on the frame picks the group up; a drag moves it as one. The layer
+                    // above clips to the frame's shape, so a press in the empty notch of an L never
+                    // arrives here. The drag detector is the one the cards use: its slop follows the
+                    // pointer type — a fraction of a pixel for a mouse — as the canvas' own pan does.
+                    // A handler waiting for the touch slop (some twenty pixels) lost every real mouse
+                    // drag to the pan underneath, which took the first four-pixel move and everything
+                    // after it: "everything moves with the group".
+                    .onPointerEvent(PointerEventType.Press) { event ->
+                        if (event.buttons.isPrimaryPressed) {
+                            PointerLog.log("frame ${hull.group.name}: press -> select")
+                            state.selectGroup(hull.group.id)
                         }
+                    }
+                    .pointerInput(hull.group.id) {
+                        detectDragGestures(
+                            onDragStart = { PointerLog.log("frame ${hull.group.name}: drag start at $it") },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                            },
+                            onDragEnd = {
+                                PointerLog.log("frame ${hull.group.name}: drag end")
+                                state.commitLayout()
+                            },
+                            onDragCancel = { state.commitLayout() },
+                        )
                     },
             )
         }
@@ -674,6 +665,7 @@ internal fun frameShape(
  * part of its group is: a hull is often far wider than the view, and pinning the label to the
  * hull's top-left corner meant the handle disappeared with the corner.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
     val zoom = state.zoom
@@ -697,36 +689,27 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .onSizeChanged { size = it }
             .testTag("group-label-" + hull.group.id)
-            // The label is the group's handle: a click picks the group up, a drag moves it — the
-            // same as the frame. With only a click here, a drag from the label fell through to
-            // the canvas and panned the whole board, which read as "everything moves with it".
-            .pointerInput(hull.group.id) {
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    PointerLog.log("label ${hull.group.name}: down id=${down.id.value} at ${down.position} consumed=${down.isConsumed}")
-                    down.consume()
-                    var moved = false
-                    val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
-                        PointerLog.log("label ${hull.group.name}: slop reached, over=$over")
-                        change.consume()
-                        moved = true
-                        state.dragGroupBy(hull.group.id, over.x / state.zoom, over.y / state.zoom)
-                    }
-                    if (slop != null) {
-                        drag(slop.id) { change ->
-                            val delta = change.positionChange()
-                            change.consume()
-                            state.dragGroupBy(hull.group.id, delta.x / state.zoom, delta.y / state.zoom)
-                        }
-                        PointerLog.log("label ${hull.group.name}: drag ended")
-                        state.commitLayout()
-                    } else if (!moved) {
-                        PointerLog.log("label ${hull.group.name}: cancelled before the slop -> select")
-                        state.selectGroup(hull.group.id)
-                    } else {
-                        PointerLog.log("label ${hull.group.name}: cancelled after the slop")
-                    }
+            // The label is the group's handle: a press picks the group up, a drag moves it — the
+            // same as the frame, with the same drag detector (see GroupArea for why that one).
+            .onPointerEvent(PointerEventType.Press) { event ->
+                if (event.buttons.isPrimaryPressed) {
+                    PointerLog.log("label ${hull.group.name}: press -> select")
+                    state.selectGroup(hull.group.id)
                 }
+            }
+            .pointerInput(hull.group.id) {
+                detectDragGestures(
+                    onDragStart = { PointerLog.log("label ${hull.group.name}: drag start at $it") },
+                    onDrag = { change, drag ->
+                        change.consume()
+                        state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                    },
+                    onDragEnd = {
+                        PointerLog.log("label ${hull.group.name}: drag end")
+                        state.commitLayout()
+                    },
+                    onDragCancel = { state.commitLayout() },
+                )
             },
     ) {
         Text(

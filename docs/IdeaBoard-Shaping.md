@@ -968,6 +968,21 @@ followed the pointer only for the first few pixels. Keyed on the group, with the
 through `rememberUpdatedState`, it follows to the end. The lesson for every canvas gesture: key
 it on the thing's identity, never on geometry the gesture itself changes.
 
+**Fourth time: what the tests could not know.** After the tag drag was in, "still moving
+everything". The board file showed the camera had moved and no card had; a test composed inside
+the real board screen still passed. So the difference was in the events themselves, and a
+pointer log, switched on by an environment variable, showed them: the press reached the tag,
+the *first* mouse move — four pixels — was taken by the canvas' pan, and the tag's handler
+cancelled. `awaitTouchSlopOrCancellation` waits for the touch slop, twenty-odd pixels, whatever
+the pointer; `detectDragGestures`, which the pan and the cards use, waits for the pointer's own
+slop, a fraction of a pixel for a mouse. A real mouse moves a few pixels per event, so the
+parent always won and the children never did. The tests had dragged in two big jumps, on which
+both reach their slop on the same event and the child, first in the Main pass, wins — a mouse
+that does not exist. The tag and the frame now use the same detector as the cards, selecting on
+the press, and the test helper drags in three-pixel steps; every tag and frame case was red
+before this change with that helper alone. Two rules from it: on the canvas, every gesture uses
+the pointer-aware detector; and a test drag moves the way a mouse does.
+
 **Enter, everywhere a name is all there is.** The same round asked for Enter to mean Save in
 every dialog that only takes a name. It already did for group names and the single-line
 prompts; now a new board, a link's two fields, and a concept's name, kind and rename confirm on

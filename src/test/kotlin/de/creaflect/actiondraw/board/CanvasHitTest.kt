@@ -99,12 +99,18 @@ class CanvasHitTest {
         return ((at.x - canvas.width / 2f) / zoom + camX) to ((at.y - canvas.height / 2f) / zoom + camY)
     }
 
+    /**
+     * A drag the way a mouse delivers one: in steps of a few pixels. Two big jumps hid a real
+     * bug — the canvas' pan detector uses the pointer's own slop, a fraction of a pixel for a
+     * mouse, while a handler waiting for the touch slop needs some twenty; with big jumps both
+     * fired on the same event and the child won, with real steps the canvas always won.
+     */
     private fun drag(from: Offset, by: Offset) {
+        val steps = maxOf(1, (maxOf(kotlin.math.abs(by.x), kotlin.math.abs(by.y)) / 3f).toInt())
         rule.onNodeWithTag("canvas").performMouseInput {
             moveTo(from)
             press()
-            moveBy(by / 2f)
-            moveBy(by / 2f)
+            repeat(steps) { moveBy(by / steps.toFloat()) }
             release()
         }
         rule.waitForIdle()

@@ -370,6 +370,11 @@ on the board instead of silently ignoring the drop.
 ```
 
 ## Test
+
+Set `ACTIONDRAW_POINTER_LOG=1` before `gradlew run` and every pointer event that reaches a
+board's canvas, with every decision its gestures take, is appended to
+`~/.actiondraw/pointer.log` — the way to see what a real mouse or pen delivers when a drag
+misbehaves on one machine only. Unset, it costs nothing.
 ```sh
 ./gradlew test
 ```

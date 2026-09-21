@@ -440,6 +440,14 @@ of ideas and inspiration; what daily use asked for.
   shape, it restarted as soon as the group moved and dropped the rest of the drag. Pinned by a
   label-drag case and by a replica of the user's own board (positions, a turned card, a big
   post-it, the zoomed-out camera), red first (2026-09-21)
+- ✅ The real one, found with a pointer log on the user's machine: the frame's and the tag's
+  gestures waited for the *touch* slop (some twenty pixels), while the canvas' pan — and the
+  cards — use the drag detector whose slop follows the pointer type, a fraction of a pixel for
+  a mouse. A real mouse moves a few pixels per event, so the pan took the first move and every
+  one after it. Both gestures now use that detector, selecting on the press. The tests dragged in
+  two big jumps, on which both handlers fire at once and the child wins; they now drag in
+  mouse-sized steps, on which every tag and frame case went red before this fix. The log stays,
+  off unless `ACTIONDRAW_POINTER_LOG` is set (2026-09-21)
 - ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
   inner corners soften too), and the space between separated pictures is always covered: the
   connector is the convex hull of the two pieces, a full band, never a thin bridge
