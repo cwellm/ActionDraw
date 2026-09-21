@@ -349,6 +349,7 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
     val existing = itemId?.let(state::item) as? LinkItem
     var url by remember(itemId) { mutableStateOf(existing?.url ?: "") }
     var title by remember(itemId) { mutableStateOf(existing?.title ?: "") }
+    val save = { state.saveLink(itemId, url, title); state.closeEditor() }
     DialogScrim(onDismiss = state::closeEditor) {
         Text(if (itemId == null) "New link" else "Edit link", style = MaterialTheme.typography.h6)
         OutlinedTextField(
@@ -356,25 +357,21 @@ private fun LinkDialog(state: BoardState, itemId: String?) {
             onValueChange = { url = it },
             label = { Text("Address") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().focusOnShow(),
+            modifier = Modifier.fillMaxWidth().focusOnShow().confirmOnEnter(save),
         )
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
             label = { Text("Title (optional)") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().confirmOnEnter(save),
         )
         Text(
             "ActionDraw never fetches the page — the card just opens it in your browser.",
             style = MaterialTheme.typography.caption,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
         )
-        DialogButtons(
-            confirm = "Save",
-            onOk = { state.saveLink(itemId, url, title); state.closeEditor() },
-            onCancel = state::closeEditor,
-        )
+        DialogButtons(confirm = "Save", onOk = save, onCancel = state::closeEditor)
     }
 }
 
@@ -643,7 +640,12 @@ private fun NewBoardDialog(state: BoardState, under: File?) {
             onValueChange = { name = it },
             label = { Text("Name") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            // Enter is the Create button: a name is all a new board needs.
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusOnShow()
+                .confirmOnEnter { error = state.createBoard(location, name, template) }
+                .testTag("board-name"),
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(

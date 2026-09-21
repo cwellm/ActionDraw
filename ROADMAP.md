@@ -422,7 +422,13 @@ of ideas and inspiration; what daily use asked for.
 - ✅ Links are a title that opens on a click; notes come in two kinds — a **document note** shows
   its title and opens in a popup, a **post-it** shows its text as typed in a written hand, sized
   to the text (2026-09-22)
-- ✅ Enter in a name field confirms — new group, rename, any single-line prompt
+- ✅ Enter in a name field confirms — new group, new board, rename, caption, tags, a link's
+  fields, a concept's name and kind: wherever a name is all there is to type (2026-09-21)
+- ✅ Hit boxes where the cards and frames are drawn: a card's and a frame's size and layer
+  transform now sit on a box *around* its context-menu area. With the transform inside, the menu
+  area stayed at the canvas' top-left and swallowed presses meant for whatever was drawn there —
+  the board panned instead, every card moving with the one being dragged, and a card drawn in
+  that corner could not be clicked at all. `CanvasHitTest`, written red first (2026-09-21)
 - ✅ Frames rounder (a wider corner radius, and the union thickened with a round stroke so its
   inner corners soften too), and the space between separated pictures is always covered: the
   connector is the convex hull of the two pieces, a full band, never a thin bridge

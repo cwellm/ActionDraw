@@ -473,6 +473,10 @@ fun ConceptDialogs(state: ConceptState) {
             var name by remember { mutableStateOf("") }
             var kind by remember { mutableStateOf("") }
             var error by remember { mutableStateOf<String?>(null) }
+            val create = {
+                error = state.createConcept(name, kind)
+                if (error == null) state.closeEditor()
+            }
             Scrim(onDismiss = state::closeEditor) {
                 Text("New concept", style = MaterialTheme.typography.h6)
                 OutlinedTextField(
@@ -480,18 +484,15 @@ fun ConceptDialogs(state: ConceptState) {
                     onValueChange = { name = it },
                     label = { Text("Name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth().focusOnShow().confirmOnEnter {
-                        error = state.createConcept(name, kind)
-                        if (error == null) state.closeEditor()
-                    }.testTag("concept-name"),
+                    modifier = Modifier.fillMaxWidth().focusOnShow().confirmOnEnter(create).testTag("concept-name"),
                 )
                 Text("Kind", style = MaterialTheme.typography.caption)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     ConceptKinds.SUGGESTED.forEach { k -> SelectChip(k, kind == k) { kind = if (kind == k) "" else k } }
                 }
-                OutlinedTextField(value = kind, onValueChange = { kind = it }, label = { Text("or anything") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = kind, onValueChange = { kind = it }, label = { Text("or anything") }, singleLine = true, modifier = Modifier.fillMaxWidth().confirmOnEnter(create))
                 error?.let { Text(it, color = MaterialTheme.colors.error, style = MaterialTheme.typography.caption) }
-                Buttons("Create", onOk = { error = state.createConcept(name, kind); if (error == null) state.closeEditor() }, onCancel = state::closeEditor)
+                Buttons("Create", onOk = create, onCancel = state::closeEditor)
             }
         }
 
@@ -499,12 +500,13 @@ fun ConceptDialogs(state: ConceptState) {
             var name by remember { mutableStateOf(state.concept?.name ?: "") }
             var kind by remember { mutableStateOf(state.concept?.kind ?: "") }
             var notes by remember { mutableStateOf(state.concept?.notes ?: "") }
+            val save = { state.rename(name); state.setKind(kind); state.setNotes(notes); state.closeEditor() }
             Scrim(onDismiss = state::closeEditor) {
                 Text("About this concept", style = MaterialTheme.typography.h6)
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusOnShow())
-                OutlinedTextField(value = kind, onValueChange = { kind = it }, label = { Text("Kind") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusOnShow().confirmOnEnter(save).testTag("concept-rename-name"))
+                OutlinedTextField(value = kind, onValueChange = { kind = it }, label = { Text("Kind") }, singleLine = true, modifier = Modifier.fillMaxWidth().confirmOnEnter(save))
                 OutlinedTextField(value = notes, onValueChange = { notes = it }, label = { Text("A few words") }, modifier = Modifier.fillMaxWidth().height(100.dp))
-                Buttons("Save", onOk = { state.rename(name); state.setKind(kind); state.setNotes(notes); state.closeEditor() }, onCancel = state::closeEditor)
+                Buttons("Save", onOk = save, onCancel = state::closeEditor)
             }
         }
 
@@ -523,11 +525,12 @@ fun ConceptDialogs(state: ConceptState) {
             val existing = editor.itemId?.let(state::item) as? LinkItem
             var url by remember(editor) { mutableStateOf(existing?.url ?: "") }
             var title by remember(editor) { mutableStateOf(existing?.title ?: "") }
+            val save = { state.saveLink(editor.itemId, url, title); state.closeEditor() }
             Scrim(onDismiss = state::closeEditor) {
                 Text(if (existing == null) "New link" else "Edit link", style = MaterialTheme.typography.h6)
-                OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Address") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusOnShow())
-                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Buttons("Save", onOk = { state.saveLink(editor.itemId, url, title); state.closeEditor() }, onCancel = state::closeEditor)
+                OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("Address") }, singleLine = true, modifier = Modifier.fillMaxWidth().focusOnShow().confirmOnEnter(save))
+                OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Title (optional)") }, singleLine = true, modifier = Modifier.fillMaxWidth().confirmOnEnter(save))
+                Buttons("Save", onOk = save, onCancel = state::closeEditor)
             }
         }
 

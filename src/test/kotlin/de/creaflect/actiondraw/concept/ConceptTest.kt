@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.board.BoardLayouts
@@ -365,5 +366,23 @@ class ConceptTest {
 
         assertNotNull(state.editor, "still open")
         rule.onNodeWithTag("concept-note-text").assertIsFocused()
+    }
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun enterInTheNameSavesTheRename() {
+        val state = newState()
+        state.createConcept("Drache")
+        state.openEditor(ConceptEditor.Rename)
+        rule.setContent { ConceptDialogs(state) }
+        rule.waitForIdle()
+
+        rule.onNodeWithTag("concept-rename-name").performTextInput("Feuer")
+        rule.onNodeWithTag("concept-rename-name").performKeyInput { pressKey(Key.Enter) }
+        rule.waitForIdle()
+
+        val name = state.concept!!.name
+        assertTrue(name.contains("Feuer") && name != "Drache", "Enter is the Save button: $name")
+        assertNull(state.editor, "and the dialog closed")
     }
 }

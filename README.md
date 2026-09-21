@@ -96,7 +96,9 @@ still have an ordinary folder of images; the board never renames, moves or delet
   unless you switch it on — and Hotkeys lists every shortcut for the session and the board.
   Inside a board, both show only what pertains to the board: *Board settings* (boards home,
   snapping) and the board's hotkeys.
-- Pressing **Enter** in a name field — a new group, a rename — confirms it.
+- Pressing **Enter** in a name field confirms it: a new group or board, a rename, a caption,
+  tags, a link's address or title, a concept's name or kind. Where a name is all there is to
+  type, Enter is the Save button.
 
 ### The header
 - One line: the board's **name** (click it to rename) · **Boards ▾** · **Concepts ▾** · **↑ Parent** when nested ·

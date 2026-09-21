@@ -920,3 +920,32 @@ concept group not pruned; borrowed pictures kept by `validate`; the board's star
 sync; a deleted concept unlinked everywhere; a drop adding to the concept; and, from the first
 step, vanished documents dropped, files kept on a keep-the-folder delete, an adopted folder's id
 written back, a moved folder followed by id.
+
+## 36. Where a press lands is where the thing is drawn (2026-09-21)
+
+"A note moves with a group, and the concept group moves with it, whichever of the two I drag."
+The board files said the memberships were clean — the note in no group, the concept's cards in
+the concept's — so nothing was being moved *as a member*. What moved was the camera: the press
+on the frame never reached the frame's gesture, the canvas underneath panned, and every card on
+the board slid along with the one the user meant to take.
+
+**The cause was a hit box left behind.** A card and a frame are each a `ContextMenuArea` around
+a `Box` that carries its size and a `graphicsLayer` translation to where it belongs. The layer
+moves the drawing and the inner box's hit-testing — but the menu area's own box is laid out at
+the canvas' origin with the card's or frame's size, and it never moved. Compose hit-tests
+siblings topmost first and stops at the first hit; a menu area's box at the origin *is* a hit
+for any press in that corner, so a press there reached that box (which answers nothing), never
+the frame or card actually drawn there — and, unconsumed, fell to the canvas' pan. The larger
+the frame laid out later, the more of the top-left of the screen it silently owned. The second
+half of the same bug: a card drawn in that corner could not be clicked at all once any later
+card existed.
+
+**The fix is one line moved:** size and transform go on a box *around* the menu area, so every
+hit box sits where its drawing is. `CanvasHitTest` pins both halves — a frame drawn under a
+later frame's old hit box is still the one that drags, and a card drawn there still answers a
+click — and both tests were red before the change.
+
+**Enter, everywhere a name is all there is.** The same round asked for Enter to mean Save in
+every dialog that only takes a name. It already did for group names and the single-line
+prompts; now a new board, a link's two fields, and a concept's name, kind and rename confirm on
+Enter too, each through the one shared `confirmOnEnter`.
