@@ -8,6 +8,8 @@ A small desktop tool for **action drawing**, in three parts:
   and tags, then draw from any selection.
 - **Concepts** — a thing that lives once (a character, a creature, a landscape) in a folder of
   its own, with pictures, notes, links and Markdown documents, linked onto any number of boards.
+- **Live Sketch** (in progress) — a page to sketch on with a pen. Today: the pressure probe, which
+  shows what the pen reports and draws with it through the engine.
 
 Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows and Linux
 (e.g. ArchLinux).
@@ -279,6 +281,23 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
   board's card's place — here and on every other board that links the concept.
 - Practice memory of a borrowed card (drawn, never drawn, redo) is kept per board, like
   everything else a board remembers about its cards.
+
+## Live Sketch — the pen probe (in progress)
+
+The drawing engine lives in its own module, `sketch-engine`, with no Compose in it: samples in,
+pixels out ([docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)). What is
+on the menu today is the **pressure probe**: pen pressure never reaches Compose, so on Windows
+the app hooks its own window through Windows Ink and reads pressure, tilt and rotation straight
+from the pen, alongside the mouse events everything else keeps using.
+
+- **Live Sketch** on the start menu. The header shows the last sample — pressure, tilt,
+  rotation, contact, pointer kind, buttons, position — and the sample rate; the page below draws
+  with the pressure that arrives, as a hard, medium or soft lead (**H · HB · 4B**), thinner or
+  thicker. A mouse draws at full pressure.
+- **Record samples** appends every reading to `~/.actiondraw/pen-samples.csv`, for working out
+  the pen's real pressure curve and rate. **Clear** wipes the page; `Esc` or **Back** leaves.
+- Nothing is saved yet: this is the probe, and the numbers it yields go into
+  [LEARNINGS.md](LEARNINGS.md).
 
 ## Keyboard shortcuts
 

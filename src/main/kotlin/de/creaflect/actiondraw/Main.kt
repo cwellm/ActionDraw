@@ -26,6 +26,7 @@ import de.creaflect.actiondraw.ui.SummaryScreen
 import java.io.File
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
+import de.creaflect.actiondraw.sketch.SketchState
 
 fun main() = application {
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
@@ -73,6 +74,7 @@ fun main() = application {
         PinTargets(boards = { boardState.availableBoards() }, pin = boardState::pinTo)
     }
     val thumbs = remember { ThumbCache() }
+    val sketchState = remember { SketchState() }
     val isFullscreen = windowState.placement == WindowPlacement.Fullscreen
 
     // A session started from a board changes its seen/redo state; refresh the badges when the
@@ -87,10 +89,16 @@ fun main() = application {
         state = windowState,
         onKeyEvent = { handleKey(it, appState, boardState, conceptState, windowState) },
     ) {
+        // The pen probe hooks the native window for pressure and tilt while its screen is up, and
+        // lets go when it is left — nothing else in the app sees the pen as more than a mouse.
+        LaunchedEffect(appState.screen) {
+            if (appState.screen == Screen.Sketch) sketchState.attach(window) else sketchState.detach()
+        }
         App(
             appState,
             boardState,
             conceptState,
+            sketchState,
             thumbs,
             pinTargets,
             isFullscreen = isFullscreen,
@@ -174,6 +182,10 @@ private fun handleKey(
     }
     if (state.screen == Screen.Concepts && event.key == Key.Escape) {
         conceptState.leaveList()
+        return true
+    }
+    if (state.screen == Screen.Sketch && event.key == Key.Escape) {
+        state.leaveSketch()
         return true
     }
     // A board dialog may be open on any screen (the board picker lives on the menu): Esc closes

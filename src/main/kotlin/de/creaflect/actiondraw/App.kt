@@ -22,8 +22,11 @@ import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptMenuButton
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
+import de.creaflect.actiondraw.sketch.SketchState
+import de.creaflect.actiondraw.sketch.ui.SketchMenuButton
+import de.creaflect.actiondraw.sketch.ui.SketchScreen
 
-enum class Screen { Menu, Picker, Session, Summary, Board, BoardList, Concepts, Concept }
+enum class Screen { Menu, Picker, Session, Summary, Board, BoardList, Concepts, Concept, Sketch }
 
 /** Calm, warm dark palette — easy on the eyes for long drawing sessions. */
 internal val ActionDrawColors = darkColors(
@@ -43,6 +46,7 @@ fun App(
     state: AppState,
     boardState: BoardState,
     conceptState: ConceptState,
+    sketchState: SketchState,
     thumbs: ThumbCache,
     pinTargets: PinTargets,
     isFullscreen: Boolean,
@@ -58,6 +62,7 @@ fun App(
                         boardButton = {
                             BoardMenuButton(boardState)
                             ConceptMenuButton(conceptState)
+                            SketchMenuButton(onOpen = state::showSketch)
                         },
                         extras = { MenuExtras(state, boardState) },
                     )
@@ -68,6 +73,7 @@ fun App(
                     Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen)
                     Screen.Concepts -> ConceptListScreen(conceptState, thumbs)
                     Screen.Concept -> ConceptScreen(conceptState, thumbs)
+                    Screen.Sketch -> SketchScreen(sketchState, onBack = state::leaveSketch)
                 }
                 // Board and concept dialogs float above every screen (the pickers open from the menu).
                 BoardDialogs(boardState)

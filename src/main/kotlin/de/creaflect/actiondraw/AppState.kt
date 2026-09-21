@@ -476,6 +476,16 @@ class AppState(private val settings: Settings = Settings()) {
         screen = Screen.Menu
     }
 
+    // ---- Live Sketch ----
+
+    fun showSketch() {
+        screen = Screen.Sketch
+    }
+
+    fun leaveSketch() {
+        screen = Screen.Menu
+    }
+
     /** Undo what [startBoardSession] borrowed, so the menu shows the practice folder again. */
     private fun restorePractice() {
         practiceSnapshot?.let { (dir, images, sel) ->

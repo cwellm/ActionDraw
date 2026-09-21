@@ -10,7 +10,9 @@ Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (explor
 [IDEAS.md](IDEAS.md) (practice-side scratchpad). The next phase has its own:
 [docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md) (M5) ·
 [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md) (M6, with findings in
-[LEARNINGS.md](LEARNINGS.md)) · [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7).
+[LEARNINGS.md](LEARNINGS.md) and the engine's shape in
+[docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)) ·
+[docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7).
 
 ---
 
@@ -470,18 +472,29 @@ of ideas and inspiration; what daily use asked for.
 
 ---
 
-## ⬜ M6 — Live Sketch
+## 🔄 M6 — Live Sketch
 
-Exploration and spec: [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md);
+Exploration and spec: [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md); the
+engine's shape: [docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md);
 findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colour, an XPPen.
 
-### ⬜ F7.1 Pressure probe
-- ⬜ Compose Desktop delivers no pen pressure (LEARNINGS L1); probe `WM_POINTER` via JNA on the
-  XPPen, then WinTab if needed. Written up whatever the answer.
+### 🔄 F7.1 Pressure probe
+- ✅ Compose Desktop delivers no pen pressure (LEARNINGS L1); the Durchstich hooks the window
+  natively: `WindowsPointerSource` subclasses the Compose window's procedure through JNA and
+  reads `GetPointerPenInfo` on every `WM_POINTER*` — pressure, tilt, rotation, contact, buttons
+  — while calling the original procedure, so the pen stays a mouse for everything else
+- ✅ **Live Sketch** on the menu opens the probe: live readouts of the last sample and the rate,
+  the three leads, a page that draws through the engine with the pressure that arrives (a mouse
+  at pressure 1), and a recorder to `~/.actiondraw/pen-samples.csv` (2026-09-21)
+- ⬜ The XPPen's numbers into LEARNINGS L5: does `WM_POINTER` arrive under Compose's render
+  loop, the rate, coordinates at 125 %, the raw pressure curve; WinTab only if not
 
-### ⬜ F7.2 The engine, as a library
-- ⬜ `:sketch-engine` module, Kotlin/JVM over Skia, no Compose dependency, testable headless
-- ⬜ Input filter (One-Euro, resampling, velocity) · brush model · rasteriser · sketch document
+### 🔄 F7.2 The engine, as a library
+- ✅ `:sketch-engine` module, Kotlin/JVM over skiko 0.8.18 (the one Compose ships), no Compose
+  dependency, tested headless (`EngineTest`: filter, leads, speed, live vs. whole stroke, pixels)
+- ✅ `InputSample` · One-Euro filter · speed from timestamps · `Lead`/`PencilModel`/`Pencils`
+  (L2's numbers) · `Brush` · `StrokeBuilder` · path-based `Rasterizer` · `SketchSurface`
+- ⬜ Resampling to even spacing with Catmull-Rom · the stamp rasteriser · the sketch document
 
 ### ⬜ F7.3 The pencil study
 - ⬜ Hard / medium / soft as parameter sets over one `(pressure, speed) → (width, alpha)` model;

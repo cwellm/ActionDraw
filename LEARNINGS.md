@@ -66,6 +66,32 @@ is the standard answer for pen jitter that does not lag a fast hand. Two paramet
 hand. Resample the filtered path to even spacing with Catmull-Rom between samples before
 stamping, so dab density does not depend on how fast the pen moved.
 
+## L5. The probe is built; the pen decides (2026-09-21, built, not yet measured)
+
+The Durchstich is in: `:sketch-engine` as a library with the path-based pencil, and in the app a
+`WindowsPointerSource` that subclasses the Compose window's procedure through JNA and reads
+`GetPointerPenInfo` on every `WM_POINTER*` message — pressure out of 1024, tilt and rotation in
+degrees, contact and button flags — and then calls the original procedure, so Windows still
+promotes the pen to mouse messages and nothing else in the app changes. **Live Sketch** on the
+menu shows the numbers live, draws through the engine, and records every sample to
+`~/.actiondraw/pen-samples.csv`.
+
+**What the pen has to answer, in this order:**
+
+1. Does the readout move at all with the XPPen on the page? If the pointer kind reads `pen`
+   and pressure varies, `WM_POINTER` arrives through the AWT window under Compose's render loop
+   and Windows Ink is the route. If the samples never come (or come as `mouse`), the XPPen
+   driver is not in Windows Ink mode or the messages are consumed before the window procedure —
+   then WinTab.
+2. The rate the readout shows while the pen moves (the driver's spec is 200+ Hz).
+3. Whether the stroke lands under the pen tip at 125 % scaling — the one HiDPI conversion is
+   `ScreenToClient`, on the assumption that Compose's desktop pixel space is physical.
+4. The pressure curve from the CSV: how much of 0..1 a light touch and a firm press actually
+   use, which sets the leads' `gamma` and floors for the pencil study.
+
+**Decides, once measured:** the input route (Windows Ink or WinTab), and the pressure range the
+pencil models are tuned against.
+
 ---
 
 *Entries that follow will come from the probe and the pencil study: the actual sample rate,
