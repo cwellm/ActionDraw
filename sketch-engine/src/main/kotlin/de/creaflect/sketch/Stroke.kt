@@ -24,9 +24,17 @@ class Stroke(val brush: Brush, val points: List<StrokePoint>) {
  * (pressure edges are expression, not noise), speed comes from the timestamps and is smoothed
  * over a short window, and the brush's lead turns pressure and speed into width and alpha.
  */
-class StrokeBuilder(val brush: Brush, smoothing: Boolean = true) {
-    private val filterX = if (smoothing) OneEuroFilter() else null
-    private val filterY = if (smoothing) OneEuroFilter() else null
+class StrokeBuilder(
+    val brush: Brush,
+    smoothing: Boolean = true,
+    /** The lead's model, or another — the eraser uses the rubber's, whatever brush it is held as. */
+    private val model: PencilModel = brush.model,
+) {
+    // The paper's beta (0.007) is tuned for a cursor; a pen at 800 px/s lagged twenty pixels
+    // behind it. Opening the filter faster with speed keeps a still hand still and a moving
+    // hand within a few pixels of the tip (LEARNINGS L4, to be tuned with the pen in hand).
+    private val filterX = if (smoothing) OneEuroFilter(minCutoff = 1f, beta = POSITION_BETA) else null
+    private val filterY = if (smoothing) OneEuroFilter(minCutoff = 1f, beta = POSITION_BETA) else null
     private val filterPressure = if (smoothing) OneEuroFilter(minCutoff = 4f, beta = 0.02f) else null
     private val points = mutableListOf<StrokePoint>()
     private var smoothedSpeed = 0f
@@ -43,7 +51,6 @@ class StrokeBuilder(val brush: Brush, smoothing: Boolean = true) {
             val speed = if (dt > 0f) hypot(x - last.x, y - last.y) / dt else smoothedSpeed
             smoothedSpeed = SPEED_MEMORY * smoothedSpeed + (1f - SPEED_MEMORY) * speed
         }
-        val model = brush.model
         val point = StrokePoint(
             x = x,
             y = y,
@@ -59,8 +66,11 @@ class StrokeBuilder(val brush: Brush, smoothing: Boolean = true) {
 
     fun build(): Stroke = Stroke(brush, points.toList())
 
-    private companion object {
+    companion object {
         /** How much of the previous speed survives into the next point's: a short window. */
         const val SPEED_MEMORY = 0.7f
+
+        /** How fast the position filter opens with speed; see the note above. */
+        const val POSITION_BETA = 0.05f
     }
 }

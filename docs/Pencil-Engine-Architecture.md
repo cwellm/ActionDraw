@@ -1,22 +1,24 @@
 # The pencil engine — architecture
 
-*2026-09-21. The drawing engine for Live Sketch ([LiveSketch-Exploration.md](LiveSketch-Exploration.md),
-**M6**), as built in its first cut: a library of its own, and the Durchstich that puts an XPPen's
-pressure on a page. Findings go to [LEARNINGS.md](../LEARNINGS.md); this is the shape.*
+*2026-09-21, completed 2026-09-22. The drawing engine for Live Sketch
+([LiveSketch-Exploration.md](LiveSketch-Exploration.md), **M6**): a library of its own, the
+Durchstich that puts an XPPen's pressure on a page, and the screen and the saving built on both.
+Findings go to [LEARNINGS.md](../LEARNINGS.md); this is the shape.*
 
 ## 1. Two modules, one seam
 
 ```
 :sketch-engine  (Kotlin/JVM over skiko, no Compose, no window)
-    InputSample ─► StrokeBuilder ─► StrokePoint ─► Rasterizer ─► SketchSurface (Skia)
-                    OneEuroFilter     PencilModel
+    InputSample ─► StrokeBuilder ─► StrokePoint ─► Resampler ─► StampRenderer ─► SketchSurface
+                    OneEuroFilter     PencilModel      even dabs     paper grain      256-px tiles
                     speed             Brush(Lead, colour, size)
+    SketchSession: the strokes, undo/redo, cancel · SketchDocument (.sketch.json) · PNG export
 
 :app  (ActionDraw)
-    PenSource ──► PenSample ──► SketchState ──► InputSample ──► engine
+    PenSource ──► PenSample ──► SketchState ──► InputSample ──► SketchSession
     (Windows Ink via JNA)        (EDT)                            │
     mouse (Compose)  ────────────┘                               ▼
-                                                    SketchScreen shows SketchSurface.snapshot()
+                                         SketchScreen draws the visible tiles onto Skia
 ```
 
 The engine knows nothing about pens, windows, threads or Compose. It takes an `InputSample` —
@@ -39,14 +41,30 @@ for the building machine.
 | `Brush` | a lead, a colour (ARGB), a size in page pixels | — |
 | `StrokeBuilder` | samples in, `StrokePoint`s out one at a time: filtered position, lighter-filtered pressure, speed from timestamps smoothed over a short window, then the lead's width and alpha | `smoothing` on/off |
 | `Stroke` | a finished stroke: its brush and points | — |
-| `Rasterizer` | puts points on a `Canvas`: today round-capped segments at the mean width and alpha of each pair (the path-based pencil of exploration step 2); the stamp rasteriser with grain and paper tooth replaces it in the pencil study, same interface | — |
-| `SketchSurface` | the page: a raster surface, `draw(stroke)` / `drawSegment(brush, a, b)` live, `snapshot()` for the UI, `pixel()` / `darkness()` for tests | size, background |
+| `Resampler` | points in one at a time, dabs out at even spacing along a Catmull-Rom spline through the neighbours; a segment is placed the moment it exists (the last point doubled as the trailing control), so a stroke drawn live and the same stroke replayed produce the same dabs | `spacing(point)` |
+| `PaperGrain` | a tileable value-noise texture in page space, the paper's tooth; deterministic for a seed | `size`, `seed`, `floor` |
+| `StampRenderer` | one dab: a disc of the point's width, its edge softened per lead, filled by the grain screened with the pressure (`g′ = 1 − (1 − g)(1 − p)`) and modulated by the colour at a per-dab alpha calibrated so three overlapping dabs reach the point's darkness; the eraser is the same dab with `DST_OUT` and the rubber's model | `DABS_PER_POINT` |
+| `Rasterizer` | the path-based pencil of the exploration's step 2 — kept as the lightest hard pencil and as the reference | — |
+| `SketchSurface` | the page: a *transparent* strokes layer over a paper colour (so the eraser can take graphite away), kept as 256-px tiles; `paint(bounds) { canvas }` draws into every tile under a rectangle with the canvas in page coordinates; `tileImage(i)` is the same picture until that tile is drawn on; `snapshot()`/`restore()` for undo; `compose()` flattened for export; `darkness()` for tests | size, paper, tile size |
+| `SketchDocument` | `.sketch.json`: page size, dpi, paper, and every stroke as brush plus raw samples with pressure and time; `PageSize` for A5/A4/A3 at a dpi or pixels | — |
+| `SketchSession` | a sketch being made: begin/add/end a stroke (dabs on the page at once), `cancel()` (take a stroke back), undo and redo (a snapshot every 12 strokes, the last 3 kept, plus a replay of what came after), `fromDocument`, `document()`, `exportPng()`, `dirty` | `SNAPSHOT_EVERY`, `KEEP_SNAPSHOTS` |
 
-A stroke is drawn **live, segment by segment**, as samples arrive — the builder hands back each
-new point and the surface draws the segment from the previous one — and a test pins that this
-gives the same pixels as drawing the finished stroke in one go. Undo, the sketch document and
-snapshots (exploration §6) come with the pencil study; nothing here forecloses them, since a
-`Stroke` is already the replayable unit.
+Every stroke goes through the same pipeline whether drawn live or replayed — samples into the
+builder, points into the resampler, dabs onto the page — which is what makes a document loaded
+from disk render pixel for pixel as it was drawn, and undo a matter of restoring a snapshot and
+replaying the strokes after it. The tests pin exactly that: live equals whole, undo restores
+exactly across a snapshot boundary and into the ragged edge tiles, JSON round-trips to the same
+fingerprint. One consequence to know: the document keeps samples, not pixels, so a sketch
+replayed under a changed lead model (the Tune panel) renders with the changed model.
+
+**Why tiles.** The first screen handed the whole page to Compose as an `ImageBitmap` on every
+pen sample — a full pixel copy each time, plus a copy-on-write of the surface because that
+snapshot was still held: at A4 300 dpi that is 35 MB, several times per frame. With tiles the
+screen draws each visible tile's picture straight onto Skia's canvas; a tile nobody drew on is
+the same `Image` as last frame, so the GPU keeps its texture and a stroke re-uploads only the
+few tiles it crosses. A tile's picture is released *before* the tile is drawn on, so the draw
+does not copy it either. An undo snapshot holds a picture per tile, sharing pixels with every
+tile the strokes after it leave alone — a snapshot costs only what changed.
 
 ## 3. Input: the pen (`de.creaflect.actiondraw.sketch.input`)
 
@@ -73,30 +91,48 @@ Compose Desktop delivers no pen pressure (LEARNINGS L1), so the app hooks the na
 WinTab is the fallback if `WM_POINTER` does not arrive through the AWT window; Linux (XInput2)
 and macOS have no source yet and get the mouse at pressure 1.
 
-## 4. The probe screen (`SketchScreen`)
+## 4. The screen (`de.creaflect.actiondraw.sketch`)
 
-Live Sketch's first screen is the pressure probe, the Durchstich: **Live Sketch** on the menu,
-a header with the three leads and the size, readouts of the last sample (pressure, tilt,
-rotation, contact, pointer kind, buttons, position, samples per second, count), a **Record
-samples** switch that appends every sample to `~/.actiondraw/pen-samples.csv`, and a page that
-fills the rest and draws through the engine with whatever pressure arrives. A mouse draws at
-pressure 1; while a pen is in contact the promoted mouse events are ignored, or every stroke
-would be drawn twice. The pen hook is attached when the screen is entered and released when
-it is left; `Esc` and *Back* leave.
+`SketchState` holds a `SketchSession`, the brush, the view over the page (zoom and pan, the
+page's top-left in view pixels), the pen source with its readouts, and saving. `SketchScreen`
+is a thin toolbar over a page: title and page size, leads, eraser, size, colour (a picker with a
+saturation/value square, hue strip, hex and recents), undo/redo, zoom (click to fit), the **Pen**
+panel (the probe's readouts and the sample recorder), the **Tune** panel (every tunable of the
+current lead, live, through `Pencils.set`), the **Sketch ▾** menu (new, open, save as, to board,
+to concept), Save, Back. `SketchDialogs` are mounted at app level like every other dialog.
 
-What the probe answers, into LEARNINGS L5: whether `WM_POINTER` reaches the window at all under
-Compose's render loop; the sample rate the XPPen delivers; whether coordinates line up with
-the page at 125 % scaling; latency by eye; and what the raw pressure curve looks like, from the
-CSV.
+Input: a pen sample arrives in window pixels, is offset by the view's origin, and mapped
+through the view (`toPage`) into page pixels for the engine; the mouse the same, at pressure 1.
+Windows also turns the pen into mouse events, so mouse input is ignored while a pen is on the
+page *or near it* — the pen sends samples while it hovers, and a mouse event within 300 ms of
+one is the pen seen twice; should a promoted mouse press still begin a stroke before the pen's
+contact arrives, the session cancels it and the pen's own stroke, with its pressure, is drawn.
+The page reads pointer events itself: a press is already a mark (Compose's drag helpers wait
+for a threshold, so a tap left nothing) and they only take the primary button (so the middle
+button could not pan). `handleSketchShortcut` is the keys by key; `handleSketchChar` the keys
+by the character they type — `[` `]` `+` `−` — because on a German keyboard `[` is AltGr+8,
+which also reads as Ctrl; Space is read before the key-down gate so its release is seen.
 
-## 5. What comes next, in this order
+Saving writes `<name>.png` (the flattened page) beside `<name>.sketch.json` (the document); the
+sketch is that file from then on, and Ctrl+S keeps to it. **To board** and **to concept** write
+into the board's or the concept's own folder first and then hand the picture over through
+`SketchHost` — the app's seam, implemented in `Main.kt` on top of `BoardState.pinTo` and
+`ConceptState.addToConcept` — so the picture is referenced in place and the document sits
+beside it. That convention is the whole of the way back: `BoardState.sketchOf(item)` and
+`ConceptState.sketchOf(item)` look for `name.sketch.json` beside a card's picture, and their
+hosts' `openSketch(file)` opens it in Live Sketch. `AppState.sketchOrigin` remembers where Live
+Sketch was opened from — the menu, a board, a concept, a session paused by its **Sketch**
+button — and Back returns there. The sketch outlives the screen; closing the app with unsaved
+strokes asks first.
 
-1. **The probe's numbers** (LEARNINGS L5) — the pen in hand decides whether Windows Ink is the
-   route or WinTab is needed.
-2. **The pencil study** — the stamp rasteriser (grain, paper tooth, the three leads as they
-   really look), a debug panel with every tunable live, resampling to even spacing with
-   Catmull-Rom between samples. The interface above does not change.
-3. **The sketch document** — `.sketch.json`, undo by replay from snapshots, sizes (A4/A5/A3,
-   150/300 dpi, or W×H), a tiled or bounded view for large pages.
-4. **The screen** — toolbar, colour picker, keys, zoom, save; then **into the loop**: to a
-   board, to a concept, from a session with the reference in the float strip.
+## 5. What comes next
+
+1. **The pen in hand** (LEARNINGS L5): the numbers — rate, pressure curve, coordinates at 125 % —
+   and the leads tuned against them with the Tune panel; the numbers that survive written down,
+   and WinTab only if Windows Ink does not deliver.
+2. **Saving large pages off the event thread**: an A3 at 300 dpi takes a noticeable moment to
+   encode as PNG; the tiles' pictures could be taken on the event thread and encoded beside it.
+3. **Tilt**: read and kept in every sample, unused; a chisel edge on the side of a soft lead is
+   the obvious first use.
+4. **A sketch as its own kind of card** — today a sketched picture is a picture that happens to
+   have its strokes beside it; a mark on the card saying so is the obvious next touch.

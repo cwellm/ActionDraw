@@ -27,6 +27,12 @@ import java.io.File
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.sketch.SketchState
+import androidx.compose.ui.input.key.isCtrlPressed
+import de.creaflect.actiondraw.sketch.SketchHost
+import de.creaflect.actiondraw.sketch.handleSketchShortcut
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.input.key.utf16CodePoint
+import de.creaflect.actiondraw.sketch.handleSketchChar
 
 fun main() = application {
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
@@ -36,6 +42,10 @@ fun main() = application {
     // Boards and concepts need each other — a concept is linked onto boards, a board reads its
     // concepts — but each only through its host, and the holder lets them be built in turn.
     val boardHolder = remember { BoardStateHolder() }
+    // Boards and concepts open a saved sketch again; Live Sketch is built after them.
+    val sketchHolder = remember { SketchStateHolder() }
+    // The main window, so a sketch started from a session's own window can come to the front.
+    val mainWindow = remember { mutableStateOf<java.awt.Window?>(null) }
     val conceptState = remember {
         ConceptState(settings, object : ConceptHost {
             override fun showConcepts() = appState.showConcepts()
@@ -46,6 +56,10 @@ fun main() = application {
                 boardHolder.state.setLinked(conceptId, board, linked)
             }
             override fun unlinkEverywhere(conceptId: String) = boardHolder.state.unlinkEverywhere(conceptId)
+            override fun openSketch(file: File) {
+                sketchHolder.state.open(file)
+                appState.showSketch(from = Screen.Concept)
+            }
         })
     }
     // The board talks to the rest of the app only through this host (its "plugin" boundary).
@@ -64,6 +78,10 @@ fun main() = application {
                     conceptState.openById(id)
                 }
                 override fun showConcepts() = conceptState.openList()
+                override fun openSketch(file: File) {
+                    sketchHolder.state.open(file)
+                    appState.showSketch(from = Screen.Board)
+                }
             },
             concepts = conceptState,
         ).also { boardHolder.state = it }
@@ -74,7 +92,20 @@ fun main() = application {
         PinTargets(boards = { boardState.availableBoards() }, pin = boardState::pinTo)
     }
     val thumbs = remember { ThumbCache() }
-    val sketchState = remember { SketchState() }
+    // Live Sketch saves into boards and concepts through this seam, and never reaches past it.
+    val sketchState = remember {
+        SketchState(
+            settings,
+            object : SketchHost {
+                override fun boards() = boardState.availableBoards()
+                override fun addToBoard(dir: File, pictures: List<File>) = boardState.pinTo(dir, pictures)
+                override fun concepts() = conceptState.available()
+                override fun conceptDir(id: String) = conceptState.entryById(id)?.dir
+                override fun addToConcept(id: String, pictures: List<File>) = conceptState.addToConcept(id, pictures, emptyList()) != null
+                override fun leaveSketch() = appState.leaveSketch()
+            },
+        ).also { sketchHolder.state = it }
+    }
     val isFullscreen = windowState.placement == WindowPlacement.Fullscreen
 
     // A session started from a board changes its seen/redo state; refresh the badges when the
@@ -84,16 +115,18 @@ fun main() = application {
     }
 
     Window(
-        onCloseRequest = ::exitApplication,
+        // Closing with unsaved strokes asks first; everything else is saved as it happens.
+        onCloseRequest = { sketchState.guardUnsaved { exitApplication() } },
         title = "ActionDraw",
         state = windowState,
-        onKeyEvent = { handleKey(it, appState, boardState, conceptState, windowState) },
+        onKeyEvent = { handleKey(it, appState, boardState, conceptState, sketchState, windowState) },
     ) {
         // The pen probe hooks the native window for pressure and tilt while its screen is up, and
         // lets go when it is left — nothing else in the app sees the pen as more than a mouse.
         LaunchedEffect(appState.screen) {
-            if (appState.screen == Screen.Sketch) sketchState.attach(window) else sketchState.detach()
+            if (appState.screen == Screen.Sketch) sketchState.onEnter(window) else sketchState.detach()
         }
+        LaunchedEffect(Unit) { mainWindow.value = window }
         App(
             appState,
             boardState,
@@ -145,6 +178,11 @@ fun main() = application {
                             onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
                             isFullscreen = sessionWindowState.placement == WindowPlacement.Fullscreen,
                             pinTargets = pinTargets,
+                            onSketch = { picture ->
+                                sketchState.openFromSession(picture)
+                                appState.sketchFromSession()
+                                mainWindow.value?.toFront()
+                            },
                         )
                     }
                 }
@@ -165,8 +203,28 @@ private fun handleKey(
     state: AppState,
     boardState: BoardState,
     conceptState: ConceptState,
+    sketchState: SketchState,
     windowState: WindowState,
 ): Boolean {
+    // A Live Sketch dialog can be open over any screen (the unsaved-strokes question on closing):
+    // it owns the keyboard, and Esc puts it away.
+    if (sketchState.editor != null && state.screen != Screen.Sketch) {
+        if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) sketchState.closeEditor()
+        return event.key == Key.Escape
+    }
+    if (state.screen == Screen.Sketch) {
+        // Space held pans: the one key whose release matters, so it is read before the rest.
+        if (event.key == Key.Spacebar && sketchState.editor == null) {
+            sketchState.spaceHeld = event.type == KeyEventType.KeyDown
+            return true
+        }
+        // [ ] + − by the character they type, whatever the layout (see handleSketchChar).
+        if (event.type == KeyEventType.Unknown) {
+            return handleSketchChar(event.utf16CodePoint.toChar(), sketchState)
+        }
+        if (event.type != KeyEventType.KeyDown) return false
+        return handleSketchShortcut(event.key, event.isCtrlPressed, sketchState)
+    }
     if (event.type != KeyEventType.KeyDown) return false
     // A concept dialog owns the keyboard; Esc closes it, and on the concept screens Esc goes up.
     if (conceptState.editor != null) {
@@ -182,10 +240,6 @@ private fun handleKey(
     }
     if (state.screen == Screen.Concepts && event.key == Key.Escape) {
         conceptState.leaveList()
-        return true
-    }
-    if (state.screen == Screen.Sketch && event.key == Key.Escape) {
-        state.leaveSketch()
         return true
     }
     // A board dialog may be open on any screen (the board picker lives on the menu): Esc closes
@@ -298,4 +352,9 @@ internal fun handleSessionShortcut(
 /** Lets the concept host reach the board state that is built after it. */
 private class BoardStateHolder {
     lateinit var state: BoardState
+}
+
+/** Lets the board's and the concept's hosts reach Live Sketch, which is built after them. */
+private class SketchStateHolder {
+    lateinit var state: SketchState
 }

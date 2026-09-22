@@ -132,6 +132,8 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
             menu += ContextMenuItem("Tags…") { state.openEditor(BoardEditor.EditTags(ids)) }
             menu += ContextMenuItem(if (item.starred) "Unstar" else "Star") { state.toggleStar(ids) }
             menu += ContextMenuItem("Use as wallpaper") { state.fileOf(item)?.let { state.setWallpaper(it) } }
+            // A picture Live Sketch saved can be taken up again where it was left.
+            if (state.sketchOf(item) != null) menu += ContextMenuItem("Continue in Live Sketch") { state.openSketch(item) }
         }
 
         is NoteItem -> {

@@ -64,6 +64,8 @@ fun SessionScreen(
     onToggleFullscreen: () -> Unit,
     isFullscreen: Boolean,
     pinTargets: PinTargets? = null,
+    /** Opens Live Sketch with the picture on screen as the reference; null hides the button. */
+    onSketch: ((File) -> Unit)? = null,
 ) {
     // Per-second countdown. Restarts on navigation (index/pose) and suspends while paused.
     LaunchedEffect(state.index, state.rampPose, state.isPaused) {
@@ -107,7 +109,7 @@ fun SessionScreen(
     } else {
         Column(Modifier.fillMaxSize()) {
             ImageArea(state, bitmap, current, Modifier.weight(1f).fillMaxWidth())
-            ControlBar(state, onToggleFullscreen, pinTargets)
+            ControlBar(state, onToggleFullscreen, pinTargets, onSketch)
         }
     }
 }
@@ -229,7 +231,7 @@ private fun ProportionOverlay(bitmap: ImageBitmap, mode: GridMode, modifier: Mod
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTargets: PinTargets?) {
+private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTargets: PinTargets?, onSketch: ((File) -> Unit)? = null) {
     Surface(elevation = 8.dp) {
         Column(Modifier.fillMaxWidth().padding(12.dp)) {
             val low = state.remainingSeconds <= 5
@@ -283,6 +285,11 @@ private fun ControlBar(state: AppState, onToggleFullscreen: () -> Unit, pinTarge
                 Spacer(Modifier.width(16.dp))
                 Button(onClick = onToggleFullscreen) { Text("Fullscreen") }
                 pinTargets?.let { PinMenu(state, it) }
+                // The paper beside the monitor, digitised: sketch with the reference kept in view.
+                onSketch?.let { open ->
+                    val current = state.currentImage
+                    Button(onClick = { current?.let(open) }, enabled = current != null, modifier = Modifier.testTag("session-sketch")) { Text("Sketch") }
+                }
             }
 
             // What the last pin did, until the next one.

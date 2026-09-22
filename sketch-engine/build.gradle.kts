@@ -3,6 +3,7 @@
 // its own later, and replaced without touching the app. See docs/Pencil-Engine-Architecture.md.
 plugins {
     kotlin("jvm")
+    kotlin("plugin.serialization")
 }
 
 group = "de.creaflect.sketch"
@@ -12,6 +13,8 @@ val skikoVersion = "0.8.18" // the one Compose 1.7.3 ships; one Skia in the app,
 
 dependencies {
     api("org.jetbrains.skiko:skiko-awt:$skikoVersion")
+    // The sketch document (.sketch.json): the strokes with their samples, replayable.
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation(kotlin("test"))
     // Headless tests draw into a real Skia surface, which needs the native runtime for this OS.
     testRuntimeOnly("org.jetbrains.skiko:skiko-awt-runtime-${skikoTarget()}:$skikoVersion")

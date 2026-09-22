@@ -25,6 +25,7 @@ import de.creaflect.actiondraw.concept.ui.ConceptScreen
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.sketch.ui.SketchMenuButton
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
+import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 
 enum class Screen { Menu, Picker, Session, Summary, Board, BoardList, Concepts, Concept, Sketch }
 
@@ -62,22 +63,32 @@ fun App(
                         boardButton = {
                             BoardMenuButton(boardState)
                             ConceptMenuButton(conceptState)
-                            SketchMenuButton(onOpen = state::showSketch)
+                            SketchMenuButton(onOpen = { state.showSketch() })
                         },
                         extras = { MenuExtras(state, boardState) },
                     )
                     Screen.Picker -> PickerScreen(state, thumbs)
-                    Screen.Session -> SessionScreen(state, onToggleFullscreen, isFullscreen, pinTargets)
+                    Screen.Session -> SessionScreen(
+                        state,
+                        onToggleFullscreen,
+                        isFullscreen,
+                        pinTargets,
+                        onSketch = { picture ->
+                            sketchState.openFromSession(picture)
+                            state.sketchFromSession()
+                        },
+                    )
                     Screen.Summary -> SummaryScreen(state, pinTargets)
                     Screen.BoardList -> BoardListScreen(boardState, thumbs)
                     Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen)
                     Screen.Concepts -> ConceptListScreen(conceptState, thumbs)
                     Screen.Concept -> ConceptScreen(conceptState, thumbs)
-                    Screen.Sketch -> SketchScreen(sketchState, onBack = state::leaveSketch)
+                    Screen.Sketch -> SketchScreen(sketchState, thumbs)
                 }
                 // Board and concept dialogs float above every screen (the pickers open from the menu).
                 BoardDialogs(boardState)
                 ConceptDialogs(conceptState)
+                SketchDialogs(sketchState)
             }
         }
     }

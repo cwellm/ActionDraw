@@ -402,6 +402,12 @@ internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageIte
         if (selected) {
             Text("Remove", style = MaterialTheme.typography.caption, color = Color.White,
                 modifier = Modifier.align(Alignment.BottomEnd).background(Color(0xAA000000)).clickable { state.removeItems(setOf(item.id)) }.padding(4.dp))
+            // A picture Live Sketch saved can be taken up again where it was left.
+            val sketch = remember(item.id) { state.sketchOf(item) }
+            if (sketch != null) {
+                Text("Continue sketch", style = MaterialTheme.typography.caption, color = Color.White,
+                    modifier = Modifier.align(Alignment.BottomStart).background(Color(0xAA000000)).clickable { state.openSketch(item) }.padding(4.dp).testTag("continue-sketch-" + item.id))
+            }
         }
     }
 }

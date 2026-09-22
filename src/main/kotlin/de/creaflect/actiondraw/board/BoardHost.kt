@@ -31,4 +31,7 @@ interface BoardHost {
 
     /** Show the list of concepts. */
     fun showConcepts() {}
+
+    /** Continue the sketch saved in [file] (a `.sketch.json`) in Live Sketch. */
+    fun openSketch(file: File) {}
 }

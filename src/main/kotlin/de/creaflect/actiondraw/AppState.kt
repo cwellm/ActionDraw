@@ -478,12 +478,27 @@ class AppState(private val settings: Settings = Settings()) {
 
     // ---- Live Sketch ----
 
-    fun showSketch() {
+    /** Where Back from Live Sketch goes: the menu, a paused session, a board, a concept. */
+    var sketchOrigin by mutableStateOf(Screen.Menu)
+        private set
+
+    fun showSketch(from: Screen = Screen.Menu) {
+        if (screen != Screen.Sketch) sketchOrigin = if (from == Screen.Sketch) Screen.Menu else from
         screen = Screen.Sketch
     }
 
+    /**
+     * From a session: the session waits, paused, while the picture on screen is sketched, and Back
+     * returns to it. A session in its own window stays there, paused; the sketch takes the main one.
+     */
+    fun sketchFromSession() {
+        isPaused = true
+        showSketch(from = screen)
+    }
+
     fun leaveSketch() {
-        screen = Screen.Menu
+        screen = sketchOrigin
+        sketchOrigin = Screen.Menu
     }
 
     /** Undo what [startBoardSession] borrowed, so the menu shows the practice folder again. */

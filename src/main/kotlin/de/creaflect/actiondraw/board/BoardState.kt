@@ -19,6 +19,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import de.creaflect.actiondraw.board.ui.Markdown
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.sketch.SketchDocument
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
@@ -472,6 +473,18 @@ class BoardState(
         val dir = root ?: return null
         val borrowed = ConceptLink.splitBorrowed(item.path) ?: return File(dir, item.path)
         return conceptRoots[borrowed.first]?.let { File(it, borrowed.second) }
+    }
+
+    /**
+     * The sketch a picture came from, when Live Sketch saved it: `name.sketch.json` beside
+     * `name.png`. Borrowed pictures work too — their file is in the concept's folder.
+     */
+    fun sketchOf(item: ImageItem): File? =
+        fileOf(item)?.let { File(it.parentFile, it.nameWithoutExtension + SketchDocument.FILE_SUFFIX) }?.takeIf { it.isFile }
+
+    /** Continues the picture's sketch in Live Sketch. */
+    fun openSketch(item: ImageItem) {
+        sketchOf(item)?.let(host::openSketch)
     }
 
     val selectedItems: List<BoardItem> get() = board?.items.orEmpty().filter { it.id in selection }
