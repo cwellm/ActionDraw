@@ -1,6 +1,7 @@
 package de.creaflect.actiondraw.sketch
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +21,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
@@ -29,9 +31,12 @@ import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.sketch.input.PenSample
+import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
+import de.creaflect.sketch.Paper
+import de.creaflect.sketch.Pencils
 import de.creaflect.sketch.SketchDocument
 import org.junit.After
 import org.junit.Rule
@@ -463,6 +468,90 @@ class SketchStateTest {
             if (layout.didOverflowHeight) layout.layoutInput.text.text else null
         }
         assertTrue(cut.isEmpty(), "cut off at the bottom: $cut")
+    }
+
+    // ---- The paper, and presets ----
+
+    @Test
+    fun thePaperIsChosenForANewSketchAndCanBeChangedUnderTheStrokes() {
+        val state = newState()
+        state.newSketch(PageSize.pixels(300, 200), tooth = Paper.ROUGH)
+        state.viewResized(IntSize(400, 300))
+        state.zoomBy(1f / state.zoom, 0f, 0f)
+        state.pan(20f - state.panX, 20f - state.panY)
+        assertEquals(Paper.ROUGH, state.tooth)
+        state.mouseLine(100f)
+        state.setTooth(Paper.SMOOTH)
+        assertEquals(Paper.SMOOTH, state.tooth)
+        assertEquals("SMOOTH", state.session!!.document().tooth)
+        assertTrue(state.darkness(150, 100) > 0.3f, "the line is drawn again on the new paper: ${state.darkness(150, 100)}")
+        assertTrue(state.dirty, "changing the paper is a change")
+        assertTrue(state.canUndo, "and the strokes are still strokes")
+        state.saveAs("on smooth")
+        val json = File(home, "on smooth" + SketchDocument.FILE_SUFFIX)
+        assertTrue(json.isFile)
+        val fresh = newState()
+        fresh.viewResized(IntSize(400, 300))
+        assertTrue(fresh.open(json))
+        assertEquals(Paper.SMOOTH, fresh.tooth, "the paper comes back with the sketch")
+    }
+
+    @Test
+    fun aPresetKeepsATunedLeadByNameAcrossStates() {
+        try {
+            val state = ready()
+            state.setLead(Lead.SOFT)
+            Pencils.set(Lead.SOFT, Pencils.SOFT.copy(maxWidth = 1.9f))
+            assertNotNull(state.savePreset("   "), "a blank name is refused")
+            assertNull(state.savePreset("my 4B"))
+            assertEquals(listOf("my 4B"), state.presets.map { it.name })
+            assertEquals("my 4B", state.activePreset)
+            Pencils.reset(Lead.SOFT)
+
+            val fresh = newState()
+            assertEquals(1, fresh.presets.size, "kept in the settings")
+            fresh.applyPreset(fresh.presets.single())
+            assertEquals(Lead.SOFT, fresh.brush.lead)
+            assertEquals(1.9f, Pencils.of(Lead.SOFT).maxWidth, "the lead is tuned as the preset says")
+            assertEquals("my 4B", fresh.activePreset)
+            fresh.markTuned()
+            assertNull(fresh.activePreset, "a knob moved: no longer the preset")
+            fresh.deletePreset("my 4B")
+            assertTrue(fresh.presets.isEmpty())
+            assertTrue(newState().presets.isEmpty(), "gone from the settings too")
+        } finally {
+            Pencils.reset(Lead.SOFT)
+        }
+    }
+
+    @Test
+    fun theTunePanelOffersThePaperAndPresetsAndTheToolbarShowsThePreset() {
+        try {
+            val state = newState()
+            rule.setContent {
+                Box(Modifier.fillMaxSize()) {
+                    SketchScreen(state, ThumbCache(config))
+                    SketchDialogs(state)
+                }
+            }
+            rule.waitForIdle()
+            state.newSketch(PageSize.pixels(300, 200))
+            state.showTunables = true
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-paper-ROUGH").performClick()
+            rule.waitForIdle()
+            assertEquals(Paper.ROUGH, state.tooth)
+            rule.onNodeWithTag("sketch-save-preset").performClick()
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-preset-name").performTextInput("mine")
+            rule.onNodeWithTag("sketch-preset-save").performClick()
+            rule.waitForIdle()
+            assertEquals(listOf("mine"), state.presets.map { it.name })
+            assertNull(state.editor)
+            rule.onNodeWithTag("sketch-preset-mine").assertIsDisplayed()
+        } finally {
+            Pencils.reset(Lead.MEDIUM)
+        }
     }
 
     // ---- The colour picker ----

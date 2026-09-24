@@ -293,14 +293,17 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
 ### The page
 - **Live Sketch** on the start menu opens a page straight away — A4 at 150 dpi, or the size you
   chose last. **Sketch ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
-  portrait or landscape, or a width × height in pixels; white, cream, grey or toned paper. The
-  page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
+  portrait or landscape, or a width × height in pixels; white, cream, grey or toned paper;
+  **smooth**, **medium** or **rough** — the tooth: a light line stays whole on smooth paper and
+  breaks up on rough. The page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
   the XPPen's dial in its zoom setting zooms too — `+` `−` zoom, `Ctrl`+`0` fits again,
   `Space`+drag or the middle button pans.
 - Three leads — **H · HB · 4B** (`1` `2` `3`) — that differ in more than width: a hard lead
   barely widens and never goes black, a soft one opens up under pressure and reaches solid dark;
   speed lightens, soft leads most. The mark is made of dabs of paper grain, so light pressure
-  catches only the tops of the tooth. **Eraser** (`E`) is a rubber: **soft** by default, a pass
+  catches only the tops of the tooth. Lean the pen and you draw with the side of the lead: the
+  mark stretches along the lean, lightens and skims the tooth — a shading stroke, not a line.
+  **Eraser** (`E`) is a rubber: **soft** by default, a pass
   lifts part of the graphite and two or three clear a light mark; **hard** takes it all at once
   (the chip beside it switches). Size with `[` `]`, the toolbar's − +, or `Shift`+wheel. The
   colour swatch opens a picker: a saturation/value square, a hue strip, hex, recent colours.
@@ -312,7 +315,10 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
   If it reads **Pen ⚠**, the strokes are arriving as a mouse, at one pressure: in the XPPen
   driver, enable Windows Ink and restart ActionDraw.
   **Tune** folds out every number of the current lead, live, for finding what feels like a
-  pencil; the ones that survive go into [LEARNINGS.md](LEARNINGS.md).
+  pencil — the tilt's stretch and lightening among them. **Save as preset…** keeps the lead as
+  tuned under a name of your own: a chip beside the leads from then on, in
+  `~/.actiondraw/settings.properties`. The paper can be changed there too, under the strokes.
+  The numbers that survive go into [LEARNINGS.md](LEARNINGS.md).
 
 ### Saving, and into the loop
 - **Save** (`Ctrl`+`S`) writes `<name>.png` — the picture — and `<name>.sketch.json` — the

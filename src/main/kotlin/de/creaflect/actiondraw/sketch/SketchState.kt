@@ -13,6 +13,8 @@ import de.creaflect.sketch.Brush
 import de.creaflect.sketch.InputSample
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
+import de.creaflect.sketch.Paper
+import de.creaflect.sketch.Pencils
 import de.creaflect.sketch.SketchDocument
 import de.creaflect.sketch.SketchSession
 import java.awt.EventQueue
@@ -30,6 +32,8 @@ sealed class SketchEditor {
     data object ToBoard : SketchEditor()
     data object ToConcept : SketchEditor()
     data object Colour : SketchEditor()
+    /** A name for the current lead as it is tuned, to keep it. */
+    data object SavePreset : SketchEditor()
     /** Recent sketches, and a way to browse for one. */
     data object Open : SketchEditor()
     /** The sketch has unsaved strokes and something is about to replace it or close the app. */
@@ -84,6 +88,15 @@ class SketchState(
     var reference by mutableStateOf<File?>(null)
     var showPenPanel by mutableStateOf(false)
     var showTunables by mutableStateOf(false)
+    /** Bumped when a preset is applied, so the Tune panel reads the lead's model again. */
+    var tunablesVersion by mutableStateOf(0)
+        private set
+    /** Leads tuned and named, from the settings. */
+    var presets by mutableStateOf(LeadPresets.parse(settings.leadPresetsJson()))
+        private set
+    /** The preset applied last, until a knob moves. */
+    var activePreset by mutableStateOf<String?>(null)
+        private set
 
     val dirty: Boolean get() { version; return session?.dirty == true }
     val canUndo: Boolean get() { version; return session?.canUndo == true }
@@ -92,6 +105,7 @@ class SketchState(
     /** What the next new page is, unless chosen otherwise: the last one chosen. */
     private var lastSize: PageSize = PageSize.a4(150)
     private var lastPaper: Int = 0xFFFFFFFF.toInt()
+    private var lastTooth: Paper = Paper.MEDIUM
 
     // ---- The view: where the page is on screen ----
 
@@ -175,11 +189,12 @@ class SketchState(
             .sortedByDescending { it.lastModified() }
     }
 
-    fun newSketch(size: PageSize = lastSize, paper: Int = lastPaper) = guardUnsaved {
+    fun newSketch(size: PageSize = lastSize, paper: Int = lastPaper, tooth: Paper = lastTooth) = guardUnsaved {
         session?.close()
-        session = SketchSession(size.width, size.height, size.dpi, paper)
+        session = SketchSession(size.width, size.height, size.dpi, paper, tooth)
         lastSize = size
         lastPaper = paper
+        lastTooth = tooth
         file = null
         title = "Untitled"
         pageName = size.name
@@ -225,6 +240,29 @@ class SketchState(
         ensurePage()
     }
 
+    // ---- The paper ----
+
+    /** The tooth of the page: the sketch's paper, or the last one chosen while there is no page. */
+    val tooth: Paper get() = session?.tooth ?: lastTooth
+
+    /**
+     * Puts the sketch on another paper: every stroke is drawn again on the new grain — the
+     * document keeps samples, not pixels — and the sketch is changed by it. Undo goes on from
+     * the strokes; a redo that was pending is gone.
+     */
+    fun setTooth(tooth: Paper) {
+        lastTooth = tooth
+        val s = session ?: return
+        if (s.tooth == tooth) return
+        val document = s.document().copy(tooth = tooth.name)
+        s.close()
+        session = SketchSession.fromDocument(document).also { it.markDirty() }
+        penDrawing = false
+        mouseDrawing = false
+        version++
+        tick++
+    }
+
     // ---- The brush ----
 
     fun setLead(lead: Lead) {
@@ -249,6 +287,43 @@ class SketchState(
 
     fun toggleEraserMode() {
         eraserSoft = !eraserSoft
+    }
+
+    // ---- Presets: leads tuned and named ----
+
+    /** Opens the naming dialog for the current lead's tuning. */
+    fun askPresetName() {
+        editor = SketchEditor.SavePreset
+    }
+
+    /** Keeps the current lead as it is tuned under [name]; returns what is wrong with the name, or null. */
+    fun savePreset(name: String): String? {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return "A preset needs a name."
+        val preset = LeadPreset(trimmed, brush.lead.name, Pencils.of(brush.lead))
+        presets = presets.filter { it.name != trimmed } + preset
+        settings.setLeadPresetsJson(LeadPresets.encode(presets))
+        activePreset = trimmed
+        return null
+    }
+
+    /** The preset's lead, tuned as the preset says, in hand. */
+    fun applyPreset(preset: LeadPreset) {
+        Pencils.set(preset.base, preset.model)
+        setLead(preset.base)
+        activePreset = preset.name
+        tunablesVersion++
+    }
+
+    fun deletePreset(name: String) {
+        presets = presets.filter { it.name != name }
+        settings.setLeadPresetsJson(LeadPresets.encode(presets))
+        if (activePreset == name) activePreset = null
+    }
+
+    /** A knob moved: whatever preset was applied, this is no longer it. */
+    fun markTuned() {
+        activePreset = null
     }
 
     // ---- Drawing ----

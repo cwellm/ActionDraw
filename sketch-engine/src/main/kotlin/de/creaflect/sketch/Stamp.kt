@@ -12,7 +12,31 @@ import org.jetbrains.skia.Rect
 import org.jetbrains.skia.SamplingMode
 import org.jetbrains.skia.Shader
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.pow
+import kotlin.math.sqrt
+
+/**
+ * The papers on offer: how deep the tooth is ([floor] is how much of the lead the deepest pit
+ * still takes), how far apart its pits and peaks are ([contrast] stretches the noise about its
+ * middle — summed octaves crowd it there), and how coarse (the noise's cells across a tile,
+ * with their weights). One grain each, made when first wanted; a sketch keeps its paper by name.
+ */
+enum class Paper(val label: String, val floor: Float, val contrast: Float, val octaves: List<Pair<Int, Float>>) {
+    /** Hot-pressed: a shallow, fine tooth; lines stay whole. */
+    SMOOTH("smooth", 0.45f, 0.6f, listOf(32 to 0.1f, 85 to 0.3f, 256 to 0.6f)),
+    /** Cartridge paper: one- and three-pixel tooth with a little eight-pixel unevenness. */
+    MEDIUM("medium", 0.2f, 1f, listOf(32 to 0.2f, 85 to 0.35f, 256 to 0.45f)),
+    /** Cold-pressed: deep and coarse, two to sixteen pixels; a light line breaks up on it. */
+    ROUGH("rough", 0.08f, 1.8f, listOf(16 to 0.3f, 43 to 0.35f, 128 to 0.35f));
+
+    val grain: PaperGrain by lazy { PaperGrain(floor = floor, contrast = contrast, octaves = octaves) }
+
+    companion object {
+        /** The paper of that name, or medium for a name unknown or missing. */
+        fun of(name: String?): Paper = entries.firstOrNull { it.name == name } ?: MEDIUM
+    }
+}
 
 /**
  * The paper's tooth: a tileable grey noise in page space — fixed to the page, never to the
@@ -21,7 +45,13 @@ import kotlin.math.pow
  * [floor]..1 so no part of the paper is fully blind to the lead. Deterministic for a seed, so a
  * replayed sketch renders pixel for pixel the same.
  */
-class PaperGrain(val size: Int = 256, seed: Long = 7L, floor: Float = 0.2f) : AutoCloseable {
+class PaperGrain(
+    val size: Int = 256,
+    seed: Long = 7L,
+    floor: Float = 0.2f,
+    private val contrast: Float = 1f,
+    private val octaves: List<Pair<Int, Float>> = Paper.MEDIUM.octaves,
+) : AutoCloseable {
     val image: Image
     /** The same tooth as a shade for the screen: black at alpha 1 − g; see [shade]. */
     val shadow: Image
@@ -83,14 +113,13 @@ class PaperGrain(val size: Int = 256, seed: Long = 7L, floor: Float = 0.2f) : Au
 
     private fun noise(size: Int, seed: Long): FloatArray {
         val out = FloatArray(size * size)
-        // Cells across the tile and their weight: mostly one- and three-pixel tooth, a little
-        // eight-pixel unevenness. The first grain had 8- to 32-pixel blobs, which read as
-        // stains, not paper.
-        val octaves = listOf(32 to 0.2f, 85 to 0.35f, 256 to 0.45f)
+        // Cells across the tile and their weight, per paper. The first grain had 8- to 32-pixel
+        // blobs, which read as stains, not paper; tooth is one to a few pixels.
         for (y in 0 until size) for (x in 0 until size) {
             var v = 0f
             for ((cells, weight) in octaves) v += weight * valueNoise(x, y, size, cells, seed + cells)
-            out[y * size + x] = v.coerceIn(0f, 1f)
+            // Contrast stretches the noise about its middle: pits and peaks farther apart on rough paper.
+            out[y * size + x] = (0.5f + (v - 0.5f) * contrast).coerceIn(0f, 1f)
         }
         return out
     }
@@ -119,8 +148,8 @@ class PaperGrain(val size: Int = 256, seed: Long = 7L, floor: Float = 0.2f) : Au
     }
 
     companion object {
-        /** One grain for the whole app: the paper is the same paper on every page. */
-        val default: PaperGrain by lazy { PaperGrain() }
+        /** The medium paper's grain — one per paper for the whole app, made when first wanted. */
+        val default: PaperGrain get() = Paper.MEDIUM.grain
 
         /** How dark the shade gets in the deepest pit: faint, so the page still reads as white paper. */
         const val SHADE = 0.1f
@@ -133,14 +162,35 @@ class PaperGrain(val size: Int = 256, seed: Long = 7L, floor: Float = 0.2f) : Au
  * raises the floor: `g' = 1 − (1 − g)(1 − p)`) and modulated by the brush colour at the dab's
  * alpha. Dabs land at a third of the width, so a point is covered by about three of them;
  * [dabAlpha] turns the point's target darkness into what each dab must contribute for their
- * stack to reach it. An eraser is the same dab taking coverage away instead.
+ * stack to reach it. An eraser is the same dab taking coverage away instead. A tilted pen
+ * draws with the side of the lead: the dab is the lead's width across the tilt's direction and
+ * stretched along it, spaced by its extent along the stroke so a band is as dark whichever way
+ * it is drawn, and less of the pressure fills the tooth's valleys.
  */
 class StampRenderer(private val grain: PaperGrain = PaperGrain.default) {
     /** The paper as a shader: made once, since every dab of every stroke uses the same paper. */
     private val paper: Shader by lazy { grain.shader() }
 
-    /** Where the next dab goes: a third of the width, never under half a pixel. */
-    fun spacing(point: StrokePoint): Float = (point.width / 3f).coerceAtLeast(0.5f)
+    /**
+     * Where the next dab goes: a third of the dab's extent along the stroke, never under half a
+     * pixel — so a dab on its side, lying across the stroke or along it, is overlapped by its
+     * neighbours as a round one is.
+     */
+    fun spacing(point: StrokePoint, model: PencilModel): Float = (2f * alongStroke(point, model) / 3f).coerceAtLeast(0.5f)
+
+    /** Half of the dab's extent along the stroke's heading: the ellipse's support in that direction. */
+    private fun alongStroke(point: StrokePoint, model: PencilModel): Float {
+        val short = point.width / 2f
+        val tilt = point.tilt
+        val long = short * model.stretch(tilt)
+        if (long <= short || tilt <= 0f) return short
+        val head = hypot(point.headX, point.headY)
+        if (head <= 0f) return short
+        // The cosine of the angle between the heading and the tilt's direction.
+        val c = (point.headX * point.tiltX + point.headY * point.tiltY) / (head * tilt)
+        val c2 = (c * c).coerceIn(0f, 1f)
+        return sqrt(long * long * c2 + short * short * (1f - c2))
+    }
 
     /** Per-dab alpha so that [DABS_PER_POINT] overlapping dabs reach the point's [StrokePoint.alpha]. */
     fun dabAlpha(target: Float): Float = 1f - (1f - target.coerceIn(0f, 0.999f)).pow(1f / DABS_PER_POINT)
@@ -149,11 +199,17 @@ class StampRenderer(private val grain: PaperGrain = PaperGrain.default) {
     fun dab(surface: SketchSurface, brush: Brush, point: StrokePoint, eraser: Boolean = false) {
         val radius = (point.width / 2f).coerceAtLeast(0.35f)
         val alpha = dabAlpha(point.alpha)
-        val edge = if (eraser) Pencils.ERASER.edge else brush.model.edge
+        val model = if (eraser) Pencils.ERASER else brush.model
+        val edge = model.edge
+        // The side of the lead: the mark is the lead's own width across the tilt's direction and
+        // [stretch] times that along it. And the side skims the tooth — less pressure fills it.
+        val stretch = model.stretch(point.tilt)
+        val along = radius * stretch
+        val filling = point.pressure * (1f - TILT_GRAIN * point.tilt)
         val sigma = if (edge > 0f) (radius * edge).coerceAtLeast(0.3f) else 0f
         // A blurred edge reaches about three sigma past the disc.
-        val reach = radius + 3f * sigma + 1.5f
-        Shader.makeColor(Rasterizer.withAlpha(0xFFFFFF, point.pressure)).use { pressure ->
+        val reach = along + 3f * sigma + 1.5f
+        Shader.makeColor(Rasterizer.withAlpha(0xFFFFFF, filling)).use { pressure ->
             Shader.makeBlend(BlendMode.SCREEN, paper, pressure).use { toothed ->
                 Shader.makeColor(Rasterizer.withAlpha(brush.color, alpha)).use { tint ->
                     Shader.makeBlend(BlendMode.MODULATE, toothed, tint).use { shader ->
@@ -165,7 +221,15 @@ class StampRenderer(private val grain: PaperGrain = PaperGrain.default) {
                             try {
                                 if (blur != null) paint.maskFilter = blur
                                 surface.paint(point.x - reach, point.y - reach, point.x + reach, point.y + reach) { canvas ->
-                                    canvas.drawCircle(point.x, point.y, radius, paint)
+                                    if (stretch > 1.001f) {
+                                        canvas.save()
+                                        canvas.translate(point.x, point.y)
+                                        canvas.rotate(Math.toDegrees(point.tiltAngle.toDouble()).toFloat())
+                                        canvas.drawOval(Rect.makeLTRB(-along, -radius, along, radius), paint)
+                                        canvas.restore()
+                                    } else {
+                                        canvas.drawCircle(point.x, point.y, radius, paint)
+                                    }
                                 }
                             } finally {
                                 blur?.close()
@@ -179,5 +243,8 @@ class StampRenderer(private val grain: PaperGrain = PaperGrain.default) {
 
     private companion object {
         const val DABS_PER_POINT = 3f
+
+        /** How much of the pressure a lead on its side loses for filling the tooth's valleys, at a full tilt. */
+        const val TILT_GRAIN = 0.6f
     }
 }

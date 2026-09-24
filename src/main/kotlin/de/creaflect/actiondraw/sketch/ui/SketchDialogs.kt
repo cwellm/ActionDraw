@@ -42,6 +42,7 @@ import de.creaflect.sketch.SketchDocument
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
 import de.creaflect.sketch.PageSize
+import de.creaflect.sketch.Paper
 import java.io.File
 
 /** Renders whichever Live Sketch dialog is open — mounted at app level, above every screen. */
@@ -51,6 +52,7 @@ fun SketchDialogs(state: SketchState) {
         null -> Unit
         SketchEditor.NewSketch -> NewSketchDialog(state)
         SketchEditor.SaveAs -> SaveAsDialog(state)
+        SketchEditor.SavePreset -> SavePresetDialog(state)
         SketchEditor.ToBoard -> PickDialog(
             state,
             title = "Onto which board?",
@@ -93,11 +95,12 @@ private fun NewSketchDialog(state: SketchState) {
     var customW by remember { mutableStateOf("1600") }
     var customH by remember { mutableStateOf("1200") }
     var paper by remember { mutableStateOf(PAPERS.first().second) }
+    var tooth by remember { mutableStateOf(Paper.MEDIUM) }
     fun create() {
         val size = chosen?.let { if (landscape) it.landscape else it }
             ?: PageSize.pixels(customW.trim().toIntOrNull()?.coerceIn(64, 12000) ?: 1600, customH.trim().toIntOrNull()?.coerceIn(64, 12000) ?: 1200)
         state.closeEditor()
-        state.newSketch(size, paper)
+        state.newSketch(size, paper, tooth)
     }
     Scrim(onDismiss = state::closeEditor) {
         Text("New sketch", style = MaterialTheme.typography.h6)
@@ -122,6 +125,10 @@ private fun NewSketchDialog(state: SketchState) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             PAPERS.forEach { (name, argb) -> SelectChip(name, paper == argb) { paper = argb } }
         }
+        Text("Tooth of the paper", style = MaterialTheme.typography.caption)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Paper.entries.forEach { p -> SelectChip(p.label, tooth == p, tag = "sketch-new-paper-${p.name}") { tooth = p } }
+        }
         Text(
             chosen?.let { s -> val p = if (landscape) s.landscape else s; "${p.width} × ${p.height} px at ${p.dpi} dpi" } ?: "custom size, 96 dpi",
             style = MaterialTheme.typography.caption,
@@ -137,6 +144,30 @@ private val PAPERS = listOf(
     "Grey" to 0xFFD9D9D6.toInt(),
     "Toned" to 0xFFC9B99A.toInt(),
 )
+
+/** A name for the current lead as it is tuned; Enter keeps it. */
+@Composable
+private fun SavePresetDialog(state: SketchState) {
+    var name by remember { mutableStateOf("") }
+    var problem by remember { mutableStateOf<String?>(null) }
+    fun save() {
+        problem = state.savePreset(name)
+        if (problem == null) state.closeEditor()
+    }
+    Scrim(onDismiss = state::closeEditor) {
+        Text("Save as preset", style = MaterialTheme.typography.h6)
+        Text("The ${state.brush.lead.label} as it is tuned now, under a name of your own — a chip on the toolbar from then on.", style = MaterialTheme.typography.caption)
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            label = { Text("Name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().focusOnShow().confirmOnEnter(::save).testTag("sketch-preset-name"),
+        )
+        problem?.let { Text(it, style = MaterialTheme.typography.caption, color = MaterialTheme.colors.error) }
+        Buttons("Save", onOk = ::save, onCancel = state::closeEditor, tag = "sketch-preset-save")
+    }
+}
 
 /** A name and a folder; Enter saves. */
 @Composable

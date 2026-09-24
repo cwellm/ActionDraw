@@ -520,12 +520,19 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
   heaviest; the eraser is **soft** by default — a pass lifts a rubber's share, two or three
   clear a light mark — with a *hard* mode that takes everything; the strength is in the
   document, so a soft pass replays as one
-- ⬜ The numbers that survive the pen in hand go into LEARNINGS; a chisel edge from tilt later
+- ✅ **Tilt** (2026-09-24): the side of the lead — the mark stretches along the lean (`tiltWidth`),
+  lightens (`tiltAlpha`) and skims the tooth; dabs are spaced by their extent along the stroke,
+  so a band is as dark whichever way it is drawn; the tilt is in every sample of the document
+- ✅ **Papers** (2026-09-24): smooth, medium, rough — floor, contrast and cell sizes of the
+  grain — chosen with a new sketch, changed under the strokes in Tune, in the document by name
+- ✅ **Presets** (2026-09-24): a lead as tuned, under a name, in the settings; a chip beside the
+  leads applies it, Tune saves and deletes them
+- ⬜ The numbers that survive the pen in hand go into LEARNINGS
 
 ### ✅ F7.4 The screen
 - ✅ Entering gives an A4 page at once (then the size chosen last); **Sketch ▾ → New…**: A5/A4/A3
-  at 150 or 300 dpi, portrait or landscape, or W × H px; white, cream, grey or toned paper · a
-  thin toolbar: title and page size, leads, eraser, size, colour, undo/redo, zoom (click to fit),
+  at 150 or 300 dpi, portrait or landscape, or W × H px; white, cream, grey or toned paper,
+  smooth, medium or rough · a thin toolbar: title and page size, leads and presets, eraser, size, colour, undo/redo, zoom (click to fit),
   Pen and Tune panels, Sketch menu, Save, Back · a colour picker (saturation/value square, hue
   strip, hex, recent colours) that keeps its hue through greys · a press is a mark (no drag
   threshold; a tap leaves a dot); the wheel zooms about the cursor, Ctrl+wheel sizes, Space+drag

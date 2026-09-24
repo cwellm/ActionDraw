@@ -82,7 +82,7 @@ import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Rect
 import java.io.File
 import kotlin.math.roundToInt
-import de.creaflect.sketch.PaperGrain
+import de.creaflect.sketch.Paper
 
 /** The Live Sketch entry on the menu, equal in weight to the others. */
 @Composable
@@ -151,6 +151,9 @@ private fun Toolbar(state: SketchState) {
             Spacer(Modifier.width(6.dp))
             Lead.entries.forEach { lead ->
                 SelectChip(lead.label, !state.eraser && state.brush.lead == lead) { state.setLead(lead) }
+            }
+            state.presets.forEach { preset ->
+                SelectChip(preset.name, !state.eraser && state.activePreset == preset.name, tag = "sketch-preset-${preset.name}") { state.applyPreset(preset) }
             }
             SelectChip("Eraser", state.eraser) { state.toggleEraser() }
             if (state.eraser) {
@@ -258,20 +261,22 @@ private fun PenPanel(state: SketchState) {
 @Composable
 private fun Tunables(state: SketchState) {
     val lead = state.brush.lead
-    var model by remember(lead) { mutableStateOf(Pencils.of(lead)) }
+    var model by remember(lead, state.tunablesVersion) { mutableStateOf(Pencils.of(lead)) }
     fun apply(next: PencilModel) {
         model = next
         Pencils.set(lead, next)
+        state.markTuned()
     }
     Column(Modifier.fillMaxWidth().background(MaterialTheme.colors.surface.copy(alpha = 0.8f)).padding(horizontal = 12.dp, vertical = 4.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${lead.label}: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold)
             Text(
-                "width %.2f..%.2f γ %.2f · alpha %.2f..%.2f · speed k %.2f · edge %.2f".format(model.minWidth, model.maxWidth, model.gamma, model.alphaFloor, model.alphaCeiling, model.speedK, model.edge),
+                "width %.2f..%.2f γ %.2f · alpha %.2f..%.2f · speed k %.2f · edge %.2f · tilt +%.2f −%.2f".format(model.minWidth, model.maxWidth, model.gamma, model.alphaFloor, model.alphaCeiling, model.speedK, model.edge, model.tiltWidth, model.tiltAlpha),
                 style = MaterialTheme.typography.caption.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.weight(1f).testTag("sketch-tunables"),
             )
-            Flat("Reset") { Pencils.reset(lead); model = Pencils.of(lead) }
+            Flat("Reset") { Pencils.reset(lead); model = Pencils.of(lead); state.markTuned() }
+            Flat("Save as preset…", tag = "sketch-save-preset") { state.askPresetName() }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Knob("min width", model.minWidth, 0.05f..1f) { apply(model.copy(minWidth = it)) }
@@ -284,6 +289,27 @@ private fun Tunables(state: SketchState) {
             Knob("alpha ceiling", model.alphaCeiling, 0.2f..1f) { apply(model.copy(alphaCeiling = it)) }
             Knob("speed k", model.speedK, 0f..0.8f) { apply(model.copy(speedK = it)) }
             Knob("v ref", model.vRef, 300f..4000f) { apply(model.copy(vRef = it)) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Knob("tilt: wider by", model.tiltWidth, 0f..3f) { apply(model.copy(tiltWidth = it)) }
+            Knob("tilt: lighter by", model.tiltAlpha, 0f..1f) { apply(model.copy(tiltAlpha = it)) }
+            Spacer(Modifier.weight(2f))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Paper: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold)
+            Paper.entries.forEach { paper ->
+                SelectChip(paper.label, state.tooth == paper, tag = "sketch-paper-${paper.name}") { state.setTooth(paper) }
+            }
+            Text("— the strokes are drawn again on it", style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f))
+        }
+        if (state.presets.isNotEmpty()) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Presets: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold)
+                state.presets.forEach { preset ->
+                    Text("${preset.name} (${preset.base.label})", style = MaterialTheme.typography.caption)
+                    Flat("×", tag = "sketch-preset-delete-${preset.name}") { state.deletePreset(preset.name) }
+                }
+            }
         }
     }
 }
@@ -375,7 +401,7 @@ private fun Page(state: SketchState) {
                 }
                 // The paper's tooth, faintly, so the page reads as paper and the graphite sits *in*
                 // something. On screen only; the saved picture is clean paper.
-                drawIntoCanvas { PaperGrain.default.shade(it.nativeCanvas, panX, panY, panX + w, panY + h, zoom, sampling = sampling) }
+                drawIntoCanvas { session.tooth.grain.shade(it.nativeCanvas, panX, panY, panX + w, panY + h, zoom, sampling = sampling) }
                 drawIntoCanvas { canvas ->
                     val native = canvas.nativeCanvas
                     for (i in 0 until surface.tileCount) {

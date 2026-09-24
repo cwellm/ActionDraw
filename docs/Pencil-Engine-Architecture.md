@@ -37,16 +37,16 @@ for the building machine.
 |---|---|---|
 | `InputSample` | one reading: `x, y, pressure, tiltX, tiltY, timeNanos, source` | — |
 | `OneEuroFilter` | adaptive low-pass on one value; still hand steady, fast hand faithful | `minCutoff`, `beta` |
-| `Lead` · `PencilModel` · `Pencils` | H / HB / 4B as three parameter sets over one `(pressure, speed) → (width, alpha)` model — LEARNINGS L2's numbers | per lead: `minWidth, maxWidth, gamma, alphaFloor, alphaCeiling, speedK, vRef` |
+| `Lead` · `PencilModel` · `Pencils` | H / HB / 4B as three parameter sets over one `(pressure, speed, tilt) → (width, alpha)` model — LEARNINGS L2's numbers; the side of the lead stretches the mark along the tilt (`stretch(tilt)`) and lightens it; serializable, so a tuned lead can be kept as a preset | per lead: `minWidth, maxWidth, gamma, alphaFloor, alphaCeiling, speedK, vRef, edge, tiltWidth, tiltAlpha` |
 | `Brush` | a lead, a colour (ARGB), a size in page pixels | — |
-| `StrokeBuilder` | samples in, `StrokePoint`s out one at a time: filtered position, lighter-filtered pressure, speed from timestamps smoothed over a short window, then the lead's width and alpha | `smoothing` on/off |
+| `StrokeBuilder` | samples in, `StrokePoint`s out one at a time: filtered position, lighter-filtered pressure, the tilt through a light filter of its own as a vector in fractions of a full tilt (60°), speed from timestamps smoothed over a short window, the stroke's heading, then the lead's width and alpha | `smoothing` on/off, `FULL_TILT` |
 | `Stroke` | a finished stroke: its brush and points | — |
 | `Resampler` | points in one at a time, dabs out at even spacing along a Catmull-Rom spline through the neighbours; a segment is placed the moment it exists (the last point doubled as the trailing control), so a stroke drawn live and the same stroke replayed produce the same dabs | `spacing(point)` |
-| `PaperGrain` | a tileable value-noise texture in page space, the paper's tooth; deterministic for a seed; `shade()` draws it as a faint shadow over the page for the screen | `size`, `seed`, `floor`, `SHADE` |
-| `StampRenderer` | one dab: a disc of the point's width, its edge softened per lead, filled by the grain screened with the pressure (`g′ = 1 − (1 − g)(1 − p)`) and modulated by the colour at a per-dab alpha calibrated so three overlapping dabs reach the point's darkness; the eraser is the same dab with `DST_OUT` and the rubber's model | `DABS_PER_POINT` |
+| `Paper` · `PaperGrain` | three papers — smooth, medium, rough — each a tileable value-noise texture in page space (floor, contrast, cell sizes), the paper's tooth, deterministic for a seed; `shade()` draws it as a faint shadow over the page for the screen | `floor`, `contrast`, `octaves`, `SHADE` |
+| `StampRenderer` | one dab: a disc of the point's width — an ellipse stretched along the tilt when the pen leans — its edge softened per lead, filled by the grain screened with the pressure (`g′ = 1 − (1 − g)(1 − p)`, less of it on a leaning pen) and modulated by the colour at a per-dab alpha calibrated so three overlapping dabs reach the point's darkness; dabs are spaced by their extent along the stroke's heading, so a band on its side is as dark whichever way it is drawn; the eraser is the same dab with `DST_OUT` and the rubber's model | `DABS_PER_POINT`, `TILT_GRAIN` |
 | `Rasterizer` | the path-based pencil of the exploration's step 2 — kept as the lightest hard pencil and as the reference | — |
 | `SketchSurface` | the page: a *transparent* strokes layer over a paper colour (so the eraser can take graphite away), kept as 256-px tiles; `paint(bounds) { canvas }` draws into every tile under a rectangle with the canvas in page coordinates; `tileImage(i)` is the same picture until that tile is drawn on; `snapshot()`/`restore()` for undo; `compose()` flattened for export; `darkness()` for tests | size, paper, tile size |
-| `SketchDocument` | `.sketch.json`: page size, dpi, paper, and every stroke as brush plus raw samples with pressure and time; `PageSize` for A5/A4/A3 at a dpi or pixels | — |
+| `SketchDocument` | `.sketch.json`: page size, dpi, paper colour and paper (the tooth, by name), and every stroke as brush plus raw samples with pressure, tilt and time; `PageSize` for A5/A4/A3 at a dpi or pixels | — |
 | `SketchSession` | a sketch being made: begin/add/end a stroke (dabs on the page at once), `cancel()` (take a stroke back), undo and redo (a snapshot every 12 strokes, the last 3 kept, plus a replay of what came after), `fromDocument`, `document()`, `exportPng()`, `dirty` | `SNAPSHOT_EVERY`, `KEEP_SNAPSHOTS` |
 
 Every stroke goes through the same pipeline whether drawn live or replayed — samples into the
@@ -101,7 +101,9 @@ page's top-left in view pixels), the pen source with its readouts, and saving. `
 is a thin toolbar over a page: title and page size, leads, eraser, size, colour (a picker with a
 saturation/value square, hue strip, hex and recents), undo/redo, zoom (click to fit), the **Pen**
 panel (the probe's readouts and the sample recorder), the **Tune** panel (every tunable of the
-current lead, live, through `Pencils.set`), the **Sketch ▾** menu (new, open, save as, to board,
+current lead, live, through `Pencils.set`; the paper under the strokes; **Save as preset…**,
+which keeps the lead as tuned under a name in the settings — a `LeadPreset`, a chip beside the
+leads), the **Sketch ▾** menu (new, open, save as, to board,
 to concept), Save, Back. `SketchDialogs` are mounted at app level like every other dialog.
 
 Input: a pen sample arrives in window pixels, is offset by the view's origin, and mapped
@@ -135,7 +137,7 @@ strokes asks first.
    and WinTab only if Windows Ink does not deliver.
 2. **Saving large pages off the event thread**: an A3 at 300 dpi takes a noticeable moment to
    encode as PNG; the tiles' pictures could be taken on the event thread and encoded beside it.
-3. **Tilt**: read and kept in every sample, unused; a chisel edge on the side of a soft lead is
-   the obvious first use.
+3. **Tilt, second pass**: the side of the lead is in (the stretch, the lightening, the skimmed
+   tooth); its numbers want the pen in hand, and rotation is still unused.
 4. **A sketch as its own kind of card** — today a sketched picture is a picture that happens to
    have its strokes beside it; a mark on the card saying so is the obvious next touch.

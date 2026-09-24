@@ -18,7 +18,9 @@ class SketchSession(
     val height: Int,
     val dpi: Int = 150,
     val paper: Int = 0xFFFFFFFF.toInt(),
-    private val stamps: StampRenderer = StampRenderer(),
+    /** The paper's tooth: the grain every dab is multiplied with. */
+    val tooth: Paper = Paper.MEDIUM,
+    private val stamps: StampRenderer = StampRenderer(tooth.grain),
 ) : AutoCloseable {
     val surface = SketchSurface(width, height, paper)
 
@@ -37,8 +39,9 @@ class SketchSession(
     val isDrawing: Boolean get() = live != null
 
     private class LiveStroke(val brush: Brush, val eraser: Boolean, val eraserStrength: Float, stamps: StampRenderer) {
-        val builder = StrokeBuilder(brush, model = if (eraser) Pencils.eraser(eraserStrength) else brush.model)
-        val resampler = Resampler(stamps::spacing)
+        val model = if (eraser) Pencils.eraser(eraserStrength) else brush.model
+        val builder = StrokeBuilder(brush, model = model)
+        val resampler = Resampler { point -> stamps.spacing(point, model) }
         val samples = ArrayList<SampleRecord>()
         var startNanos = 0L
     }
@@ -55,7 +58,7 @@ class SketchSession(
     fun add(sample: InputSample) {
         val stroke = live ?: return
         if (stroke.samples.isEmpty()) stroke.startNanos = sample.timeNanos
-        stroke.samples += SampleRecord(sample.x, sample.y, sample.pressure, sample.timeNanos - stroke.startNanos)
+        stroke.samples += SampleRecord(sample.x, sample.y, sample.pressure, sample.timeNanos - stroke.startNanos, sample.tiltX, sample.tiltY)
         place(stroke, sample)
     }
 
@@ -118,7 +121,7 @@ class SketchSession(
 
     private fun replay(record: StrokeRecord) {
         val stroke = LiveStroke(record.brush, record.eraser, record.eraserStrength, stamps)
-        for (s in record.samples) place(stroke, InputSample(s.x, s.y, s.p, timeNanos = s.t))
+        for (s in record.samples) place(stroke, InputSample(s.x, s.y, s.p, s.tx, s.ty, timeNanos = s.t))
     }
 
     private fun maybeSnapshot() {
@@ -129,7 +132,7 @@ class SketchSession(
 
     // ---- The document ----
 
-    fun document(): SketchDocument = SketchDocument(width = width, height = height, dpi = dpi, paper = paper, strokes = strokes.toList())
+    fun document(): SketchDocument = SketchDocument(width = width, height = height, dpi = dpi, paper = paper, tooth = tooth.name, strokes = strokes.toList())
 
     /** The picture: paper and strokes, as PNG bytes. */
     fun exportPng(): ByteArray = surface.compose().use { image ->
@@ -138,6 +141,11 @@ class SketchSession(
 
     fun markSaved() {
         dirty = false
+    }
+
+    /** Something outside the strokes changed the picture — the paper under them, say. */
+    fun markDirty() {
+        dirty = true
     }
 
     override fun close() {
@@ -151,8 +159,9 @@ class SketchSession(
         const val KEEP_SNAPSHOTS = 3
 
         /** A session with the document's page and all its strokes drawn again. */
-        fun fromDocument(document: SketchDocument, stamps: StampRenderer = StampRenderer()): SketchSession {
-            val session = SketchSession(document.width, document.height, document.dpi, document.paper, stamps)
+        fun fromDocument(document: SketchDocument, stamps: StampRenderer? = null): SketchSession {
+            val tooth = Paper.of(document.tooth)
+            val session = SketchSession(document.width, document.height, document.dpi, document.paper, tooth, stamps ?: StampRenderer(tooth.grain))
             for (record in document.strokes) {
                 session.strokes += record
                 session.replay(record)

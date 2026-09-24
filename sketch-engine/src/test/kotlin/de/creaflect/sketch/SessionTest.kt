@@ -144,6 +144,58 @@ class SessionTest {
         surface.close()
     }
 
+    // ---- The side of the lead, and the paper ----
+
+    @Test
+    fun aTiltedPenDrawsWithTheSideOfTheLeadWiderAndLighterAndReplaysTheSame() {
+        fun SketchSession.lineLeaning(tiltY: Float) {
+            begin(Brush(Lead.MEDIUM, size = 12f))
+            var t = 0L
+            for (x in 20..180 step 4) {
+                add(InputSample(x.toFloat(), 50f, 1f, 0f, tiltY, timeNanos = t * 1_000_000L))
+                t += 5
+            }
+            end()
+        }
+        SketchSession(200, 100).use { upright ->
+            SketchSession(200, 100).use { tilted ->
+                upright.lineLeaning(0f)
+                tilted.lineLeaning(55f) // leaning across the line: the side of the lead lies across it
+                assertTrue(upright.surface.darkness(100, 59) < 0.02f, "upright: bare paper 9 px off the line")
+                assertTrue(tilted.surface.darkness(100, 59) > 0.15f, "tilted: the side of the lead reaches it: ${tilted.surface.darkness(100, 59)}")
+                val centre = upright.surface.darkness(100, 50)
+                assertTrue(tilted.surface.darkness(100, 50) < centre - 0.1f, "and the mark is lighter: ${tilted.surface.darkness(100, 50)} vs $centre")
+                val json = tilted.document().toJson()
+                assertTrue(json.contains("\"ty\":55.0"), json.take(300))
+                SketchSession.fromDocument(SketchDocument.fromJson(json)).use { again ->
+                    assertEquals(fingerprint(tilted), fingerprint(again), "the tilt replays")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun thePapersDifferInToothAndTheChoiceIsInTheDocument() {
+        val prints = Paper.entries.associateWith { paper ->
+            SketchSession(200, 100, tooth = paper).use { s ->
+                s.line(50f, 0.35f, Brush(Lead.SOFT, size = 12f))
+                fingerprint(s) to (30..170 step 5).map { s.surface.darkness(it, 50) }
+            }
+        }
+        assertEquals(3, prints.values.map { it.first }.distinct().size, "three papers, three pictures")
+        fun spread(paper: Paper) = prints.getValue(paper).second.let { it.max() - it.min() }
+        assertTrue(spread(Paper.ROUGH) > spread(Paper.SMOOTH) + 0.04f, "rough paper breaks a light line up more: ${spread(Paper.ROUGH)} vs ${spread(Paper.SMOOTH)}")
+        SketchSession(200, 100, tooth = Paper.ROUGH).use { s ->
+            s.line(50f, 0.35f, Brush(Lead.SOFT, size = 12f))
+            val json = s.document().toJson()
+            assertTrue(json.contains("\"tooth\":\"ROUGH\""), json.take(200))
+            SketchSession.fromDocument(SketchDocument.fromJson(json)).use { again ->
+                assertEquals(Paper.ROUGH, again.tooth)
+                assertEquals(fingerprint(s), fingerprint(again), "loaded onto the same paper")
+            }
+        }
+    }
+
     // ---- Undo / redo ----
 
     @Test

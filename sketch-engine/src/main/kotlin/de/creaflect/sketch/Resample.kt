@@ -9,7 +9,8 @@ import kotlin.math.hypot
  * segment is a Catmull-Rom curve through the neighbours (the last point doubled as the trailing
  * control, so a segment is placed the moment it exists and a replay places it the same way),
  * walked in small steps, and a dab is emitted every [spacing] of arc length — width, alpha,
- * pressure and speed interpolated between the two points.
+ * pressure, speed and tilt interpolated between the two points, and the dab's heading the
+ * direction it was walked in, which the spacing of a dab on its side depends on.
  */
 class Resampler(private val spacing: (StrokePoint) -> Float) {
     private val points = ArrayList<StrokePoint>()
@@ -36,6 +37,9 @@ class Resampler(private val spacing: (StrokePoint) -> Float) {
             val t = i / steps.toFloat()
             val x = catmullRom(p0.x, p1.x, p2.x, p3.x, t)
             val y = catmullRom(p0.y, p1.y, p2.y, p3.y, t)
+            val dx = x - last.x
+            val dy = y - last.y
+            val d = hypot(dx, dy)
             val here = StrokePoint(
                 x = x,
                 y = y,
@@ -44,8 +48,12 @@ class Resampler(private val spacing: (StrokePoint) -> Float) {
                 pressure = lerp(p1.pressure, p2.pressure, t),
                 speed = lerp(p1.speed, p2.speed, t),
                 timeNanos = p1.timeNanos + ((p2.timeNanos - p1.timeNanos) * t).toLong(),
+                tiltX = lerp(p1.tiltX, p2.tiltX, t),
+                tiltY = lerp(p1.tiltY, p2.tiltY, t),
+                headX = if (d > 0f) dx / d else p2.headX,
+                headY = if (d > 0f) dy / d else p2.headY,
             )
-            sinceLastDab += hypot(here.x - last.x, here.y - last.y)
+            sinceLastDab += d
             if (sinceLastDab >= spacing(here)) {
                 out(here)
                 sinceLastDab = 0f

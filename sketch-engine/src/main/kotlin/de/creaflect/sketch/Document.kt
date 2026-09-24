@@ -17,6 +17,8 @@ data class SketchDocument(
     val dpi: Int = 150,
     /** Paper colour, ARGB. */
     val paper: Int = 0xFFFFFFFF.toInt(),
+    /** The paper's tooth, a [Paper] by name; a document without one is on medium paper. */
+    val tooth: String = Paper.MEDIUM.name,
     val strokes: List<StrokeRecord> = emptyList(),
 ) {
     fun toJson(): String = json.encodeToString(serializer(), this)
@@ -44,9 +46,9 @@ data class StrokeRecord(
     val brush: Brush get() = Brush(Lead.entries.firstOrNull { it.name == lead } ?: Lead.MEDIUM, color, size)
 }
 
-/** One sample: page position, pressure, and nanoseconds since the stroke began. */
+/** One sample: page position, pressure, nanoseconds since the stroke began, and the tilt in degrees as the pen gave it. */
 @Serializable
-data class SampleRecord(val x: Float, val y: Float, val p: Float, val t: Long)
+data class SampleRecord(val x: Float, val y: Float, val p: Float, val t: Long, val tx: Float = 0f, val ty: Float = 0f)
 
 /** The page sizes on offer: paper at a resolution, or plain pixels. */
 data class PageSize(val name: String, val width: Int, val height: Int, val dpi: Int) {

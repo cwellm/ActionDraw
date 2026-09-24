@@ -111,6 +111,15 @@ class Settings(private val dir: File = defaultDir()) {
         write(props)
     }
 
+    /** The Tune panel's presets, as the JSON the sketch side hands over; null when there are none. */
+    fun leadPresetsJson(): String? = runCatching { read().getProperty(KEY_LEAD_PRESETS)?.takeIf { it.isNotBlank() } }.getOrNull()
+
+    fun setLeadPresetsJson(json: String) {
+        val props = read()
+        props.setProperty(KEY_LEAD_PRESETS, json)
+        write(props)
+    }
+
     /** Forgets a board — used when one is deleted, so it stops showing up in the list. */
     fun removeRecentBoard(dir: File) {
         val next = recentBoards().filter { !it.samePathAs(dir) }
@@ -140,6 +149,7 @@ class Settings(private val dir: File = defaultDir()) {
         private const val KEY_SKETCHES_HOME = "sketchesHome"
         private const val KEY_RECENT_SKETCH = "recentSketch"
         private const val MAX_RECENT_SKETCHES = 12
+        private const val KEY_LEAD_PRESETS = "leadPresets"
         private const val KEY_RECENT_BOARD = "recentBoard"
         private const val MAX_RECENT_BOARDS = 5
 
