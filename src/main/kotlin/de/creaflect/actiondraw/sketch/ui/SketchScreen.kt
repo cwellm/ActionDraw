@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -194,6 +195,9 @@ private fun Flat(label: String, enabled: Boolean = true, tag: String? = null, on
     TextButton(
         onClick = onClick,
         enabled = enabled,
+        // 30 dp with Material's own 8 dp of vertical padding left 14 dp for a 19-dp line of
+        // text, and Text clips what overflows: every label lost the bottom of its letters.
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
         modifier = Modifier.height(30.dp).let { if (tag != null) it.testTag(tag) else it },
     ) {
         Text(label, style = MaterialTheme.typography.body2, maxLines = 1)

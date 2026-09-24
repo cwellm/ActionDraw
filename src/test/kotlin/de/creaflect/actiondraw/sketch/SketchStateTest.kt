@@ -20,6 +20,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import de.creaflect.actiondraw.sketch.ui.ColorPicker
 import androidx.compose.ui.unit.IntSize
 import de.creaflect.actiondraw.Settings
@@ -435,6 +438,31 @@ class SketchStateTest {
         rule.waitForIdle()
         rule.onNodeWithTag("sketch-back").assertIsDisplayed()
         rule.onNodeWithTag("sketch-save").assertIsDisplayed()
+    }
+
+    /**
+     * A compact button's fixed height once left 14 dp for a 19-dp line of text, and Text clips
+     * what overflows its box: every toolbar label lost the bottom of its letters. Every text on
+     * the screen, panels open, must fit its box in height.
+     */
+    @Test
+    fun noLabelOnTheSketchScreenIsCutOffAtTheBottom() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        rule.waitForIdle()
+        state.newSketch(PageSize.pixels(300, 200))
+        state.showPenPanel = true
+        state.showTunables = true
+        rule.waitForIdle()
+        val texts = rule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true).fetchSemanticsNodes()
+        assertTrue(texts.size > 10, "the screen's labels: ${texts.size}")
+        val cut = texts.mapNotNull { node ->
+            val results = ArrayList<TextLayoutResult>()
+            node.config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
+            val layout = results.firstOrNull() ?: return@mapNotNull null
+            if (layout.didOverflowHeight) layout.layoutInput.text.text else null
+        }
+        assertTrue(cut.isEmpty(), "cut off at the bottom: $cut")
     }
 
     // ---- The colour picker ----
