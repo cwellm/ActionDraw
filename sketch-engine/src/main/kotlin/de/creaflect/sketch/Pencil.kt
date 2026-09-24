@@ -46,8 +46,17 @@ object Pencils {
     val MEDIUM = PencilModel(minWidth = 0.2f, maxWidth = 1.0f, gamma = 1.0f, alphaFloor = 0.1f, alphaCeiling = 0.8f, speedK = 0.3f, vRef = 1500f, edge = 0.06f)
     val SOFT = PencilModel(minWidth = 0.2f, maxWidth = 1.4f, gamma = 0.7f, alphaFloor = 0.12f, alphaCeiling = 0.97f, speedK = 0.45f, vRef = 1500f, edge = 0.16f)
 
-    /** The rubber: takes everything away at full pressure, is not lightened by speed, soft-edged. */
+    /** The rubber at full strength: takes everything away at full pressure, is not lightened by speed, soft-edged. */
     val ERASER = PencilModel(minWidth = 0.3f, maxWidth = 1.0f, gamma = 1.0f, alphaFloor = 0.2f, alphaCeiling = 1f, speedK = 0f, vRef = 1500f, edge = 0.1f)
+
+    /**
+     * The rubber at a [strength]: 1 lifts everything under it in one pass, a real rubber does
+     * not — at 0.45 a pass takes a little under half, and a light mark needs two or three.
+     */
+    fun eraser(strength: Float): PencilModel {
+        val k = strength.coerceIn(0.05f, 1f)
+        return ERASER.copy(alphaFloor = 0.2f * k, alphaCeiling = k)
+    }
 
     private val overrides = mutableMapOf<Lead, PencilModel>()
 

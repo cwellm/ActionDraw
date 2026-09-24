@@ -66,6 +66,9 @@ class SketchState(
         private set
     var eraser by mutableStateOf(false)
         private set
+    /** A soft eraser lifts part of the graphite per pass, like a rubber; a hard one all of it. */
+    var eraserSoft by mutableStateOf(true)
+        private set
     var recentColors by mutableStateOf(listOf(0xFF1A1A1A.toInt(), 0xFF8B2F1E.toInt(), 0xFF1F4E8C.toInt()))
         private set
     /** Bumped whenever the page changed, so the screen draws it again. */
@@ -129,6 +132,22 @@ class SketchState(
     private var mouseDrawing = false
     private var penSeen = false
     private var lastPenNanos = 0L
+    /** Strokes the mouse made — with no pen sample ever seen, that is the pen arriving as a mouse. */
+    private var mouseStrokes by mutableStateOf(0)
+
+    /** What each eraser pass lifts: a rubber's share, or everything. */
+    val eraserStrength: Float get() = if (eraserSoft) SOFT_ERASER else 1f
+
+    /**
+     * Something to say when strokes come from the mouse and the pen has never spoken: on
+     * Windows that is the XPPen driver not in Windows Ink mode, where the pen is a mouse to
+     * everyone and has no pressure to give.
+     */
+    val penHint: String?
+        get() = if (sampleCount == 0 && mouseStrokes > 0) {
+            "No pen samples yet: the strokes arrive as a mouse, at one pressure. " +
+                "In the XPPen driver, enable Windows Ink, then restart ActionDraw."
+        } else null
 
     // ---- Entering, new, open ----
 
@@ -228,6 +247,10 @@ class SketchState(
         eraser = !eraser
     }
 
+    fun toggleEraserMode() {
+        eraserSoft = !eraserSoft
+    }
+
     // ---- Drawing ----
 
     /** Page coordinates of a point given in view pixels. */
@@ -252,7 +275,7 @@ class SketchState(
                     s.cancel()
                     mouseDrawing = false
                 }
-                s.begin(brush, eraser)
+                s.begin(brush, eraser, eraserStrength)
                 penDrawing = true
             }
             val page = toPage(sample.x - viewOrigin.x, sample.y - viewOrigin.y)
@@ -273,11 +296,15 @@ class SketchState(
     private fun penNearby(timeNanos: Long): Boolean =
         penDrawing || (penSeen && abs(timeNanos - lastPenNanos) < PEN_GRACE_NANOS)
 
-    /** The mouse in view pixels, at pressure 1. A press with no movement leaves a dot. */
+    /**
+     * The mouse in view pixels, at a middling pressure — a mouse has none to give, and full
+     * pressure made every mouse line the fattest, darkest the lead has. A press with no movement
+     * leaves a dot.
+     */
     fun mouseDown(viewX: Float, viewY: Float, timeNanos: Long = System.nanoTime()) {
         if (penNearby(timeNanos)) return
         val s = session ?: return
-        s.begin(brush, eraser)
+        s.begin(brush, eraser, eraserStrength)
         mouseDrawing = true
         mouseMove(viewX, viewY, timeNanos)
     }
@@ -286,14 +313,14 @@ class SketchState(
         if (!mouseDrawing || penDrawing) return
         val s = session ?: return
         val page = toPage(viewX, viewY)
-        s.add(InputSample(page.x, page.y, 1f, timeNanos = timeNanos, source = InputSample.Source.MOUSE))
+        s.add(InputSample(page.x, page.y, MOUSE_PRESSURE, timeNanos = timeNanos, source = InputSample.Source.MOUSE))
         tick++
     }
 
     fun mouseUp() {
         if (!mouseDrawing) return
         mouseDrawing = false
-        session?.end()
+        if (session?.end() == true) mouseStrokes++
         version++
         tick++
     }
@@ -335,6 +362,17 @@ class SketchState(
         zoom = next
         panX = aboutX - page.x * next
         panY = aboutY - page.y * next
+    }
+
+    /**
+     * The wheel — or the XPPen's dial, which arrives as a wheel, often with Ctrl held: zoom about
+     * the pointer either way, so the dial's zoom setting does what it says. Shift+wheel sizes the
+     * lead instead. [delta] is the wheel's vertical step, or its horizontal one for a dial that
+     * turns sideways.
+     */
+    fun wheel(delta: Float, shift: Boolean, aboutX: Float, aboutY: Float) {
+        if (delta == 0f) return
+        if (shift) setSize(brush.size + (if (delta < 0) 1f else -1f)) else zoomBy(wheelZoom(delta), aboutX, aboutY)
     }
 
     /** `+` / `−`: a step in or out about the middle of the view. */
@@ -465,7 +503,8 @@ class SketchState(
         if (started) {
             source = candidate
             sourceName = candidate.name
-            penStatus = "Listening on ${candidate.name}."
+            val hooked = (candidate as? de.creaflect.actiondraw.sketch.input.WindowsPointerSource)?.hookedWindows
+            penStatus = "Listening on ${candidate.name}" + (if (hooked != null) ", $hooked windows hooked." else ".")
         } else {
             penStatus = "${candidate.name} could not hook the window — mouse only."
         }
@@ -514,6 +553,10 @@ class SketchState(
         const val MIN_ZOOM = 0.05f
         const val MAX_ZOOM = 8f
         const val KEY_ZOOM = 1.25f
+        /** What a mouse presses with: enough for a firm line, not the lead's heaviest. */
+        const val MOUSE_PRESSURE = 0.7f
+        /** What a soft eraser lifts per pass. */
+        const val SOFT_ERASER = 0.45f
         /** How long after a pen sample mouse input still counts as that pen: hover to touch. */
         const val PEN_GRACE_NANOS = 300_000_000L
 

@@ -42,7 +42,7 @@ for the building machine.
 | `StrokeBuilder` | samples in, `StrokePoint`s out one at a time: filtered position, lighter-filtered pressure, speed from timestamps smoothed over a short window, then the lead's width and alpha | `smoothing` on/off |
 | `Stroke` | a finished stroke: its brush and points | — |
 | `Resampler` | points in one at a time, dabs out at even spacing along a Catmull-Rom spline through the neighbours; a segment is placed the moment it exists (the last point doubled as the trailing control), so a stroke drawn live and the same stroke replayed produce the same dabs | `spacing(point)` |
-| `PaperGrain` | a tileable value-noise texture in page space, the paper's tooth; deterministic for a seed | `size`, `seed`, `floor` |
+| `PaperGrain` | a tileable value-noise texture in page space, the paper's tooth; deterministic for a seed; `shade()` draws it as a faint shadow over the page for the screen | `size`, `seed`, `floor`, `SHADE` |
 | `StampRenderer` | one dab: a disc of the point's width, its edge softened per lead, filled by the grain screened with the pressure (`g′ = 1 − (1 − g)(1 − p)`) and modulated by the colour at a per-dab alpha calibrated so three overlapping dabs reach the point's darkness; the eraser is the same dab with `DST_OUT` and the rubber's model | `DABS_PER_POINT` |
 | `Rasterizer` | the path-based pencil of the exploration's step 2 — kept as the lightest hard pencil and as the reference | — |
 | `SketchSurface` | the page: a *transparent* strokes layer over a paper colour (so the eraser can take graphite away), kept as 256-px tiles; `paint(bounds) { canvas }` draws into every tile under a rectangle with the canvas in page coordinates; `tileImage(i)` is the same picture until that tile is drawn on; `snapshot()`/`restore()` for undo; `compose()` flattened for export; `darkness()` for tests | size, paper, tile size |
@@ -74,9 +74,12 @@ Compose Desktop delivers no pen pressure (LEARNINGS L1), so the app hooks the na
   pixels, pressure 0..1, tilt and rotation in degrees, contact, barrel and eraser, the pointer
   kind, a timestamp. `PenSources.forWindow(window)` picks the route for the platform, or none.
 - `WindowsPointerSource` — Windows Ink through JNA: `SetWindowLongPtr(GWLP_WNDPROC)` subclasses
-  the Compose window's procedure; on `WM_POINTERDOWN/UPDATE/UP` it asks `GetPointerType`, and for
-  a pen `GetPointerPenInfo` (pressure out of 1024, tilt, rotation, flags), converts the screen
-  position with `ScreenToClient`, and hands the sample on. **The original procedure is called
+  the frame's procedure **and every child window's** (`EnumChildWindows`): Windows sends a
+  pointer message to the window under the pen, and Compose draws into skiko's `HardwareLayer`, a
+  heavyweight `java.awt.Canvas` with a handle of its own — the frame alone saw nothing
+  (LEARNINGS L6). On `WM_POINTERDOWN/UPDATE/UP` it asks `GetPointerType`, and for a pen
+  `GetPointerPenInfo` (pressure out of 1024, tilt, rotation, flags), converts the screen position
+  with `ScreenToClient` against the frame, and hands the sample on. **The original procedure is called
   for every message afterwards**, so Windows still promotes the pen to mouse messages and AWT,
   Compose and the rest of the app keep seeing the pen exactly as before. The pen data runs
   alongside, not instead. Pure Java: no compiler, no build step, nothing to package.
@@ -89,7 +92,7 @@ Compose Desktop delivers no pen pressure (LEARNINGS L1), so the app hooks the na
   the probe measures.
 
 WinTab is the fallback if `WM_POINTER` does not arrive through the AWT window; Linux (XInput2)
-and macOS have no source yet and get the mouse at pressure 1.
+and macOS have no source yet and get the mouse at its one fixed pressure.
 
 ## 4. The screen (`de.creaflect.actiondraw.sketch`)
 
@@ -102,7 +105,7 @@ current lead, live, through `Pencils.set`), the **Sketch ▾** menu (new, open, 
 to concept), Save, Back. `SketchDialogs` are mounted at app level like every other dialog.
 
 Input: a pen sample arrives in window pixels, is offset by the view's origin, and mapped
-through the view (`toPage`) into page pixels for the engine; the mouse the same, at pressure 1.
+through the view (`toPage`) into page pixels for the engine; the mouse the same, at one fixed middling pressure (`MOUSE_PRESSURE`).
 Windows also turns the pen into mouse events, so mouse input is ignored while a pen is on the
 page *or near it* — the pen sends samples while it hovers, and a mouse event within 300 ms of
 one is the pen seen twice; should a promoted mouse press still begin a stroke before the pen's

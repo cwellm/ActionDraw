@@ -63,6 +63,87 @@ class SessionTest {
         }
     }
 
+    @Test
+    fun aSoftEraserLiftsPartOfTheGraphiteAHardOneAllOfIt() {
+        fun erased(strength: Float): Pair<Float, Float> = SketchSession(200, 100).use { s ->
+            s.line(50f, 1f, Brush(Lead.SOFT, size = 12f))
+            val before = s.surface.darkness(100, 50)
+            s.begin(Brush(Lead.MEDIUM, size = 24f), eraser = true, eraserStrength = strength)
+            var t = 0L
+            for (x in 60..140 step 4) {
+                s.add(sample(x.toFloat(), 50f, 1f, t))
+                t += 5
+            }
+            s.end()
+            before to s.surface.darkness(100, 50)
+        }
+        val (b1, soft) = erased(0.45f)
+        val (b2, hard) = erased(1f)
+        assertTrue(soft > b1 * 0.3f && soft < b1 * 0.8f, "a soft pass leaves part of it: $b1 -> $soft")
+        assertTrue(hard < b2 * 0.15f, "a hard pass takes it all: $b2 -> $hard")
+    }
+
+    @Test
+    fun theEraserStrengthIsInTheDocumentAndReplaysWithIt() {
+        SketchSession(200, 100).use { s ->
+            s.line(50f, 1f, Brush(Lead.SOFT, size = 12f))
+            s.begin(Brush(Lead.MEDIUM, size = 24f), eraser = true, eraserStrength = 0.45f)
+            var t = 0L
+            for (x in 60..140 step 4) {
+                s.add(sample(x.toFloat(), 50f, 1f, t))
+                t += 5
+            }
+            s.end()
+            val json = s.document().toJson()
+            assertTrue(json.contains("\"eraserStrength\":0.45"), json.take(300))
+            SketchSession.fromDocument(SketchDocument.fromJson(json)).use { again ->
+                assertEquals(fingerprint(s), fingerprint(again), "the soft pass replays as a soft pass")
+            }
+        }
+    }
+
+    @Test
+    fun thePaperToothIsFineNotBlotchy() {
+        val grain = PaperGrain.default.image
+        val bitmap = org.jetbrains.skia.Bitmap()
+        bitmap.allocPixels(org.jetbrains.skia.ImageInfo.makeN32Premul(grain.width, grain.height))
+        assertTrue(grain.readPixels(bitmap))
+        // The grain is white at alpha g and getColor unpremultiplies, so the tooth is in the alpha.
+        fun v(x: Int, y: Int) = ((bitmap.getColor(x, y) ushr 24) and 0xFF) / 255f
+        var neighbours = 0f
+        var n = 0
+        val values = ArrayList<Float>()
+        for (y in 0 until grain.height step 3) for (x in 0 until grain.width - 1 step 3) {
+            neighbours += abs(v(x + 1, y) - v(x, y))
+            values += v(x, y)
+            n++
+        }
+        bitmap.close()
+        val meanStep = neighbours / n
+        val mean = values.average().toFloat()
+        val spread = kotlin.math.sqrt(values.map { (it - mean) * (it - mean) }.average()).toFloat()
+        assertTrue(meanStep > 0.04f, "pixel-to-pixel tooth, not smooth blobs: $meanStep")
+        assertTrue(spread > 0.08f, "and real contrast across the paper: $spread")
+    }
+
+    @Test
+    fun onScreenThePaperIsAFaintUnevenShadeOverWhiteAndNothingOutsideThePage() {
+        val surface = org.jetbrains.skia.Surface.makeRasterN32Premul(300, 200)
+        surface.canvas.clear(0xFFFFFFFF.toInt())
+        PaperGrain.default.shade(surface.canvas, 10f, 10f, 290f, 190f, scale = 1f)
+        val bitmap = org.jetbrains.skia.Bitmap()
+        bitmap.allocPixels(org.jetbrains.skia.ImageInfo.makeN32Premul(300, 200))
+        assertTrue(surface.readPixels(bitmap, 0, 0))
+        fun dark(x: Int, y: Int) = 1f - (bitmap.getColor(x, y) and 0xFF) / 255f
+        val inside = (20 until 280 step 5).flatMap { x -> (20 until 180 step 5).map { y -> dark(x, y) } }
+        val mean = inside.average().toFloat()
+        assertTrue(mean > 0.02f && mean < 0.12f, "a faint shade, not grey paper: $mean")
+        assertTrue(inside.max() - inside.min() > 0.03f, "and uneven, the tooth: ${inside.min()}..${inside.max()}")
+        assertEquals(0f, dark(5, 5), "white outside the page")
+        bitmap.close()
+        surface.close()
+    }
+
     // ---- Undo / redo ----
 
     @Test

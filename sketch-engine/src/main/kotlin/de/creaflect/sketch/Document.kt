@@ -37,6 +37,8 @@ data class StrokeRecord(
     val color: Int,
     val size: Float,
     val eraser: Boolean = false,
+    /** How much of the graphite an eraser stroke lifts per pass: 1 all of it, less a real rubber's share. */
+    val eraserStrength: Float = 1f,
     val samples: List<SampleRecord>,
 ) {
     val brush: Brush get() = Brush(Lead.entries.firstOrNull { it.name == lead } ?: Lead.MEDIUM, color, size)

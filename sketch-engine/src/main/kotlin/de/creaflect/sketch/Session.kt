@@ -36,8 +36,8 @@ class SketchSession(
     val canRedo: Boolean get() = redoStack.isNotEmpty()
     val isDrawing: Boolean get() = live != null
 
-    private class LiveStroke(val brush: Brush, val eraser: Boolean, stamps: StampRenderer) {
-        val builder = StrokeBuilder(brush, model = if (eraser) Pencils.ERASER else brush.model)
+    private class LiveStroke(val brush: Brush, val eraser: Boolean, val eraserStrength: Float, stamps: StampRenderer) {
+        val builder = StrokeBuilder(brush, model = if (eraser) Pencils.eraser(eraserStrength) else brush.model)
         val resampler = Resampler(stamps::spacing)
         val samples = ArrayList<SampleRecord>()
         var startNanos = 0L
@@ -45,9 +45,10 @@ class SketchSession(
 
     // ---- Drawing ----
 
-    fun begin(brush: Brush, eraser: Boolean = false) {
+    /** Starts a stroke; an eraser lifts [eraserStrength] of the graphite per pass (1 = all). */
+    fun begin(brush: Brush, eraser: Boolean = false, eraserStrength: Float = 1f) {
         end()
-        live = LiveStroke(brush, eraser, stamps)
+        live = LiveStroke(brush, eraser, eraserStrength, stamps)
     }
 
     /** The next sample of the stroke in progress; dabs are put on the page at once. */
@@ -63,7 +64,7 @@ class SketchSession(
         val stroke = live ?: return false
         live = null
         if (stroke.samples.isEmpty()) return false
-        strokes += StrokeRecord(stroke.brush.lead.name, stroke.brush.color, stroke.brush.size, stroke.eraser, stroke.samples.toList())
+        strokes += StrokeRecord(stroke.brush.lead.name, stroke.brush.color, stroke.brush.size, stroke.eraser, stroke.eraserStrength, stroke.samples.toList())
         redoStack.clear()
         dirty = true
         maybeSnapshot()
@@ -116,7 +117,7 @@ class SketchSession(
     }
 
     private fun replay(record: StrokeRecord) {
-        val stroke = LiveStroke(record.brush, record.eraser, stamps)
+        val stroke = LiveStroke(record.brush, record.eraser, record.eraserStrength, stamps)
         for (s in record.samples) place(stroke, InputSample(s.x, s.y, s.p, timeNanos = s.t))
     }
 

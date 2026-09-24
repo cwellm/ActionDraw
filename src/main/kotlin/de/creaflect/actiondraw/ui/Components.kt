@@ -15,7 +15,8 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 
 /**
  * Focuses the field as soon as it is on screen, so typing can start without a click — and so the
@@ -41,11 +42,12 @@ fun Modifier.confirmOnEnter(onOk: () -> Unit): Modifier = onPreviewKeyEvent { ev
 
 /** A compact selectable chip: filled when selected, outlined otherwise. */
 @Composable
-fun SelectChip(label: String, selected: Boolean, onClick: () -> Unit) {
+fun SelectChip(label: String, selected: Boolean, tag: String? = null, onClick: () -> Unit) {
     val padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+    val modifier = if (tag != null) Modifier.testTag(tag) else Modifier
     if (selected) {
-        Button(onClick = onClick, contentPadding = padding) { Text(label) }
+        Button(onClick = onClick, contentPadding = padding, modifier = modifier) { Text(label) }
     } else {
-        OutlinedButton(onClick = onClick, contentPadding = padding) { Text(label) }
+        OutlinedButton(onClick = onClick, contentPadding = padding, modifier = modifier) { Text(label) }
     }
 }

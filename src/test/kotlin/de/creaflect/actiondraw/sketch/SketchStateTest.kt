@@ -1,9 +1,15 @@
 package de.creaflect.actiondraw.sketch
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -86,6 +92,10 @@ class SketchStateTest {
 
     private fun SketchState.darkness(x: Int, y: Int) = session!!.surface.darkness(x, y)
 
+    /**
+     * A mouse line across the page at [y]. The mouse presses at one fixed, middling pressure, so
+     * this is a medium-grey line, not the lead's darkest: `> 0.3` is a line, `< 0.02` is paper.
+     */
     private fun SketchState.mouseLine(y: Float, startNanos: Long = 10_000_000_000L) {
         var t = startNanos
         mouseDown(20f + 10f, 20f + y, t)
@@ -124,12 +134,12 @@ class SketchStateTest {
     fun theMouseDrawsInPageCoordinatesAndATapLeavesADot() {
         val state = ready()
         state.mouseLine(100f)
-        assertTrue(state.darkness(150, 100) > 0.5f, "a line at page y=100: ${state.darkness(150, 100)}")
+        assertTrue(state.darkness(150, 100) > 0.3f, "a line at page y=100: ${state.darkness(150, 100)}")
         assertTrue(state.dirty)
 
         state.mouseDown(20f + 60f, 20f + 160f)
         state.mouseUp()
-        assertTrue(state.darkness(60, 160) > 0.3f, "a press without a move is a dot: ${state.darkness(60, 160)}")
+        assertTrue(state.darkness(60, 160) > 0.1f, "a press without a move is a dot: ${state.darkness(60, 160)}")
         assertEquals(2, state.session!!.strokeCount)
 
         state.zoomBy(2f, 20f, 20f)
@@ -164,7 +174,7 @@ class SketchStateTest {
 
         // A second later the pen is gone and the mouse is the mouse again.
         state.mouseLine(100f, startNanos = 3_000_000_000L)
-        assertTrue(state.darkness(150, 100) > 0.5f)
+        assertTrue(state.darkness(150, 100) > 0.3f)
     }
 
     @Test
@@ -174,7 +184,7 @@ class SketchStateTest {
         // The promoted mouse press arrives first, then the pen's own contact.
         state.mouseDown(20f + 10f, 20f + 120f, 20_000_000_000L)
         state.mouseMove(20f + 200f, 20f + 120f, 20_010_000_000L)
-        assertTrue(state.darkness(100, 120) > 0.5f, "on the page for a moment")
+        assertTrue(state.darkness(100, 120) > 0.1f, "on the page for a moment: ${state.darkness(100, 120)}")
         var t = 20_020L
         for (x in 10..100 step 4) {
             state.onPen(pen(x.toFloat(), 160f, contact = true, ms = t))
@@ -183,7 +193,7 @@ class SketchStateTest {
         state.onPen(pen(100f, 160f, contact = false, ms = t))
         assertTrue(state.darkness(150, 120) < 0.02f, "the mouse's version is gone: ${state.darkness(150, 120)}")
         assertTrue(state.darkness(50, 160) > 0.3f, "the pen's is there")
-        assertTrue(state.darkness(150, 40) > 0.5f, "and the earlier stroke untouched")
+        assertTrue(state.darkness(150, 40) > 0.3f, "and the earlier stroke untouched")
         assertEquals(2, state.session!!.strokeCount)
     }
 
@@ -196,7 +206,7 @@ class SketchStateTest {
         assertTrue(state.darkness(150, 100) < 0.02f)
         assertTrue(state.canRedo)
         state.redo()
-        assertTrue(state.darkness(150, 100) > 0.5f)
+        assertTrue(state.darkness(150, 100) > 0.3f)
 
         state.setLead(Lead.SOFT)
         state.toggleEraser()
@@ -234,7 +244,7 @@ class SketchStateTest {
         assertTrue(fresh.open(json))
         assertEquals(2, fresh.session!!.strokeCount)
         assertEquals("Drache Skizze", fresh.title)
-        assertTrue(fresh.session!!.surface.darkness(150, 100) > 0.5f, "the picture is back")
+        assertTrue(fresh.session!!.surface.darkness(150, 100) > 0.3f, "the picture is back")
         assertTrue(fresh.canUndo, "and its strokes can be undone")
     }
 
@@ -312,7 +322,7 @@ class SketchStateTest {
         state.leave()
         assertEquals(1, left, "leaving never asks: the sketch stays for next time")
         assertTrue(state.dirty)
-        assertTrue(state.darkness(150, 100) > 0.5f)
+        assertTrue(state.darkness(150, 100) > 0.3f)
 
         state.newSketch(PageSize.pixels(100, 100))
         val confirm = state.editor as SketchEditor.Confirm
@@ -366,6 +376,67 @@ class SketchStateTest {
         assertFalse(handleSketchChar('[', state), "a dialog's text field gets its characters")
     }
 
+    // ---- After the first hands-on: the dial, the eraser, the pen that never spoke ----
+
+    @Test
+    fun theWheelZoomsWithOrWithoutCtrlAndShiftSizesTheLead() {
+        val state = ready()
+        val zoom = state.zoom
+        state.wheel(-1f, shift = false, aboutX = 100f, aboutY = 100f)
+        assertTrue(state.zoom > zoom, "a wheel step in")
+        // The XPPen's dial in its zoom setting sends Ctrl+wheel; that is still a zoom, so the
+        // caller does not even pass Ctrl. Shift+wheel is the lead's size.
+        val size = state.brush.size
+        state.wheel(-1f, shift = true, aboutX = 100f, aboutY = 100f)
+        assertEquals(size + 1f, state.brush.size)
+        val z = state.zoom
+        state.wheel(0f, shift = false, aboutX = 100f, aboutY = 100f)
+        assertEquals(z, state.zoom, "a zero step is nothing")
+    }
+
+    @Test
+    fun theEraserIsSoftUnlessAskedToBeHard() {
+        val state = ready()
+        assertTrue(state.eraserSoft)
+        assertEquals(SketchState.SOFT_ERASER, state.eraserStrength)
+        state.toggleEraserMode()
+        assertEquals(1f, state.eraserStrength)
+        // And the strength goes into the strokes: a soft pass leaves some, a hard one none.
+        state.setLead(Lead.SOFT)
+        state.setSize(12f)
+        state.mouseLine(100f)
+        val before = state.darkness(150, 100)
+        state.toggleEraser()
+        state.toggleEraserMode() // soft again
+        state.setSize(24f)
+        state.mouseLine(100f, startNanos = 20_000_000_000L)
+        val afterSoft = state.darkness(150, 100)
+        assertTrue(afterSoft > before * 0.2f && afterSoft < before * 0.85f, "soft: $before -> $afterSoft")
+        assertEquals(0.45f, state.session!!.document().strokes.last().eraserStrength)
+    }
+
+    @Test
+    fun withoutAPenSampleTheStrokesFromTheMouseAreExplained() {
+        val state = ready()
+        assertNull(state.penHint, "nothing drawn, nothing to explain")
+        state.mouseLine(100f)
+        val hint = assertNotNull(state.penHint, "mouse strokes and no pen sample: say so")
+        assertTrue(hint.contains("Windows Ink"), hint)
+        state.onPen(pen(50f, 50f, contact = false, ms = 100_000))
+        assertNull(state.penHint, "the pen spoke: nothing to explain")
+    }
+
+    @Test
+    fun theToolbarWrapsInsteadOfClippingItsTail() {
+        val state = newState()
+        rule.setContent {
+            Box(Modifier.width(900.dp)) { SketchScreen(state, ThumbCache(config)) }
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("sketch-back").assertIsDisplayed()
+        rule.onNodeWithTag("sketch-save").assertIsDisplayed()
+    }
+
     // ---- The colour picker ----
 
     @OptIn(ExperimentalTestApi::class)
@@ -399,6 +470,8 @@ class SketchStateTest {
         state.newSketch(PageSize.pixels(600, 300))
         rule.waitForIdle()
         state.fit()
+        rule.waitForIdle()
+        val bare = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()
         // A thick line across the page's middle, crossing a tile border.
         state.setLead(Lead.SOFT)
         state.setSize(30f)
@@ -413,17 +486,21 @@ class SketchStateTest {
         rule.waitForIdle()
 
         val shot = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()
-        fun dark(x: Float, yy: Float): Float {
-            val c = shot[x.toInt(), yy.toInt()]
+        fun dark(x: Float, yy: Float, map: PixelMap = shot): Float {
+            val c = map[x.toInt(), yy.toInt()]
             return 1f - (c.red + c.green + c.blue) / 3f
         }
         val onLine = listOf(100f, 256f, 400f).map { dark(state.panX + it * state.zoom, y) }
-        assertTrue(onLine.all { it > 0.4f }, "the line is on screen, across the tile border: $onLine")
-        assertTrue(dark(state.panX + 300f * state.zoom, state.panY + 40f * state.zoom) < 0.05f, "and the paper around it is paper")
+        assertTrue(onLine.all { it > 0.3f }, "the line is on screen, across the tile border: $onLine")
+        // Bare paper is white with the faint shade of its tooth: light, and the same as before the stroke.
+        val px = state.panX + 300f * state.zoom
+        val py = state.panY + 40f * state.zoom
+        assertTrue(dark(px, py, bare) < 0.12f, "bare paper is light: ${dark(px, py, bare)}")
+        assertEquals(bare[px.toInt(), py.toInt()], shot[px.toInt(), py.toInt()], "and the paper around the line is paper")
         rule.onNodeWithTag("sketch-undo").performClick()
         rule.waitForIdle()
         val after = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()
-        val c = after[(state.panX + 256f * state.zoom).toInt(), y.toInt()]
-        assertTrue(1f - (c.red + c.green + c.blue) / 3f < 0.05f, "undo takes it off the screen too")
+        val lx = (state.panX + 256f * state.zoom).toInt()
+        assertEquals(bare[lx, y.toInt()], after[lx, y.toInt()], "undo takes it off the screen too")
     }
 }

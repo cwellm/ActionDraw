@@ -191,8 +191,8 @@ object Hotkeys {
     val SKETCH: List<Pair<String, String>> = listOf(
         "1 · 2 · 3" to "hard · medium · soft lead",
         "E" to "eraser",
-        "[ / ] · Ctrl+wheel" to "thinner / thicker",
-        "wheel · + / − · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
+        "[ / ] · Shift+wheel" to "thinner / thicker",
+        "wheel (Ctrl or not) · + / − · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
         "Space+drag · middle drag" to "pan the page",
         "Ctrl+Z / Ctrl+Y" to "undo / redo",
         "Ctrl+S · Ctrl+N · Ctrl+O" to "save · new sketch · open a sketch",

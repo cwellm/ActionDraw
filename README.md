@@ -288,25 +288,29 @@ The drawing engine lives in its own module, `sketch-engine`, with no Compose in 
 in, pixels out ([docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)). Pen
 pressure never reaches Compose, so on Windows the app hooks its own window through Windows Ink
 and reads pressure, tilt and rotation straight from the pen, alongside the mouse events
-everything else keeps using. Without a pen, the mouse draws at full pressure.
+everything else keeps using. Without a pen, the mouse draws at one middling pressure.
 
 ### The page
 - **Live Sketch** on the start menu opens a page straight away — A4 at 150 dpi, or the size you
   chose last. **Sketch ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
   portrait or landscape, or a width × height in pixels; white, cream, grey or toned paper. The
-  page is fitted into the view; the wheel zooms about the cursor, `+` `−` zoom, `Ctrl`+`0` fits
-  again, `Space`+drag or the middle button pans.
+  page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
+  the XPPen's dial in its zoom setting zooms too — `+` `−` zoom, `Ctrl`+`0` fits again,
+  `Space`+drag or the middle button pans.
 - Three leads — **H · HB · 4B** (`1` `2` `3`) — that differ in more than width: a hard lead
   barely widens and never goes black, a soft one opens up under pressure and reaches solid dark;
   speed lightens, soft leads most. The mark is made of dabs of paper grain, so light pressure
-  catches only the tops of the tooth. **Eraser** (`E`) takes graphite away again. Size with
-  `[` `]`, the toolbar's − +, or `Ctrl`+wheel. The colour swatch opens a picker: a
-  saturation/value square, a hue strip, hex, recent colours.
+  catches only the tops of the tooth. **Eraser** (`E`) is a rubber: **soft** by default, a pass
+  lifts part of the graphite and two or three clear a light mark; **hard** takes it all at once
+  (the chip beside it switches). Size with `[` `]`, the toolbar's − +, or `Shift`+wheel. The
+  colour swatch opens a picker: a saturation/value square, a hue strip, hex, recent colours.
 - **Undo / Redo** (`Ctrl`+`Z` / `Ctrl`+`Y`) replay the strokes; there is no limit but memory.
 - **Back** (or `Esc`) keeps the sketch: it is still there when you come back, for as long as
   the app runs. Only starting another sketch or closing the app asks about unsaved strokes.
 - **Pen** on the toolbar folds out what the pen reports — pressure, tilt, rotation, contact,
   sample rate — and **Record samples** appends every reading to `~/.actiondraw/pen-samples.csv`.
+  If it reads **Pen ⚠**, the strokes are arriving as a mouse, at one pressure: in the XPPen
+  driver, enable Windows Ink and restart ActionDraw.
   **Tune** folds out every number of the current lead, live, for finding what feels like a
   pencil; the ones that survive go into [LEARNINGS.md](LEARNINGS.md).
 
@@ -381,8 +385,8 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 | Key | Action |
 |---|---|
 | `1` `2` `3` · `E` | hard · medium · soft lead · eraser |
-| `[` `]` · `Ctrl`+wheel | thinner · thicker (by the character, so AltGr+8/9 on a German keyboard) |
-| wheel · `+` `−` · `Ctrl`+`0` | zoom about the cursor · zoom · fit the page |
+| `[` `]` · `Shift`+wheel | thinner · thicker (by the character, so AltGr+8/9 on a German keyboard) |
+| wheel (`Ctrl` or not) · `+` `−` · `Ctrl`+`0` | zoom about the cursor · zoom · fit the page |
 | `Space`+drag · middle drag | pan |
 | `Ctrl`+`Z` / `Ctrl`+`Y` | undo / redo |
 | `Ctrl`+`S` · `Ctrl`+`N` · `Ctrl`+`O` | save · new sketch · open a sketch |

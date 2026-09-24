@@ -9,6 +9,8 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -49,8 +51,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.isTertiaryPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
@@ -79,6 +81,7 @@ import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Rect
 import java.io.File
 import kotlin.math.roundToInt
+import de.creaflect.sketch.PaperGrain
 
 /** The Live Sketch entry on the menu, equal in weight to the others. */
 @Composable
@@ -122,15 +125,17 @@ fun SketchScreen(state: SketchState, thumbs: ThumbCache) {
 
 // ---------------- The toolbar ----------------
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Toolbar(state: SketchState) {
     Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 3.dp, modifier = Modifier.fillMaxWidth().testTag("sketch-header")) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
+        // A FlowRow, not a Row: a Row clipped its tail off in a 1120-dp window, Back and all.
+        FlowRow(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
-            Column(Modifier.widthIn(max = 220.dp)) {
+            Column(Modifier.widthIn(max = 200.dp).align(Alignment.CenterVertically)) {
                 Text(
                     state.title + if (state.dirty) " •" else "",
                     style = MaterialTheme.typography.subtitle2,
@@ -147,6 +152,10 @@ private fun Toolbar(state: SketchState) {
                 SelectChip(lead.label, !state.eraser && state.brush.lead == lead) { state.setLead(lead) }
             }
             SelectChip("Eraser", state.eraser) { state.toggleEraser() }
+            if (state.eraser) {
+                // A rubber lifts part of the graphite per pass; "hard" takes it all at once.
+                SelectChip(if (state.eraserSoft) "soft" else "hard", true, tag = "sketch-eraser-mode") { state.toggleEraserMode() }
+            }
             Flat("−") { state.setSize(state.brush.size - 1f) }
             Text("${state.brush.size.roundToInt()}", style = MaterialTheme.typography.body2, modifier = Modifier.testTag("sketch-size"))
             Flat("+") { state.setSize(state.brush.size + 1f) }
@@ -163,8 +172,14 @@ private fun Toolbar(state: SketchState) {
             Flat("Undo", enabled = state.canUndo, tag = "sketch-undo") { state.undo() }
             Flat("Redo", enabled = state.canRedo, tag = "sketch-redo") { state.redo() }
             Flat("${(state.zoom * 100).roundToInt()} %", tag = "sketch-fit") { state.fit() }
-            Spacer(Modifier.weight(1f))
-            Flat(if (state.showPenPanel) "Pen ✕" else "Pen", tag = "sketch-pen-panel") { state.showPenPanel = !state.showPenPanel }
+            Flat(
+                when {
+                    state.showPenPanel -> "Pen ✕"
+                    state.penHint != null -> "Pen ⚠"
+                    else -> "Pen"
+                },
+                tag = "sketch-pen-panel",
+            ) { state.showPenPanel = !state.showPenPanel }
             Flat(if (state.showTunables) "Tune ✕" else "Tune", tag = "sketch-tune") { state.showTunables = !state.showTunables }
             FileMenu(state)
             Flat("Save", tag = "sketch-save") { state.save() }
@@ -210,6 +225,9 @@ private fun PenPanel(state: SketchState) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(state.penStatus, style = MaterialTheme.typography.caption, color = MaterialTheme.colors.secondary, modifier = Modifier.weight(1f).testTag("sketch-status"))
             Flat(if (state.recording) "Stop recording" else "Record samples", tag = "sketch-record") { state.toggleRecording() }
+        }
+        state.penHint?.let {
+            Text(it, style = MaterialTheme.typography.caption, color = MaterialTheme.colors.error, modifier = Modifier.testTag("sketch-pen-hint"))
         }
         val s = state.last
         val line = if (s == null) {
@@ -295,13 +313,8 @@ private fun Page(state: SketchState) {
             .onGloballyPositioned { state.viewOrigin = it.positionInWindow() }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
-                val delta = change.scrollDelta.y
-                if (delta == 0f) return@onPointerEvent
-                if (event.keyboardModifiers.isCtrlPressed) {
-                    state.setSize(state.brush.size + (if (delta < 0) 1f else -1f))
-                } else {
-                    state.zoomBy(SketchState.wheelZoom(delta), change.position.x, change.position.y)
-                }
+                val delta = change.scrollDelta.y.takeIf { it != 0f } ?: change.scrollDelta.x
+                state.wheel(delta, shift = event.keyboardModifiers.isShiftPressed, aboutX = change.position.x, aboutY = change.position.y)
             }
             .pointerInput(state) {
                 // Drawing needs no drag threshold — a press is already a mark, a press without a
@@ -356,6 +369,9 @@ private fun Page(state: SketchState) {
                     zoom < 2f -> FilterMipmap(FilterMode.LINEAR, MipmapMode.NONE)
                     else -> FilterMipmap(FilterMode.NEAREST, MipmapMode.NONE)
                 }
+                // The paper's tooth, faintly, so the page reads as paper and the graphite sits *in*
+                // something. On screen only; the saved picture is clean paper.
+                drawIntoCanvas { PaperGrain.default.shade(it.nativeCanvas, panX, panY, panX + w, panY + h, zoom, sampling = sampling) }
                 drawIntoCanvas { canvas ->
                     val native = canvas.nativeCanvas
                     for (i in 0 until surface.tileCount) {

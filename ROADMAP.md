@@ -486,9 +486,12 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
 - ✅ **Live Sketch** on the menu opens the probe: live readouts of the last sample and the rate,
   the three leads, a page that draws through the engine with the pressure that arrives (a mouse
   at pressure 1), and a recorder to `~/.actiondraw/pen-samples.csv` (2026-09-21)
-- ✅ First contact (2026-09-21): the XPPen draws on the page through the hook — `WM_POINTER`
-  arrives under Compose's render loop. The numbers (rate, coordinates at 125 %, the pressure
-  curve) come with the pen study; WinTab only if Windows Ink falls short
+- ✅ First contact (2026-09-21) drew — but through the mouse: `WM_POINTER` goes to the window
+  under the pen, and Compose's surface is a heavyweight child with a handle of its own, so the
+  frame hook saw nothing (LEARNINGS L6). The hook now takes the frame and every child window;
+  the Pen panel says when strokes are still arriving as a mouse (2026-09-24)
+- ⬜ The numbers (rate, coordinates at 125 %, the pressure curve) with the pen study; WinTab only
+  if Windows Ink falls short
 
 ### ✅ F7.2 The engine, as a library
 - ✅ `:sketch-engine` module, Kotlin/JVM over skiko 0.8.18 (the one Compose ships), no Compose
@@ -512,6 +515,11 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
   dab taking coverage away with a rubber's own model
 - ✅ **Tune** on the toolbar: every tunable of the current lead live, with reset; a replayed
   sketch renders with the changed model (the document keeps samples, not pixels)
+- ✅ After the first hands-on (2026-09-24): the paper tooth is 1–3 px, not 8–32 (it read as
+  stains); a faint tooth on the page on screen; the mouse presses at 0.7, not the lead's
+  heaviest; the eraser is **soft** by default — a pass lifts a rubber's share, two or three
+  clear a light mark — with a *hard* mode that takes everything; the strength is in the
+  document, so a soft pass replays as one
 - ⬜ The numbers that survive the pen in hand go into LEARNINGS; a chisel edge from tilt later
 
 ### ✅ F7.4 The screen
@@ -523,6 +531,9 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
   threshold; a tap leaves a dot); the wheel zooms about the cursor, Ctrl+wheel sizes, Space+drag
   or the middle button pans · keys `1 2 3 E Ctrl+Z/Y/S/N/O/0 Esc`, and `[ ] + −` by the
   character typed, so they work on a German layout too (2026-09-22)
+- ✅ The toolbar wraps (a `FlowRow`): in a 1120-dp window its tail was clipped off, Back and
+  all; the dial's zoom setting sends Ctrl+wheel, so the wheel zooms with or without Ctrl and
+  Shift+wheel sizes the lead (2026-09-24)
 - ✅ **Save** (`Ctrl+S`) and **Save as…**: `<name>.png` beside `<name>.sketch.json`, in
   `~/ActionDraw Sketches` or any folder; a first save is offered "Sketch <date time>", so Ctrl+S
   then Enter is all it takes; another sketch's name is refused, never overwritten · **Open…**
