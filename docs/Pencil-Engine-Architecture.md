@@ -37,7 +37,7 @@ for the building machine.
 |---|---|---|
 | `InputSample` | one reading: `x, y, pressure, tiltX, tiltY, timeNanos, source` | — |
 | `OneEuroFilter` | adaptive low-pass on one value; still hand steady, fast hand faithful | `minCutoff`, `beta` |
-| `Lead` · `PencilModel` · `Pencils` | H / HB / 4B as three parameter sets over one `(pressure, speed, tilt) → (width, alpha)` model — LEARNINGS L2's numbers; the side of the lead stretches the mark along the tilt (`stretch(tilt)`) and lightens it; serializable, so a tuned lead can be kept as a preset | per lead: `minWidth, maxWidth, gamma, alphaFloor, alphaCeiling, speedK, vRef, edge, tiltWidth, tiltAlpha` |
+| `Lead` · `PencilModel` · `Pencils` | H / HB / 4B, a 0.5 mm mechanical pencil, charcoal, a fineliner and a brush pen as seven parameter sets over one `(pressure, speed, tilt) → (width, alpha)` model — LEARNINGS L2's numbers; the side of the lead stretches the mark along the tilt (`stretch(tilt)`) and lightens it; `grain` says how much of the tooth the pressure fills (0 ink, above 1 charcoal); serializable, so a tuned tool can be kept as a preset | per tool: `minWidth, maxWidth, gamma, alphaFloor, alphaCeiling, speedK, vRef, edge, tiltWidth, tiltAlpha, grain` |
 | `Brush` | a lead, a colour (ARGB), a size in page pixels | — |
 | `StrokeBuilder` | samples in, `StrokePoint`s out one at a time: filtered position, lighter-filtered pressure, the tilt through a light filter of its own as a vector in fractions of a full tilt (60°), speed from timestamps smoothed over a short window, the stroke's heading, then the lead's width and alpha | `smoothing` on/off, `FULL_TILT` |
 | `Stroke` | a finished stroke: its brush and points | — |

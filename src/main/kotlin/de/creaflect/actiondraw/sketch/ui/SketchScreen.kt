@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
@@ -249,6 +250,7 @@ private fun PenPanel(state: SketchState) {
             )
         }
         Text(line, style = mono, modifier = Modifier.testTag("sketch-readout"))
+        state.lastInput?.let { Text("last input: $it", style = mono, modifier = Modifier.testTag("sketch-last-input")) }
         state.recordedTo?.let { file ->
             Text((if (state.recording) "Recording to " else "Recorded to ") + file.path, style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f))
         }
@@ -271,7 +273,7 @@ private fun Tunables(state: SketchState) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${lead.label}: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold)
             Text(
-                "width %.2f..%.2f γ %.2f · alpha %.2f..%.2f · speed k %.2f · edge %.2f · tilt +%.2f −%.2f".format(model.minWidth, model.maxWidth, model.gamma, model.alphaFloor, model.alphaCeiling, model.speedK, model.edge, model.tiltWidth, model.tiltAlpha),
+                "width %.2f..%.2f γ %.2f · alpha %.2f..%.2f · speed k %.2f · edge %.2f · tilt +%.2f −%.2f · grain %.2f".format(model.minWidth, model.maxWidth, model.gamma, model.alphaFloor, model.alphaCeiling, model.speedK, model.edge, model.tiltWidth, model.tiltAlpha, model.grain),
                 style = MaterialTheme.typography.caption.copy(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.weight(1f).testTag("sketch-tunables"),
             )
@@ -293,7 +295,8 @@ private fun Tunables(state: SketchState) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Knob("tilt: wider by", model.tiltWidth, 0f..3f) { apply(model.copy(tiltWidth = it)) }
             Knob("tilt: lighter by", model.tiltAlpha, 0f..1f) { apply(model.copy(tiltAlpha = it)) }
-            Spacer(Modifier.weight(2f))
+            Knob("grain", model.grain, 0f..1.5f) { apply(model.copy(grain = it)) }
+            Spacer(Modifier.weight(1f))
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Paper: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold)
@@ -343,6 +346,11 @@ private fun Page(state: SketchState) {
             .onGloballyPositioned { state.viewOrigin = it.positionInWindow() }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val change = event.changes.firstOrNull() ?: return@onPointerEvent
+                state.lastInput = "wheel Δx %.2f Δy %.2f%s%s".format(
+                    change.scrollDelta.x, change.scrollDelta.y,
+                    if (event.keyboardModifiers.isCtrlPressed) " ctrl" else "",
+                    if (event.keyboardModifiers.isShiftPressed) " shift" else "",
+                )
                 val delta = change.scrollDelta.y.takeIf { it != 0f } ?: change.scrollDelta.x
                 state.wheel(delta, shift = event.keyboardModifiers.isShiftPressed, aboutX = change.position.x, aboutY = change.position.y)
             }

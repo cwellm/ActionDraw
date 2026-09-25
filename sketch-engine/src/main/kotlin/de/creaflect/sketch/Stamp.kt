@@ -205,7 +205,9 @@ class StampRenderer(private val grain: PaperGrain = PaperGrain.default) {
         // [stretch] times that along it. And the side skims the tooth — less pressure fills it.
         val stretch = model.stretch(point.tilt)
         val along = radius * stretch
-        val filling = point.pressure * (1f - TILT_GRAIN * point.tilt)
+        // How much of the tooth the pressure fills: a pencil's pits stay bare under a light hand,
+        // ink fills them at any pressure, charcoal (grain above 1) catches even less.
+        val filling = (1f - model.grain * (1f - point.pressure * (1f - TILT_GRAIN * point.tilt))).coerceIn(0f, 1f)
         val sigma = if (edge > 0f) (radius * edge).coerceAtLeast(0.3f) else 0f
         // A blurred edge reaches about three sigma past the disc.
         val reach = along + 3f * sigma + 1.5f

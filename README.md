@@ -298,7 +298,10 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
   breaks up on rough. The page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
   the XPPen's dial in its zoom setting zooms too — `+` `−` zoom, `Ctrl`+`0` fits again,
   `Space`+drag or the middle button pans.
-- Three leads — **H · HB · 4B** (`1` `2` `3`) — that differ in more than width: a hard lead
+- Seven tools on one model: the leads **H · HB · 4B** (`1` `2` `3`), a **0.5** mm mechanical
+  pencil (`4`, one width whatever the pressure), **Charcoal** (`5`, wide, black under a light
+  hand, all tooth), a **Fineliner** (`6`, one width, one blackness, no tooth) and a **Brush**
+  pen (`7`, a hair to a broad stroke from pressure, no tooth). The leads differ in more than width: a hard lead
   barely widens and never goes black, a soft one opens up under pressure and reaches solid dark;
   speed lightens, soft leads most. The mark is made of dabs of paper grain, so light pressure
   catches only the tops of the tooth. Lean the pen and you draw with the side of the lead: the
@@ -312,6 +315,7 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
   the app runs. Only starting another sketch or closing the app asks about unsaved strokes.
 - **Pen** on the toolbar folds out what the pen reports — pressure, tilt, rotation, contact,
   sample rate — and **Record samples** appends every reading to `~/.actiondraw/pen-samples.csv`.
+  It also shows the last key or wheel event in words, so what a tablet's dial sends can be read off.
   If it reads **Pen ⚠**, the strokes are arriving as a mouse, at one pressure: in the XPPen
   driver, enable Windows Ink and restart ActionDraw.
   **Tune** folds out every number of the current lead, live, for finding what feels like a
@@ -390,9 +394,9 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 
 | Key | Action |
 |---|---|
-| `1` `2` `3` · `E` | hard · medium · soft lead · eraser |
+| `1` – `7` · `E` | H · HB · 4B · 0.5 · charcoal · fineliner · brush · eraser |
 | `[` `]` · `Shift`+wheel | thinner · thicker (by the character, so AltGr+8/9 on a German keyboard) |
-| wheel (`Ctrl` or not) · `+` `−` · `Ctrl`+`0` | zoom about the cursor · zoom · fit the page |
+| wheel (`Ctrl` or not) · `+` `−` (`Ctrl` or not, numpad too) · `Ctrl`+`0` | zoom about the cursor · zoom · fit the page |
 | `Space`+drag · middle drag | pan |
 | `Ctrl`+`Z` / `Ctrl`+`Y` | undo / redo |
 | `Ctrl`+`S` · `Ctrl`+`N` · `Ctrl`+`O` | save · new sketch · open a sketch |

@@ -527,6 +527,10 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
   grain — chosen with a new sketch, changed under the strokes in Tune, in the document by name
 - ✅ **Presets** (2026-09-24): a lead as tuned, under a name, in the settings; a chip beside the
   leads applies it, Tune saves and deletes them
+- ✅ Four more tools on the same model (2026-09-25): a 0.5 mm mechanical pencil, charcoal, a
+  fineliner, a brush pen — a `grain` per tool (0 ink, 1 pencil, 1.5 charcoal) decides how much
+  of the tooth the pressure fills; keys `4`–`7`; zoom by `+`/`−` keys of any kind, Ctrl or not,
+  for a dial that sends them; the Pen panel shows the last key and wheel event in words
 - ⬜ The numbers that survive the pen in hand go into LEARNINGS
 
 ### ✅ F7.4 The screen

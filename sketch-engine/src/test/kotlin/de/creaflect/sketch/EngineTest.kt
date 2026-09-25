@@ -52,8 +52,9 @@ class EngineTest {
             for (p in listOf(0f, 0.25f, 0.5f, 0.75f, 1f)) {
                 val width = model.width(p, 10f)
                 val alpha = model.alpha(p, 0f)
-                assertTrue(width > lastWidth, "$lead width grows with pressure")
-                assertTrue(alpha > lastAlpha, "$lead darkness grows with pressure")
+                // The mechanical pencil and the fineliner have one width; the fineliner and the brush pen one blackness.
+                if (model.maxWidth > model.minWidth) assertTrue(width > lastWidth, "$lead width grows with pressure") else assertEquals(model.width(0f, 10f), width, "$lead has one width")
+                if (model.alphaCeiling > model.alphaFloor) assertTrue(alpha > lastAlpha, "$lead darkness grows with pressure") else assertEquals(1f, alpha, "$lead is one blackness")
                 assertTrue(alpha in 0f..1f)
                 lastWidth = width
                 lastAlpha = alpha

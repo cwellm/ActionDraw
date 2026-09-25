@@ -189,10 +189,10 @@ object Hotkeys {
         "Shift+drag" to "rubber-band select (free)",
     )
     val SKETCH: List<Pair<String, String>> = listOf(
-        "1 · 2 · 3" to "hard · medium · soft lead",
+        "1 – 7" to "H · HB · 4B · 0.5 · charcoal · fineliner · brush",
         "E" to "eraser",
         "[ / ] · Shift+wheel" to "thinner / thicker",
-        "wheel (Ctrl or not) · + / − · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
+        "wheel (Ctrl or not) · + / − (any, Ctrl or not) · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
         "Space+drag · middle drag" to "pan the page",
         "Ctrl+Z / Ctrl+Y" to "undo / redo",
         "Ctrl+S · Ctrl+N · Ctrl+O" to "save · new sketch · open a sketch",

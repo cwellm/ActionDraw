@@ -348,6 +348,18 @@ class SketchStateTest {
         assertEquals(Lead.HARD, state.brush.lead)
         handleSketchShortcut(Key.Three, ctrl = false, state = state)
         assertEquals(Lead.SOFT, state.brush.lead)
+        handleSketchShortcut(Key.Five, ctrl = false, state = state)
+        assertEquals(Lead.CHARCOAL, state.brush.lead, "the tools beyond the leads have keys too")
+        handleSketchShortcut(Key.NumPad7, ctrl = false, state = state)
+        assertEquals(Lead.BRUSH, state.brush.lead)
+        val zoom = state.zoom
+        assertTrue(handleSketchShortcut(Key.Plus, ctrl = false, state = state))
+        assertEquals(zoom * SketchState.KEY_ZOOM, state.zoom, 0.001f, "+ zooms in")
+        assertTrue(handleSketchShortcut(Key.NumPadSubtract, ctrl = true, state = state), "a dial's Ctrl+numpad minus zooms out")
+        assertEquals(zoom, state.zoom, 0.001f)
+        assertTrue(handleSketchShortcut(Key.Equals, ctrl = true, state = state), "and Ctrl+= as a US layout has it")
+        assertEquals(zoom * SketchState.KEY_ZOOM, state.zoom, 0.001f)
+        handleSketchShortcut(Key.Minus, ctrl = false, state = state)
         handleSketchShortcut(Key.E, ctrl = false, state = state)
         assertTrue(state.eraser)
         state.mouseLine(100f)
@@ -366,7 +378,7 @@ class SketchStateTest {
     }
 
     @Test
-    fun sizeAndZoomGoByTheCharacterTypedWhateverTheLayout() {
+    fun sizeGoesByTheCharacterTypedWhateverTheLayout() {
         val state = ready()
         val size = state.brush.size
         assertTrue(handleSketchChar('[', state))
@@ -374,11 +386,7 @@ class SketchStateTest {
         assertTrue(handleSketchChar(']', state))
         assertTrue(handleSketchChar(']', state))
         assertEquals(size + 1f, state.brush.size)
-        val zoom = state.zoom
-        assertTrue(handleSketchChar('+', state))
-        assertEquals(zoom * SketchState.KEY_ZOOM, state.zoom, 0.001f)
-        assertTrue(handleSketchChar('-', state))
-        assertEquals(zoom, state.zoom, 0.001f)
+        assertFalse(handleSketchChar('+', state), "zoom went to the keys, so a + key is not zoomed twice")
         assertFalse(handleSketchChar('x', state))
         state.openEditor(SketchEditor.Colour)
         assertFalse(handleSketchChar('[', state), "a dialog's text field gets its characters")
@@ -468,6 +476,18 @@ class SketchStateTest {
             if (layout.didOverflowHeight) layout.layoutInput.text.text else null
         }
         assertTrue(cut.isEmpty(), "cut off at the bottom: $cut")
+    }
+
+    @Test
+    fun thePenPanelShowsTheLastInputEvent() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        rule.waitForIdle()
+        state.newSketch(PageSize.pixels(300, 200))
+        state.showPenPanel = true
+        state.lastInput = "wheel Δx 0.00 Δy -1.00 ctrl"
+        rule.waitForIdle()
+        rule.onNodeWithTag("sketch-last-input").assertIsDisplayed()
     }
 
     // ---- The paper, and presets ----

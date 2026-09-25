@@ -196,6 +196,30 @@ class SessionTest {
         }
     }
 
+    @Test
+    fun theOtherToolsFitTheModelInkWithoutToothCharcoalWithMore() {
+        fun spreadAndMean(lead: Lead, pressure: Float): Pair<Float, Float> = SketchSession(200, 100).use { s ->
+            s.line(50f, pressure, Brush(lead, size = 12f))
+            val on = (30..170 step 5).map { s.surface.darkness(it, 50) }
+            (on.max() - on.min()) to on.average().toFloat()
+        }
+        val (inkSpread, inkMean) = spreadAndMean(Lead.INK, 0.4f)
+        assertTrue(inkMean > 0.85f, "a fineliner is as black as its colour (#1A1A1A tops out near 0.9) at any pressure: $inkMean")
+        assertTrue(inkSpread < 0.03f, "and shows no tooth: $inkSpread")
+        val (pencilSpread, _) = spreadAndMean(Lead.MEDIUM, 0.4f)
+        val (charcoalSpread, charcoalMean) = spreadAndMean(Lead.CHARCOAL, 0.4f)
+        assertTrue(charcoalSpread > pencilSpread + 0.03f, "charcoal catches the tooth more than a pencil: $charcoalSpread vs $pencilSpread")
+        assertTrue(charcoalMean > 0.2f, "and is dark under a light hand: $charcoalMean")
+        assertEquals(7, Lead.entries.size)
+        assertEquals(7, Lead.entries.map { Pencils.of(it) }.distinct().size, "seven tools, seven models")
+        SketchSession(200, 100).use { s ->
+            s.line(50f, 0.4f, Brush(Lead.INK, size = 12f))
+            val json = s.document().toJson()
+            assertTrue(json.contains("\"lead\":\"INK\""), json.take(200))
+            SketchSession.fromDocument(SketchDocument.fromJson(json)).use { again -> assertEquals(fingerprint(s), fingerprint(again)) }
+        }
+    }
+
     // ---- Undo / redo ----
 
     @Test

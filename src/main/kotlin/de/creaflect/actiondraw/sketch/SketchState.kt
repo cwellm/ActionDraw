@@ -128,6 +128,8 @@ class SketchState(
         private set
     var penStatus by mutableStateOf("Mouse only — no pen source on this machine.")
         private set
+    /** The last key or wheel event the sketch screen saw, in words — the Pen panel shows it, so what a dial sends can be read off. */
+    var lastInput by mutableStateOf<String?>(null)
     var last by mutableStateOf<PenSample?>(null)
         private set
     var sampleCount by mutableStateOf(0)

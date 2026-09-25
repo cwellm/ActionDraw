@@ -27,7 +27,9 @@ import java.io.File
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.sketch.SketchState
+import androidx.compose.ui.input.key.isAltPressed
 import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import de.creaflect.actiondraw.sketch.SketchHost
 import de.creaflect.actiondraw.sketch.handleSketchShortcut
 import androidx.compose.runtime.mutableStateOf
@@ -198,6 +200,15 @@ private fun toggleFullscreen(ws: WindowState) {
 }
 
 /** Main-window shortcuts. Keeps hands on the keyboard so the drawing stays in flow. */
+/** A key event in words, for the Pen panel's readout: type, key, character, modifiers. */
+private fun describeKey(event: KeyEvent): String {
+    val native = event.nativeKeyEvent as? java.awt.event.KeyEvent
+    val name = native?.let { java.awt.event.KeyEvent.getKeyText(it.keyCode) } ?: event.key.toString()
+    val char = event.utf16CodePoint.takeIf { it > 32 }?.let { " '" + it.toChar() + "'" } ?: ""
+    val mods = (if (event.isCtrlPressed) " ctrl" else "") + (if (event.isShiftPressed) " shift" else "") + (if (event.isAltPressed) " alt" else "")
+    return "key ${event.type} $name$char$mods"
+}
+
 private fun handleKey(
     event: KeyEvent,
     state: AppState,
@@ -213,6 +224,8 @@ private fun handleKey(
         return event.key == Key.Escape
     }
     if (state.screen == Screen.Sketch) {
+        // What arrived, for the Pen panel: a tablet's dial may send keys, a wheel, or nothing.
+        sketchState.lastInput = describeKey(event)
         // Space held pans: the one key whose release matters, so it is read before the rest.
         if (event.key == Key.Spacebar && sketchState.editor == null) {
             sketchState.spaceHeld = event.type == KeyEventType.KeyDown

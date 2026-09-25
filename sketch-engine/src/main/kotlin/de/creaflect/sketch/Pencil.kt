@@ -3,8 +3,16 @@ package de.creaflect.sketch
 import kotlinx.serialization.Serializable
 import kotlin.math.pow
 
-/** The three leads. Three parameter sets over one model, not three code paths (LEARNINGS L2). */
-enum class Lead(val label: String) { HARD("H"), MEDIUM("HB"), SOFT("4B") }
+/**
+ * The leads — and the other tools that fit the same model: a mechanical pencil (one width,
+ * whatever the pressure), a charcoal stick (wide, black, all tooth), a fineliner (one width,
+ * one blackness, no tooth), a brush pen (width from pressure, no tooth). Parameter sets over
+ * one model, not a code path per tool (LEARNINGS L2); keys `1` to `7` in this order.
+ */
+enum class Lead(val label: String) {
+    HARD("H"), MEDIUM("HB"), SOFT("4B"),
+    MECHANICAL("0.5"), CHARCOAL("Charcoal"), INK("Fineliner"), BRUSH("Brush"),
+}
 
 /**
  * What a lead does per point: width and darkness as functions of pressure and speed.
@@ -34,6 +42,8 @@ data class PencilModel(
     val tiltWidth: Float = 1.5f,
     /** How much the side of the lead lightens the mark at a full tilt: `alpha · (1 − tiltAlpha · tilt)`. */
     val tiltAlpha: Float = 0.5f,
+    /** How much of the tooth shows: 1 a pencil, 0 ink that fills every pit at any pressure, above 1 charcoal that catches only the tops. */
+    val grain: Float = 1f,
 ) {
     /** The lead's own width: what the pressure gives, before the side of the lead stretches the mark. */
     fun width(pressure: Float, size: Float): Float {
@@ -59,6 +69,15 @@ object Pencils {
     val MEDIUM = PencilModel(minWidth = 0.2f, maxWidth = 1.0f, gamma = 1.0f, alphaFloor = 0.1f, alphaCeiling = 0.8f, speedK = 0.3f, vRef = 1500f, edge = 0.06f)
     val SOFT = PencilModel(minWidth = 0.2f, maxWidth = 1.4f, gamma = 0.7f, alphaFloor = 0.12f, alphaCeiling = 0.97f, speedK = 0.45f, vRef = 1500f, edge = 0.16f)
 
+    /** A 0.5 mm mechanical pencil: one width whatever the pressure, a hard-ish lead's darkness, hardly a side. */
+    val MECHANICAL = PencilModel(minWidth = 0.4f, maxWidth = 0.4f, gamma = 1f, alphaFloor = 0.15f, alphaCeiling = 0.75f, speedK = 0.2f, vRef = 1500f, edge = 0f, tiltWidth = 0.2f, tiltAlpha = 0.2f)
+    /** A charcoal stick: wide, black under a light hand already, loose at the edge, all tooth, a broad side. */
+    val CHARCOAL = PencilModel(minWidth = 0.5f, maxWidth = 1.6f, gamma = 0.6f, alphaFloor = 0.25f, alphaCeiling = 1f, speedK = 0.5f, vRef = 1500f, edge = 0.25f, tiltWidth = 2f, tiltAlpha = 0.3f, grain = 1.5f)
+    /** A fineliner: one width, one blackness, ink that fills every pit; no side, no speed. */
+    val INK = PencilModel(minWidth = 0.6f, maxWidth = 0.6f, gamma = 1f, alphaFloor = 1f, alphaCeiling = 1f, speedK = 0f, vRef = 1500f, edge = 0f, tiltWidth = 0f, tiltAlpha = 0f, grain = 0f)
+    /** A brush pen: a hair's width to a broad stroke from pressure alone, ink without tooth. */
+    val BRUSH = PencilModel(minWidth = 0.08f, maxWidth = 1.6f, gamma = 1.2f, alphaFloor = 1f, alphaCeiling = 1f, speedK = 0f, vRef = 1500f, edge = 0.03f, tiltWidth = 0.4f, tiltAlpha = 0f, grain = 0f)
+
     /** The rubber at full strength: takes everything away at full pressure, is not lightened by speed, soft-edged. */
     val ERASER = PencilModel(minWidth = 0.3f, maxWidth = 1.0f, gamma = 1.0f, alphaFloor = 0.2f, alphaCeiling = 1f, speedK = 0f, vRef = 1500f, edge = 0.1f, tiltWidth = 0f, tiltAlpha = 0f)
 
@@ -79,6 +98,10 @@ object Pencils {
         Lead.HARD -> HARD
         Lead.MEDIUM -> MEDIUM
         Lead.SOFT -> SOFT
+        Lead.MECHANICAL -> MECHANICAL
+        Lead.CHARCOAL -> CHARCOAL
+        Lead.INK -> INK
+        Lead.BRUSH -> BRUSH
     }
 
     /**
