@@ -66,8 +66,59 @@ is the standard answer for pen jitter that does not lag a fast hand. Two paramet
 hand. Resample the filtered path to even spacing with Catmull-Rom between samples before
 stamping, so dab density does not depend on how fast the pen moved.
 
+## L5. The probe is built; the pen decides (2026-09-21, built, not yet measured)
+
+The Durchstich is in: `:sketch-engine` as a library with the path-based pencil, and in the app a
+`WindowsPointerSource` that subclasses the Compose window's procedure through JNA and reads
+`GetPointerPenInfo` on every `WM_POINTER*` message — pressure out of 1024, tilt and rotation in
+degrees, contact and button flags — and then calls the original procedure, so Windows still
+promotes the pen to mouse messages and nothing else in the app changes. **Live Sketch** on the
+menu shows the numbers live, draws through the engine, and records every sample to
+`~/.actiondraw/pen-samples.csv`.
+
+**What the pen has to answer, in this order:**
+
+1. Does the readout move at all with the XPPen on the page? If the pointer kind reads `pen`
+   and pressure varies, `WM_POINTER` arrives through the AWT window under Compose's render loop
+   and Windows Ink is the route. If the samples never come (or come as `mouse`), the XPPen
+   driver is not in Windows Ink mode or the messages are consumed before the window procedure —
+   then WinTab.
+2. The rate the readout shows while the pen moves (the driver's spec is 200+ Hz).
+3. Whether the stroke lands under the pen tip at 125 % scaling — the one HiDPI conversion is
+   `ScreenToClient`, on the assumption that Compose's desktop pixel space is physical.
+4. The pressure curve from the CSV: how much of 0..1 a light touch and a firm press actually
+   use, which sets the leads' `gamma` and floors for the pencil study.
+
+**Decides, once measured:** the input route (Windows Ink or WinTab), and the pressure range the
+pencil models are tuned against.
+
+## L6. The pen's messages go to the child window, not the frame (2026-09-24, from the pen)
+
+First hands-on with the whole tool: the XPPen drew, but every line had the same weight — no
+pressure — and the Pen panel would have said why: no pen sample ever arrived. Windows sends a
+`WM_POINTER` message to the window *under the pen*, and Compose Desktop does not draw into the
+frame: skiko's `HardwareLayer` is a heavyweight `java.awt.Canvas` with a window handle of its own
+inside it. The hook subclassed the frame's procedure and waited for messages that went to the
+child; the child's `DefWindowProc` promoted the pen to mouse messages, and the sketch was drawn
+by the mouse path at pressure 1.
+
+**Decides:** `WindowsPointerSource` hooks the frame *and* every child window
+(`EnumChildWindows`), one procedure keyed by handle; positions are made client-relative to the
+frame either way, whose client area is where Compose's coordinates start. The Pen panel and the
+Pen button now say when strokes come from the mouse and no pen sample has been seen — the other
+way this happens is the XPPen driver not in Windows Ink mode, which no hook can fix.
+
+Also from the same session: the XPPen's dial in its zoom setting sends **Ctrl+wheel**, so a
+page that reads Ctrl+wheel as "size" does not zoom on the dial — zoom takes the wheel with or
+without Ctrl now, Shift+wheel sizes. And 8–32-pixel value noise as "paper" reads as stains; the
+tooth is 1–3 pixels (L2 said so; the first grain ignored it). And a grain kept as *white at alpha
+g* — what the dab shader wants — shows nothing when multiplied over white paper: the page's
+shade on screen is the same tooth as black at alpha 1 − g (`PaperGrain.shade`), tested headless.
+
+**Still to measure, now that samples arrive:** the rate, the pressure curve, coordinates at
+125 %, and the leads' numbers under a real hand.
+
 ---
 
-*Entries that follow will come from the probe and the pencil study: the actual sample rate,
-whether `WM_POINTER` arrives, measured latency, and which numbers above survived contact with
-the pen.*
+*Entries that follow will come from the pencil study: the actual sample rate, measured
+latency, and which numbers above survived contact with the pen.*

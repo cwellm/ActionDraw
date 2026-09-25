@@ -188,7 +188,19 @@ object Hotkeys {
         "F · Esc" to "immersive · leave immersive / close",
         "Shift+drag" to "rubber-band select (free)",
     )
+    val SKETCH: List<Pair<String, String>> = listOf(
+        "1 – 7" to "H · HB · 4B · 0.5 · charcoal · fineliner · brush",
+        "E" to "eraser",
+        "[ / ] · Shift+wheel" to "thinner / thicker",
+        "wheel (Ctrl or not) · + / − (any, Ctrl or not) · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
+        "Space+drag · middle drag" to "pan the page",
+        "Ctrl+Z / Ctrl+Y" to "undo / redo",
+        "Ctrl+S · Ctrl+N · Ctrl+O" to "save · new sketch · open a sketch",
+        "Esc" to "close a dialog · back (the sketch stays)",
+    )
     const val SESSION_TITLE = "Drawing session"
     const val BOARD_TITLE = "Idea Board"
-    val SECTIONS: List<Pair<String, List<Pair<String, String>>>> = listOf(SESSION_TITLE to SESSION, BOARD_TITLE to BOARD)
+    const val SKETCH_TITLE = "Live Sketch"
+    val SECTIONS: List<Pair<String, List<Pair<String, String>>>> =
+        listOf(SESSION_TITLE to SESSION, BOARD_TITLE to BOARD, SKETCH_TITLE to SKETCH)
 }

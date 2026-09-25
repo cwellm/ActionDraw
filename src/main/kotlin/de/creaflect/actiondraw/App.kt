@@ -22,8 +22,12 @@ import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptMenuButton
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
+import de.creaflect.actiondraw.sketch.SketchState
+import de.creaflect.actiondraw.sketch.ui.SketchMenuButton
+import de.creaflect.actiondraw.sketch.ui.SketchScreen
+import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 
-enum class Screen { Menu, Picker, Session, Summary, Board, BoardList, Concepts, Concept }
+enum class Screen { Menu, Picker, Session, Summary, Board, BoardList, Concepts, Concept, Sketch }
 
 /** Calm, warm dark palette — easy on the eyes for long drawing sessions. */
 internal val ActionDrawColors = darkColors(
@@ -43,6 +47,7 @@ fun App(
     state: AppState,
     boardState: BoardState,
     conceptState: ConceptState,
+    sketchState: SketchState,
     thumbs: ThumbCache,
     pinTargets: PinTargets,
     isFullscreen: Boolean,
@@ -58,20 +63,32 @@ fun App(
                         boardButton = {
                             BoardMenuButton(boardState)
                             ConceptMenuButton(conceptState)
+                            SketchMenuButton(onOpen = { state.showSketch() })
                         },
                         extras = { MenuExtras(state, boardState) },
                     )
                     Screen.Picker -> PickerScreen(state, thumbs)
-                    Screen.Session -> SessionScreen(state, onToggleFullscreen, isFullscreen, pinTargets)
+                    Screen.Session -> SessionScreen(
+                        state,
+                        onToggleFullscreen,
+                        isFullscreen,
+                        pinTargets,
+                        onSketch = { picture ->
+                            sketchState.openFromSession(picture)
+                            state.sketchFromSession()
+                        },
+                    )
                     Screen.Summary -> SummaryScreen(state, pinTargets)
                     Screen.BoardList -> BoardListScreen(boardState, thumbs)
                     Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen)
                     Screen.Concepts -> ConceptListScreen(conceptState, thumbs)
                     Screen.Concept -> ConceptScreen(conceptState, thumbs)
+                    Screen.Sketch -> SketchScreen(sketchState, thumbs)
                 }
                 // Board and concept dialogs float above every screen (the pickers open from the menu).
                 BoardDialogs(boardState)
                 ConceptDialogs(conceptState)
+                SketchDialogs(sketchState)
             }
         }
     }

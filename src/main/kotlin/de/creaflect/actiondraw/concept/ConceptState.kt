@@ -20,6 +20,7 @@ import de.creaflect.actiondraw.board.BoardFile
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.Camera
+import de.creaflect.sketch.SketchDocument
 
 /**
  * Everything the concept module is allowed to ask of the rest of the app — the same kind of seam
@@ -38,6 +39,9 @@ interface ConceptHost {
 
     /** Takes the concept off every board that links it; returns their names. */
     fun unlinkEverywhere(conceptId: String): List<String> = emptyList()
+
+    /** Continue the sketch saved in [file] (a `.sketch.json`) in Live Sketch. */
+    fun openSketch(file: File) {}
 }
 
 /** Which dialog is open over the concept screens. */
@@ -353,6 +357,14 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     fun item(id: String): BoardItem? = items.find { it.id == id }
 
     fun fileOf(item: ImageItem): File? = root?.let { File(it, item.path) }
+
+    /** The sketch a picture came from, when Live Sketch saved it: `name.sketch.json` beside `name.png`. */
+    fun sketchOf(item: ImageItem): File? =
+        fileOf(item)?.let { File(it.parentFile, it.nameWithoutExtension + SketchDocument.FILE_SUFFIX) }?.takeIf { it.isFile }
+
+    fun openSketch(item: ImageItem) {
+        sketchOf(item)?.let(host::openSketch)
+    }
 
     fun addPictures(files: List<File>) {
         val dir = root ?: return

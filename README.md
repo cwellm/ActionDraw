@@ -8,6 +8,8 @@ A small desktop tool for **action drawing**, in three parts:
   and tags, then draw from any selection.
 - **Concepts** — a thing that lives once (a character, a creature, a landscape) in a folder of
   its own, with pictures, notes, links and Markdown documents, linked onto any number of boards.
+- **Live Sketch** — a page, a pencil, a colour, a pen: sketch with pressure and speed as with
+  graphite, undo, save the picture with its strokes, hand it to a board or a concept.
 
 Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows and Linux
 (e.g. ArchLinux).
@@ -280,6 +282,65 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
 - Practice memory of a borrowed card (drawn, never drawn, redo) is kept per board, like
   everything else a board remembers about its cards.
 
+## Live Sketch — a page, a pencil, a pen
+
+The drawing engine lives in its own module, `sketch-engine`, with no Compose in it: pen samples
+in, pixels out ([docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)). Pen
+pressure never reaches Compose, so on Windows the app hooks its own window through Windows Ink
+and reads pressure, tilt and rotation straight from the pen, alongside the mouse events
+everything else keeps using. Without a pen, the mouse draws at one middling pressure.
+
+### The page
+- **Live Sketch** on the start menu opens a page straight away — A4 at 150 dpi, or the size you
+  chose last. **Sketch ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
+  portrait or landscape, or a width × height in pixels; white, cream, grey or toned paper;
+  **smooth**, **medium** or **rough** — the tooth: a light line stays whole on smooth paper and
+  breaks up on rough. The page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
+  the XPPen's dial in its zoom setting zooms too — `+` `−` zoom, `Ctrl`+`0` fits again,
+  `Space`+drag or the middle button pans.
+- Seven tools on one model: the leads **H · HB · 4B** (`1` `2` `3`), a **0.5** mm mechanical
+  pencil (`4`, one width whatever the pressure), **Charcoal** (`5`, wide, black under a light
+  hand, all tooth), a **Fineliner** (`6`, one width, one blackness, no tooth) and a **Brush**
+  pen (`7`, a hair to a broad stroke from pressure, no tooth). The leads differ in more than width: a hard lead
+  barely widens and never goes black, a soft one opens up under pressure and reaches solid dark;
+  speed lightens, soft leads most. The mark is made of dabs of paper grain, so light pressure
+  catches only the tops of the tooth. Lean the pen and you draw with the side of the lead: the
+  mark stretches along the lean, lightens and skims the tooth — a shading stroke, not a line.
+  **Eraser** (`E`) is a rubber: **soft** by default, a pass
+  lifts part of the graphite and two or three clear a light mark; **hard** takes it all at once
+  (the chip beside it switches). Size with `[` `]`, the toolbar's − +, or `Shift`+wheel. The
+  colour swatch opens a picker: a saturation/value square, a hue strip, hex, recent colours.
+- **Undo / Redo** (`Ctrl`+`Z` / `Ctrl`+`Y`) replay the strokes; there is no limit but memory.
+- **Back** (or `Esc`) keeps the sketch: it is still there when you come back, for as long as
+  the app runs. Only starting another sketch or closing the app asks about unsaved strokes.
+- **Pen** on the toolbar folds out what the pen reports — pressure, tilt, rotation, contact,
+  sample rate — and **Record samples** appends every reading to `~/.actiondraw/pen-samples.csv`.
+  It also shows the last key or wheel event in words, so what a tablet's dial sends can be read off.
+  If it reads **Pen ⚠**, the strokes are arriving as a mouse, at one pressure: in the XPPen
+  driver, enable Windows Ink and restart ActionDraw.
+  **Tune** folds out every number of the current lead, live, for finding what feels like a
+  pencil — the tilt's stretch and lightening among them. **Save as preset…** keeps the lead as
+  tuned under a name of your own: a chip beside the leads from then on, in
+  `~/.actiondraw/settings.properties`. The paper can be changed there too, under the strokes.
+  The numbers that survive go into [LEARNINGS.md](LEARNINGS.md).
+
+### Saving, and into the loop
+- **Save** (`Ctrl`+`S`) writes `<name>.png` — the picture — and `<name>.sketch.json` — the
+  strokes, to continue later — into `~/ActionDraw Sketches`; a first save suggests
+  "Sketch <date time>", so `Ctrl`+`S` and `Enter` is all it takes. **Save as…** picks name and
+  folder, and will not overwrite another sketch.
+- **Open…** (`Ctrl`+`O`) lists the sketches saved or opened lately, wherever they are, and can
+  browse for any `.sketch.json`: the page comes back with every stroke, and undo goes on.
+- **To board…** saves into a board's folder and puts the picture on the board as a card, the
+  `.sketch.json` beside it; **To concept…** the same into a concept's folder, so every board that
+  links the concept has the sketch. A name already there gets `(2)`, never overwritten.
+- A sketched picture carries its strokes along: **Continue in Live Sketch** on its card (right
+  click) on a board, or **Continue sketch** on a concept's page, opens them again; **Back**
+  returns to the board or the concept.
+- **Sketch** beside *Pin* in a drawing session pauses the session and opens Live Sketch with the
+  picture on screen kept in the corner of the page (click to enlarge, ✕ to put away); **Back**
+  returns to the paused session. The paper beside the monitor, digitised.
+
 ## Keyboard shortcuts
 
 ### Session
@@ -328,6 +389,18 @@ can be dragged onto another to reorder it, or onto a group header to file it the
 
 More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's design notes are in
 [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and planned work in [ROADMAP.md](ROADMAP.md).
+
+### Live Sketch
+
+| Key | Action |
+|---|---|
+| `1` – `7` · `E` | H · HB · 4B · 0.5 · charcoal · fineliner · brush · eraser |
+| `[` `]` · `Shift`+wheel | thinner · thicker (by the character, so AltGr+8/9 on a German keyboard) |
+| wheel (`Ctrl` or not) · `+` `−` (`Ctrl` or not, numpad too) · `Ctrl`+`0` | zoom about the cursor · zoom · fit the page |
+| `Space`+drag · middle drag | pan |
+| `Ctrl`+`Z` / `Ctrl`+`Y` | undo / redo |
+| `Ctrl`+`S` · `Ctrl`+`N` · `Ctrl`+`O` | save · new sketch · open a sketch |
+| `Esc` | close a dialog · back (the sketch stays) |
 
 ## Going online
 

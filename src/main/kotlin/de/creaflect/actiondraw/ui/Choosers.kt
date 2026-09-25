@@ -38,6 +38,21 @@ private fun systemLookAndFeel() {
     runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
 }
 
+/** Open dialog for a sketch document (`*.sketch.json`). Null when cancelled. */
+fun chooseSketchFile(start: File?): File? {
+    systemLookAndFeel()
+    val chooser = JFileChooser().apply {
+        fileSelectionMode = JFileChooser.FILES_ONLY
+        dialogTitle = "Open sketch"
+        fileFilter = object : javax.swing.filechooser.FileFilter() {
+            override fun accept(f: File) = f.isDirectory || f.name.endsWith(".sketch.json")
+            override fun getDescription() = "Sketches (*.sketch.json)"
+        }
+        start?.takeIf { it.isDirectory }?.let { currentDirectory = it }
+    }
+    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
+}
+
 /** Save dialog for an export; appends the suggested extension when the user drops it. */
 fun chooseSaveFile(suggested: String, start: File?): File? {
     systemLookAndFeel()

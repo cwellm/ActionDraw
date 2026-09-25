@@ -18,6 +18,12 @@ repositories {
 
 dependencies {
     implementation(compose.desktop.currentOs)
+    // The drawing engine (Live Sketch), a library of its own: docs/Pencil-Engine-Architecture.md.
+    implementation(project(":sketch-engine"))
+    // Pen pressure and tilt come from native input, not from Compose (LEARNINGS L1): on Windows,
+    // WM_POINTER + GetPointerPenInfo through JNA — pure Java, no compiler, no build step.
+    implementation("net.java.dev.jna:jna:5.14.0")
+    implementation("net.java.dev.jna:jna-platform:5.14.0")
     // Idea-Board sidecar files (.actiondraw_board.json)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     // AVIF decoding: an ImageIO plugin (libavif/libdav1d JNI). Neither the JDK nor the bundled

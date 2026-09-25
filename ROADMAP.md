@@ -10,7 +10,9 @@ Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (explor
 [IDEAS.md](IDEAS.md) (practice-side scratchpad). The next phase has its own:
 [docs/Board-Handling-Spec.md](docs/Board-Handling-Spec.md) (M5) ·
 [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md) (M6, with findings in
-[LEARNINGS.md](LEARNINGS.md)) · [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7).
+[LEARNINGS.md](LEARNINGS.md) and the engine's shape in
+[docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)) ·
+[docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7).
 
 ---
 
@@ -470,30 +472,97 @@ of ideas and inspiration; what daily use asked for.
 
 ---
 
-## ⬜ M6 — Live Sketch
+## ✅ M6 — Live Sketch
 
-Exploration and spec: [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md);
+Exploration and spec: [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md); the
+engine's shape: [docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md);
 findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colour, an XPPen.
 
-### ⬜ F7.1 Pressure probe
-- ⬜ Compose Desktop delivers no pen pressure (LEARNINGS L1); probe `WM_POINTER` via JNA on the
-  XPPen, then WinTab if needed. Written up whatever the answer.
+### ✅ F7.1 Pressure probe
+- ✅ Compose Desktop delivers no pen pressure (LEARNINGS L1); the Durchstich hooks the window
+  natively: `WindowsPointerSource` subclasses the Compose window's procedure through JNA and
+  reads `GetPointerPenInfo` on every `WM_POINTER*` — pressure, tilt, rotation, contact, buttons
+  — while calling the original procedure, so the pen stays a mouse for everything else
+- ✅ **Live Sketch** on the menu opens the probe: live readouts of the last sample and the rate,
+  the three leads, a page that draws through the engine with the pressure that arrives (a mouse
+  at pressure 1), and a recorder to `~/.actiondraw/pen-samples.csv` (2026-09-21)
+- ✅ First contact (2026-09-21) drew — but through the mouse: `WM_POINTER` goes to the window
+  under the pen, and Compose's surface is a heavyweight child with a handle of its own, so the
+  frame hook saw nothing (LEARNINGS L6). The hook now takes the frame and every child window;
+  the Pen panel says when strokes are still arriving as a mouse (2026-09-24)
+- ⬜ The numbers (rate, coordinates at 125 %, the pressure curve) with the pen study; WinTab only
+  if Windows Ink falls short
 
-### ⬜ F7.2 The engine, as a library
-- ⬜ `:sketch-engine` module, Kotlin/JVM over Skia, no Compose dependency, testable headless
-- ⬜ Input filter (One-Euro, resampling, velocity) · brush model · rasteriser · sketch document
+### ✅ F7.2 The engine, as a library
+- ✅ `:sketch-engine` module, Kotlin/JVM over skiko 0.8.18 (the one Compose ships), no Compose
+  dependency, tested headless (`EngineTest`, `SessionTest`: 21 tests reading pixels back)
+- ✅ `InputSample` · One-Euro filter (beta raised for a pen: the paper's cursor value lagged a
+  fast stroke by twenty pixels) · speed from timestamps · `Lead`/`PencilModel`/`Pencils` ·
+  `Brush` · `StrokeBuilder` · `Resampler` (even dabs along a Catmull-Rom spline, a segment
+  placed the moment it exists so live and replay agree) · `StampRenderer` · `SketchSurface`
+  (a transparent strokes layer over a paper colour, in 256-px tiles: a stroke touches only the
+  tiles under it, the screen re-uploads only those, an undo snapshot shares every tile nothing
+  drew on) · `SketchDocument` (`.sketch.json`: the page and every stroke's raw samples) ·
+  `SketchSession` (live drawing, undo/redo by snapshot plus replay, cancel, load, PNG export)
+  (2026-09-22)
 
-### ⬜ F7.3 The pencil study
-- ⬜ Hard / medium / soft as parameter sets over one `(pressure, speed) → (width, alpha)` model;
-  stamp rendering against a paper-space grain; eraser
-- ⬜ Debug panel with every tunable live; the numbers that survive go into LEARNINGS
+### 🔄 F7.3 The pencil study — first pass done
+- ✅ Three leads as parameter sets over one `(pressure, speed) → (width, alpha)` model, each with
+  an edge softness; dabs at a third of the width, each the paper grain screened with the
+  pressure (`g′ = 1 − (1 − g)(1 − p)`: light pressure marks the tops of the tooth, heavy fills
+  it) and modulated by the colour; a paper-space value-noise grain, fixed to the page; per-dab
+  alpha calibrated so three overlapping dabs reach the point's darkness; the eraser as the same
+  dab taking coverage away with a rubber's own model
+- ✅ **Tune** on the toolbar: every tunable of the current lead live, with reset; a replayed
+  sketch renders with the changed model (the document keeps samples, not pixels)
+- ✅ After the first hands-on (2026-09-24): the paper tooth is 1–3 px, not 8–32 (it read as
+  stains); a faint tooth on the page on screen; the mouse presses at 0.7, not the lead's
+  heaviest; the eraser is **soft** by default — a pass lifts a rubber's share, two or three
+  clear a light mark — with a *hard* mode that takes everything; the strength is in the
+  document, so a soft pass replays as one
+- ✅ **Tilt** (2026-09-24): the side of the lead — the mark stretches along the lean (`tiltWidth`),
+  lightens (`tiltAlpha`) and skims the tooth; dabs are spaced by their extent along the stroke,
+  so a band is as dark whichever way it is drawn; the tilt is in every sample of the document
+- ✅ **Papers** (2026-09-24): smooth, medium, rough — floor, contrast and cell sizes of the
+  grain — chosen with a new sketch, changed under the strokes in Tune, in the document by name
+- ✅ **Presets** (2026-09-24): a lead as tuned, under a name, in the settings; a chip beside the
+  leads applies it, Tune saves and deletes them
+- ✅ Four more tools on the same model (2026-09-25): a 0.5 mm mechanical pencil, charcoal, a
+  fineliner, a brush pen — a `grain` per tool (0 ink, 1 pencil, 1.5 charcoal) decides how much
+  of the tooth the pressure fills; keys `4`–`7`; zoom by `+`/`−` keys of any kind, Ctrl or not,
+  for a dial that sends them; the Pen panel shows the last key and wheel event in words
+- ⬜ The numbers that survive the pen in hand go into LEARNINGS
 
-### ⬜ F7.4 The screen
-- ⬜ New sketch at A4/A5/A3 or W×H px · thin toolbar · colour picker with recents and the
-  board's palettes · undo/redo · zoom with the dial · save PNG + `.sketch.json`
+### ✅ F7.4 The screen
+- ✅ Entering gives an A4 page at once (then the size chosen last); **Sketch ▾ → New…**: A5/A4/A3
+  at 150 or 300 dpi, portrait or landscape, or W × H px; white, cream, grey or toned paper,
+  smooth, medium or rough · a thin toolbar: title and page size, leads and presets, eraser, size, colour, undo/redo, zoom (click to fit),
+  Pen and Tune panels, Sketch menu, Save, Back · a colour picker (saturation/value square, hue
+  strip, hex, recent colours) that keeps its hue through greys · a press is a mark (no drag
+  threshold; a tap leaves a dot); the wheel zooms about the cursor, Ctrl+wheel sizes, Space+drag
+  or the middle button pans · keys `1 2 3 E Ctrl+Z/Y/S/N/O/0 Esc`, and `[ ] + −` by the
+  character typed, so they work on a German layout too (2026-09-22)
+- ✅ The toolbar wraps (a `FlowRow`): in a 1120-dp window its tail was clipped off, Back and
+  all; the dial's zoom setting sends Ctrl+wheel, so the wheel zooms with or without Ctrl and
+  Shift+wheel sizes the lead (2026-09-24)
+- ✅ **Save** (`Ctrl+S`) and **Save as…**: `<name>.png` beside `<name>.sketch.json`, in
+  `~/ActionDraw Sketches` or any folder; a first save is offered "Sketch <date time>", so Ctrl+S
+  then Enter is all it takes; another sketch's name is refused, never overwritten · **Open…**
+  (`Ctrl+O`): recent sketches, wherever they were saved, and Browse… · the sketch lives while the
+  app runs: Back keeps it; only replacing it or closing the app asks about unsaved strokes
 
-### ⬜ F7.5 Into the loop
-- ⬜ Save to a board or a concept; open from a session with the reference in the float strip
+### ✅ F7.5 Into the loop
+- ✅ **To board…** saves into the board's folder and puts the PNG on the board (the `.sketch.json`
+  beside it to continue later); **To concept…** the same into the concept's folder, so every
+  board linking it has the sketch; a new name never overwrites (`name (2)`), the same board
+  again saves in place, and Ctrl+S afterwards keeps to that file
+- ✅ **Continue in Live Sketch** on a sketched picture's card (board) and **Continue sketch** on a
+  concept's page open its strokes again; Back returns to the board or the concept
+- ✅ **Sketch** beside *Pin* in a session — in the main window and in a board session's own —
+  pauses the session and opens Live Sketch with the picture on screen kept in the corner of the
+  page (click to enlarge, ✕ to put away); Back returns to the paused session
+- ✅ `SketchStateTest` (15, one capturing the screen to check the tiles reach it),
+  `SketchCardTest`, engine `SessionTest` (tiles, cancel); a fake `SketchHost`
 
 ---
 

@@ -43,6 +43,17 @@ class Settings(private val dir: File = defaultDir()) {
         write(props)
     }
 
+    /** Default folder for saved sketches, beside the boards and concepts homes. */
+    fun sketchesHome(): File = runCatching {
+        read().getProperty(KEY_SKETCHES_HOME)?.takeIf { it.isNotBlank() }?.let(::File)
+    }.getOrNull() ?: File(System.getProperty("user.home") ?: ".", "ActionDraw Sketches")
+
+    fun setSketchesHome(dir: File) {
+        val props = read()
+        props.setProperty(KEY_SKETCHES_HOME, dir.absolutePath)
+        write(props)
+    }
+
     /** Align dragged cards to their neighbours' centre lines. Off unless switched on. */
     fun snapByDefault(): Boolean = runCatching { read().getProperty(KEY_SNAP)?.toBoolean() }.getOrNull() ?: false
 
@@ -82,6 +93,33 @@ class Settings(private val dir: File = defaultDir()) {
         write(props)
     }
 
+    /** Sketch documents saved or opened lately, anywhere; vanished ones are filtered out. */
+    fun recentSketches(): List<File> = runCatching {
+        val props = read()
+        (0 until MAX_RECENT_SKETCHES)
+            .mapNotNull { props.getProperty("$KEY_RECENT_SKETCH.$it")?.takeIf { p -> p.isNotBlank() } }
+            .map(::File)
+            .filter { it.isFile }
+    }.getOrDefault(emptyList())
+
+    fun addRecentSketch(file: File) {
+        val next = (listOf(file.absoluteFile) + recentSketches().filter { it.absoluteFile != file.absoluteFile })
+            .take(MAX_RECENT_SKETCHES)
+        val props = read()
+        (0 until MAX_RECENT_SKETCHES).forEach { props.remove("$KEY_RECENT_SKETCH.$it") }
+        next.forEachIndexed { i, f -> props.setProperty("$KEY_RECENT_SKETCH.$i", f.absolutePath) }
+        write(props)
+    }
+
+    /** The Tune panel's presets, as the JSON the sketch side hands over; null when there are none. */
+    fun leadPresetsJson(): String? = runCatching { read().getProperty(KEY_LEAD_PRESETS)?.takeIf { it.isNotBlank() } }.getOrNull()
+
+    fun setLeadPresetsJson(json: String) {
+        val props = read()
+        props.setProperty(KEY_LEAD_PRESETS, json)
+        write(props)
+    }
+
     /** Forgets a board — used when one is deleted, so it stops showing up in the list. */
     fun removeRecentBoard(dir: File) {
         val next = recentBoards().filter { !it.samePathAs(dir) }
@@ -108,6 +146,10 @@ class Settings(private val dir: File = defaultDir()) {
         private const val KEY_BOARDS_HOME = "boardsHome"
         private const val KEY_SNAP = "snapByDefault"
         private const val KEY_CONCEPTS_HOME = "conceptsHome"
+        private const val KEY_SKETCHES_HOME = "sketchesHome"
+        private const val KEY_RECENT_SKETCH = "recentSketch"
+        private const val MAX_RECENT_SKETCHES = 12
+        private const val KEY_LEAD_PRESETS = "leadPresets"
         private const val KEY_RECENT_BOARD = "recentBoard"
         private const val MAX_RECENT_BOARDS = 5
 
