@@ -92,7 +92,8 @@ the following.
   (`#121212`, amber, teal) carries on, made warmer and more physical.
 - **Six pigments.** Each has a *mass* (on paper and porcelain) and a *glow* (the same pigment on
   graphite, light enough for text): cadmium orange `#E0782F / #F5A25E`, Payne's grey
-  `#46525F / #A3B0BE`, ultramarine `#3446B8 / #8E9EF4`, viridian `#1F7F6E / #5CC4AE`, madder rose
+  `#46525F / #A3B0BE`, ultramarine `#3446B8 / #8E9EF4`, viridian `#1A6F60 / #5CC4AE` (a shade
+  deeper than on the canvas: paper text on `#1F7F6E` reached only 4.2:1), madder rose
   `#B8324A / #EE8094`, Naples yellow `#D9A43A / #F0CB72`. Today's amber and teal are already on
   this spectrum.
 - **Type: one typeface, one hand.** *Bricolage Grotesque* for display and interface: it has a

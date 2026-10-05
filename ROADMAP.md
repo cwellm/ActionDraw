@@ -616,25 +616,35 @@ the answers taken to its open questions). A thing that lives once and is linked 
 
 ---
 
-## ⬜ M8 — The atelier: the design realised
+## 🔄 M8 — The atelier: the design realised
 
 The design recap of 2026-10-05: [CONCEPT.md](CONCEPT.md) and its design canvas. A graphite table,
 real paper, one lamp, six pigments sprinkled rather than poured, a porcelain palette as the home
 screen, and motion that is wet, weighty and drawn. The app changes how it looks and moves, not what
 it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays true*).
 
-### ⬜ F9.1 Tokens and type
-- ⬜ `ui/Atelier.kt`: one table of tokens — ground, board, raised, line, text, muted; paper, paper
-  shade, ink, quiet ink; six pigments with *mass* and *glow* — replacing `ActionDrawColors`;
-  Material's `Colors` derived from it, so every screen changes colour before anything else moves
-- ⬜ A `Room` enum (Practice, Lens, Boards, Concepts, Sketch, Collage) carrying its pigment; every
-  `Screen` belongs to a room
-- ⬜ Bricolage Grotesque (variable, optical size) and Caveat bundled as resources with their OFL
-  licences; a `Typography` built on them and a `Hand` style for lettered things
-- ⬜ A contrast test over the token table: every text-on-ground pair ≥ 4.5:1 (3:1 from 24 px) —
-  seen red first by weakening one colour
-- ⬜ `Themes.paperColors` re-derived from the paper tokens, so cork and papyrus boards agree with
-  the rest
+### ✅ F9.1 Tokens and type
+- ✅ `ui/Atelier.kt`: one table of tokens — ground, board, raised, line, text, muted; paper, paper
+  shade, ink, quiet ink; six pigments with *mass*, *glow* and the text that goes on the mass —
+  replacing `ActionDrawColors`; Material's `Colors` derived from it (`AtelierColors`) and every
+  window wrapped in one `AtelierTheme`, so every screen changed colour before anything else moved
+- ✅ A `Room` enum (Practice, Lens, Boards, Concepts, Sketch, Collage) carrying its pigment; every
+  `Screen` names its room (the menu none: it is the palette)
+- ✅ Bricolage Grotesque and Caveat bundled with their OFL licences — as **static cuts**: Compose
+  Desktop 1.7 cannot set a variable font's axes, so `art/fonts/make-instances.py` cuts text
+  weights 400–700 (optical size 14), one display cut (800, optical size 48) and Caveat 500/700
+  from the variable sources kept beside it. Each cut is renamed and flagged as the static font it
+  is: with the variable font's names left in, Windows (DirectWrite) reported Caveat as weight 1
+  and Bricolage Regular as 800. `AtelierType.typography` (display cut for h1–h4) and a `Hand`
+  style for lettered things
+- ✅ `AtelierTest`: every text-on-ground pair the design uses ≥ 4.5:1, Material's palettes
+  included, and every font cut loads with the weight it is filed under. Seen red for real twice:
+  paper text on viridian reached 4.17:1 (the mass is now `#1A6F60`, a shade deeper than the
+  canvas), and the font weights above
+- ✅ `Themes.paperColors` and the card backing taken from the paper tokens; the plain board's
+  link cards, the strip's ground and the frame tags' ink from the table's
+- The remaining hard-coded accents (the amber guide lines, the star, the practice badges) move
+  with their rooms in F9.5–F9.8
 
 ### ⬜ F9.2 Materials in code
 - ⬜ One shared SkSL value noise (the cork's, generalised) → a faint grain over the ground, cached

@@ -63,6 +63,7 @@ import de.creaflect.actiondraw.board.FrameShape
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
+import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -496,7 +497,7 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
             .fillMaxSize()
             .shadow(if (textured) 4.dp else 1.dp, shape)
             .clip(shape)
-            .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
+            .background(if (textured) Themes.cardBacking else Atelier.Board)
             .border(2.dp, selectionBorder(state, item.id), shape)
             // A plain tap opens the page; selecting is still Ctrl/Shift+click, drag, or right-click.
             .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }
@@ -715,7 +716,7 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
         Text(
             (if (hull.group.isConcept) "⧉ " else "") + hull.group.name + "  ·  " + hull.count,
             style = MaterialTheme.typography.caption,
-            color = Color(0xFF1A1A1A),
+            color = Atelier.Ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
