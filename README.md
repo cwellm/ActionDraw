@@ -12,7 +12,21 @@ A small desktop tool for **action drawing**, in three parts:
   graphite, undo, save the picture with its strokes, hand it to a board or a concept.
 
 Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows and Linux
-(e.g. ArchLinux).
+(e.g. ArchLinux). How it looks and where it is going: [CONCEPT.md](CONCEPT.md).
+
+## The palette — home
+
+ActionDraw opens on a porcelain mixing palette. Each of its six wells is a room — **Practice**
+(the timed sessions below), **Boards**, **Concepts**, **Sketch** (Live Sketch), and **Lens** and
+**Collage**, whose wells stay dry until they are built. The centre well says what the chosen room
+is for and offers its next step: *Set up a session*, *Open* the board you had open last, *All
+concepts*, *New sketch* or *Continue the sketch*.
+
+- A click chooses a well, a second click (or the centre's button) opens it. The arrow keys and
+  `Tab` turn the palette, `Enter` opens. The well you chose is remembered for the next start.
+- `Esc` climbs out of any room, and from the top of a room it lands back on the palette; so does
+  the small palette button at the start of every room's header.
+- **Settings** and **Hotkeys** sit in the palette's top right corner.
 
 ## Draw — timed reference practice
 
@@ -50,7 +64,7 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
   with a centre cross.
 
 ### Choosing & remembering pictures
-- **Picture picker** (menu → "Choose pictures…"): a thumbnail grid to include/exclude images,
+- **Picture picker** (Practice → "Choose pictures…"): a thumbnail grid to include/exclude images,
   with All/None; sessions draw only from the selection.
 - **Remembers what you've drawn**: shown images are recorded per folder in
   `.actiondraw_seen.txt` and skipped next time. Once every (selected) image has been shown, the
@@ -71,7 +85,7 @@ board knows lives in one file next to the pictures — `.actiondraw_board.json`.
 still have an ordinary folder of images; the board never renames, moves or deletes your files.
 
 ### Getting started
-- The menu offers **Draw**, **Boards** and **Concepts** as equal entry points. **Boards** opens the board list:
+- The palette's **Boards** well opens the board you had open last, or the board list:
   a tile per board with its cover picture, counts and path, plus **New board…** and **Explore…**
   for a board folder elsewhere.
 - New boards are created under the **boards home** (`~/ActionDraw Boards` by default), which the
@@ -92,10 +106,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
   you get copies. A notes-only selection copies as plain text.
 
 ### Settings and hotkeys
-- **Settings** and **Hotkeys** are buttons on the start menu, under *Draw* and *Boards*, and
-  entries in every board's **⋯** menu. On the start menu, Settings holds the boards home, the
+- **Settings** and **Hotkeys** are links in the palette's top right corner, and
+  entries in every board's **⋯** menu. On the palette, Settings holds the boards home, the
   reference folder, and whether dragged cards snap to their neighbours' centre lines — **off**
-  unless you switch it on — and Hotkeys lists every shortcut for the session and the board.
+  unless you switch it on — and Hotkeys lists every shortcut for the palette, the session, the board and the sketch.
   Inside a board, both show only what pertains to the board: *Board settings* (boards home,
   snapping) and the board's hotkeys.
 - Pressing **Enter** in a name field confirms it: a new group or board, a rename, a caption,
@@ -241,7 +255,7 @@ Things recur across places, and copying their pictures onto every board lets the
 apart. A concept lives once, in a folder of its own, and is **linked** onto any number of boards.
 
 ### A concept
-- **Concepts** on the start menu opens the list: tiles grouped by *kind* (character, creature,
+- The palette's **Concepts** well opens the list: tiles grouped by *kind* (character, creature,
   landscape, prop, colour — a label with suggestions, not a fixed set), each with a cover, its
   counts, and how many boards link it. **New concept…** makes a folder under the concepts home
   (`~/ActionDraw Concepts` by default; **Change home…** moves it, and existing concepts stay where
@@ -291,7 +305,7 @@ and reads pressure, tilt and rotation straight from the pen, alongside the mouse
 everything else keeps using. Without a pen, the mouse draws at one middling pressure.
 
 ### The page
-- **Live Sketch** on the start menu opens a page straight away — A4 at 150 dpi, or the size you
+- The palette's **Sketch** well opens a page straight away — A4 at 150 dpi, or the size you
   chose last. **Sketch ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
   portrait or landscape, or a width × height in pixels; white, cream, grey or toned paper;
   **smooth**, **medium** or **rough** — the tooth: a light line stays whole on smooth paper and

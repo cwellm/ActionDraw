@@ -231,6 +231,12 @@ class BoardState(
      * Because the registry holds absolute paths, pointing the boards home somewhere else adds a
      * place to look; it does not take the existing boards away.
      */
+    /** The board opened last, by name, if it is still a board: what the palette offers to open. */
+    fun lastBoard(): Pair<String, File>? {
+        val dir = settings.recentBoards().firstOrNull { BoardStore.exists(it) } ?: return null
+        return (BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name) to dir
+    }
+
     fun availableBoards(): List<Pair<String, File>> {
         registry.prune()
         val dirs = LinkedHashMap<String, File>()

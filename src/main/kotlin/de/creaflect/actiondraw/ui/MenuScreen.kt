@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,38 +27,40 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.SessionPlans
 
-/** The start menu; [boardButton] lets the app shell add the Idea-Boards entry next to Draw. */
+/**
+ * The Practice room: the session setup that was the start menu before the palette. [onHome] is
+ * the way back to the palette (none when a test composes the screen on its own).
+ */
 @Composable
 fun MenuScreen(
     state: AppState,
-    boardButton: @Composable RowScope.() -> Unit = {},
+    onHome: (() -> Unit)? = null,
     extras: @Composable () -> Unit = {},
 ) {
-    Box(
-        Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 20.dp),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        Column(
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 6.dp)) {
+        if (onHome != null) RoomHeader(Room.PRACTICE, onHome)
+        Box(
+            Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 12.dp),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            // The settings scroll when the window is short; the two primary actions are pinned
-            // underneath them, so Draw and Boards are reachable at any window size.
-            SessionSettings(state, Modifier.weight(1f))
+            Column(
+                modifier = Modifier.widthIn(max = 560.dp).fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // The settings scroll when the window is short; Draw is pinned underneath them, so
+                // it is reachable at any window size.
+                SessionSettings(state, Modifier.weight(1f))
 
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Spacer(Modifier.height(14.dp))
                 Button(
                     onClick = { state.start() },
                     enabled = state.selectedCount > 0,
-                    modifier = Modifier.weight(1f).height(56.dp),
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
                 ) {
                     Text("Draw", style = MaterialTheme.typography.h6)
                 }
-                boardButton()
+                extras()
             }
-            // Settings and the hotkeys: small, under the two big buttons, never in the way.
-            extras()
         }
     }
 }
@@ -73,7 +74,6 @@ private fun SessionSettings(state: AppState, modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("ActionDraw", style = MaterialTheme.typography.h3, color = MaterialTheme.colors.primary)
         Text(
             "Timed reference practice — get into the flow and draw.",
             style = MaterialTheme.typography.subtitle1,

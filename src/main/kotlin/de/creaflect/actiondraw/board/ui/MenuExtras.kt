@@ -22,6 +22,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,25 +36,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.chooseFolder
 
 /**
- * Two quiet links under the menu's big buttons: the app's settings, and every hotkey on one
- * sheet. Both are dialogs over the menu, so the menu stays the menu.
+ * Two quiet links in the palette's top right corner: the app's settings, and every hotkey on one
+ * sheet. Both are dialogs over the palette, so the palette stays the palette. This fills the
+ * screen (and draws nothing but the links) so a sheet's backdrop can cover all of it.
  */
 @Composable
 fun MenuExtras(app: AppState, boards: BoardState) {
     var settings by remember { mutableStateOf(false) }
     var hotkeys by remember { mutableStateOf(false) }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-    ) {
-        OutlinedButton(onClick = { settings = true }, modifier = Modifier.weight(1f).testTag("menu-settings")) { Text("Settings") }
-        OutlinedButton(onClick = { hotkeys = true }, modifier = Modifier.weight(1f).testTag("menu-hotkeys")) { Text("Hotkeys") }
+    Box(Modifier.fillMaxSize()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 24.dp),
+        ) {
+            TextButton(onClick = { settings = true }, modifier = Modifier.testTag("menu-settings")) { Text("Settings", color = Atelier.Muted) }
+            TextButton(onClick = { hotkeys = true }, modifier = Modifier.testTag("menu-hotkeys")) { Text("Hotkeys", color = Atelier.Muted) }
+        }
+        if (settings) MenuScrim(onDismiss = { settings = false }) { SettingsSheet(app, boards) { settings = false } }
+        if (hotkeys) MenuScrim(onDismiss = { hotkeys = false }) { HotkeysSheet { hotkeys = false } }
     }
-    if (settings) MenuScrim(onDismiss = { settings = false }) { SettingsSheet(app, boards) { settings = false } }
-    if (hotkeys) MenuScrim(onDismiss = { hotkeys = false }) { HotkeysSheet { hotkeys = false } }
 }
 
 /** What the app remembers between runs, in one place. [app] is null when opened from a board. */
@@ -158,6 +163,11 @@ private fun MenuScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.()
 
 /** The one list both hotkey sheets draw from, so they cannot drift apart. */
 object Hotkeys {
+    val PALETTE: List<Pair<String, String>> = listOf(
+        "← → ↑ ↓ · Tab" to "turn the palette to the next room",
+        "Enter · click the chosen well" to "open the room",
+        "Esc (in any room)" to "back up, and from a room's top back to the palette",
+    )
     val SESSION: List<Pair<String, String>> = listOf(
         "Space" to "play / pause",
         "← / →" to "previous / next picture",
@@ -198,9 +208,10 @@ object Hotkeys {
         "Ctrl+S · Ctrl+N · Ctrl+O" to "save · new sketch · open a sketch",
         "Esc" to "close a dialog · back (the sketch stays)",
     )
+    const val PALETTE_TITLE = "The palette"
     const val SESSION_TITLE = "Drawing session"
     const val BOARD_TITLE = "Idea Board"
     const val SKETCH_TITLE = "Live Sketch"
     val SECTIONS: List<Pair<String, List<Pair<String, String>>>> =
-        listOf(SESSION_TITLE to SESSION, BOARD_TITLE to BOARD, SKETCH_TITLE to SKETCH)
+        listOf(PALETTE_TITLE to PALETTE, SESSION_TITLE to SESSION, BOARD_TITLE to BOARD, SKETCH_TITLE to SKETCH)
 }

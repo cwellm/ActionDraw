@@ -646,30 +646,42 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 - The remaining hard-coded accents (the amber guide lines, the star, the practice badges) move
   with their rooms in F9.5–F9.8
 
-### ⬜ F9.2 Materials in code
-- ⬜ One shared SkSL value noise (the cork's, generalised) → a faint grain over the ground, cached
-  as a 256-px tile and drawn through the native canvas — no per-frame `ImageBitmap`
+### 🔄 F9.2 Materials in code
+- ✅ `ui/Materials.kt`: a grain over the ground — one SkSL tile of per-pixel noise in two-pixel
+  clumps, light and dark at most 6 % strong, made once and drawn as a repeating shader
+  (`Modifier.grain()`); no per-frame `ImageBitmap`
 - ⬜ Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
-  sketch's paper are the same paper
-- ⬜ One lamp: a `Lift` scale (resting, lifted, held) giving shadow offset and blur from the top
-  left, replacing the scattered `elevation =` values
-- ⬜ Small `DrawScope` pieces, each with a screenshot test: masking tape (torn ends from a seeded
-  polygon), push-pin, porcelain well, pigment dab (a seeded blob with a gloss)
+  sketch's paper are the same paper — with the boards and Sketch re-dressed (F9.7, F9.8)
+- 🔄 One lamp: a `Lift` scale (resting, lifted, held) and `drawLampShadow`/`Modifier.lampShadow`,
+  a blurred shadow cast to the bottom right; the palette uses it — the scattered `elevation =`
+  values go as each room is re-dressed
+- ✅ Small `DrawScope` pieces: pigment dab (a seeded blob, wet with the lamp's highlight or dry and
+  pale), porcelain well (in shadow along its top), masking tape (torn ends), push-pin, a lacquered
+  pencil. `MaterialsTest` (7) draws each into a bitmap and reads the pixels back
 
-### ⬜ F9.3 Home: the palette
-- ⬜ `PaletteScreen` replaces `MenuScreen` as `Screen.Menu`: a porcelain disk, six wells at 60°
-  steps, each room's name outside the rim with its verb lettered in the room's glow, the centre
-  well holding the selected room's one line and its next step
-- ⬜ Select by click, arrow keys and Tab; Enter opens; the selected dab goes wet with a ripple; the
-  last room is remembered in the settings
-- ⬜ Each room's next step: Practice → the exercise screen; Boards → the last board, else the list;
-  Concepts → the list; Sketch → the open sketch, else a new page; Lens and Collage → their rooms
-  once built (until then their wells say so)
-- ⬜ The session settings leave the start menu for the Practice room (F9.6); Settings and Hotkeys
-  move to the top-right corner
-- ⬜ `Esc` from any room's top level returns to the palette — one rule instead of each screen's own
-  way back, with a test per room
-- ⬜ UI tests: every well reachable by keyboard, Enter on each opens the right screen
+### ✅ F9.3 Home: the palette
+- ✅ `PaletteScreen` is the new `Screen.Palette`, where the app starts: a porcelain disk under the
+  lamp, six wells at 60° steps, each room's name outside the rim with its verb lettered in the
+  room's glow, the centre well with the chosen room's one line and its next step; a pencil lies on
+  the table. The old start menu stays as `Screen.Menu`, now the Practice room
+- ✅ A click chooses a well, a second click or the centre's button opens it; the arrows and Tab turn
+  the palette, Enter opens; the chosen dab is wet, with a ripple; the well is remembered in the
+  settings (`lastRoom`). The wells take no focus from a pointer — taken on the press, the focus
+  chose the well before the release opened it, so **one click opened every room** (the UI test
+  caught it)
+- ✅ Each room's next step: Practice → the session setup (the exercise screen comes with F9.6);
+  Boards → the board opened last, else the list (a board that cannot be read lands on the list,
+  which says so); Concepts → the list; Sketch → the open sketch, else a new page. Lens and Collage
+  are **dry wells**: matte, lettered *coming*, not choosable, skipped by the keys
+- ✅ The room buttons left the start menu; Settings and Hotkeys sit in the palette's top right
+  corner as quiet links, and the hotkeys sheet has a palette section
+- ✅ `Esc` from the top of every room ends on the palette: Practice and the board list through one
+  pure `escapeToPalette`, the others through their own Esc, whose last step now leads home;
+  leaving a board, the concept list or a sketch begun at home all land there. A sketch made
+  from a pose goes back to the pose, never home over it
+- ✅ `PaletteTest` (6): the start and the remembered well, every room's next step, Esc from every
+  room's top, a sketch from a pose, the keys passing the dry wells, and the palette on screen
+  (click, second click, centre button, arrows, Enter). Four guards broken on purpose and seen red
 
 ### ⬜ F9.4 Motion
 - ⬜ `Motion` tokens (durations, easings, the spring) and **reduced motion** in Settings, following
@@ -686,9 +698,13 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 - ⬜ A guard for stroke latency: no animation invalidates the sketch surface while a stroke is live
   (a test that an animation tick during a stroke re-uploads no tile)
 
-### ⬜ F9.5 Room chrome and hand-offs
-- ⬜ One `RoomHeader` for every room: back to the palette, the room's dab and name, the 2 px pigment
-  line, slots for a title and actions
+### 🔄 F9.5 Room chrome and hand-offs
+- 🔄 `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a
+  title and actions) heads the Practice room; every other room got the palette's `HomeButton` at
+  the start of its own header (the board, the board list, the concept list, a concept, Sketch) —
+  on the two lists in place of their *Back*, which went to the same place — and the app shell lays
+  the room's 2 px pigment line along the top of every room but a running pose. One `RoomHeader`
+  across all rooms comes as each room is re-dressed
 - ⬜ `CrossRoomButton(room, label)`: the target room's dab before the label; every existing hand-off
   (*Draw from this board*, *Sketch*, *Pin*, *To board…*, *To concept…*, *Continue in Live Sketch*)
   moved onto it

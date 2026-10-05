@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -83,17 +82,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
-
-/** The Concepts entry on the menu, equal in weight to Draw and Boards. */
-@Composable
-fun RowScope.ConceptMenuButton(state: ConceptState) {
-    Button(
-        onClick = { state.openList() },
-        modifier = Modifier.weight(1f).height(56.dp).testTag("menu-concepts"),
-    ) {
-        Text("Concepts", style = MaterialTheme.typography.h6)
-    }
-}
+import de.creaflect.actiondraw.ui.HomeButton
 
 // ---------------- The list ----------------
 
@@ -108,7 +97,7 @@ private data class ConceptSummary(
 
 /** Every concept, grouped by kind, each with a cover and its counts. */
 @Composable
-fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache) {
+fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     val concepts by produceState(initialValue = emptyList<ConceptSummary>(), state.listTick) {
         value = withContext(Dispatchers.IO) {
             state.availableConcepts().map { entry ->
@@ -126,10 +115,16 @@ fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache) {
     }
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            // The list is the room's top: its way back is the way home.
+            if (onHome != null) HomeButton(onHome)
             Text("Concepts", style = MaterialTheme.typography.h4, color = MaterialTheme.colors.primary)
             Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
+            if (onHome == null) OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
         }
         Text(
             "A thing that lives once — a character, a creature, a landscape — and is linked onto any board.",
@@ -245,7 +240,7 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
 
 /** A concept opened: its pictures, notes and links in a grid, its documents rendered beside. */
 @Composable
-fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
+fun ConceptScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     val concept = state.concept ?: return
     Column(Modifier.fillMaxSize()) {
         Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 3.dp, modifier = Modifier.fillMaxWidth().testTag("concept-header")) {
@@ -254,6 +249,7 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
+                if (onHome != null) HomeButton(onHome, size = 32.dp)
                 Text(
                     concept.name,
                     style = MaterialTheme.typography.subtitle1,

@@ -134,7 +134,7 @@ class AppStateTest {
             state.startBoardSession(boardRoot, listOf(w1, w2))
             // Board sessions run in their own window; the main screen is left alone.
             assertEquals(Screen.Session, state.boardWindowScreen)
-            assertEquals(Screen.Menu, state.screen)
+            assertEquals(Screen.Palette, state.screen)
             assertEquals(setOf("w1.jpg", "w2.jpg"), state.pool.map { it.name }.toSet())
 
             state.next() // marks the first pose seen -> key must be the relative path

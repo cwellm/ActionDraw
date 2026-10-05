@@ -7,6 +7,7 @@ import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.ui.Room
 import java.io.File
 import kotlin.random.Random
 
@@ -24,8 +25,31 @@ enum class GridMode { OFF, THIRDS, PHI, DIAGONAL }
  * tests so they never touch the real user config.
  */
 class AppState(private val settings: Settings = Settings()) {
-    var screen by mutableStateOf(Screen.Menu)
+    /** The app opens on the palette, its home; every room is entered from there. */
+    var screen by mutableStateOf(Screen.Palette)
         private set
+
+    /** The well selected on the palette, kept from one run to the next. */
+    var paletteRoom by mutableStateOf(
+        settings.lastRoom()?.let { name -> Room.entries.firstOrNull { it.name == name } } ?: Room.PRACTICE,
+    )
+        private set
+
+    fun selectRoom(room: Room) {
+        if (room == paletteRoom) return
+        paletteRoom = room
+        settings.setLastRoom(room.name)
+    }
+
+    /** Home: back to the palette. */
+    fun showPalette() {
+        screen = Screen.Palette
+    }
+
+    /** The Practice room: the session setup that was the start menu before the palette. */
+    fun showPractice() {
+        screen = Screen.Menu
+    }
 
     var folder by mutableStateOf<File?>(null)
         private set
@@ -459,7 +483,7 @@ class AppState(private val settings: Settings = Settings()) {
     }
 
     fun leaveBoard() {
-        screen = Screen.Menu
+        screen = Screen.Palette
     }
 
     // ---- Concept navigation (the same arrangement as for boards) ----
@@ -473,18 +497,29 @@ class AppState(private val settings: Settings = Settings()) {
     }
 
     fun leaveConcepts() {
-        screen = Screen.Menu
+        screen = Screen.Palette
     }
 
     // ---- Live Sketch ----
 
-    /** Where Back from Live Sketch goes: the menu, a paused session, a board, a concept. */
-    var sketchOrigin by mutableStateOf(Screen.Menu)
+    /** Where Back from Live Sketch goes: the palette, a paused session, a board, a concept. */
+    var sketchOrigin by mutableStateOf(Screen.Palette)
         private set
 
-    fun showSketch(from: Screen = Screen.Menu) {
-        if (screen != Screen.Sketch) sketchOrigin = if (from == Screen.Sketch) Screen.Menu else from
+    fun showSketch(from: Screen = Screen.Palette) {
+        if (screen != Screen.Sketch) sketchOrigin = if (from == Screen.Sketch) Screen.Palette else from
         screen = Screen.Sketch
+    }
+
+    /**
+     * Home from Live Sketch. A session paused for the sketch is not left behind: then home means
+     * back to that session, as Back does.
+     */
+    fun sketchHome() {
+        if (sketchOrigin == Screen.Session) leaveSketch() else {
+            sketchOrigin = Screen.Palette
+            screen = Screen.Palette
+        }
     }
 
     /**
@@ -498,7 +533,7 @@ class AppState(private val settings: Settings = Settings()) {
 
     fun leaveSketch() {
         screen = sketchOrigin
-        sketchOrigin = Screen.Menu
+        sketchOrigin = Screen.Palette
     }
 
     /** Undo what [startBoardSession] borrowed, so the menu shows the practice folder again. */

@@ -40,7 +40,8 @@ import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.chooseFolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
+import java.io.File
+import de.creaflect.actiondraw.ui.HomeButton
 
 /** One entry of the board list: what can be shown without opening the board. */
 private data class BoardSummary(
@@ -58,7 +59,7 @@ private data class BoardSummary(
  * with a cover picture and its counts. Clicking one opens it.
  */
 @Composable
-fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
+fun BoardListScreen(state: BoardState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     val boards by produceState(initialValue = emptyList<BoardSummary>(), state.boardsHomeTick, state.recent) {
         value = withContext(Dispatchers.IO) {
             // Tree order, so a sub-board sits right after the board it belongs to.
@@ -78,10 +79,16 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
     }
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            // The list is the room's top: its way back is the way home.
+            if (onHome != null) HomeButton(onHome)
             Text("Idea Boards", style = MaterialTheme.typography.h4, color = MaterialTheme.colors.primary)
             Spacer(Modifier.weight(1f))
-            OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
+            if (onHome == null) OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,

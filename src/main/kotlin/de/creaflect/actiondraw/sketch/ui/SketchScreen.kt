@@ -83,18 +83,8 @@ import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Rect
 import java.io.File
 import kotlin.math.roundToInt
-import de.creaflect.sketch.Paper
-
-/** The Live Sketch entry on the menu, equal in weight to the others. */
-@Composable
-fun RowScope.SketchMenuButton(onOpen: () -> Unit) {
-    Button(
-        onClick = onOpen,
-        modifier = Modifier.weight(1f).height(56.dp).testTag("menu-sketch"),
-    ) {
-        Text("Live Sketch", style = MaterialTheme.typography.h6)
-    }
-}
+import de.creaflect.sketch.Paper
+import de.creaflect.actiondraw.ui.HomeButton
 
 /**
  * A page, a pencil, a colour, a pen. A thin toolbar on top; the rest is page: a pen or the
@@ -102,12 +92,12 @@ fun RowScope.SketchMenuButton(onOpen: () -> Unit) {
  * readouts and the pencil study's tunables fold out from the toolbar when wanted.
  */
 @Composable
-fun SketchScreen(state: SketchState, thumbs: ThumbCache) {
+fun SketchScreen(state: SketchState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     DisposableEffect(state) {
         onDispose { state.mouseUp() }
     }
     Column(Modifier.fillMaxSize()) {
-        Toolbar(state)
+        Toolbar(state, onHome)
         state.notice?.let {
             Text(
                 "$it  (click to dismiss)",
@@ -129,7 +119,7 @@ fun SketchScreen(state: SketchState, thumbs: ThumbCache) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Toolbar(state: SketchState) {
+private fun Toolbar(state: SketchState, onHome: (() -> Unit)?) {
     Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 3.dp, modifier = Modifier.fillMaxWidth().testTag("sketch-header")) {
         // A FlowRow, not a Row: a Row clipped its tail off in a 1120-dp window, Back and all.
         FlowRow(
@@ -137,6 +127,7 @@ private fun Toolbar(state: SketchState) {
             verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp),
         ) {
+            if (onHome != null) HomeButton(onHome, size = 32.dp, modifier = Modifier.align(Alignment.CenterVertically).padding(end = 6.dp))
             Column(Modifier.widthIn(max = 200.dp).align(Alignment.CenterVertically)) {
                 Text(
                     state.title + if (state.dirty) " •" else "",

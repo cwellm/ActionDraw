@@ -272,6 +272,9 @@ private fun handleKey(
             else -> false
         }
 
+        // The top of a room: Esc goes home to the palette.
+        Screen.Menu, Screen.BoardList -> event.key == Key.Escape && escapeToPalette(state.screen, state, boardState)
+
         Screen.Board -> handleBoardKey(
             event,
             boardState,

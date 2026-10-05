@@ -94,7 +94,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.ui.HomeButton
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -102,7 +103,13 @@ import de.creaflect.actiondraw.board.ConceptRef
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
-fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, setFullscreen: (Boolean) -> Unit) {
+fun BoardScreen(
+    state: BoardState,
+    thumbs: ThumbCache,
+    isFullscreen: Boolean,
+    setFullscreen: (Boolean) -> Unit,
+    onHome: (() -> Unit)? = null,
+) {
     val board = state.board ?: return
     val textured = Themes.isTextured(board.theme)
     val colors = if (textured) Themes.paperColors else MaterialTheme.colors
@@ -150,7 +157,7 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
                     elevation = 3.dp,
                     modifier = Modifier.fillMaxWidth().testTag("board-header"),
                 ) { Column {
-                    BoardHeader(state, board.name, board.theme, onImmersive = {
+                    BoardHeader(state, board.name, board.theme, onHome, onImmersive = {
                         state.immersive = true
                         setFullscreen(true)
                     })
@@ -195,12 +202,13 @@ fun BoardScreen(state: BoardState, thumbs: ThumbCache, isFullscreen: Boolean, se
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun BoardHeader(state: BoardState, name: String, theme: String, onImmersive: () -> Unit) {
+private fun BoardHeader(state: BoardState, name: String, theme: String, onHome: (() -> Unit)?, onImmersive: () -> Unit) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
     ) {
+        if (onHome != null) HomeButton(onHome, size = 32.dp, modifier = Modifier.align(Alignment.CenterVertically).padding(end = 6.dp))
         Text(
             name,
             style = MaterialTheme.typography.subtitle1,
