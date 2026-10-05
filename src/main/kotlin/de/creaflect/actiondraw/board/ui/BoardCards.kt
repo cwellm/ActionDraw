@@ -55,6 +55,7 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteColors
 import de.creaflect.actiondraw.board.NoteItem
+import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -320,7 +321,7 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
         modifier = Modifier
             .shadow(if (textured) 3.dp else 0.dp, shape)
             .clip(shape)
-            .background(if (textured) Themes.cardBacking else Color(0xFF1C1C1E))
+            .background(if (textured) Themes.cardBacking else Atelier.Board)
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
             .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }

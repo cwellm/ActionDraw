@@ -118,6 +118,22 @@ shade on screen is the same tooth as black at alpha 1 − g (`PaperGrain.shade`)
 **Still to measure, now that samples arrive:** the rate, the pressure curve, coordinates at
 125 %, and the leads' numbers under a real hand.
 
+## L7. A variable font has to be cut, and the cuts renamed (2026-10-05, from the tests)
+
+Not about the pencil, but about the type the atelier (M8) sets around it. Compose Desktop 1.7's
+`Font(resource, weight)` loads a file as it is; nothing sets a variable font's axes, so a
+variable Bricolage Grotesque would only ever show its default instance. The weights are cut
+once with fontTools (`art/fonts/make-instances.py`), which is the easy half.
+
+The other half: a cut keeps the variable font's names and its STAT table, and on Windows Skia
+loads fonts through DirectWrite, which goes by those. The cuts came back as **weight 1**
+(Caveat, with its STAT left in) and as **800** for Bricolage *Regular* once the STAT was dropped
+and the names still matched each other. Compose matches a requested weight against what the
+loaded typeface reports, so this is not cosmetic: a family's Medium and Bold could be swapped
+or faked. Each cut now gets its own family, style and PostScript names, the right weight class
+and style bits, and no STAT; `AtelierTest` loads every file through `FontMgr` and checks the
+weight it reports.
+
 ---
 
 *Entries that follow will come from the pencil study: the actual sample rate, measured

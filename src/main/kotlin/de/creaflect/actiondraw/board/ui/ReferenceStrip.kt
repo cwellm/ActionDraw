@@ -46,6 +46,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.image.ImageLoader
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
@@ -79,7 +80,7 @@ fun ReferenceStrip(state: BoardState, thumbs: ThumbCache) {
 
     LaunchedEffect(index) { if (offset.value != 0f && !offset.isRunning) offset.snapTo(0f) }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFF101010))) {
+    Column(Modifier.fillMaxSize().background(Atelier.Ground)) {
         Box(
             Modifier
                 .weight(1f)

@@ -1,11 +1,8 @@
 package de.creaflect.actiondraw
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
-import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardListScreen
@@ -13,7 +10,9 @@ import de.creaflect.actiondraw.board.ui.BoardMenuButton
 import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.MenuScreen
+import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.PickerScreen
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
@@ -27,20 +26,14 @@ import de.creaflect.actiondraw.sketch.ui.SketchMenuButton
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 
-enum class Screen { Menu, Picker, Session, Summary, Board, BoardList, Concepts, Concept, Sketch }
-
-/** Calm, warm dark palette — easy on the eyes for long drawing sessions. */
-internal val ActionDrawColors = darkColors(
-    primary = Color(0xFFFFB74D),
-    primaryVariant = Color(0xFFFFA726),
-    secondary = Color(0xFF80CBC4),
-    background = Color(0xFF121212),
-    surface = Color(0xFF1C1C1E),
-    onPrimary = Color(0xFF1A1A1A),
-    onSecondary = Color(0xFF0E1413),
-    onBackground = Color(0xFFEDEDED),
-    onSurface = Color(0xFFEDEDED),
-)
+/** Every screen belongs to a [Room] of the palette, except the start menu, which is the palette. */
+enum class Screen(val room: Room?) {
+    Menu(null),
+    Picker(Room.PRACTICE), Session(Room.PRACTICE), Summary(Room.PRACTICE),
+    Board(Room.BOARDS), BoardList(Room.BOARDS),
+    Concepts(Room.CONCEPTS), Concept(Room.CONCEPTS),
+    Sketch(Room.SKETCH),
+}
 
 @Composable
 fun App(
@@ -54,7 +47,7 @@ fun App(
     onToggleFullscreen: () -> Unit,
     setFullscreen: (Boolean) -> Unit,
 ) {
-    MaterialTheme(colors = ActionDrawColors) {
+    AtelierTheme {
         Surface {
             Box {
                 when (state.screen) {

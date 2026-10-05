@@ -1,6 +1,5 @@
 package de.creaflect.actiondraw
 
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -21,6 +20,7 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.ReferenceStrip
 import de.creaflect.actiondraw.board.ui.handleBoardKey
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
 import java.io.File
@@ -154,7 +154,7 @@ fun main() = application {
             state = stripState,
             alwaysOnTop = true,
         ) {
-            MaterialTheme(colors = ActionDrawColors) {
+            AtelierTheme {
                 Surface { ReferenceStrip(boardState, thumbs) }
             }
         }
@@ -171,7 +171,7 @@ fun main() = application {
             state = sessionWindowState,
             onKeyEvent = { handleSessionWindowKey(it, appState, sessionWindowState) },
         ) {
-            MaterialTheme(colors = ActionDrawColors) {
+            AtelierTheme {
                 Surface {
                     when (boardWindow) {
                         Screen.Summary -> SummaryScreen(appState, pinTargets)

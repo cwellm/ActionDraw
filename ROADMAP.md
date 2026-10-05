@@ -12,7 +12,8 @@ Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (explor
 [docs/LiveSketch-Exploration.md](docs/LiveSketch-Exploration.md) (M6, with findings in
 [LEARNINGS.md](LEARNINGS.md) and the engine's shape in
 [docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)) ·
-[docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7).
+[docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7) ·
+[CONCEPT.md](CONCEPT.md) (the vision, the atelier design language and the six rooms — M8, M9).
 
 ---
 
@@ -615,6 +616,190 @@ the answers taken to its open questions). A thing that lives once and is linked 
 
 ---
 
+## 🔄 M8 — The atelier: the design realised
+
+The design recap of 2026-10-05: [CONCEPT.md](CONCEPT.md) and its design canvas. A graphite table,
+real paper, one lamp, six pigments sprinkled rather than poured, a porcelain palette as the home
+screen, and motion that is wet, weighty and drawn. The app changes how it looks and moves, not what
+it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays true*).
+
+### ✅ F9.1 Tokens and type
+- ✅ `ui/Atelier.kt`: one table of tokens — ground, board, raised, line, text, muted; paper, paper
+  shade, ink, quiet ink; six pigments with *mass*, *glow* and the text that goes on the mass —
+  replacing `ActionDrawColors`; Material's `Colors` derived from it (`AtelierColors`) and every
+  window wrapped in one `AtelierTheme`, so every screen changed colour before anything else moved
+- ✅ A `Room` enum (Practice, Lens, Boards, Concepts, Sketch, Collage) carrying its pigment; every
+  `Screen` names its room (the menu none: it is the palette)
+- ✅ Bricolage Grotesque and Caveat bundled with their OFL licences — as **static cuts**: Compose
+  Desktop 1.7 cannot set a variable font's axes, so `art/fonts/make-instances.py` cuts text
+  weights 400–700 (optical size 14), one display cut (800, optical size 48) and Caveat 500/700
+  from the variable sources kept beside it. Each cut is renamed and flagged as the static font it
+  is: with the variable font's names left in, Windows (DirectWrite) reported Caveat as weight 1
+  and Bricolage Regular as 800. `AtelierType.typography` (display cut for h1–h4) and a `Hand`
+  style for lettered things
+- ✅ `AtelierTest`: every text-on-ground pair the design uses ≥ 4.5:1, Material's palettes
+  included, and every font cut loads with the weight it is filed under. Seen red for real twice:
+  paper text on viridian reached 4.17:1 (the mass is now `#1A6F60`, a shade deeper than the
+  canvas), and the font weights above
+- ✅ `Themes.paperColors` and the card backing taken from the paper tokens; the plain board's
+  link cards, the strip's ground and the frame tags' ink from the table's
+- The remaining hard-coded accents (the amber guide lines, the star, the practice badges) move
+  with their rooms in F9.5–F9.8
+
+### ⬜ F9.2 Materials in code
+- ⬜ One shared SkSL value noise (the cork's, generalised) → a faint grain over the ground, cached
+  as a 256-px tile and drawn through the native canvas — no per-frame `ImageBitmap`
+- ⬜ Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
+  sketch's paper are the same paper
+- ⬜ One lamp: a `Lift` scale (resting, lifted, held) giving shadow offset and blur from the top
+  left, replacing the scattered `elevation =` values
+- ⬜ Small `DrawScope` pieces, each with a screenshot test: masking tape (torn ends from a seeded
+  polygon), push-pin, porcelain well, pigment dab (a seeded blob with a gloss)
+
+### ⬜ F9.3 Home: the palette
+- ⬜ `PaletteScreen` replaces `MenuScreen` as `Screen.Menu`: a porcelain disk, six wells at 60°
+  steps, each room's name outside the rim with its verb lettered in the room's glow, the centre
+  well holding the selected room's one line and its next step
+- ⬜ Select by click, arrow keys and Tab; Enter opens; the selected dab goes wet with a ripple; the
+  last room is remembered in the settings
+- ⬜ Each room's next step: Practice → the exercise screen; Boards → the last board, else the list;
+  Concepts → the list; Sketch → the open sketch, else a new page; Lens and Collage → their rooms
+  once built (until then their wells say so)
+- ⬜ The session settings leave the start menu for the Practice room (F9.6); Settings and Hotkeys
+  move to the top-right corner
+- ⬜ `Esc` from any room's top level returns to the palette — one rule instead of each screen's own
+  way back, with a test per room
+- ⬜ UI tests: every well reachable by keyboard, Enter on each opens the right screen
+
+### ⬜ F9.4 Motion
+- ⬜ `Motion` tokens (durations, easings, the spring) and **reduced motion** in Settings, following
+  the system's preference where the platform exposes it; reduced = a 120 ms cross-fade
+- ⬜ **Bloom** — the room transition as a mask grown from the pressed well, its edge displaced by
+  noise (SkSL), settling into the room's 2 px top line; Esc plays it backwards
+- ⬜ **Settle** — lift, lean (from drag velocity, at most 4°) and land on a spring for cards and
+  frames, as a draw-time layer on the box *around* the `ContextMenuArea` (M5's hit-box rule)
+- ⬜ **Draw-on** — a group's frame drawn with `PathMeasure` from where the pointer let go, then its
+  tag lettered; the hand-drawn wobble baked into the frame's one path, so the drawn path stays the
+  hit-tested path (`CanvasHitTest` keeps proving it)
+- ⬜ **Recede** — chrome fades 1.5 s after pen-down in Sketch and in a session and comes back edge
+  by edge on approach; the ensō waits at 40 %
+- ⬜ A guard for stroke latency: no animation invalidates the sketch surface while a stroke is live
+  (a test that an animation tick during a stroke re-uploads no tile)
+
+### ⬜ F9.5 Room chrome and hand-offs
+- ⬜ One `RoomHeader` for every room: back to the palette, the room's dab and name, the 2 px pigment
+  line, slots for a title and actions
+- ⬜ `CrossRoomButton(room, label)`: the target room's dab before the label; every existing hand-off
+  (*Draw from this board*, *Sketch*, *Pin*, *To board…*, *To concept…*, *Continue in Live Sketch*)
+  moved onto it
+- ⬜ The **ring menu** on a board: right-click on a selection opens six porcelain buttons round it
+  (Draw these, Sketch over, To a collage, Add to concept, Tag, Group), reachable by keyboard; the
+  context menu keeps every other command
+- ⬜ Lettered names: group tags, note text and the ramp's labels in the `Hand` style
+
+### ⬜ F9.6 Practice, re-dressed
+- ⬜ The exercise screen: taped index cards with an ink drawing each (Action drawing, Lens studies,
+  From memory; Flicker, Staged and Compare join as M9 builds them); the chosen card lifted and
+  taped in cadmium
+- ⬜ The timing panel: plan chips, the ramp drawn as graphite bars (one per pose, height by
+  duration, labels lettered), total poses and time, auto-advance, a starting lens, and *Drawing
+  from* a folder or a board
+- ⬜ The **ensō timer** in the session: an arc that grows with the elapsed pose, dry-brush edge, the
+  time inside, the poses as ticks below it
+- ⬜ The **lens tray**: nine slides with live miniatures of their effect and their keys, the active
+  slide's parameters popping up above it, the adjustments as round knobs; the tray recedes while
+  drawing
+- ⬜ The summary in the same language: the poses as a strip of prints, redo flags as pencil marks
+
+### ⬜ F9.7 Boards, re-dressed
+- ⬜ Pictures as prints (white border, a pin), sketches taped, notes as yellow slips, concept cards
+  with a viridian tab, link cards as index cards
+- ⬜ Group frames in graphite with a lettered tag on a pin; the selected card lifted with an
+  ultramarine outline
+- ⬜ Cork and papyrus stay; *plain* becomes the graphite table
+- ⬜ The board list as a shelf of covers with lettered names; the concept list as folios
+
+### ⬜ F9.8 Sketch, re-dressed
+- ⬜ The pencil tray: the seven tools and the rubber as objects, the chosen one slid out, keys beside
+  them
+- ⬜ Papers as swatches of real tooth, shades as chips, the page taped at its corners; Pen and Tune
+  folding out of the tray
+- ⬜ A status line under the page (pen state, zoom) instead of readouts in the toolbar
+
+### ⬜ F9.9 Wrap-up
+- ⬜ Screenshot tests of the palette and of each room, selected and running
+- ⬜ README and the Hotkeys sheet: the palette, Esc home, the ring menu
+- ⬜ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
+  between the hand and the page
+
+---
+
+## ⬜ M9 — Shaping the features
+
+What the vision names and the app does not do yet, or does only halfway. Feature level on purpose;
+tasks are broken out when M9 becomes active. Shapes: [CONCEPT.md](CONCEPT.md) (*The rooms, one by
+one*, *How the rooms hand things over*) and the design canvas.
+
+### ⬜ F10.1 Lens — filters without a session
+- A picture from a file, the clipboard, a board card or the current collage, seen through the
+  session's lens tray (all nine view modes, every adjustment, the grids) with no clock running
+- Side by side: the picture and its lensed view, or two lenses at once (Notan beside Edge)
+- Save the lensed view as a PNG, or pin it to a board beside its original
+- `Filters.kt` and the shaders as they are; one `LensState` that the session uses too, so tray and
+  keys are one code path
+
+### ⬜ F10.2 Flicker (Wechselzeichnung)
+- Two or more pictures trade places at an interval (1 s by default, 0.25–5 s), as a hard cut or a
+  short cross-fade
+- From a board selection of two or more, or as a kind of ramp leg, so a plan can mix flicker with
+  ordinary poses
+- Variants: a picture and its mirror (asymmetry jumps out), a picture and its notan
+
+### ⬜ F10.3 Staged studies — shaped from F+.4
+- The lens changes during the pose — notan for the masses, edge for the contour, then the full
+  picture — each stage a share of the pose
+- On the ramp-phase seam memory drawing opened (`studySeconds` becomes a list of phases)
+- The ensō shows the stages as gaps in its circle
+
+### ⬜ F10.4 Compare — your drawings come back in, shaped from F+.3
+- `attempts: [{path, date, seconds}]` on an item, the files in `_drawings/`; a sketch saved from a
+  session becomes an attempt by itself
+- The attempt at 50 % over the reference (or the reference over it), aligned by two points; your
+  drawing mirrored; a flicker between the two (F10.2)
+- One subject's attempts over months as a row of prints
+
+### ⬜ F10.5 Sketch — the picture underneath
+- Any picture under the page (from a session, a card, a concept, a collage, a file) at a chosen
+  strength, moved, scaled and turned to fit, never part of the saved PNG
+- *Lay it over instead*: the reference over the strokes, for checking at the end
+- In `.sketch.json` by path and placement, so a continued sketch has it again; today's corner
+  reference stays as the "beside the page" option
+
+### ⬜ F10.6 Collage — scissors on a cutting mat
+- `name.collage.json` beside `name.png`: pieces with a source (file, board card, concept item,
+  sketch), a cut outline (polygon or freehand), a torn-edge seed, a transform, the order, tape
+- Tools: move, scissors (clicks for straight cuts, a drag for freehand, Shift for straight),
+  tear (a noisy edge along a drag), tape, flip, order; undo throughout
+- The source drawer: boards and concepts as tabs; drag a picture onto the mat to cut from it, as
+  often as you like
+- Out: save as PNG, *Pin to a board*, *Sketch over it* (F10.5), *Check the values* (F10.1)
+- Skia clip paths over cached images; the cut outline is the hit-tested path — the board's rule
+  again
+
+### ⬜ F10.7 One seam for hand-offs
+- A `Handoff`, as `BoardHost` is for the board: each room says what it can send (a picture, a
+  selection, a document) and what it takes; the ring menu and every `CrossRoomButton` ask it, so a
+  new room joins every route at once
+- Back returns to where a hand-off came from, as *Sketch* from a session does today
+
+### ⬜ F10.8 Concepts across the rooms
+- A concept's pictures as a Practice source — a warm-up on the thing you are about to draw
+- A concept as a Collage source and as a Sketch underlay
+- F8.4's open question settled: does practice on a concept's picture belong to the concept or to
+  the board
+
+---
+
 ## 🔄 M+ — Practice backlog (independent of the board)
 
 ### ✅ F+.1 Continuous colour temperature
@@ -646,10 +831,12 @@ the answers taken to its open questions). A thing that lives once and is linked 
   subject's progression over months
 - ⬜ The app has never seen anything actually drawn — all state so far is about the reference.
   The biggest structural gap, and a real data-model change.
+- → Shaped further as **F10.4 Compare** in M9
 
 ### ⬜ F+.4 Staged studies
 - ⬜ The filter changes during a pose: Notan for the value masses, Edge for the contour, then
   full. Shares the ramp-phase seam that memory drawing opened.
+- → Shaped further as **F10.3 Staged studies** in M9
 
 ### ⬜ F+.5 Smaller things on the list
 - ⬜ A watched drop folder per board — Krita saves a PNG into it and the card appears

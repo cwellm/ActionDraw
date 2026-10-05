@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import de.creaflect.actiondraw.board.BoardThemes
+import de.creaflect.actiondraw.ui.Atelier
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.RuntimeEffect
@@ -107,21 +108,24 @@ half4 main(float2 xy) {
 
     fun isTextured(theme: String): Boolean = theme != BoardThemes.PLAIN
 
-    /** Light Material palette for the textured (paper) boards. */
+    /**
+     * Light Material palette for the textured (paper) boards: the atelier's paper and ink. The
+     * accents stay the dark brown and teal they were, since Material sets text in them on paper.
+     */
     val paperColors: Colors = lightColors(
         primary = Color(0xFF6D4C41),
         primaryVariant = Color(0xFF5D4037),
         secondary = Color(0xFF00796B),
-        background = Color(0xFFEFE3C8),
-        surface = Color(0xFFFBF4E2),
-        onPrimary = Color(0xFFFFF8EC),
-        onSecondary = Color(0xFFF2FFFC),
-        onBackground = Color(0xFF2B2118),
-        onSurface = Color(0xFF2B2118),
+        background = Atelier.PaperShade,
+        surface = Atelier.Paper,
+        onPrimary = Atelier.Paper,
+        onSecondary = Atelier.Paper,
+        onBackground = Atelier.Ink,
+        onSurface = Atelier.Ink,
     )
 
     /** Card backing — "paper pinned to cork". */
-    val cardBacking = Color(0xFFFBF4E2)
+    val cardBacking = Atelier.Paper
 
     /** Note-card paper, light and dark variants. */
     val noteBacking = Color(0xFFFFF3B8)

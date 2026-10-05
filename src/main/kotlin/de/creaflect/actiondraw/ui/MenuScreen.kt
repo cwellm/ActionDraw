@@ -3,6 +3,8 @@ package de.creaflect.actiondraw.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -63,6 +65,7 @@ fun MenuScreen(
 }
 
 /** Folder choice, session type and timing — everything that configures the next session. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SessionSettings(state: AppState, modifier: Modifier) {
     Column(
@@ -102,7 +105,11 @@ private fun SessionSettings(state: AppState, modifier: Modifier) {
 
         // ---- Session type ----
         SectionLabel("Session")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Wraps rather than squeezing the last chip into a sliver when the type runs wide.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             SelectChip("Fixed time", state.rampPlan == null) { state.rampPlan = null }
             SessionPlans.ALL.forEach { plan ->
                 SelectChip(plan.name, state.rampPlan == plan) { state.rampPlan = plan }
