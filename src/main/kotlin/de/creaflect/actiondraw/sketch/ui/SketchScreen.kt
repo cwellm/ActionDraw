@@ -34,6 +34,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -76,6 +77,7 @@ import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PencilModel
 import de.creaflect.sketch.Pencils
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.FilterMipmap
 import org.jetbrains.skia.FilterMode
@@ -83,8 +85,13 @@ import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Rect
 import java.io.File
 import kotlin.math.roundToInt
-import de.creaflect.sketch.Paper
+import de.creaflect.sketch.Paper
 import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.ChromeEdge
+import de.creaflect.actiondraw.ui.Motion
+import de.creaflect.actiondraw.ui.PointerWatch
+import de.creaflect.actiondraw.ui.RecedingChrome
+import de.creaflect.actiondraw.ui.watchPointer
 
 /**
  * A page, a pencil, a colour, a pen. A thin toolbar on top; the rest is page: a pen or the
@@ -96,8 +103,9 @@ fun SketchScreen(state: SketchState, thumbs: ThumbCache, onHome: (() -> Unit)? =
     DisposableEffect(state) {
         onDispose { state.mouseUp() }
     }
-    Column(Modifier.fillMaxSize()) {
-        Toolbar(state, onHome)
+    val watch = remember { PointerWatch() }
+    Column(Modifier.fillMaxSize().watchPointer(watch)) {
+        SketchChrome(state, watch) { Toolbar(state, onHome) }
         state.notice?.let {
             Text(
                 "$it  (click to dismiss)",
@@ -113,6 +121,32 @@ fun SketchScreen(state: SketchState, thumbs: ThumbCache, onHome: (() -> Unit)? =
             state.reference?.let { Reference(state, it, thumbs, Modifier.align(Alignment.TopEnd)) }
         }
     }
+}
+
+/**
+ * The toolbar steps back once a stroke has gone on for a moment (CONCEPT.md, *Recede*), and comes
+ * back as the pointer nears the top. Not while the Pen or Tune panel is open: then the chrome is
+ * what is being worked with. Its own composable, so a stroke starting and ending recomposes this
+ * and not the page.
+ */
+@Composable
+private fun SketchChrome(state: SketchState, watch: PointerWatch, toolbar: @Composable () -> Unit) {
+    var receded by remember { mutableStateOf(false) }
+    val drawing = state.drawing
+    LaunchedEffect(drawing) {
+        if (drawing) {
+            delay(Motion.RECEDE_AFTER_MS)
+            receded = true
+        }
+    }
+    RecedingChrome(
+        receded = receded && !state.showPenPanel && !state.showTunables,
+        watch = watch,
+        edge = ChromeEdge.TOP,
+        modifier = Modifier.testTag("sketch-chrome"),
+        onOver = { if (!state.drawing) receded = false },
+        content = toolbar,
+    )
 }
 
 // ---------------- The toolbar ----------------

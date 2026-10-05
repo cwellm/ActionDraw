@@ -154,7 +154,7 @@ fun main() = application {
             state = stripState,
             alwaysOnTop = true,
         ) {
-            AtelierTheme {
+            AtelierTheme(reducedMotion = appState.reducedMotion) {
                 Surface { ReferenceStrip(boardState, thumbs) }
             }
         }
@@ -171,7 +171,7 @@ fun main() = application {
             state = sessionWindowState,
             onKeyEvent = { handleSessionWindowKey(it, appState, sessionWindowState) },
         ) {
-            AtelierTheme {
+            AtelierTheme(reducedMotion = appState.reducedMotion) {
                 Surface {
                     when (boardWindow) {
                         Screen.Summary -> SummaryScreen(appState, pinTargets)

@@ -94,7 +94,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.ui.HomeButton
 
 /**

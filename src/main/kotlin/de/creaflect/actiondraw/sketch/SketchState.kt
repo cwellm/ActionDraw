@@ -144,8 +144,12 @@ class SketchState(
     private var source: PenSource? = null
     private val recentTimes = ArrayDeque<Long>()
     private var recordFile: File? = null
-    private var penDrawing = false
-    private var mouseDrawing = false
+    // State, not plain fields: whether a stroke is live is what makes the chrome step back.
+    private var penDrawing by mutableStateOf(false)
+    private var mouseDrawing by mutableStateOf(false)
+
+    /** A stroke is being drawn, by the pen or the mouse. */
+    val drawing: Boolean get() = penDrawing || mouseDrawing
     private var penSeen = false
     private var lastPenNanos = 0L
     /** Strokes the mouse made — with no pen sample ever seen, that is the pen arriving as a mouse. */

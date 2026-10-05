@@ -27,6 +27,10 @@ concepts*, *New sketch* or *Continue the sketch*.
 - `Esc` climbs out of any room, and from the top of a room it lands back on the palette; so does
   the small palette button at the start of every room's header.
 - **Settings** and **Hotkeys** sit in the palette's top right corner.
+- A room opens as its colour spreads from the well like watercolour, and drains back into it on
+  the way home. While you draw, Live Sketch's toolbar and a session's controls step back; bring
+  the pointer to them and they return. **Settings → Reduce motion** keeps all of this to short
+  fades; until it is set, it follows Windows' *Show animations*.
 
 ## Draw — timed reference practice
 

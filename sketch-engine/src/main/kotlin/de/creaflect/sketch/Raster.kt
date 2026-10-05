@@ -149,7 +149,17 @@ class SketchSurface(
     }
 
     /** Tile [i]'s current picture, for the screen: the same object until the tile is drawn on. */
-    fun tileImage(i: Int): Image = shown[i] ?: tiles[i].makeImageSnapshot().also { shown[i] = it }
+    fun tileImage(i: Int): Image = shown[i] ?: tiles[i].makeImageSnapshot().also {
+        shown[i] = it
+        snapshotsTaken++
+    }
+
+    /**
+     * How many tile pictures have been made for the screen — each one a new texture to upload. A
+     * test can count them to show that something which does not draw on the page uploads nothing.
+     */
+    var snapshotsTaken = 0
+        private set
 
     /** The layer as it is now, for undo. */
     fun snapshot(): PageSnapshot = PageSnapshot(Array(tiles.size) { tiles[it].makeImageSnapshot() })

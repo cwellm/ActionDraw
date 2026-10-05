@@ -3,9 +3,14 @@ package de.creaflect.actiondraw
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardListScreen
@@ -13,6 +18,8 @@ import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.AtelierTheme
+import de.creaflect.actiondraw.ui.Bloom
+import de.creaflect.actiondraw.ui.BloomLayer
 import de.creaflect.actiondraw.ui.MenuScreen
 import de.creaflect.actiondraw.ui.PaletteScreen
 import de.creaflect.actiondraw.ui.PaletteWell
@@ -53,7 +60,20 @@ fun App(
     onToggleFullscreen: () -> Unit,
     setFullscreen: (Boolean) -> Unit,
 ) {
-    AtelierTheme {
+    // Where each well sits on screen, for the pigment to spread from and drain back into.
+    val wellCentres = remember { mutableMapOf<Room, Offset>() }
+    var bloom by remember { mutableStateOf<Bloom?>(null) }
+    // Home from any room drains its pigment back into its well, however home was reached.
+    var previous by remember { mutableStateOf(state.screen) }
+    LaunchedEffect(state.screen) {
+        val from = previous.room
+        previous = state.screen
+        if (state.screen == Screen.Palette && from != null && bloom == null) {
+            bloom = Bloom(from, wellCentres[from] ?: Offset.Unspecified, opening = false)
+        }
+    }
+
+    AtelierTheme(reducedMotion = state.reducedMotion) {
         Surface {
             Box {
                 when (state.screen) {
@@ -64,8 +84,10 @@ fun App(
                             wells,
                             selected = state.paletteRoom,
                             onSelect = state::selectRoom,
-                            onOpen = { openRoom(it, state, boardState, conceptState) },
+                            // The room opens under its pigment, once that covers the palette.
+                            onOpen = { room -> if (bloom == null) bloom = Bloom(room, wellCentres[room] ?: Offset.Unspecified, opening = true) },
                             corner = { MenuExtras(state, boardState) },
+                            onWellPlaced = { room, centre -> wellCentres[room] = centre },
                         )
                     }
                     Screen.Menu -> MenuScreen(state, onHome = state::showPalette)
@@ -95,6 +117,11 @@ fun App(
                 state.screen.room?.takeIf { state.screen != Screen.Session }?.let {
                     RoomLine(it, Modifier.align(Alignment.TopCenter))
                 }
+                BloomLayer(
+                    bloom,
+                    onCovered = { bloom?.takeIf { it.opening }?.let { openRoom(it.room, state, boardState, conceptState) } },
+                    onDone = { bloom = null },
+                )
                 // Board and concept dialogs float above every screen (the pickers open from the menu).
                 BoardDialogs(boardState)
                 ConceptDialogs(conceptState)

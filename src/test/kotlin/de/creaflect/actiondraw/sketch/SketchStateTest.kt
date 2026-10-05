@@ -23,6 +23,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
 import de.creaflect.actiondraw.sketch.ui.ColorPicker
@@ -33,6 +34,8 @@ import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.sketch.input.PenSample
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
+import de.creaflect.actiondraw.ui.ChromeAlpha
+import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
 import de.creaflect.sketch.Paper
@@ -639,5 +642,38 @@ class SketchStateTest {
         val after = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()
         val lx = (state.panX + 256f * state.zoom).toInt()
         assertEquals(bare[lx, y.toInt()], after[lx, y.toInt()], "undo takes it off the screen too")
+    }
+
+    // ---- Recede (M8, F9.4) ----
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun theToolbarStepsBackDuringAStrokeAndThePageUploadsNothingForIt() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(600, 300))
+        rule.waitForIdle()
+        state.fit()
+        rule.waitForIdle()
+        val chrome = rule.onNodeWithTag("sketch-chrome")
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+
+        // A stroke begins, and the pencil rests on the page.
+        state.mouseDown(state.panX + 100f * state.zoom, state.panY + 150f * state.zoom)
+        rule.waitForIdle()
+        val surface = state.session!!.surface
+        val before = surface.snapshotsTaken
+        rule.mainClock.advanceTimeBy(Motion.RECEDE_AFTER_MS + Motion.RECEDE_MS + 100L)
+        rule.waitForIdle()
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        assertEquals(before, surface.snapshotsTaken, "the toolbar's fading drew nothing on the page")
+
+        // Lifted, it stays back until the pointer comes up to it.
+        state.mouseUp()
+        rule.waitForIdle()
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        chrome.performMouseInput { moveTo(center) }
+        rule.waitForIdle()
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
     }
 }

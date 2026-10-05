@@ -683,20 +683,32 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   room's top, a sketch from a pose, the keys passing the dry wells, and the palette on screen
   (click, second click, centre button, arrows, Enter). Four guards broken on purpose and seen red
 
-### ⬜ F9.4 Motion
-- ⬜ `Motion` tokens (durations, easings, the spring) and **reduced motion** in Settings, following
-  the system's preference where the platform exposes it; reduced = a 120 ms cross-fade
-- ⬜ **Bloom** — the room transition as a mask grown from the pressed well, its edge displaced by
-  noise (SkSL), settling into the room's 2 px top line; Esc plays it backwards
+### 🔄 F9.4 Motion
+- ✅ `ui/Motion.kt`: the tokens (durations, easings), and **reduced motion** — a box in Settings,
+  following Windows' *Show animations* (`SPI_GETCLIENTAREAANIMATION`, read through JNA) until it
+  is set; reduced, the bloom is a 120 ms wash, nothing ripples, chrome fades in 120 ms
+- ✅ **Bloom** — a room opens under its pigment: an SkSL disk spreading from the well's place on
+  screen, its edge wandering with the direction, darker in a drying rim, a little granulated;
+  the room is opened beneath once it covers the palette (55 %), then the pigment thins away onto
+  the room's 2 px line. Home from any room drains it back into the well. The design's
+  ease-out (0.2, 0.8, 0.2, 1) covered the screen in 80 ms — a flash, seen in a capture — so the
+  spread starts slower (0.35, 0, 0.25, 1). `MotionTest`: the timelines, and the shader read back
+  (pigment inside, nothing outside, an edge that is not a circle, a darker rim)
 - ⬜ **Settle** — lift, lean (from drag velocity, at most 4°) and land on a spring for cards and
   frames, as a draw-time layer on the box *around* the `ContextMenuArea` (M5's hit-box rule)
 - ⬜ **Draw-on** — a group's frame drawn with `PathMeasure` from where the pointer let go, then its
   tag lettered; the hand-drawn wobble baked into the frame's one path, so the drawn path stays the
   hit-tested path (`CanvasHitTest` keeps proving it)
-- ⬜ **Recede** — chrome fades 1.5 s after pen-down in Sketch and in a session and comes back edge
-  by edge on approach; the ensō waits at 40 %
-- ⬜ A guard for stroke latency: no animation invalidates the sketch surface while a stroke is live
-  (a test that an animation tick during a stroke re-uploads no tile)
+- 🔄 **Recede** — `RecedingChrome` and `PointerWatch` (watches the pointer, takes nothing): Sketch's
+  toolbar steps back 1.5 s into a stroke (not while Pen or Tune is open) and stays back until the
+  pointer comes up to it; a session's controls step back while a pose runs and the mouse rests,
+  and come back near the bottom edge or on a pause. They keep their space for now — the picture
+  and the page take it over when the rooms are re-dressed (F9.6, F9.8); the ensō comes with F9.6
+- ✅ A guard for stroke latency: the chrome recomposes on its own, never the page, and
+  `SketchSurface.snapshotsTaken` counts tile pictures made for the screen — none while the
+  toolbar fades during a live stroke (`SketchStateTest`). Four guards broken on purpose and seen
+  red (chrome that never recedes, a toolbar that never returns, a pause that does not bring the
+  controls back, a watercolour without its rim)
 
 ### 🔄 F9.5 Room chrome and hand-offs
 - 🔄 `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a

@@ -4,6 +4,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Typography
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -112,8 +113,10 @@ object AtelierType {
     val Hand = TextStyle(fontFamily = Caveat, fontWeight = FontWeight.Medium, fontSize = 22.sp)
 }
 
-/** The atelier around a window's content: its colours and its type. */
+/** The atelier around a window's content: its colours, its type, and how much it may move. */
 @Composable
-fun AtelierTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colors = AtelierColors, typography = AtelierType.typography, content = content)
+fun AtelierTheme(reducedMotion: Boolean = false, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalReducedMotion provides reducedMotion) {
+        MaterialTheme(colors = AtelierColors, typography = AtelierType.typography, content = content)
+    }
 }

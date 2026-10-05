@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -51,6 +52,7 @@ import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.image.ImageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.min
@@ -107,11 +109,42 @@ fun SessionScreen(
             }
         }
     } else {
-        Column(Modifier.fillMaxSize()) {
+        val watch = remember { PointerWatch() }
+        Column(Modifier.fillMaxSize().watchPointer(watch)) {
             ImageArea(state, bitmap, current, Modifier.weight(1f).fillMaxWidth())
-            ControlBar(state, onToggleFullscreen, pinTargets, onSketch)
+            SessionChrome(state, watch) { ControlBar(state, onToggleFullscreen, pinTargets, onSketch) }
         }
     }
+}
+
+/**
+ * While a pose runs and the mouse rests — the drawing happens on paper — the controls step back
+ * (CONCEPT.md, *Recede*); bringing the pointer down to them, or pausing, brings them back. The
+ * keys work all the while.
+ */
+@Composable
+private fun SessionChrome(state: AppState, watch: PointerWatch, bar: @Composable () -> Unit) {
+    var receded by remember { mutableStateOf(false) }
+    val paused = state.isPaused
+    LaunchedEffect(paused) {
+        if (paused) {
+            receded = false
+            return@LaunchedEffect
+        }
+        // Every move starts the wait again; a move does not bring the bar back, nearing it does.
+        snapshotFlow { watch.moves }.collectLatest {
+            delay(Motion.RECEDE_AFTER_MS)
+            receded = true
+        }
+    }
+    RecedingChrome(
+        receded = receded,
+        watch = watch,
+        edge = ChromeEdge.BOTTOM,
+        modifier = Modifier.testTag("session-chrome"),
+        onOver = { receded = false },
+        content = bar,
+    )
 }
 
 /**

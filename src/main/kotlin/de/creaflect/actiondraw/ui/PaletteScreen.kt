@@ -55,6 +55,8 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -113,6 +115,8 @@ fun PaletteScreen(
     onOpen: (Room) -> Unit,
     /** Drawn over the whole palette, last: the top right corner's links and what they open. */
     corner: @Composable () -> Unit = {},
+    /** Where each well's centre lies in the window — for the pigment to spread from. */
+    onWellPlaced: (Room, Offset) -> Unit = { _, _ -> },
 ) {
     val byRoom = wells.associateBy { it.room }
     val requesters = remember { PALETTE_ORDER.associateWith { FocusRequester() } }
@@ -174,7 +178,10 @@ fun PaletteScreen(
                 requester = requesters.getValue(room),
                 onClick = { if (room == selected) onOpen(room) else onSelect(room) },
                 onFocused = { if (room != selected) onSelect(room) },
-                modifier = Modifier.offset(x - wellSize / 2, y - wellSize / 2).size(wellSize),
+                modifier = Modifier
+                    .offset(x - wellSize / 2, y - wellSize / 2)
+                    .size(wellSize)
+                    .onGloballyPositioned { onWellPlaced(room, it.boundsInRoot().center) },
             )
             WellLabel(well, room == selected, a, disk * 0.595f, cx, cy, onSelect = { onSelect(room) })
         }
@@ -226,8 +233,9 @@ private fun Well(
 ) {
     val source = remember { MutableInteractionSource() }
     val hovered by source.collectIsHoveredAsState()
-    // The selected dab is wet: a ripple runs out from it, over and over.
-    val ripple by rememberInfiniteTransition().animateFloat(
+    // The selected dab is wet: a ripple runs out from it, over and over — unless motion is reduced.
+    // Read only while drawing, so the ripple redraws the well without recomposing it.
+    val ripple = if (LocalReducedMotion.current) null else rememberInfiniteTransition().animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(2600, easing = CubicBezierEasing(0.2f, 0.7f, 0.3f, 1f))),
@@ -244,7 +252,10 @@ private fun Well(
             .drawBehind {
                 val r = size.minDimension / 2
                 if (selected) {
-                    drawCircle(glow.copy(alpha = 0.8f * (1 - ripple)), r + 6.dp.toPx() + 16.dp.toPx() * ripple, style = Stroke(2.dp.toPx()))
+                    if (ripple != null) {
+                        val p = ripple.value
+                        drawCircle(glow.copy(alpha = 0.8f * (1 - p)), r + 6.dp.toPx() + 16.dp.toPx() * p, style = Stroke(2.dp.toPx()))
+                    }
                     drawCircle(glow, r + 3.dp.toPx(), style = Stroke(4.dp.toPx()))
                 }
                 drawWell(center, r)

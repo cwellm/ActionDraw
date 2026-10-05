@@ -40,7 +40,7 @@ import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.chooseFolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
+import java.io.File
 import de.creaflect.actiondraw.ui.HomeButton
 
 /** One entry of the board list: what can be shown without opening the board. */

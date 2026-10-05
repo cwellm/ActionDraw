@@ -111,6 +111,23 @@ internal fun ColumnScope.SettingsSheet(app: AppState?, boards: BoardState, onClo
         Text("Snap dragged cards to their neighbours' centre lines", style = MaterialTheme.typography.body2)
     }
 
+    if (app != null) {
+        Text("Motion", style = MaterialTheme.typography.caption)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = app.reducedMotion,
+                onCheckedChange = { app.setReducedMotionPreference(it) },
+                modifier = Modifier.testTag("settings-reduced-motion"),
+            )
+            Text("Reduce motion: rooms open with a short fade, nothing spreads, ripples or slides", style = MaterialTheme.typography.body2)
+        }
+        Text(
+            "Until it is set here, it follows Windows' “Show animations”.",
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+        )
+    }
+
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(onClick = onClose) { Text("Done") }
     }
