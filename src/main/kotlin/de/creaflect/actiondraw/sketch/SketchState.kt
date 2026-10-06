@@ -251,6 +251,9 @@ class SketchState(
     /** The tooth of the page: the sketch's paper, or the last one chosen while there is no page. */
     val tooth: Paper get() = session?.tooth ?: lastTooth
 
+    /** The page's shade, ARGB: the sketch's paper colour, or the last one chosen while there is no page. */
+    val shade: Int get() = session?.paper ?: lastPaper
+
     /**
      * Puts the sketch on another paper: every stroke is drawn again on the new grain — the
      * document keeps samples, not pixels — and the sketch is changed by it. Undo goes on from
@@ -260,8 +263,19 @@ class SketchState(
         lastTooth = tooth
         val s = session ?: return
         if (s.tooth == tooth) return
-        val document = s.document().copy(tooth = tooth.name)
-        s.close()
+        redrawOn(s.document().copy(tooth = tooth.name))
+    }
+
+    /** Puts the sketch on paper of another shade, the strokes drawn again on it as with [setTooth]. */
+    fun setShade(argb: Int) {
+        lastPaper = argb
+        val s = session ?: return
+        if (s.paper == argb) return
+        redrawOn(s.document().copy(paper = argb))
+    }
+
+    private fun redrawOn(document: SketchDocument) {
+        session?.close()
         session = SketchSession.fromDocument(document).also { it.markDirty() }
         penDrawing = false
         mouseDrawing = false
@@ -631,6 +645,14 @@ class SketchState(
     }
 
     companion object {
+        /** The shades a page comes in, ARGB, by name. */
+        val SHADES = listOf(
+            "White" to 0xFFFFFFFF.toInt(),
+            "Cream" to 0xFFFBF5E4.toInt(),
+            "Grey" to 0xFFD9D9D6.toInt(),
+            "Toned" to 0xFFC9B99A.toInt(),
+        )
+
         const val MIN_ZOOM = 0.05f
         const val MAX_ZOOM = 8f
         const val KEY_ZOOM = 1.25f

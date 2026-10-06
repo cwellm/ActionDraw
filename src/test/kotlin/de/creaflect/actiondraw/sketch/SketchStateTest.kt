@@ -520,6 +520,22 @@ class SketchStateTest {
     }
 
     @Test
+    fun aPageCanTakeAnotherShadeUnderItsStrokes() {
+        val state = ready()
+        val (white, toned) = SketchState.SHADES.first().second to SketchState.SHADES.last().second
+        assertEquals(white, state.shade)
+        state.mouseLine(100f)
+        state.setShade(toned)
+        assertEquals(toned, state.shade)
+        assertEquals(toned, state.session!!.document().paper)
+        assertTrue(state.darkness(150, 100) > 0.3f, "the line is drawn again on the toned paper: ${state.darkness(150, 100)}")
+        assertTrue(state.dirty, "a new shade is a change")
+        assertTrue(state.canUndo, "and the strokes are still strokes")
+        state.newSketch(PageSize.pixels(300, 200))
+        assertEquals(toned, state.shade, "the next page comes on the shade chosen last")
+    }
+
+    @Test
     fun aPresetKeepsATunedLeadByNameAcrossStates() {
         try {
             val state = ready()
@@ -548,7 +564,7 @@ class SketchStateTest {
     }
 
     @Test
-    fun theTunePanelOffersThePaperAndPresetsAndTheToolbarShowsThePreset() {
+    fun thePaperPanelChangesThePaperAndASavedPresetLiesInTheTray() {
         try {
             val state = newState()
             rule.setContent {
@@ -644,6 +660,56 @@ class SketchStateTest {
         assertEquals(bare[lx, y.toInt()], after[lx, y.toInt()], "undo takes it off the screen too")
     }
 
+    /**
+     * The room re-dressed (F9.8): the tools and the rubber are chosen from the tray, the shade
+     * from the paper panel — each a click, each what the keys and the state already do.
+     */
+    @Test
+    fun theTrayHoldsTheToolsAndThePanelThePaper() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(300, 200))
+        rule.waitForIdle()
+        rule.onNodeWithTag("sketch-tool-SOFT").performClick()
+        rule.waitForIdle()
+        assertEquals(Lead.SOFT, state.brush.lead)
+        rule.onNodeWithTag("sketch-rubber").performClick()
+        rule.waitForIdle()
+        assertTrue(state.eraser, "the rubber is taken up")
+        rule.onNodeWithTag("sketch-tool-INK").performClick()
+        rule.waitForIdle()
+        assertFalse(state.eraser, "a tool puts the rubber down")
+        assertEquals(Lead.INK, state.brush.lead)
+        rule.onNodeWithTag("sketch-shade-grey").performClick()
+        rule.waitForIdle()
+        assertEquals(SketchState.SHADES.single { it.first == "Grey" }.second, state.shade)
+    }
+
+    @Test
+    fun thePageIsTapedToTheTableAtItsCorners() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(600, 300))
+        rule.waitForIdle()
+        state.fit()
+        rule.waitForIdle()
+        val shot = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()
+        fun light(x: Float, y: Float): Float = shot[x.toInt(), y.toInt()].let { (it.red + it.green + it.blue) / 3f }
+        val w = 600f * state.zoom
+        val h = 300f * state.zoom
+        // Just off each corner, on the dark table: the tape reaches past the page there.
+        val off = 5f
+        val corners = listOf(
+            state.panX - off to state.panY - off,
+            state.panX + w + off to state.panY - off,
+            state.panX - off to state.panY + h + off,
+            state.panX + w + off to state.panY + h + off,
+        )
+        corners.forEach { (x, y) -> assertTrue(light(x, y) > 0.5f, "tape off the corner at $x,$y: ${light(x, y)}") }
+        // Off the middle of an edge, the table is bare.
+        assertTrue(light(state.panX + w / 2, state.panY - off) < 0.2f, "the table between: ${light(state.panX + w / 2, state.panY - off)}")
+    }
+
     // ---- Recede (M8, F9.4) ----
 
     @OptIn(ExperimentalTestApi::class)
@@ -666,6 +732,9 @@ class SketchStateTest {
         rule.mainClock.advanceTimeBy(Motion.RECEDE_AFTER_MS + Motion.RECEDE_MS + 100L)
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        // The tray and the paper beside the page step back with it.
+        rule.onNodeWithTag("sketch-tray").assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        rule.onNodeWithTag("sketch-paper-panel").assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
         assertEquals(before, surface.snapshotsTaken, "the toolbar's fading drew nothing on the page")
 
         // Lifted, it stays back until the pointer comes up to it.
@@ -675,5 +744,6 @@ class SketchStateTest {
         chrome.performMouseInput { moveTo(center) }
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+        rule.onNodeWithTag("sketch-tray").assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
     }
 }

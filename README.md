@@ -28,7 +28,7 @@ concepts*, *New sketch* or *Continue the sketch*.
   the small palette button at the start of every room's header.
 - **Settings** and **Hotkeys** sit in the palette's top right corner.
 - A room opens as its colour spreads from the well like watercolour, and drains back into it on
-  the way home. While you draw, Live Sketch's toolbar and a session's controls step back; bring
+  the way home. While you draw, Live Sketch's header, tray and paper and a session's controls step back; bring
   the pointer to them and they return. **Settings → Reduce motion** keeps all of this to short
   fades; until it is set, it follows Windows' *Show animations*.
 
@@ -313,14 +313,20 @@ and reads pressure, tilt and rotation straight from the pen, alongside the mouse
 everything else keeps using. Without a pen, the mouse draws at one middling pressure.
 
 ### The page
+The page lies in the middle of the table, taped at its corners; the **pencil tray** on its left
+holds the tools, the **paper** on its right, a status line under it says what the pen is doing and
+how near the page is (click the zoom to fit). While you draw, the header, the tray and the paper
+step back; come up to any of them and they are there.
+
 - The palette's **Sketch** well opens a page straight away — A4 at 150 dpi, or the size you
-  chose last. **Sketch ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
+  chose last. **File ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
   portrait or landscape, or a width × height in pixels; white, cream, grey or toned paper;
   **smooth**, **medium** or **rough** — the tooth: a light line stays whole on smooth paper and
-  breaks up on rough. The page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
+  breaks up on rough. The paper beside the page shows the three as swatches of their own tooth
+  and the four shades as chips: either changes the page under its strokes. The page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
   the XPPen's dial in its zoom setting zooms too — `+` `−` zoom, `Ctrl`+`0` fits again,
   `Space`+drag or the middle button pans.
-- Seven tools on one model: the leads **H · HB · 4B** (`1` `2` `3`), a **0.5** mm mechanical
+- Seven tools on one model, lying in the tray with their keys, the one in hand slid out: the leads **H · HB · 4B** (`1` `2` `3`), a **0.5** mm mechanical
   pencil (`4`, one width whatever the pressure), **Charcoal** (`5`, wide, black under a light
   hand, all tooth), a **Fineliner** (`6`, one width, one blackness, no tooth) and a **Brush**
   pen (`7`, a hair to a broad stroke from pressure, no tooth). The leads differ in more than width: a hard lead
@@ -328,22 +334,22 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
   speed lightens, soft leads most. The mark is made of dabs of paper grain, so light pressure
   catches only the tops of the tooth. Lean the pen and you draw with the side of the lead: the
   mark stretches along the lean, lightens and skims the tooth — a shading stroke, not a line.
-  **Eraser** (`E`) is a rubber: **soft** by default, a pass
+  The **rubber** (`E`), at the bottom of the tray: **soft** by default, a pass
   lifts part of the graphite and two or three clear a light mark; **hard** takes it all at once
-  (the chip beside it switches). Size with `[` `]`, the toolbar's − +, or `Shift`+wheel. The
-  colour swatch opens a picker: a saturation/value square, a hue strip, hex, recent colours.
+  (the chip under it switches). Size with `[` `]`, the slider under the tray, or `Shift`+wheel.
+  The colour swatch there opens a picker: a saturation/value square, a hue strip, hex, recent colours.
 - **Undo / Redo** (`Ctrl`+`Z` / `Ctrl`+`Y`) replay the strokes; there is no limit but memory.
 - **Back** (or `Esc`) keeps the sketch: it is still there when you come back, for as long as
   the app runs. Only starting another sketch or closing the app asks about unsaved strokes.
-- **Pen** on the toolbar folds out what the pen reports — pressure, tilt, rotation, contact,
+- **Pen** under the tray folds out, over the page, what the pen reports — pressure, tilt, rotation, contact,
   sample rate — and **Record samples** appends every reading to `~/.actiondraw/pen-samples.csv`.
   It also shows the last key or wheel event in words, so what a tablet's dial sends can be read off.
   If it reads **Pen ⚠**, the strokes are arriving as a mouse, at one pressure: in the XPPen
   driver, enable Windows Ink and restart ActionDraw.
   **Tune** folds out every number of the current lead, live, for finding what feels like a
   pencil — the tilt's stretch and lightening among them. **Save as preset…** keeps the lead as
-  tuned under a name of your own: a chip beside the leads from then on, in
-  `~/.actiondraw/settings.properties`. The paper can be changed there too, under the strokes.
+  tuned under a name of your own: a chip under the tray from then on, in
+  `~/.actiondraw/settings.properties`.
   The numbers that survive go into [LEARNINGS.md](LEARNINGS.md).
 
 ### Saving, and into the loop
@@ -353,14 +359,15 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
   folder, and will not overwrite another sketch.
 - **Open…** (`Ctrl`+`O`) lists the sketches saved or opened lately, wherever they are, and can
   browse for any `.sketch.json`: the page comes back with every stroke, and undo goes on.
-- **To board…** saves into a board's folder and puts the picture on the board as a card, the
-  `.sketch.json` beside it; **To concept…** the same into a concept's folder, so every board that
+- **To a board** (in the header, with the boards' blue dab) saves into a board's folder and puts the picture on the board as a card, the
+  `.sketch.json` beside it; **To a concept** the same into a concept's folder, so every board that
   links the concept has the sketch. A name already there gets `(2)`, never overwritten.
 - A sketched picture carries its strokes along: **Continue in Live Sketch** on its card (right
   click) on a board, or **Continue sketch** on a concept's page, opens them again; **Back**
   returns to the board or the concept.
 - **Sketch** beside *Pin* in a drawing session pauses the session and opens Live Sketch with the
-  picture on screen kept in the corner of the page (click to enlarge, ✕ to put away); **Back**
+  picture on screen kept beside the page, under the paper (click it for a larger view over the
+  page, **Put away** to put it away); **Back**
   returns to the paused session. The paper beside the monitor, digitised.
 
 ## Keyboard shortcuts
@@ -416,7 +423,7 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 
 | Key | Action |
 |---|---|
-| `1` – `7` · `E` | H · HB · 4B · 0.5 · charcoal · fineliner · brush · eraser |
+| `1` – `7` · `E` | H · HB · 4B · 0.5 · charcoal · fineliner · brush · the rubber |
 | `[` `]` · `Shift`+wheel | thinner · thicker (by the character, so AltGr+8/9 on a German keyboard) |
 | wheel (`Ctrl` or not) · `+` `−` (`Ctrl` or not, numpad too) · `Ctrl`+`0` | zoom about the cursor · zoom · fit the page |
 | `Space`+drag · middle drag | pan |

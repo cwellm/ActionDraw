@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -12,8 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -82,12 +85,12 @@ fun HomeButton(onHome: () -> Unit, size: Dp = 40.dp, modifier: Modifier = Modifi
 
 /**
  * The header of a room: home, the room's dab and name, then [title] (what is open in the room)
- * and, at the far end, [actions].
+ * and, at the far end, [actions]. Without [onHome] — a room shown on its own — there is no way home.
  */
 @Composable
 fun RoomHeader(
     room: Room,
-    onHome: () -> Unit,
+    onHome: (() -> Unit)?,
     modifier: Modifier = Modifier,
     title: @Composable RowScope.() -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
@@ -97,7 +100,7 @@ fun RoomHeader(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         modifier = modifier.fillMaxWidth().padding(vertical = 8.dp).testTag("room-header"),
     ) {
-        HomeButton(onHome)
+        if (onHome != null) HomeButton(onHome)
         PigmentDab(room.pigment, seed = room.seed)
         Text(
             room.label,
@@ -107,6 +110,24 @@ fun RoomHeader(
         title()
         Spacer(Modifier.weight(1f))
         actions()
+    }
+}
+
+/**
+ * A hand-off into another room — *To a board*, *Sketch*, *Pin* — marked with that room's dab, so
+ * where a thing goes is seen before it is read.
+ */
+@Composable
+fun CrossRoomButton(room: Room, label: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+        modifier = modifier.height(32.dp),
+    ) {
+        PigmentDab(room.pigment, size = 11.dp, seed = room.seed, wet = enabled)
+        Spacer(Modifier.width(7.dp))
+        Text(label, style = MaterialTheme.typography.body2, color = if (enabled) Atelier.TextSoft else Atelier.Muted, maxLines = 1)
     }
 }
 

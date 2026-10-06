@@ -94,7 +94,7 @@ private fun NewSketchDialog(state: SketchState) {
     var landscape by remember { mutableStateOf(false) }
     var customW by remember { mutableStateOf("1600") }
     var customH by remember { mutableStateOf("1200") }
-    var paper by remember { mutableStateOf(PAPERS.first().second) }
+    var paper by remember { mutableStateOf(SketchState.SHADES.first().second) }
     var tooth by remember { mutableStateOf(Paper.MEDIUM) }
     fun create() {
         val size = chosen?.let { if (landscape) it.landscape else it }
@@ -123,7 +123,7 @@ private fun NewSketchDialog(state: SketchState) {
         }
         Text("Colour of the paper", style = MaterialTheme.typography.caption)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PAPERS.forEach { (name, argb) -> SelectChip(name, paper == argb) { paper = argb } }
+            SketchState.SHADES.forEach { (name, argb) -> SelectChip(name, paper == argb) { paper = argb } }
         }
         Text("Tooth of the paper", style = MaterialTheme.typography.caption)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -137,13 +137,6 @@ private fun NewSketchDialog(state: SketchState) {
         Buttons("Create", onOk = ::create, onCancel = state::closeEditor, tag = "sketch-create")
     }
 }
-
-private val PAPERS = listOf(
-    "White" to 0xFFFFFFFF.toInt(),
-    "Cream" to 0xFFFBF5E4.toInt(),
-    "Grey" to 0xFFD9D9D6.toInt(),
-    "Toned" to 0xFFC9B99A.toInt(),
-)
 
 /** A name for the current lead as it is tuned; Enter keeps it. */
 @Composable

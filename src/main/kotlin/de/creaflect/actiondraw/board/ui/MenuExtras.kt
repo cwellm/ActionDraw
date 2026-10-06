@@ -217,7 +217,7 @@ object Hotkeys {
     )
     val SKETCH: List<Pair<String, String>> = listOf(
         "1 – 7" to "H · HB · 4B · 0.5 · charcoal · fineliner · brush",
-        "E" to "eraser",
+        "E" to "the rubber",
         "[ / ] · Shift+wheel" to "thinner / thicker",
         "wheel (Ctrl or not) · + / − (any, Ctrl or not) · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
         "Space+drag · middle drag" to "pan the page",

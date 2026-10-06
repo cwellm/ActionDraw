@@ -157,7 +157,7 @@ fun Modifier.watchPointer(watch: PointerWatch): Modifier = this
     }
 
 /** The edge of the room a bar of chrome lies along. */
-enum class ChromeEdge { TOP, BOTTOM }
+enum class ChromeEdge { TOP, BOTTOM, LEFT, RIGHT }
 
 /**
  * A bar of chrome that steps back while the work goes on. [receded] says when — each room knows
@@ -185,6 +185,8 @@ fun RecedingChrome(
             val near = p.isSpecified && when (edge) {
                 ChromeEdge.TOP -> p.y <= bounds.bottom + approach
                 ChromeEdge.BOTTOM -> p.y >= bounds.top - approach
+                ChromeEdge.LEFT -> p.x <= bounds.right + approach
+                ChromeEdge.RIGHT -> p.x >= bounds.left - approach
             }
             chromeAlpha(isReceded, near, over)
         }

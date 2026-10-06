@@ -650,8 +650,9 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 - ✅ `ui/Materials.kt`: a grain over the ground — one SkSL tile of per-pixel noise in two-pixel
   clumps, light and dark at most 6 % strong, made once and drawn as a repeating shader
   (`Modifier.grain()`); no per-frame `ImageBitmap`
-- ⬜ Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
-  sketch's paper are the same paper — with the boards and Sketch re-dressed (F9.7, F9.8)
+- 🔄 Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
+  sketch's paper are the same paper: Sketch's paper swatches are drawn by the engine's own grain
+  (F9.8); the board's prints are still plain paper colour
 - 🔄 One lamp: a `Lift` scale (resting, lifted, held) and `drawLampShadow`/`Modifier.lampShadow`,
   a blurred shadow cast to the bottom right; the palette uses it — the scattered `elevation =`
   values go as each room is re-dressed
@@ -721,14 +722,15 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 
 ### 🔄 F9.5 Room chrome and hand-offs
 - 🔄 `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a
-  title and actions) heads the Practice room, the board list and the concept list; the board, a
-  concept and Sketch have the palette's `HomeButton` at the start of their own header — on the
-  lists in place of their *Back*, which went to the same place — and the app shell lays the
-  room's 2 px pigment line along the top of every room but a running pose. Sketch's header comes
-  with F9.8; a board's and a concept's keep their own (the board's name is their title)
-- ⬜ `CrossRoomButton(room, label)`: the target room's dab before the label; every existing hand-off
-  (*Draw from this board*, *Sketch*, *Pin*, *To board…*, *To concept…*, *Continue in Live Sketch*)
-  moved onto it
+  title and actions) heads the Practice room, the board list, the concept list and Sketch; a
+  board and a concept have the palette's `HomeButton` at the start of their own header (the
+  board's name is their title) — on the lists in place of their *Back*, which went to the same
+  place — and the app shell lays the room's 2 px pigment line along the top of every room but a
+  running pose
+- 🔄 `CrossRoomButton(room, label)`: the target room's dab before the label. Sketch's *To a board*
+  and *To a concept* are on it, out of the file menu into the header; *Draw from this board*,
+  *Sketch*, *Pin* and *Continue in Live Sketch* still to move (a session's *Sketch* and *Pin*
+  carry their dabs already, drawn by hand)
 - ⬜ The **ring menu** on a board: right-click on a selection opens six porcelain buttons round it
   (Draw these, Sketch over, To a collage, Add to concept, Tag, Group), reachable by keyboard; the
   context menu keeps every other command
@@ -786,12 +788,27 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   colour: with nothing behind it, the test window kept the last frame's pixels where nothing
   drew, and a removed pin seemed to linger
 
-### ⬜ F9.8 Sketch, re-dressed
-- ⬜ The pencil tray: the seven tools and the rubber as objects, the chosen one slid out, keys beside
-  them
-- ⬜ Papers as swatches of real tooth, shades as chips, the page taped at its corners; Pen and Tune
-  folding out of the tray
-- ⬜ A status line under the page (pen state, zoom) instead of readouts in the toolbar
+### ✅ F9.8 Sketch, re-dressed
+- ✅ The **pencil tray** on the page's left: the seven tools and the rubber drawn as themselves (three
+  lacquered pencils, a mechanical one, a charcoal stick, a fineliner, a brush, a rubber in its
+  sleeve), each with its key, the one in hand slid out and underlined in madder. Under it the
+  size (a slider), the colour, the presets, and **Pen** and **Tune**, which fold out from there
+  over the page's near edge instead of pushing the page down
+- ✅ The **paper** on the page's right: the three papers as swatches drawn by the engine's own grain,
+  the four shades as chips — the shade, like the tooth, can now be changed under the strokes
+  (`setShade`; the next page comes on it too). The reference from a session lies under the paper,
+  larger over the page on a click. *Show it underneath* from the design is a feature, M9
+- ✅ The page on the graphite table under the lamp's shadow, **taped at its corners**. The shadow and
+  the tape are their own layers reading only the view, so a stroke redraws neither
+- ✅ A **status line** under the page: a dot and a line for the pen (samples arriving, the mouse
+  standing in for it, or how it is hooked), the page's size, and the zoom, which fits on a click
+- ✅ The header is the room's: home, the madder dab, the sketch's name; Undo, Redo, *File ▾*
+  (New, Open, Save as), Save, *To a board*, *To a concept*, Back. While a stroke goes on, the
+  header, the tray and the paper all step back (`ChromeEdge` has left and right now); coming up
+  to any one brings them all back
+- ✅ `SketchStateTest` (+3, and the recede test extended): the shade under the strokes, the tray and the shade chips on screen,
+  the tape off each corner, the side chrome stepping back with the header. Five guards broken
+  on purpose and seen red
 
 ### ⬜ F9.9 Wrap-up
 - ⬜ Screenshot tests of the palette and of each room, selected and running
