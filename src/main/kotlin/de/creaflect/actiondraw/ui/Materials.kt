@@ -204,8 +204,11 @@ fun DrawScope.drawWell(center: Offset, radius: Float) {
     )
 }
 
+/** Masking tape's colour: paper you can see through. */
+val TapeColor = Color(0xD6E8DCC0)
+
 /** A strip of masking tape, [size] long and wide, turned by [degrees] about [center], torn at both ends. */
-fun DrawScope.drawTape(center: Offset, size: Size, degrees: Float, seed: Int) {
+fun DrawScope.drawTape(center: Offset, size: Size, degrees: Float, seed: Int, color: Color = TapeColor) {
     val rnd = Random(seed.toLong())
     val w = size.width
     val h = size.height
@@ -221,7 +224,7 @@ fun DrawScope.drawTape(center: Offset, size: Size, degrees: Float, seed: Int) {
         close()
     }
     rotate(degrees, center) {
-        drawPath(path, Color(0xD6E8DCC0))
+        drawPath(path, color)
         drawPath(path, Color(0x22000000), style = Stroke(width = 0.6f))
     }
 }

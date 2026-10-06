@@ -35,6 +35,10 @@ concepts*, *New sketch* or *Continue the sketch*.
 ## Draw — timed reference practice
 
 ### Sessions & timing
+- The palette's **Practice** well opens the room: choose an exercise from the cards (*Action
+  drawing*, *Lens studies*, *From memory*), the timing beside them — a ramp is drawn as one bar
+  per pose — and **Start**. In a pose, the **ensō** over the picture's corner closes as the time
+  runs out, and the **lens tray** under it shows the picture through every lens at once.
 - Pick a folder; images are shown in **random order**. The folder is **remembered across
   restarts** (`~/.actiondraw/settings.properties`); a folder that has moved or been deleted is
   silently forgotten.

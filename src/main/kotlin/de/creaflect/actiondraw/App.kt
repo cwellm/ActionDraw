@@ -20,7 +20,7 @@ import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.Bloom
 import de.creaflect.actiondraw.ui.BloomLayer
-import de.creaflect.actiondraw.ui.MenuScreen
+import de.creaflect.actiondraw.ui.PracticeScreen
 import de.creaflect.actiondraw.ui.PaletteScreen
 import de.creaflect.actiondraw.ui.PaletteWell
 import de.creaflect.actiondraw.ui.Room
@@ -90,7 +90,7 @@ fun App(
                             onWellPlaced = { room, centre -> wellCentres[room] = centre },
                         )
                     }
-                    Screen.Menu -> MenuScreen(state, onHome = state::showPalette)
+                    Screen.Menu -> PracticeScreen(state, onHome = state::showPalette)
                     Screen.Picker -> PickerScreen(state, thumbs)
                     Screen.Session -> SessionScreen(
                         state,
@@ -102,7 +102,7 @@ fun App(
                             state.sketchFromSession()
                         },
                     )
-                    Screen.Summary -> SummaryScreen(state, pinTargets)
+                    Screen.Summary -> SummaryScreen(state, pinTargets, thumbs)
                     Screen.BoardList -> BoardListScreen(boardState, thumbs, onHome = boardState::leaveList)
                     Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen, onHome = boardState::closeBoard)
                     Screen.Concepts -> ConceptListScreen(conceptState, thumbs, onHome = conceptState::leaveList)

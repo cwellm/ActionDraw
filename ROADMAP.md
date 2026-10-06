@@ -734,19 +734,34 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   context menu keeps every other command
 - ⬜ Lettered names: group tags, note text and the ramp's labels in the `Hand` style
 
-### ⬜ F9.6 Practice, re-dressed
-- ⬜ The exercise screen: taped index cards with an ink drawing each (Action drawing, Lens studies,
-  From memory; Flicker, Staged and Compare join as M9 builds them); the chosen card lifted and
-  taped in cadmium
-- ⬜ The timing panel: plan chips, the ramp drawn as graphite bars (one per pose, height by
-  duration, labels lettered), total poses and time, auto-advance, a starting lens, and *Drawing
-  from* a folder or a board
-- ⬜ The **ensō timer** in the session: an arc that grows with the elapsed pose, dry-brush edge, the
-  time inside, the poses as ticks below it
-- ⬜ The **lens tray**: nine slides with live miniatures of their effect and their keys, the active
-  slide's parameters popping up above it, the adjustments as round knobs; the tray recedes while
-  drawing
-- ⬜ The summary in the same language: the poses as a strip of prints, redo flags as pencil marks
+### ✅ F9.6 Practice, re-dressed
+- ✅ `PracticeScreen` (the old `MenuScreen`, gone): the exercises as index cards on the table, each
+  with an ink drawing from the design — Action drawing, Lens studies, From memory, and Flicker,
+  Staged and Compare as cards lettered *coming* that cannot be chosen; the chosen card lifted and
+  taped in cadmium. The exercise is not stored: it is what the settings amount to (a plan that
+  hides the picture is memory work, a lens to start with a lens study), and choosing a card sets
+  just that (`Exercises.kt`)
+- ✅ The timing panel: plan chips, the ramp drawn as graphite bars (one per pose, height by its
+  length on a log scale, the first in cadmium, each leg lettered), total poses and time, a
+  starting lens for lens studies, auto-advance, and Start with the session's length. *Drawing
+  from* — folder, unseen count, Change…, Choose pictures… — sits in the room's header
+- ✅ The **ensō timer** over the picture's top right corner: a brush arc that closes as the pose runs
+  out, a dry-brush line where it began, the time and the pose inside, the ramp's poses as ticks
+  under it, a memory pose's beat under those; faint while the controls are back. The first ensō
+  animated its sweep and drew nothing at all — a capture showed the empty ring; it now moves on
+  with each second, and a test counts its brush pixels
+- ✅ The **lens tray**: nine glass slides, each showing the picture on screen through its own lens,
+  keys 1–9 under them, the chosen one risen; the adjustments as round knobs with their keys
+  (blur, mirror, flip, invert, shards, and grid turning through its kinds); the lens's own
+  settings under the tray rather than popping up over it
+- ✅ The summary in the same language, without its emoji: the pictures flagged for another go as
+  prints ringed in pencil, ready to pin to a board. *A strip of every pose drawn* is not there:
+  the session does not keep which pictures it showed
+- ✅ **Fixed on the way — redo flags were lost.** Moving on from a pose (or stopping) marked it
+  drawn, and drawing a flagged picture cleared its flag — including the flag just set with R, so
+  no flag ever reached the next session or the summary's *Pin flagged*. A flag now clears only
+  when its picture came into the session flagged (`AppStateTest`, both cases seen red first)
+- ✅ `PracticeTest` (7); three more guards broken on purpose and seen red
 
 ### ⬜ F9.7 Boards, re-dressed
 - ⬜ Pictures as prints (white border, a pin), sketches taped, notes as yellow slips, concept cards

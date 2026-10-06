@@ -406,7 +406,14 @@ class AppState(private val settings: Settings = Settings()) {
     /** Result of the last pin from a session, shown briefly in the session/summary chrome. */
     var pinNotice by mutableStateOf<String?>(null)
 
+    /**
+     * The redo flags the session began with. Drawing one of those pictures is the redo, and clears
+     * its flag; a flag set during this session is for next time and stays.
+     */
+    private var flaggedAtStart: Set<String> = emptySet()
+
     private fun beginSession() {
+        flaggedAtStart = redo.toSet()
         rebuildPool()
         index = 0
         rampPose = 0
@@ -584,8 +591,10 @@ class AppState(private val settings: Settings = Settings()) {
         val dir = folder ?: return
         val k = currentImage?.let(::key) ?: return
         if (seen.add(k)) SeenStore.write(dir, seen)
-        // Drawing a flagged image counts as having redone it -> clear the flag.
-        if (redo.remove(k)) {
+        // Drawing an image that came into the session flagged counts as having redone it -> clear
+        // the flag. One flagged during this session is for the next: clearing it as the pose ended
+        // meant every R was lost the moment you moved on.
+        if (k in flaggedAtStart && redo.remove(k)) {
             RedoStore.write(dir, redo)
             redoTick++
         }

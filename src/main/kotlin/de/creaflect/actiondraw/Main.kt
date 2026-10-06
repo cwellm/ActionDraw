@@ -174,7 +174,7 @@ fun main() = application {
             AtelierTheme(reducedMotion = appState.reducedMotion) {
                 Surface {
                     when (boardWindow) {
-                        Screen.Summary -> SummaryScreen(appState, pinTargets)
+                        Screen.Summary -> SummaryScreen(appState, pinTargets, thumbs)
                         else -> SessionScreen(
                             appState,
                             onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
