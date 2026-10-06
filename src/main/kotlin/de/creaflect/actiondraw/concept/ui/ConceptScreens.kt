@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
@@ -83,6 +84,12 @@ import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
 import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RoomHeader
+import de.creaflect.actiondraw.ui.lampShadow
 
 // ---------------- The list ----------------
 
@@ -115,16 +122,16 @@ fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Un
     }
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Row(
+        // The list is the room's top: its way back is the way home.
+        if (onHome != null) RoomHeader(Room.CONCEPTS, onHome)
+        else Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            // The list is the room's top: its way back is the way home.
-            if (onHome != null) HomeButton(onHome)
             Text("Concepts", style = MaterialTheme.typography.h4, color = MaterialTheme.colors.primary)
             Spacer(Modifier.weight(1f))
-            if (onHome == null) OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
+            OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
         }
         Text(
             "A thing that lives once — a character, a creature, a landscape — and is linked onto any board.",
@@ -196,42 +203,64 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, summary.cover) {
         value = summary.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 400) } }
     }
+    // A folio: a kraft folder with a viridian tab naming its kind, the cover as a print inside.
     Column(
         Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colors.surface)
             .clickable { onOpen() }
             .testTag("concept-" + summary.entry.name),
     ) {
-        Box(Modifier.fillMaxWidth().aspectRatio(1.4f).background(Color(0x22000000)), contentAlignment = Alignment.Center) {
-            val bmp = cover
-            if (bmp != null) {
-                Image(bitmap = bmp, contentDescription = summary.entry.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            } else {
-                Text("no picture yet", color = Color.White.copy(alpha = 0.35f), style = MaterialTheme.typography.caption)
-            }
-        }
         Text(
-            summary.entry.name,
-            style = MaterialTheme.typography.subtitle1,
+            summary.entry.kind.ifBlank { "concept" },
+            style = AtelierType.Hand.copy(fontSize = 18.sp),
+            color = Atelier.Paper,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp),
+            modifier = Modifier
+                .padding(start = 14.dp)
+                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                .background(Room.CONCEPTS.pigment.mass)
+                .padding(horizontal = 12.dp),
         )
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
+        Column(
+            Modifier
+                .lampShadow(Lift.RESTING, RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(4.dp))
+                .background(FolioKraft)
+                .padding(10.dp),
+        ) {
+            Box(
+                Modifier.fillMaxWidth().background(Atelier.Paper).padding(5.dp).aspectRatio(1.4f).background(Color(0xFF1A1715)),
+                contentAlignment = Alignment.Center,
+            ) {
+                val bmp = cover
+                if (bmp != null) {
+                    Image(bitmap = bmp, contentDescription = summary.entry.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                } else {
+                    Text("no picture yet", color = Color.White.copy(alpha = 0.45f), style = MaterialTheme.typography.caption)
+                }
+            }
             Text(
-                "${summary.pictures} picture${if (summary.pictures == 1) "" else "s"} · ${summary.documents} doc${if (summary.documents == 1) "" else "s"}" +
-                    if (summary.boards > 0) " · on ${summary.boards} board${if (summary.boards == 1) "" else "s"}" else "",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.secondary,
-                modifier = Modifier.weight(1f),
+                summary.entry.name,
+                style = AtelierType.Hand.copy(fontSize = 24.sp),
+                color = Atelier.Ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 6.dp),
             )
-            Text(
-                "Delete…",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.error,
-                modifier = Modifier.clip(RoundedCornerShape(3.dp)).clickable { onDelete() }.padding(horizontal = 4.dp, vertical = 2.dp),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${summary.pictures} picture${if (summary.pictures == 1) "" else "s"} · ${summary.documents} doc${if (summary.documents == 1) "" else "s"}" +
+                        if (summary.boards > 0) " · on ${summary.boards} board${if (summary.boards == 1) "" else "s"}" else "",
+                    style = MaterialTheme.typography.caption,
+                    color = FolioInk,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "Delete…",
+                    style = MaterialTheme.typography.caption,
+                    color = Atelier.Ink,
+                    modifier = Modifier.clip(RoundedCornerShape(3.dp)).clickable { onDelete() }.padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
         }
     }
 }
@@ -654,3 +683,7 @@ private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> 
         }
     }
 }
+
+/** A concept's folio: kraft card, and ink dark enough to read on it (4.8:1). */
+private val FolioKraft = Color(0xFFCDB08A)
+private val FolioInk = Color(0xFF4A4136)

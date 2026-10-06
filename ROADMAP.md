@@ -721,18 +721,19 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 
 ### 🔄 F9.5 Room chrome and hand-offs
 - 🔄 `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a
-  title and actions) heads the Practice room; every other room got the palette's `HomeButton` at
-  the start of its own header (the board, the board list, the concept list, a concept, Sketch) —
-  on the two lists in place of their *Back*, which went to the same place — and the app shell lays
-  the room's 2 px pigment line along the top of every room but a running pose. One `RoomHeader`
-  across all rooms comes as each room is re-dressed
+  title and actions) heads the Practice room, the board list and the concept list; the board, a
+  concept and Sketch have the palette's `HomeButton` at the start of their own header — on the
+  lists in place of their *Back*, which went to the same place — and the app shell lays the
+  room's 2 px pigment line along the top of every room but a running pose. Sketch's header comes
+  with F9.8; a board's and a concept's keep their own (the board's name is their title)
 - ⬜ `CrossRoomButton(room, label)`: the target room's dab before the label; every existing hand-off
   (*Draw from this board*, *Sketch*, *Pin*, *To board…*, *To concept…*, *Continue in Live Sketch*)
   moved onto it
 - ⬜ The **ring menu** on a board: right-click on a selection opens six porcelain buttons round it
   (Draw these, Sketch over, To a collage, Add to concept, Tag, Group), reachable by keyboard; the
   context menu keeps every other command
-- ⬜ Lettered names: group tags, note text and the ramp's labels in the `Hand` style
+- ✅ Lettered names: group tags, post-it notes and the ramp's legs in the `Hand` style (Caveat),
+  board and concept names on the lists too
 
 ### ✅ F9.6 Practice, re-dressed
 - ✅ `PracticeScreen` (the old `MenuScreen`, gone): the exercises as index cards on the table, each
@@ -763,13 +764,27 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   when its picture came into the session flagged (`AppStateTest`, both cases seen red first)
 - ✅ `PracticeTest` (7); three more guards broken on purpose and seen red
 
-### ⬜ F9.7 Boards, re-dressed
-- ⬜ Pictures as prints (white border, a pin), sketches taped, notes as yellow slips, concept cards
-  with a viridian tab, link cards as index cards
-- ⬜ Group frames in graphite with a lettered tag on a pin; the selected card lifted with an
-  ultramarine outline
-- ⬜ Cork and papyrus stay; *plain* becomes the graphite table
-- ⬜ The board list as a shelf of covers with lettered names; the concept list as folios
+### 🔄 F9.7 Boards, re-dressed
+- ✅ Pictures as **prints** on every surface — the picture on paper with a 6 dp border (on the
+  plain board too, where it sat on black), in the grid and on the free canvas; on the canvas a
+  print is held by an ultramarine **pin**, a sketch that can be continued by **tape**, which is how
+  the two are told apart at a glance. A single selected card shows its rotate handle where the pin
+  was rather than over it. Post-its are lettered in Caveat
+- ⬜ Notes as yellow slips (their colours are still the theme's), concept cards with a viridian
+  tab, link cards as index cards
+- ✅ Group frames drawn in **graphite** (the group's colour only while it is about to take a card),
+  their tag a paper label pinned with the group's colour — viridian for a concept — the name
+  lettered, the count beside it; the selection marked in ultramarine. The selected card is not
+  lifted: lifting is what a held card does (F9.4)
+- ✅ Cork and papyrus stay; **plain** is the graphite table, with the table's grain under the cards
+- ✅ The board list: covers as prints under the lamp, names lettered; the concept list as **folios**
+  — kraft, a viridian tab with the kind, the cover as a print, the name lettered (ink on kraft
+  7.6:1, the counts 4.8:1). Both under the room's header. No shelf plank yet
+- ✅ `BoardDressTest` (2) reads the pixels at a card's top: a pin on a print and none on a sketch,
+  tape the other way round, the pin gone under a single selection's handle and back when two are
+  selected. Three guards broken on purpose and seen red. The test lays the canvas on the table
+  colour: with nothing behind it, the test window kept the last frame's pixels where nothing
+  drew, and a removed pin seemed to linger
 
 ### ⬜ F9.8 Sketch, re-dressed
 - ⬜ The pencil tray: the seven tools and the rubber as objects, the chosen one slid out, keys beside

@@ -70,7 +70,16 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Pigment
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.drawPin
+import de.creaflect.actiondraw.ui.drawTape
+import de.creaflect.actiondraw.board.BoardThemes
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Arrangement
 import de.creaflect.actiondraw.ui.LocalReducedMotion
 import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.actiondraw.ui.drawLampShadow
@@ -98,7 +107,6 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
@@ -297,6 +305,14 @@ private fun CanvasItem(
         if (held && !reduced) lean else 0f,
         spring(dampingRatio = Motion.SETTLE_DAMPING, stiffness = Motion.SETTLE_STIFFNESS),
     )
+    // Asked of the disk once per card, not on every frame.
+    val holder = remember(item.id, (item as? ImageItem)?.path) {
+        when {
+            item !is ImageItem -> CardHolder.NONE
+            state.sketchOf(item) != null -> CardHolder.TAPE
+            else -> CardHolder.PIN
+        }
+    }
 
     // Size and place go on a box *around* the menu area, so its hit box — and the card's — sit
     // where the card is drawn. With the transform on the inner box, the menu area stayed at the
@@ -384,6 +400,16 @@ private fun CanvasItem(
                                 val outline = Path().apply { addRect(Rect(Offset.Zero, size)) }
                                 drawLampShadow(outline, (Lift.RESTING.depth + (Lift.HELD.depth - Lift.RESTING.depth) * lift).toPx(), alpha = 0.4f * lift.coerceAtMost(1f))
                             }
+                        }
+                        // What holds the card to the board: a pin through a print, tape over a sketch.
+                        // A single selected card shows its rotate handle there instead.
+                        .drawWithContent {
+                            drawContent()
+                            if (!singleSelected) when (holder) {
+                                CardHolder.PIN -> drawPin(Offset(size.width / 2f, 3.dp.toPx()), 5.dp.toPx(), Room.BOARDS.pigment)
+                                CardHolder.TAPE -> drawTape(Offset(size.width / 2f, 1.dp.toPx()), Size(minOf(56.dp.toPx(), size.width * 0.5f), 14.dp.toPx()), -3f, seed = item.id.hashCode())
+                                CardHolder.NONE -> Unit
+                            }
                         },
                 ) {
                     when (item) {
@@ -428,15 +454,16 @@ private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, 
             state.recordAspect(item.id, bmp.width.toFloat() / bmp.height)
         }
     }
-    val shape = RoundedCornerShape(3.dp)
+    // A print: the picture on paper with a white border, on cork, papyrus or the graphite table.
+    val shape = RoundedCornerShape(2.dp)
     Box(
         Modifier
             .fillMaxSize()
-            .shadow(if (textured) 4.dp else 1.dp, shape)
+            .shadow(if (textured) 4.dp else 2.dp, shape)
             .clip(shape)
-            .background(if (textured) Themes.cardBacking else Color(0xFF0D0D0D))
+            .background(Atelier.Paper)
             .border(3.dp, selectionBorder(state, item.id), shape)
-            .padding(if (textured) 5.dp else 1.dp),
+            .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {
         val bmp = thumb
@@ -468,7 +495,7 @@ private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
         ) {
             Text(
                 item.text,
-                style = MaterialTheme.typography.body1.copy(fontFamily = FontFamily.Cursive, lineHeight = 22.sp),
+                style = AtelierType.Hand.copy(fontSize = 20.sp, lineHeight = 22.sp),
                 color = ink,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
@@ -616,6 +643,10 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
     val frameClip = remember(composePath) { GenericShape { _, _ -> addPath(composePath) } }
     val receiving = state.dropTargetGroup == hull.group.id
     val fill = accent.copy(alpha = if (receiving) 0.28f else if (nested) 0.10f else 0.14f)
+    // Drawn in graphite, as a hand draws a loop round things on a table; in the group's own colour
+    // only while it is about to take a card.
+    val textured = Themes.isTextured(state.board?.theme ?: BoardThemes.PLAIN)
+    val line = if (receiving) accent else if (textured) Color(0xD92B2724) else Atelier.Muted
     // Twice the width it shows: the clip takes the outer half of a stroke centred on the edge.
     val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() } * 2f
     // A concept's group is outlined in dashes: borrowed, not the board's own.
@@ -655,7 +686,7 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                         val p = drawn.value
                         drawPath(composePath, fill.copy(alpha = fill.alpha * p))
                         val outline = if (p >= 1f) composePath else partOfOutline(shape, p).asComposePath()
-                        drawPath(outline, accent.copy(alpha = 0.7f), style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round, pathEffect = borrowedDash))
+                        drawPath(outline, line, style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round, pathEffect = borrowedDash))
                     }
                     // A press on the frame picks the group up; a drag moves it as one. The layer
                     // above clips to the frame's shape, so a press in the empty notch of an L never
@@ -840,9 +871,12 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
     // A new group's tag comes once its frame has been drawn (Draw-on).
     val shown by animateFloatAsState(if (state.freshGroupId == hull.group.id) 0f else 1f, tween(200))
 
+    // A paper tag pinned to the frame, its name lettered; the pin is the group's colour, a
+    // concept's is viridian.
     Surface(
-        color = accent.copy(alpha = 0.85f),
-        shape = RoundedCornerShape(bottomEnd = 8.dp),
+        color = Atelier.Paper,
+        shape = RoundedCornerShape(2.dp),
+        elevation = 2.dp,
         modifier = Modifier
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .graphicsLayer { alpha = shown }
@@ -871,13 +905,26 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
                 )
             },
     ) {
-        Text(
-            (if (hull.group.isConcept) "⧉ " else "") + hull.group.name + "  ·  " + hull.count,
-            style = MaterialTheme.typography.caption,
-            color = Atelier.Ink,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(start = 7.dp, end = 9.dp, top = 1.dp, bottom = 1.dp),
+        ) {
+            Canvas(Modifier.size(10.dp)) {
+                drawPin(center, this.size.minDimension / 2.2f, if (hull.group.isConcept) Room.CONCEPTS.pigment else Pigment("group", accent, accent, Atelier.Ink))
+            }
+            Text(
+                (if (hull.group.isConcept) "⧉ " else "") + hull.group.name,
+                style = AtelierType.Hand.copy(fontSize = 19.sp),
+                color = Atelier.Ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 240.dp),
+            )
+            Text("${hull.count}", fontSize = 11.sp, color = Atelier.InkQuiet)
+        }
     }
 }
+
+/** What holds a card to the board. */
+private enum class CardHolder { PIN, TAPE, NONE }

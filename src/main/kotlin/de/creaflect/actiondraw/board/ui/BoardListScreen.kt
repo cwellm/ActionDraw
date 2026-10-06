@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardStore
@@ -41,7 +42,12 @@ import de.creaflect.actiondraw.ui.chooseFolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RoomHeader
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.lampShadow
 
 /** One entry of the board list: what can be shown without opening the board. */
 private data class BoardSummary(
@@ -79,16 +85,16 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache, onHome: (() -> Unit)?
     }
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Row(
+        // The list is the room's top: its way back is the way home.
+        if (onHome != null) RoomHeader(Room.BOARDS, onHome)
+        else Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            // The list is the room's top: its way back is the way home.
-            if (onHome != null) HomeButton(onHome)
             Text("Idea Boards", style = MaterialTheme.typography.h4, color = MaterialTheme.colors.primary)
             Spacer(Modifier.weight(1f))
-            if (onHome == null) OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
+            OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
         }
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -172,15 +178,22 @@ private fun BoardTile(
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, board.cover) {
         value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 320) } }
     }
+    // A board on the shelf: its cover as a print, its name lettered under it.
     Column(
         Modifier
             .clip(shape)
-            .background(MaterialTheme.colors.surface)
             .clickable { onOpen() }
             .padding(bottom = 8.dp),
     ) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(1.4f).background(Color(0xFF0D0D0D)),
+            Modifier
+                .padding(8.dp)
+                .lampShadow(Lift.RESTING)
+                .background(Atelier.Paper)
+                .padding(6.dp)
+                .fillMaxWidth()
+                .aspectRatio(1.4f)
+                .background(Color(0xFF1A1715)),
             contentAlignment = Alignment.Center,
         ) {
             val bmp = cover
@@ -207,7 +220,8 @@ private fun BoardTile(
         }
         Text(
             board.name,
-            style = MaterialTheme.typography.subtitle1,
+            style = AtelierType.Hand.copy(fontSize = 24.sp),
+            color = Atelier.Text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = if (board.parent == null) 8.dp else 0.dp),

@@ -56,11 +56,12 @@ import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteColors
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.image.ThumbCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
@@ -194,10 +195,10 @@ internal fun Modifier.cardClicks(state: BoardState, id: String): Modifier =
         }
     }
 
-@Composable
+/** What is selected on a board is marked in the Boards room's pigment, ultramarine. */
 internal fun selectionBorder(state: BoardState, id: String): Color = when {
-    id in state.selection -> MaterialTheme.colors.secondary
-    state.focusId == id -> MaterialTheme.colors.secondary.copy(alpha = 0.45f)
+    id in state.selection -> Room.BOARDS.pigment.glow
+    state.focusId == id -> Room.BOARDS.pigment.glow.copy(alpha = 0.45f)
     else -> Color.Transparent
 }
 
@@ -207,15 +208,16 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
         value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
     }
-    val shape = RoundedCornerShape(4.dp)
+    // A print: the picture on paper, its caption written under it — on any board surface.
+    val shape = RoundedCornerShape(2.dp)
     Column(
         Modifier
-            .shadow(if (textured) 3.dp else 0.dp, shape)
+            .shadow(if (textured) 3.dp else 2.dp, shape)
             .clip(shape)
-            .background(if (textured) Themes.cardBacking else Color(0xFF0D0D0D))
+            .background(Atelier.Paper)
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
-            .padding(if (textured) 6.dp else 2.dp),
+            .padding(6.dp),
     ) {
         Box(
             Modifier.aspectRatio(1f).fillMaxWidth().background(Color(0x14000000)),
@@ -240,7 +242,7 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
         Text(
             item.caption ?: file?.name ?: item.path,
             style = MaterialTheme.typography.caption,
-            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+            color = Atelier.InkQuiet,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 4.dp),
@@ -249,7 +251,7 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
             Text(
                 item.tags.joinToString(" ") { "#$it" },
                 style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.secondary.copy(alpha = 0.85f),
+                color = Room.BOARDS.pigment.mass,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -274,7 +276,7 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
         ) {
             Text(
                 item.text,
-                style = MaterialTheme.typography.body1.copy(fontFamily = FontFamily.Cursive, lineHeight = 22.sp),
+                style = AtelierType.Hand.copy(fontSize = 20.sp, lineHeight = 22.sp),
                 color = ink,
                 modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
             )

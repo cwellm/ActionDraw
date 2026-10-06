@@ -98,6 +98,13 @@ fun Modifier.grain(): Modifier = drawWithCache {
     }
 }
 
+/** The table's grain under whatever this draws: for a surface things lie on, like a board. */
+fun Modifier.grainBehind(): Modifier = drawWithCache {
+    val tile = Materials.grainTile()
+    val brush = tile?.let { ShaderBrush(ImageShader(it, TileMode.Repeated, TileMode.Repeated)) }
+    onDrawBehind { if (brush != null) drawRect(brush) }
+}
+
 /**
  * How far a thing stands off the table. One lamp, at the top left, casts every shadow: the
  * higher a thing is, the further its shadow falls to the bottom right and the softer it gets.

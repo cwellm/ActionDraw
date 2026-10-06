@@ -96,6 +96,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.grainBehind
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -137,7 +138,8 @@ fun BoardScreen(
         val tile = remember(board.theme) { Themes.tile(board.theme) }
         val background =
             if (tile != null) Modifier.background(ShaderBrush(ImageShader(tile, TileMode.Repeated, TileMode.Repeated)))
-            else Modifier.background(colors.background)
+            // Plain is the graphite table, with its grain.
+            else Modifier.background(colors.background).grainBehind()
 
         Box(
             Modifier
