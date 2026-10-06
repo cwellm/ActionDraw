@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw.ui
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -33,6 +34,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -57,8 +59,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -284,10 +288,35 @@ private fun PinMenu(state: AppState, pinTargets: PinTargets) {
     }
 }
 
+/**
+ * The picture, with every lens and knob on it, and the glass (F10.9) over it: taken up, it shows
+ * the picture larger under the pointer; set down, the part it is on fills the area — zooming
+ * there and back over [Motion.GLASS_MS] — and the whole picture waits in the corner.
+ */
 @Composable
 private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, modifier: Modifier) {
-    Box(modifier = modifier.background(Color.Black), contentAlignment = Alignment.Center) {
-        val bmp = bitmap
+    val glass = state.glass
+    val pointer = remember { GlassPointer() }
+    val focused by remember(current) { derivedStateOf { glass.focusOn(current) != null } }
+    val progress = remember { Animatable(0f) }
+    val reduced = LocalReducedMotion.current
+    LaunchedEffect(focused) {
+        progress.animateTo(if (focused) 1f else 0f, tween(if (reduced) Motion.REDUCED_MS else Motion.GLASS_MS, easing = Motion.GLASS_EASING))
+    }
+    // Where the glass was last down on this picture, so lifting it zooms back out from there.
+    val lastFocus = remember(current) { mutableStateOf<GlassFocus?>(null) }
+    LaunchedEffect(current) {
+        snapshotFlow { glass.focusOn(current) }.collect { if (it != null) lastFocus.value = it }
+    }
+    val bmp = bitmap
+    val usable = bmp != null && !state.referenceHidden
+    Box(
+        modifier = modifier
+            .background(Color.Black)
+            .onSizeChanged { pointer.area = Size(it.width.toFloat(), it.height.toFloat()) }
+            .then(if (usable) Modifier.glassInput(state, pointer, current, bmp!!.width.toFloat(), bmp.height.toFloat(), focused) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
         if (state.referenceHidden) {
             // Drawn nowhere, not merely covered: nothing of the picture should reach the screen.
             MemoryVeil()
@@ -299,14 +328,18 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
             val defractionEffect = remember(state.defractionSeed, state.defractionBlock, state.defractionStrength) {
                 defractionRenderEffect(state.defractionSeed, state.defractionBlock, state.defractionStrength)
             }
-            Image(
+            GlassPicture(
                 bitmap = bmp,
-                contentDescription = current?.name,
-                contentScale = ContentScale.Fit,
+                state = state,
+                picture = current,
+                pointer = pointer,
+                progress = progress,
+                lastFocus = lastFocus,
                 colorFilter = colorFilter,
                 modifier = Modifier
                     .fillMaxSize()
                     .testTag("reference")
+                    .semantics { contentDescription = current?.name ?: "" }
                     .graphicsLayer { // outermost: colour inversion of the final result
                         this.renderEffect = if (state.invert) invertEffect else null
                     }
@@ -323,10 +356,12 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
                         this.renderEffect = if (state.defraction) defractionEffect else null
                     },
             )
-            // Proportion overlay sits above the image and is unaffected by its filters/rotation.
-            if (state.gridMode != GridMode.OFF) {
+            // Proportion overlay sits above the image and is unaffected by its filters/rotation;
+            // it measures the whole picture, so it waits while the glass is down on a part.
+            if (state.gridMode != GridMode.OFF && !focused) {
                 ProportionOverlay(bmp, state.gridMode, Modifier.fillMaxSize())
             }
+            GlassOverlay(bmp, state, current, pointer, progress, focused)
         } else {
             Text(if (current == null) "No image" else "Loading…", color = Color.White)
         }
@@ -410,6 +445,8 @@ private fun ControlBar(
                 LensTray(state, bitmap)
                 Box(Modifier.width(1.dp).height(84.dp).background(Atelier.Line).align(Alignment.CenterVertically))
                 Knobs(state)
+                Box(Modifier.width(1.dp).height(84.dp).background(Atelier.Line).align(Alignment.CenterVertically))
+                GlassTray(state)
             }
 
             // The settings of whatever is on: the lens's, the light, blur, shards.
@@ -418,6 +455,14 @@ private fun ControlBar(
                 horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
             ) {
                 LensParameters(state)
+                if (state.glass.inHand) {
+                    ParamSlider(
+                        label = "Glass: ×" + "%.1f".format(state.glass.magnification),
+                        value = state.glass.magnification,
+                        range = GlassState.MIN_MAGNIFICATION..GlassState.MAX_MAGNIFICATION,
+                        steps = 0,
+                    ) { state.glass.magnify(it) }
+                }
                 // White balance is always on offer: it is an adjustment, not a mode.
                 ParamSlider(label = temperatureLabel(state.temperature), value = state.temperature, range = -1f..1f, steps = 39) { state.temperature = it }
                 if (state.blur) {
@@ -438,7 +483,7 @@ private fun ControlBar(
             Text(
                 "Space pause · ←/→ prev/next · 1-9 lens · N notan · ,/. cooler/warmer · 0 neutral light · " +
                     "H hide/peek · A auto · B blur · I invert · D shards · M mirror · U flip · G grid · " +
-                    "R redo · F fullscreen · Esc stop",
+                    "L glass · O optic · +/− nearer · R redo · F fullscreen · Esc stop",
                 fontSize = 11.sp,
                 color = Atelier.Muted.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,

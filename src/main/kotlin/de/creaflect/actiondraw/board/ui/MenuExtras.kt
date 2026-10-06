@@ -197,7 +197,10 @@ object Hotkeys {
         "R" to "toggle the redo flag",
         "A" to "toggle auto-advance",
         "F" to "toggle fullscreen",
-        "Esc" to "leave fullscreen · stop the session",
+        "L · O · + / −" to "the glass: take up / put away · next optic · nearer / further",
+        "click · drag · right click (glass in hand)" to "set it down on a point · on a part · lift it off",
+        "wheel · Shift+wheel (glass in hand)" to "magnify · a larger glass (set down: nearer about the pointer)",
+        "Esc" to "lift the glass · put it away · leave fullscreen · stop the session",
     )
     val BOARD: List<Pair<String, String>> = listOf(
         "Click · Ctrl+click · Shift+click" to "select · toggle · range",

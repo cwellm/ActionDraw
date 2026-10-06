@@ -331,11 +331,21 @@ internal fun handleSessionShortcut(
         Key.DirectionLeft -> { state.previous(); true }
         Key.DirectionRight -> { state.next(); true }
         Key.Escape -> {
-            // Esc leaves fullscreen first (restoring the decorated window);
-            // when already windowed, it ends the session.
-            if (isFullscreen) setFullscreen(false) else state.stop()
+            // Esc steps back one thing at a time: the glass off the picture, the glass put away,
+            // fullscreen left (restoring the decorated window), and only then the session ended.
+            when {
+                state.glass.focusOn(state.currentImage) != null -> state.glass.wholePicture()
+                state.glass.inHand -> state.glass.putAway()
+                isFullscreen -> setFullscreen(false)
+                else -> state.stop()
+            }
             true
         }
+        // The glass: L takes it up or puts it away, O turns to the next optic, + − magnify.
+        Key.L -> { state.glass.toggle(); true }
+        Key.O -> { state.glass.nextOptic(); true }
+        Key.Plus, Key.Equals, Key.NumPadAdd -> state.glass.inHand.also { if (it) state.glass.magnifyBy(1f) }
+        Key.Minus, Key.NumPadSubtract -> state.glass.inHand.also { if (it) state.glass.magnifyBy(-1f) }
         Key.F -> { setFullscreen(!isFullscreen); true }
         Key.G -> { state.cycleGrid(); true }
         Key.R -> { state.toggleRedoCurrent(); true }

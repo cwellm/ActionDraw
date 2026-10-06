@@ -882,6 +882,35 @@ one*, *How the rooms hand things over*) and the design canvas.
 - F8.4's open question settled: does practice on a concept's picture belong to the concept or to
   the board
 
+### 🔄 F10.9 The glass — drawing through a lens
+- ✅ A reading glass over the session's picture (`ui/Glass.kt`, `ui/GlassView.kt`): taken up from
+  the tray beside the knobs or with `L`, a round glass with a turned rim, a wooden handle, the
+  lamp's light and its shadow follows the pointer (the cursor gone) and shows what is under it
+  ×1.25–×12 (wheel; `Shift`+wheel the glass's size; `+` `−`)
+- ✅ Six optics, as cross-sections of their glass in the tray (`O` turns): **plain** (a zoom,
+  nothing bent), **convex** (the middle swells), **concave** (the middle shrinks away),
+  **fisheye** (a far wider field at the edge), **cylinder** (one way stretched), **prism** (the
+  colours part towards the rim). One SkSL shader; `opticSource` is its arithmetic in Kotlin, and
+  a test renders a picture whose colours are its own coordinates through every optic to hold the
+  two together
+- ✅ **Set down**: a click — that point, as large as the glass showed it — or a dragged-out
+  rectangle, which then fills the view; the zoom there and back takes 380 ms (reduced: 120).
+  Down, a drag slides the picture under the glass and the wheel comes nearer about the pointer;
+  the bending eases in as it lands
+- ✅ **Back to the whole**: a print of the whole picture in the corner, the part ringed — a click
+  on it, a right click or `Esc`. Esc steps back one thing at a time: the glass lifted, put away,
+  fullscreen left, and only then the session stopped. A new pose starts whole
+- ✅ Drawn inside the picture's filter layers, so every lens, the light and the knobs work through
+  it; mirrored or upside down, the glass is set down where the picture is seen. The rim, the
+  print and the dragged-out frame are over the filters
+- ✅ `GlassTest` (9: the state, where the picture lies, the optics against the shader),
+  `GlassSessionTest` (5: on screen — drawn where the pointer is, set down by a click, by a part
+  dragged out, mirrored, lifted by the print and by a right click), `SessionKeysTest` (+2). Caught
+  on the way: the print's click lifted the glass and the same release, passing on to the picture,
+  set it straight down again. Seven guards broken on purpose and seen red
+- ⬜ The glass in the Lens room (F10.1), on a board's large view, and in Sketch over the reference
+- ⬜ Kept between runs (the optic and the magnification are kept only while the app runs)
+
 ---
 
 ## 🔄 M+ — Practice backlog (independent of the board)

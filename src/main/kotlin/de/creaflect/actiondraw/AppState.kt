@@ -122,6 +122,9 @@ class AppState(private val settings: Settings = Settings()) {
     var mirror by mutableStateOf(false)
     var gridMode by mutableStateOf(GridMode.OFF)
 
+    /** The glass held over the picture (F10.9): kept for the app's life, so its optic carries over. */
+    val glass = de.creaflect.actiondraw.ui.GlassState()
+
     /**
      * White balance from -1 (cool) through 0 (neutral) to +1 (warm). Independent of the view
      * mode, so a Notan study can still be lit warm; replaces the old Warm/Cool view modes.

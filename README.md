@@ -71,6 +71,27 @@ concepts*, *New sketch* or *Continue the sketch*.
 - **Proportion grids** (`G` cycles): **Thirds**, **Phi** (golden section), **Diagonal** — each
   with a centre cross.
 
+### The glass — drawing through a lens
+A reading glass to hold over the picture. **Glass** beside the knobs (or `L`) takes it up: a
+round glass with a rim and a handle follows the pointer and shows what is under it larger —
+the wheel magnifies (×1.25 to ×12), `Shift`+wheel makes the glass itself larger. Its optic is
+chosen from six cross-sections beside it (`O` turns to the next):
+
+- **Plain** — flat glass: larger, nothing bent. A plain zoom.
+- **Convex** — a magnifier: the middle swells, the rim draws in.
+- **Concave** — the middle shrinks away, the rim stretches.
+- **Fisheye** — near in the middle, the edges bending round a much wider field.
+- **Cylinder** — a glass rod: stretched one way, untouched the other.
+- **Prism** — flat, but the colours part towards the rim.
+
+**Set it down**: a click puts the glass down on the point under it, and that part of the picture
+fills the view, as large as the glass showed it; drag out a rectangle instead and exactly that
+part fills it. Down, a drag slides the picture under the glass and the wheel comes nearer about
+the pointer. The whole picture waits in the corner as a small print with the part ringed: click
+it — or right-click, or `Esc` — and you are back to the whole. The lenses, the light and the
+knobs work through the glass as on the picture; a new pose starts whole. Drawing what a bulge or
+a pinch shows, rather than what you know is there, is the exercise.
+
 ### Choosing & remembering pictures
 - **Picture picker** (Practice → "Choose pictures…"): a thumbnail grid to include/exclude images,
   with All/None; sessions draw only from the selection.
@@ -387,7 +408,8 @@ step back; come up to any of them and they are there.
 | `R` | toggle redo flag |
 | `A` | toggle auto-advance |
 | `F` | toggle fullscreen |
-| `Esc` | leave fullscreen · stop session · close picker/summary |
+| `L` · `O` · `+` / `−` | the glass: take up / put away · next optic · nearer / further |
+| `Esc` | lift the glass · put it away · leave fullscreen · stop session · close picker/summary |
 | `Enter` | close picker/summary |
 
 ### Board

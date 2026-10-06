@@ -84,6 +84,10 @@ object Motion {
 
     /** Draw-on: a new group's frame is drawn round its cards in this long, then its tag appears. */
     const val DRAW_ON_MS = 360
+
+    /** The glass set down on a part of the picture, or lifted off it: a zoom that starts at once and lands softly. */
+    const val GLASS_MS = 380
+    val GLASS_EASING = CubicBezierEasing(0.3f, 0f, 0.2f, 1f)
 }
 
 /** Whether a card is lifted off the table, for tests to read. */
