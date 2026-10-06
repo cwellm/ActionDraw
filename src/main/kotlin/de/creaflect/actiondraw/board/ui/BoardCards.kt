@@ -409,7 +409,9 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                     (if (nested) "↳ " else "") + (if (group?.isConcept == true) "⧉ " else "") + "${group?.name ?: "Inbox"} ($count)",
                     style = if (nested) MaterialTheme.typography.subtitle2 else MaterialTheme.typography.subtitle1,
                     fontWeight = FontWeight.Bold,
-                    color = accent ?: MaterialTheme.colors.onBackground,
+                    // In the surface's own ink, readable on cork as on the table; the dot and the
+                    // hairline carry the group's colour (teal lettering vanished into cork).
+                    color = MaterialTheme.colors.onBackground,
                     // The name selects the section's cards, as a group's label does on the canvas.
                     modifier = if (group == null) Modifier else Modifier
                         .testTag("group-header-" + group.id)

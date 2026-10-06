@@ -810,9 +810,20 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   the tape off each corner, the side chrome stepping back with the header. Five guards broken
   on purpose and seen red
 
-### ⬜ F9.9 Wrap-up
-- ⬜ Screenshot tests of the palette and of each room, selected and running
-- ⬜ README and the Hotkeys sheet: the palette, Esc home, the ring menu
+### 🔄 F9.9 Wrap-up
+- ✅ `RoomScreenshotTest`: fourteen screens through the whole app shell at the window's starting
+  size — the palette (and with a well chosen), the Practice room, a running pose, the glass in
+  hand and set down, the summary, a board free and in a cork grid, the board list, a concept,
+  the concept list, Sketch at rest and mid-stroke — saved to `build/screenshots` to be looked at,
+  and each held to two things: no label cut off at the bottom or losing lines without a "…", and
+  the room's line along the top. Pixel goldens left out on purpose: a font or Skia update would
+  fail every one with nothing wrong
+- ✅ Looked at: the grid's group headings were lettered in the group's colour, and teal vanished
+  into cork; now in the surface's own ink, the dot and the hairline carrying the colour
+- ✅ README and the Hotkeys sheet: the palette and Esc home, the rooms as re-dressed (prints, pins
+  and tape, folios, the pencil tray, the paper), the glass and its keys, Esc's order in a pose.
+  The ring menu is documented when it is built (F9.5)
+- ⬜ The concept page itself is not re-dressed yet: its cards are plain, not prints
 - ⬜ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
   between the hand and the page
 

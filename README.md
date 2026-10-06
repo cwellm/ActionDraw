@@ -103,8 +103,9 @@ a pinch shows, rather than what you know is there, is the exercise.
 - Both state files are plain text inside the image folder — safe to delete for a fresh start.
 
 ### Display
-- **Fullscreen** (`F`): the image fills the entire screen with only the remaining time in the
-  bottom corner. `Esc` first leaves fullscreen; pressed again (windowed) it stops the session.
+- **Fullscreen** (`F`): the picture fills the entire screen with only the ensō over its corner.
+  `Esc` steps back one thing at a time — the glass lifted, the glass put away, fullscreen left —
+  and only then stops the session.
 
 ## Idea Boards — collect your material
 
@@ -112,6 +113,11 @@ A **board** is a folder raised to a curated collection: images and plain-text no
 organised into groups (or placed freely), described by captions, stars and tags. Everything the
 board knows lives in one file next to the pictures — `.actiondraw_board.json`. Delete it and you
 still have an ordinary folder of images; the board never renames, moves or deletes your files.
+
+On the board the pictures are prints on paper: pinned through on the free canvas, or taped when
+they are sketches you can continue, so the two are told apart at a glance. A group is drawn round
+its cards in graphite, its name lettered on a paper tag pinned in the group's colour; what is
+selected is marked in ultramarine. *Plain* is the graphite table, *cork* and *papyrus* stay.
 
 ### Getting started
 - The palette's **Boards** well opens the board you had open last, or the board list:
@@ -268,7 +274,7 @@ still have an ordinary folder of images; the board never renames, moves or delet
   buttons. They are views: a card stays in its own group.
 - A **session recipe** per board ("Drachenbuch is always 60 s in Notan") remembers interval or
   ramp, auto-advance, view mode and grid, and applies to every session started from that board.
-  Without one, the menu's settings are used.
+  Without one, the Practice room's settings are used.
 - **Pin ▾** during any session files the picture on screen onto a board; the summary offers to pin
   the pictures you flagged for redo.
 - Board sessions open in **their own window**: the board stays visible behind them, closing the
@@ -284,7 +290,7 @@ Things recur across places, and copying their pictures onto every board lets the
 apart. A concept lives once, in a folder of its own, and is **linked** onto any number of boards.
 
 ### A concept
-- The palette's **Concepts** well opens the list: tiles grouped by *kind* (character, creature,
+- The palette's **Concepts** well opens the list: kraft folios grouped by *kind* (character, creature,
   landscape, prop, colour — a label with suggestions, not a fixed set), each with a cover, its
   counts, and how many boards link it. **New concept…** makes a folder under the concepts home
   (`~/ActionDraw Concepts` by default; **Change home…** moves it, and existing concepts stay where
