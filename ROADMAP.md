@@ -694,11 +694,20 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   ease-out (0.2, 0.8, 0.2, 1) covered the screen in 80 ms — a flash, seen in a capture — so the
   spread starts slower (0.35, 0, 0.25, 1). `MotionTest`: the timelines, and the shader read back
   (pigment inside, nothing outside, an edge that is not a circle, a darker rim)
-- ⬜ **Settle** — lift, lean (from drag velocity, at most 4°) and land on a spring for cards and
-  frames, as a draw-time layer on the box *around* the `ContextMenuArea` (M5's hit-box rule)
-- ⬜ **Draw-on** — a group's frame drawn with `PathMeasure` from where the pointer let go, then its
-  tag lettered; the hand-drawn wobble baked into the frame's one path, so the drawn path stays the
-  hit-tested path (`CanvasHitTest` keeps proving it)
+- ✅ **Settle** — a dragged card lifts (120 ms, 3 % larger, the lamp's shadow growing), leans into
+  its sideways speed (at most 4°) and lands on a spring (damping 0.7). Only what is drawn moves:
+  the lift sits on a layer *inside* the box that takes the drag, so the drag's arithmetic — which
+  already undoes the card's own rotation — never meets the lean, and the hit box stays where M5
+  put it (around the `ContextMenuArea`). A real mouse drag in 3-px steps ends exactly where the
+  pointer went; a lean on the dragging box itself was tried as a mutation and caught. Frames move
+  without it for now
+- ✅ **Draw-on** — a group made from a selection has its frame drawn round its cards once
+  (360 ms, the outline walked contour by contour), its fill and then its tag fading in after; every
+  other frame is simply there. The hand's wobble is baked into the frame's one path
+  (`handDrawn`: ±1.4 board px along the normal, a smooth noise of the distance walked in board
+  units, so it does not swim when zooming, closing where it began) — drawn, clipped to and
+  hit-tested, so all 270 board tests, `CanvasHitTest` among them, pass on the wobbly frames.
+  The drawing starts at the path's start, not yet where the pointer let go
 - 🔄 **Recede** — `RecedingChrome` and `PointerWatch` (watches the pointer, takes nothing): Sketch's
   toolbar steps back 1.5 s into a stroke (not while Pen or Tune is open) and stays back until the
   pointer comes up to it; a session's controls step back while a pose runs and the mouse rests,

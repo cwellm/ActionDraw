@@ -69,7 +69,29 @@ object Motion {
     /** How close to its edge the pointer must come for receded chrome to show again, and how strongly. */
     val APPROACH = 56.dp
     const val APPROACH_ALPHA = 0.7f
+
+    /**
+     * Settle: a card lifts in [LIFT_MS] to [LIFT_SCALE] larger, leans into its sideways speed
+     * ([LEAN_PER_PX] degrees per pixel of a move, at most [MAX_LEAN]), and lands on a spring that
+     * overshoots a little.
+     */
+    const val LIFT_MS = 120
+    const val LIFT_SCALE = 0.03f
+    const val LEAN_PER_PX = 0.5f
+    const val MAX_LEAN = 4f
+    const val SETTLE_DAMPING = 0.7f
+    const val SETTLE_STIFFNESS = 380f
+
+    /** Draw-on: a new group's frame is drawn round its cards in this long, then its tag appears. */
+    const val DRAW_ON_MS = 360
 }
+
+/** Whether a card is lifted off the table, for tests to read. */
+val Lifted = SemanticsPropertyKey<Boolean>("Lifted")
+var SemanticsPropertyReceiver.lifted by Lifted
+
+/** How far a card leans while dragged sideways by [dx] pixels in one move. */
+fun leanFor(dx: Float): Float = (dx * Motion.LEAN_PER_PX).coerceIn(-Motion.MAX_LEAN, Motion.MAX_LEAN)
 
 /** Whether to keep movement to cross-fades: ActionDraw's own setting, or the system's when unset. */
 val LocalReducedMotion = compositionLocalOf { false }

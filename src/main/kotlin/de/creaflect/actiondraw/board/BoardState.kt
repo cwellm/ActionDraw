@@ -649,6 +649,7 @@ class BoardState(
     }
 
     private fun afterOpen(dir: File) {
+        freshGroupId = null
         selection = emptySet()
         focusId = null
         filterTags = emptySet()
@@ -931,7 +932,17 @@ class BoardState(
             )
         }
         pruneEmptyGroups()
+        freshGroupId = id
         return id
+    }
+
+    /** A group just made: on the canvas its frame is drawn round its cards once, then this is cleared. */
+    var freshGroupId by mutableStateOf<String?>(null)
+        private set
+
+    /** The new group's frame has been drawn; from now on it is simply there. */
+    fun frameDrawn(id: String) {
+        if (freshGroupId == id) freshGroupId = null
     }
 
     /**
