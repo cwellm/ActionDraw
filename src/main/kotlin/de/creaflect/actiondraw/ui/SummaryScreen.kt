@@ -154,6 +154,7 @@ private fun FlaggedPrint(file: File, thumbs: ThumbCache?, tilt: Float) {
                 .size(104.dp)
                 .lampShadow(Lift.RESTING)
                 .background(Atelier.Paper)
+                .paperTooth()
                 .padding(6.dp),
         ) {
             thumb?.let { Image(it, contentDescription = file.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }

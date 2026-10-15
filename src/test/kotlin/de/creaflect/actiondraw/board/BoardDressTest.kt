@@ -14,6 +14,16 @@ import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.image.ThumbCache
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.board.ui.Themes
+import de.creaflect.actiondraw.board.ui.notePaper
+import de.creaflect.actiondraw.concept.ConceptHost
+import de.creaflect.actiondraw.concept.ConceptState
+import de.creaflect.actiondraw.ui.paperTooth
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierTheme
 import org.junit.After
@@ -122,5 +132,53 @@ class BoardDressTest {
         state.clickItem(ids[1], ctrl = true, shift = false)
         rule.waitForIdle()
         assertTrue(topOf(ids[0]).first > 10, "pinned again beside another selected card")
+    }
+
+    @Test
+    fun notesAreSlipsAndSheetsOnEverySurface() {
+        val postit = NoteItem(id = "a", text = "line of action", kind = NoteKind.POSTIT)
+        val sheet = NoteItem(id = "b", text = "# Wings", kind = NoteKind.DOCUMENT)
+        assertEquals(Themes.noteBacking, notePaper(postit), "a post-it is a yellow slip")
+        assertEquals(Atelier.Paper, notePaper(sheet), "a document is a sheet of paper")
+        assertEquals(Color(0xFFC5E1A5), notePaper(postit.copy(color = "#C5E1A5")), "a colour chosen is that paper, whole")
+    }
+
+    @Test
+    fun paperHasItsToothAndTheTableHasNone() {
+        rule.setContent {
+            Row {
+                Box(Modifier.size(80.dp).background(Atelier.Paper).paperTooth().testTag("paper"))
+                Box(Modifier.size(80.dp).background(Atelier.Paper).testTag("flat"))
+            }
+        }
+        rule.waitForIdle()
+        fun shades(tag: String): Int {
+            val map = rule.onNodeWithTag(tag).captureToImage().toPixelMap()
+            return (0 until map.width).flatMap { x -> (0 until map.height).map { y -> map[x, y] } }.toSet().size
+        }
+        assertEquals(1, shades("flat"))
+        assertTrue(shades("paper") > 20, "the grain shows in the paper: ${shades("paper")} shades")
+    }
+
+    @Test
+    fun aBorrowedCardWearsItsConceptsTab() {
+        val conceptsHome = Files.createTempDirectory("dress-concepts").toFile()
+        val concepts = ConceptState(Settings(config), object : ConceptHost {
+            override fun showConcepts() = Unit
+            override fun showConcept() = Unit
+            override fun leaveConcepts() = Unit
+        }).also { it.setConceptsHomeDir(conceptsHome) }
+        concepts.createConcept("Drache", "creature")
+        concepts.addPictures(listOf(File(conceptsHome, "wing.jpg").apply { createNewFile() }))
+        val state = BoardState(Settings(config), host, concepts = concepts)
+        state.createBoard(home, "Dress")
+        state.importExternal(listOf(File(state.root!!, "own.jpg").apply { createNewFile() }))
+        assertTrue(state.linkConcept(concepts.concept!!.id))
+        state.setLayout(BoardLayouts.FREE)
+        val (borrowed, own) = state.board!!.items.partition { state.isBorrowed(it) }
+        show(state)
+        rule.onNodeWithTag("concept-tab-" + borrowed.single().id).assertExists()
+        rule.onNodeWithTag("concept-tab-" + own.single().id).assertDoesNotExist()
+        conceptsHome.deleteRecursively()
     }
 }

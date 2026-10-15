@@ -369,6 +369,7 @@ private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, p
             Modifier
                 .lampShadow(Lift.LIFTED)
                 .background(Atelier.Paper)
+                .paperTooth()
                 .clickable(onClickLabel = "Back to the whole picture") { glass.wholePicture() }
                 .padding(5.dp)
                 .testTag("glass-whole"),

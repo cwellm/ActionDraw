@@ -42,7 +42,6 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -75,6 +74,11 @@ import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Pigment
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.drawPin
+import de.creaflect.actiondraw.ui.drawPaperclip
+import de.creaflect.actiondraw.ui.RuleRed
+import de.creaflect.actiondraw.ui.ruled
+import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.drawTape
 import de.creaflect.actiondraw.board.BoardThemes
 import androidx.compose.ui.draw.drawWithContent
@@ -229,7 +233,8 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
 
         // Alignment guides and the rubber band, drawn over the cards.
         Canvas(Modifier.fillMaxSize()) {
-            val guideColor = Color(0x99FFB74D)
+            // Pale ultramarine: the Boards room's own colour for what helps arrange.
+            val guideColor = Room.BOARDS.pigment.glow.copy(alpha = 0.6f)
             state.snapGuideX?.let { gx ->
                 val x = (gx - state.camX) * state.zoom + size.width / 2
                 drawLine(guideColor, Offset(x, 0f), Offset(x, size.height), 1f)
@@ -417,6 +422,7 @@ private fun CanvasItem(
                         is NoteItem -> CanvasNote(state, item, textured)
                         is LinkItem -> CanvasLink(state, item, textured)
                     }
+                    if (state.isBorrowed(item)) ConceptTab(state, item, Modifier.align(Alignment.TopStart))
                     // A grouped card carries its group's colour, so it is recognisable even when
                     // dragged out of the group area.
                     state.accentOf(item)?.let { hex ->
@@ -459,9 +465,10 @@ private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, 
     Box(
         Modifier
             .fillMaxSize()
-            .shadow(if (textured) 4.dp else 2.dp, shape)
+            .lampShadow(Lift.RESTING, shape)
             .clip(shape)
             .background(Atelier.Paper)
+            .paperTooth()
             .border(3.dp, selectionBorder(state, item.id), shape)
             .padding(6.dp),
         contentAlignment = Alignment.Center,
@@ -473,7 +480,7 @@ private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, 
             Text("…", color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f))
         }
         if (item.starred) {
-            Text("★", color = Color(0xFFFFB300), modifier = Modifier.align(Alignment.TopEnd).padding(4.dp))
+            Text("★", color = Room.COLLAGE.pigment.glow, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp))
         }
     }
 }
@@ -481,16 +488,17 @@ private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, 
 @Composable
 private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(3.dp)
-    val paper = notePaper(item, textured)
-    val ink = if (textured) Themes.noteInk else Themes.noteInkDark
+    val paper = notePaper(item)
+    val ink = Themes.noteInk
     if (item.kind == NoteKind.POSTIT) {
-        // A post-it: all of the text, as typed, in a written hand, on paper that fits it.
+        // A post-it: a yellow slip, all of the text as typed, in a written hand.
         Box(
             Modifier
                 .fillMaxSize()
-                .shadow(if (textured) 4.dp else 1.dp, shape)
+                .lampShadow(Lift.RESTING, shape)
                 .clip(shape)
                 .background(paper)
+                .paperTooth()
                 .border(2.dp, selectionBorder(state, item.id), shape),
         ) {
             Text(
@@ -502,14 +510,16 @@ private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
             )
         }
     } else {
-        // A document note: only its title on the board; a tap opens the whole note to read.
+        // A document note: a ruled sheet with only its title; a tap opens the whole note to read.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxSize()
-                .shadow(if (textured) 4.dp else 1.dp, shape)
+                .lampShadow(Lift.RESTING, shape)
                 .clip(shape)
                 .background(paper)
+                .paperTooth()
+                .ruled(first = 10.dp, spacing = 9.dp)
                 .border(2.dp, selectionBorder(state, item.id), shape)
                 .pointerInput(item.id) { detectTapGestures { state.openEditor(BoardEditor.ShowNote(item.id)) } }
                 .padding(horizontal = 10.dp)
@@ -582,21 +592,23 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxSize()
-            .shadow(if (textured) 4.dp else 1.dp, shape)
+            .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(if (textured) Themes.cardBacking else Atelier.Board)
+            .background(Atelier.Paper)
+            .paperTooth()
+            .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
             .border(2.dp, selectionBorder(state, item.id), shape)
             // A plain tap opens the page; selecting is still Ctrl/Shift+click, drag, or right-click.
             .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }
             .padding(horizontal = 10.dp)
             .testTag("link-" + item.id),
     ) {
-        Text("\uD83D\uDD17", style = MaterialTheme.typography.body2)
+        Canvas(Modifier.size(14.dp, 30.dp)) { drawPaperclip(Offset(1f, 0f), size.height) }
         Spacer(Modifier.width(8.dp))
         Text(
             item.title.ifBlank { item.url },
             style = MaterialTheme.typography.body2,
-            color = MaterialTheme.colors.primary,
+            color = Room.BOARDS.pigment.mass,
             textDecoration = TextDecoration.Underline,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,

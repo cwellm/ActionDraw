@@ -643,16 +643,20 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   canvas), and the font weights above
 - ✅ `Themes.paperColors` and the card backing taken from the paper tokens; the plain board's
   link cards, the strip's ground and the frame tags' ink from the table's
-- The remaining hard-coded accents (the amber guide lines, the star, the practice badges) move
-  with their rooms in F9.5–F9.8
+- ✅ The last hard-coded accents moved onto pigments: a board's alignment guides in pale
+  ultramarine (the room's own colour for what helps arrange), the star in Naples yellow, the
+  practice badges in Practice's cadmium (*redo*) and quiet ink (*drawn*)
 
 ### 🔄 F9.2 Materials in code
 - ✅ `ui/Materials.kt`: a grain over the ground — one SkSL tile of per-pixel noise in two-pixel
   clumps, light and dark at most 6 % strong, made once and drawn as a repeating shader
   (`Modifier.grain()`); no per-frame `ImageBitmap`
-- 🔄 Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
-  sketch's paper are the same paper: Sketch's paper swatches are drawn by the engine's own grain
-  (F9.8); the board's prints are still plain paper colour
+- ✅ Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
+  sketch's paper are the same paper: `Modifier.paperTooth()` draws the engine's grain over a
+  sheet's colour — prints, slips, ruled sheets and index cards on boards and concepts, the board
+  list's covers, the concept folios (kraft, on rough paper), the exercise cards, the summary's
+  prints, the glass's print; Sketch's swatches were already drawn by it (F9.8). `BoardDressTest`
+  holds paper to having its tooth and the table to having none
 - 🔄 One lamp: a `Lift` scale (resting, lifted, held) and `drawLampShadow`/`Modifier.lampShadow`,
   a blurred shadow cast to the bottom right; the palette uses it — the scattered `elevation =`
   values go as each room is re-dressed
@@ -772,8 +776,12 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   print is held by an ultramarine **pin**, a sketch that can be continued by **tape**, which is how
   the two are told apart at a glance. A single selected card shows its rotate handle where the pin
   was rather than over it. Post-its are lettered in Caveat
-- ⬜ Notes as yellow slips (their colours are still the theme's), concept cards with a viridian
-  tab, link cards as index cards
+- ✅ Notes are paper on every surface: a post-it a **yellow slip**, a document a **ruled sheet**,
+  a colour chosen for a note that paper whole (the plain board drew both dark olive); link cards
+  are **index cards**, a red line at the top, faint blue rules, held by a drawn **paperclip** (the
+  🔗 emoji gone) or by their preview picture. A card borrowed from a concept wears the concept's
+  **viridian tab**, its name lettered, half over the card's top edge, in the grid and on the
+  canvas. Their shadows are the lamp's (`Lift.RESTING`), not Material's elevation
 - ✅ Group frames drawn in **graphite** (the group's colour only while it is about to take a card),
   their tag a paper label pinned with the group's colour — viridian for a concept — the name
   lettered, the count beside it; the selection marked in ultramarine. The selected card is not
@@ -823,7 +831,9 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 - ✅ README and the Hotkeys sheet: the palette and Esc home, the rooms as re-dressed (prints, pins
   and tape, folios, the pencil tray, the paper), the glass and its keys, Esc's order in a pose.
   The ring menu is documented when it is built (F9.5)
-- ⬜ The concept page itself is not re-dressed yet: its cards are plain, not prints
+- ✅ The concept page's cards in the same language: pictures as prints (chosen, ringed in
+  viridian), notes as slips and sheets, links as index cards; *Continue sketch* carries
+  madder's dab
 - ⬜ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
   between the hand and the page
 

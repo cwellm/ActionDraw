@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -65,6 +64,16 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.Canvas
+import de.creaflect.actiondraw.ui.drawPaperclip
+import de.creaflect.actiondraw.ui.RuleRed
+import de.creaflect.actiondraw.ui.ruled
+import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 
 /**
  * One board cell (image or note) with its right-click menu; [groupId] is the section it sits in.
@@ -109,7 +118,31 @@ fun BoardCard(
                 is LinkItem -> LinkCard(state, thumbs, item, textured)
             }
         }
+        if (state.isBorrowed(item)) ConceptTab(state, item, Modifier.align(Alignment.TopStart))
     }
+}
+
+/**
+ * A card borrowed from a concept wears the concept's tab: viridian, the concept's name lettered on
+ * it, half over the card's top edge like a folio's - it is the concept's, looked at here.
+ */
+@Composable
+internal fun ConceptTab(state: BoardState, item: BoardItem, modifier: Modifier = Modifier) {
+    val name = state.groupById(item.groups.firstOrNull())?.name ?: return
+    val viridian = Room.CONCEPTS.pigment
+    Text(
+        name,
+        style = AtelierType.Hand.copy(fontSize = 14.sp, lineHeight = 15.sp),
+        color = viridian.onMass,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+            .offset(x = 10.dp, y = (-9).dp)
+            .widthIn(max = 140.dp)
+            .background(viridian.mass, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomEnd = 2.dp, bottomStart = 2.dp))
+            .padding(horizontal = 7.dp)
+            .testTag("concept-tab-" + item.id),
+    )
 }
 
 /** Reordering within the group the card was clicked in (the array is the display order). */
@@ -212,9 +245,10 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
     val shape = RoundedCornerShape(2.dp)
     Column(
         Modifier
-            .shadow(if (textured) 3.dp else 2.dp, shape)
+            .lampShadow(Lift.RESTING, shape)
             .clip(shape)
             .background(Atelier.Paper)
+            .paperTooth()
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
             .padding(6.dp),
@@ -235,7 +269,7 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
                 Text("…", color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f))
             }
             if (item.starred) {
-                Text("★", color = Color(0xFFFFB300), modifier = Modifier.align(Alignment.TopEnd).padding(4.dp))
+                Text("★", color = Room.COLLAGE.pigment.glow, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp))
             }
             PracticeBadge(state.practiceOf(item), Modifier.align(Alignment.BottomStart).padding(4.dp))
         }
@@ -262,14 +296,15 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
 @Composable
 private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
-    val ink = noteInk(item, textured)
+    val ink = Themes.noteInk
     if (item.kind == NoteKind.POSTIT) {
-        // A post-it: the text as typed, in a written hand, as tall as it needs to be.
+        // A post-it: a yellow slip on any surface, the text as typed, in a written hand.
         Box(
             Modifier
-                .shadow(if (textured) 3.dp else 0.dp, shape)
+                .lampShadow(Lift.RESTING, shape)
                 .clip(shape)
-                .background(notePaper(item, textured))
+                .background(notePaper(item))
+                .paperTooth()
                 .border(2.dp, selectionBorder(state, item.id), shape)
                 .cardClicks(state, item.id)
                 .fillMaxWidth(),
@@ -282,13 +317,15 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
             )
         }
     } else {
-        // A document note: the title only; a tap opens the note to read.
+        // A document note: a ruled sheet with its title; a tap opens the note to read.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .shadow(if (textured) 3.dp else 0.dp, shape)
+                .lampShadow(Lift.RESTING, shape)
                 .clip(shape)
-                .background(notePaper(item, textured))
+                .background(notePaper(item))
+                .paperTooth()
+                .ruled(first = 10.dp, spacing = 9.dp)
                 .border(2.dp, selectionBorder(state, item.id), shape)
                 .cardClicks(state, item.id)
                 .pointerInput(item.id) { detectTapGestures { state.openEditor(BoardEditor.ShowNote(item.id)) } }
@@ -321,9 +358,11 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .shadow(if (textured) 3.dp else 0.dp, shape)
+            .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(if (textured) Themes.cardBacking else Atelier.Board)
+            .background(Atelier.Paper)
+            .paperTooth()
+            .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
             .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }
@@ -340,14 +379,15 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
                 modifier = Modifier.size(36.dp).clip(RoundedCornerShape(3.dp)),
             )
         } else {
-            Text("🔗", style = MaterialTheme.typography.body2)
+            // No picture yet: a paperclip holds it to the board.
+            Canvas(Modifier.size(14.dp, 30.dp)) { drawPaperclip(Offset(1f, 0f), size.height) }
         }
         Spacer(Modifier.width(8.dp))
         Column {
             Text(
                 item.title.ifBlank { item.url },
                 style = MaterialTheme.typography.body2,
-                color = MaterialTheme.colors.primary,
+                color = Room.BOARDS.pigment.mass,
                 textDecoration = TextDecoration.Underline,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -355,7 +395,7 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
             Text(
                 host(item.url),
                 style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.secondary,
+                color = Atelier.InkQuiet,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -366,12 +406,13 @@ private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, text
 internal fun host(url: String): String =
     url.substringAfter("://").substringBefore('/').ifBlank { url }
 
-internal fun notePaper(item: NoteItem, textured: Boolean): Color =
-    Themes.parseColor(item.color)?.let { if (textured) it else it.copy(alpha = 0.35f) }
-        ?: if (textured) Themes.noteBacking else Themes.noteBackingDark
-
-internal fun noteInk(item: NoteItem, textured: Boolean): Color =
-    if (textured || item.color != null) Themes.noteInk else Themes.noteInkDark
+/**
+ * A note's paper, the same on every surface: the colour chosen for it, else a yellow slip for a
+ * post-it and a white sheet for a document. (The plain board once drew them dark; on the
+ * graphite table they are paper like everything else.) The ink is [Themes.noteInk] on all.
+ */
+internal fun notePaper(item: NoteItem): Color =
+    Themes.parseColor(item.color) ?: if (item.kind == NoteKind.POSTIT) Themes.noteBacking else Atelier.Paper
 
 /** Section header: collapse toggle, colour dot, name, count and the group's Draw button. */
 @Composable
@@ -473,8 +514,9 @@ private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMe
 @Composable
 internal fun PracticeBadge(practice: BoardState.Practice, modifier: Modifier) {
     val (glyph, color) = when (practice) {
-        BoardState.Practice.REDO -> "⟳" to Color(0xFFEF9A9A)
-        BoardState.Practice.SEEN -> "✓" to Color(0xFF80CBC4)
+        // Practice's own pigment for what is to be drawn again; quiet ink for what was drawn.
+        BoardState.Practice.REDO -> "⟳" to Room.PRACTICE.pigment.glow
+        BoardState.Practice.SEEN -> "✓" to Atelier.TextSoft
         BoardState.Practice.UNSEEN -> return
     }
     Surface(color = Color(0x99000000), shape = RoundedCornerShape(3.dp), modifier = modifier) {

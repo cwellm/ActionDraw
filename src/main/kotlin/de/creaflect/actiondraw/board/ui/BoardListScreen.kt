@@ -48,6 +48,7 @@ import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.paperTooth
 
 /** One entry of the board list: what can be shown without opening the board. */
 private data class BoardSummary(
@@ -190,6 +191,7 @@ private fun BoardTile(
                 .padding(8.dp)
                 .lampShadow(Lift.RESTING)
                 .background(Atelier.Paper)
+                .paperTooth()
                 .padding(6.dp)
                 .fillMaxWidth()
                 .aspectRatio(1.4f)

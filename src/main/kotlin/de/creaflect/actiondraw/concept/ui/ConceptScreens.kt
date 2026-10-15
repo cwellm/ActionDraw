@@ -90,6 +90,17 @@ import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.lampShadow
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.Canvas
+import de.creaflect.sketch.Paper
+import de.creaflect.actiondraw.board.ui.Themes
+import de.creaflect.actiondraw.ui.seed
+import de.creaflect.actiondraw.ui.PigmentDab
+import de.creaflect.actiondraw.ui.drawPaperclip
+import de.creaflect.actiondraw.ui.RuleRed
+import de.creaflect.actiondraw.ui.ruled
+import de.creaflect.actiondraw.ui.paperTooth
 
 // ---------------- The list ----------------
 
@@ -225,10 +236,11 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
                 .lampShadow(Lift.RESTING, RoundedCornerShape(4.dp))
                 .clip(RoundedCornerShape(4.dp))
                 .background(FolioKraft)
+                .paperTooth(Paper.ROUGH, strength = 0.16f)
                 .padding(10.dp),
         ) {
             Box(
-                Modifier.fillMaxWidth().background(Atelier.Paper).padding(5.dp).aspectRatio(1.4f).background(Color(0xFF1A1715)),
+                Modifier.fillMaxWidth().background(Atelier.Paper).paperTooth().padding(5.dp).aspectRatio(1.4f).background(Color(0xFF1A1715)),
                 contentAlignment = Alignment.Center,
             ) {
                 val bmp = cover
@@ -412,26 +424,39 @@ internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageIte
     // Once the picture is decoded its shape is known, and the free layout sizes the card by it.
     LaunchedEffect(thumb) { thumb?.let { state.rememberAspect(item.id, it.width.toFloat() / it.height) } }
     val selected = item.id in state.selection
+    // A print, as on a board: the picture on paper; chosen, it is ringed in the room's viridian.
+    val shape = RoundedCornerShape(2.dp)
     Box(
         modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color(0x14000000))
-            .border(if (selected) 3.dp else 1.dp, if (selected) MaterialTheme.colors.primary else Color(0x33000000), RoundedCornerShape(4.dp))
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Atelier.Paper)
+            .paperTooth()
+            .border(if (selected) 3.dp else 0.dp, if (selected) Room.CONCEPTS.pigment.glow else Color.Transparent, shape)
             .clickable { state.toggleSelected(item.id) }
-            .testTag("concept-picture-" + item.id),
+            .testTag("concept-picture-" + item.id)
+            .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        val bmp = thumb
-        if (bmp != null) Image(bitmap = bmp, contentDescription = item.path, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        else Text("…", color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f))
+        Box(Modifier.fillMaxSize().background(Color(0x14000000)), contentAlignment = Alignment.Center) {
+            val bmp = thumb
+            if (bmp != null) Image(bitmap = bmp, contentDescription = item.path, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else Text("…", color = Atelier.InkQuiet)
+        }
         if (selected) {
             Text("Remove", style = MaterialTheme.typography.caption, color = Color.White,
                 modifier = Modifier.align(Alignment.BottomEnd).background(Color(0xAA000000)).clickable { state.removeItems(setOf(item.id)) }.padding(4.dp))
-            // A picture Live Sketch saved can be taken up again where it was left.
+            // A picture Live Sketch saved can be taken up again where it was left: into Sketch, so madder's dab.
             val sketch = remember(item.id) { state.sketchOf(item) }
             if (sketch != null) {
-                Text("Continue sketch", style = MaterialTheme.typography.caption, color = Color.White,
-                    modifier = Modifier.align(Alignment.BottomStart).background(Color(0xAA000000)).clickable { state.openSketch(item) }.padding(4.dp).testTag("continue-sketch-" + item.id))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.align(Alignment.BottomStart).background(Color(0xAA000000)).clickable { state.openSketch(item) }.padding(4.dp).testTag("continue-sketch-" + item.id),
+                ) {
+                    PigmentDab(Room.SKETCH.pigment, size = 9.dp, seed = Room.SKETCH.seed)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Continue sketch", style = MaterialTheme.typography.caption, color = Color.White)
+                }
             }
         }
     }
@@ -439,33 +464,52 @@ internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageIte
 
 @Composable
 internal fun NoteCard(state: ConceptState, item: NoteItem, modifier: Modifier = Modifier) {
+    // A slip or a ruled sheet, as on a board.
+    val postit = item.kind == NoteKind.POSTIT
+    val shape = RoundedCornerShape(3.dp)
     Column(
         modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color(0xFFFFF3B8))
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Themes.parseColor(item.color) ?: if (postit) Themes.noteBacking else Atelier.Paper)
+            .paperTooth()
+            .then(if (postit) Modifier else Modifier.ruled(first = 10.dp, spacing = 9.dp))
             .clickable { state.openEditor(ConceptEditor.EditNote(item.id)) }
             .padding(10.dp),
     ) {
-        if (item.kind == NoteKind.POSTIT) {
-            Text(item.text, style = MaterialTheme.typography.body2, color = Color(0xFF3A3315))
+        if (postit) {
+            Text(item.text, style = AtelierType.Hand.copy(fontSize = 20.sp, lineHeight = 22.sp), color = Themes.noteInk)
         } else {
-            Markdown.Rendered(item.text, style = MaterialTheme.typography.body2, color = Color(0xFF3A3315), onLink = ::browse)
+            Markdown.Rendered(item.text, style = MaterialTheme.typography.body2, color = Themes.noteInk, onLink = ::browse)
         }
     }
 }
 
 @Composable
 internal fun LinkCard(state: ConceptState, item: LinkItem, modifier: Modifier = Modifier) {
+    // An index card, as on a board, held by a paperclip.
+    val shape = RoundedCornerShape(3.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colors.surface)
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Atelier.Paper)
+            .paperTooth()
+            .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
             .clickable { browse(item.url) }
             .padding(10.dp),
     ) {
-        Text("🔗 ", style = MaterialTheme.typography.body2)
-        Text(item.title.ifBlank { item.url }, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Canvas(Modifier.size(14.dp, 30.dp)) { drawPaperclip(Offset(1f, 0f), size.height) }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            item.title.ifBlank { item.url },
+            style = MaterialTheme.typography.body2,
+            color = Room.BOARDS.pigment.mass,
+            textDecoration = TextDecoration.Underline,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

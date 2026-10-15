@@ -135,6 +135,7 @@ private fun ExerciseCard(exercise: Exercise, chosen: Boolean, onChoose: () -> Un
                 .lampShadow(if (chosen) Lift.LIFTED else Lift.RESTING, shape)
                 .clip(shape)
                 .background(Atelier.Paper)
+                .paperTooth()
                 .then(if (exercise.available) Modifier.clickable(role = Role.Button, onClickLabel = exercise.title, onClick = onChoose) else Modifier)
                 .semantics {
                     selected = chosen

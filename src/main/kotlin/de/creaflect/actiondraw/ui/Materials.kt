@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.creaflect.sketch.Paper
 import org.jetbrains.skia.FilterBlurMode
 import org.jetbrains.skia.MaskFilter
 import org.jetbrains.skia.Paint
@@ -103,6 +104,57 @@ fun Modifier.grainBehind(): Modifier = drawWithCache {
     val tile = Materials.grainTile()
     val brush = tile?.let { ShaderBrush(ImageShader(it, TileMode.Repeated, TileMode.Repeated)) }
     onDrawBehind { if (brush != null) drawRect(brush) }
+}
+
+/**
+ * The tooth of real paper over whatever colour is under it — drawn by the grain Sketch draws its
+ * pages with, so a print, a slip and a sketch are the same paper (F9.2). For drawing after a
+ * background and before the content: `.background(Atelier.Paper).paperTooth()`.
+ */
+fun Modifier.paperTooth(paper: Paper = Paper.MEDIUM, strength: Float = PAPER_TOOTH): Modifier = drawBehind {
+    drawIntoCanvas { paper.grain.shade(it.nativeCanvas, 0f, 0f, size.width, size.height, scale = 1f, strength = strength) }
+}
+
+/** How strongly a sheet's tooth shows: enough to read as paper, not so much as to look dirty. */
+const val PAPER_TOOTH = 0.2f
+
+/**
+ * Lines ruled across a card: the first [first] from the top, then every [spacing], in [rule];
+ * an index card has a red one at the top too ([header]).
+ */
+fun Modifier.ruled(first: Dp, spacing: Dp, rule: Color = RuleBlue, header: Color? = null): Modifier = drawBehind {
+    val f = first.toPx()
+    val step = spacing.toPx()
+    header?.let { drawLine(it, Offset(0f, f), Offset(size.width, f), 1.2.dp.toPx()) }
+    var y = f + if (header != null) step else 0f
+    while (y < size.height - step / 3f) {
+        drawLine(rule, Offset(0f, y), Offset(size.width, y), 1f)
+        y += step
+    }
+}
+
+/** The faint blue of ruled paper, and an index card's red top line. */
+val RuleBlue = Color(0x4D5B7FB8)
+val RuleRed = Color(0x99C0504D)
+
+/** A steel paperclip, [height] tall, standing at [topLeft]: what holds a link to the board. */
+fun DrawScope.drawPaperclip(topLeft: Offset, height: Float, color: Color = Color(0xFF8D949B)) {
+    val w = height * 0.36f
+    val stroke = Stroke(width = height * 0.07f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+    val x = topLeft.x
+    val y = topLeft.y
+    val clip = Path().apply {
+        // The outer loop down, round the bottom, up; the inner loop back down inside it.
+        moveTo(x + w * 0.75f, y + height * 0.3f)
+        lineTo(x + w * 0.75f, y + height * 0.8f)
+        cubicTo(x + w * 0.75f, y + height * 1.02f, x + w * 0.05f, y + height * 1.02f, x + w * 0.05f, y + height * 0.8f)
+        lineTo(x + w * 0.05f, y + height * 0.18f)
+        cubicTo(x + w * 0.05f, y - height * 0.04f, x + w * 0.95f, y - height * 0.04f, x + w * 0.95f, y + height * 0.18f)
+        lineTo(x + w * 0.95f, y + height * 0.72f)
+        moveTo(x + w * 0.4f, y + height * 0.3f)
+        lineTo(x + w * 0.4f, y + height * 0.74f)
+    }
+    drawPath(clip, color, style = stroke)
 }
 
 /**
