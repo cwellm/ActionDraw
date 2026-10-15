@@ -84,6 +84,10 @@ fun main() = application {
                     sketchHolder.state.open(file)
                     appState.showSketch(from = Screen.Board)
                 }
+                override fun sketchOver(picture: File) {
+                    sketchHolder.state.openFromSession(picture)
+                    appState.showSketch(from = Screen.Board)
+                }
             },
             concepts = conceptState,
         ).also { boardHolder.state = it }

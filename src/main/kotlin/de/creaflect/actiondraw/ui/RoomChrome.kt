@@ -127,7 +127,8 @@ fun CrossRoomButton(room: Room, label: String, modifier: Modifier = Modifier, en
     ) {
         PigmentDab(room.pigment, size = 11.dp, seed = room.seed, wet = enabled)
         Spacer(Modifier.width(7.dp))
-        Text(label, style = MaterialTheme.typography.body2, color = if (enabled) Atelier.TextSoft else Atelier.Muted, maxLines = 1)
+        // In the surface's own ink, light on the table and dark on cork or papyrus.
+        Text(label, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = if (enabled) 0.87f else 0.38f), maxLines = 1)
     }
 }
 

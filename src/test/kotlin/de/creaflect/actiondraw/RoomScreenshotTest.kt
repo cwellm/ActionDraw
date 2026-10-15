@@ -9,8 +9,12 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
@@ -126,7 +130,7 @@ class RoomScreenshotTest {
     }
 
     private fun ComposeUiTest.shoot(name: String, room: Room?) {
-        val png = Image.makeFromBitmap(onRoot().captureToImage().asSkiaBitmap()).encodeToData(EncodedImageFormat.PNG)!!
+        val png = Image.makeFromBitmap(onAllNodes(isRoot()).onFirst().captureToImage().asSkiaBitmap()).encodeToData(EncodedImageFormat.PNG)!!
         File(out, "$name.png").writeBytes(png.bytes)
         val texts = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true).fetchSemanticsNodes()
         val cut = texts.mapNotNull { node ->
@@ -212,6 +216,12 @@ class RoomScreenshotTest {
         world.show(this)
         mainClock.advanceTimeBy(1500)
         shoot("08-board-free", Room.BOARDS)
+        // The ring on a right click; Esc puts it away.
+        onNodeWithTag("card-${items[2].id}").performMouseInput { rightClick(center) }
+        mainClock.advanceTimeBy(300)
+        shoot("08-board-ring", Room.BOARDS)
+        onNodeWithTag("ring-menu").performKeyInput { pressKey(androidx.compose.ui.input.key.Key.Escape) }
+        mainClock.advanceTimeBy(300)
         world.boards.setLayout(BoardLayouts.GRID)
         mainClock.advanceTimeBy(1000)
         shoot("09-board-grid-plain", Room.BOARDS)

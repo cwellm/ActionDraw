@@ -332,7 +332,7 @@ private fun CanvasItem(
                 rotationZ = pos.rotation
             },
     ) {
-        ContextMenuArea(items = {
+        CardMenuArea(state, items = {
             listOf(
                 ContextMenuItem("Bring forward") { state.stepZ(item.id, forward = true) },
                 ContextMenuItem("Send backward") { state.stepZ(item.id, forward = false) },

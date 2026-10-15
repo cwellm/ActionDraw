@@ -493,6 +493,15 @@ class BoardState(
         sketchOf(item)?.let(host::openSketch)
     }
 
+    /**
+     * Into Live Sketch with [item]: its own sketch again, if Live Sketch made it; otherwise a page
+     * with the picture beside it as the reference.
+     */
+    fun sketchOver(item: ImageItem) {
+        val sketch = sketchOf(item)
+        if (sketch != null) host.openSketch(sketch) else fileOf(item)?.let(host::sketchOver)
+    }
+
     val selectedItems: List<BoardItem> get() = board?.items.orEmpty().filter { it.id in selection }
 
     val selectedImageFiles: List<File>
@@ -711,6 +720,16 @@ class BoardState(
         val synced = ConceptLink.reconcile(b) { snapshots[it] }
         if (synced != b) update { synced }
         if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+    }
+
+    /**
+     * Gives the selection to a concept: linked onto the board first if it is not yet, then the
+     * board's own cards go into its group — which makes them the concept's ([moveToGroup]).
+     */
+    fun selectionToConcept(conceptId: String) {
+        if (conceptId !in linkedConcepts) linkConcept(conceptId)
+        val group = sortedGroups.find { it.conceptId == conceptId } ?: return
+        moveToGroup(selection, group.id)
     }
 
     /** Links a concept onto the open board: its group appears with the concept's cards. */

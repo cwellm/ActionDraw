@@ -268,11 +268,7 @@ private fun PinMenu(state: AppState, pinTargets: PinTargets) {
     var open by remember { mutableStateOf(false) }
     val current = state.currentImage
     Box {
-        OutlinedButton(onClick = { open = true }, enabled = current != null) {
-            PigmentDab(Room.BOARDS.pigment, size = 11.dp, seed = Room.BOARDS.seed)
-            Spacer(Modifier.width(8.dp))
-            Text("Pin ▾")
-        }
+        CrossRoomButton(Room.BOARDS, "Pin ▾", Modifier.testTag("session-pin"), enabled = current != null) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             val boards = pinTargets.boards()
             if (boards.isEmpty()) {
@@ -423,11 +419,7 @@ private fun ControlBar(
                 // The paper beside the monitor, digitised: sketch with the reference kept in view.
                 onSketch?.let { open ->
                     val current = state.currentImage
-                    OutlinedButton(onClick = { current?.let(open) }, enabled = current != null, modifier = Modifier.testTag("session-sketch")) {
-                        PigmentDab(Room.SKETCH.pigment, size = 11.dp, seed = Room.SKETCH.seed)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Sketch")
-                    }
+                    CrossRoomButton(Room.SKETCH, "Sketch", Modifier.testTag("session-sketch"), enabled = current != null) { current?.let(open) }
                 }
             }
 

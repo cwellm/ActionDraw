@@ -725,19 +725,27 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   controls back, a watercolour without its rim)
 
 ### 🔄 F9.5 Room chrome and hand-offs
-- 🔄 `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a
+- ✅ `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a
   title and actions) heads the Practice room, the board list, the concept list and Sketch; a
-  board and a concept have the palette's `HomeButton` at the start of their own header (the
-  board's name is their title) — on the lists in place of their *Back*, which went to the same
-  place — and the app shell lays the room's 2 px pigment line along the top of every room but a
-  running pose
-- 🔄 `CrossRoomButton(room, label)`: the target room's dab before the label. Sketch's *To a board*
-  and *To a concept* are on it, out of the file menu into the header; *Draw from this board*,
-  *Sketch*, *Pin* and *Continue in Live Sketch* still to move (a session's *Sketch* and *Pin*
-  carry their dabs already, drawn by hand)
-- ⬜ The **ring menu** on a board: right-click on a selection opens six porcelain buttons round it
-  (Draw these, Sketch over, To a collage, Add to concept, Tag, Group), reachable by keyboard; the
-  context menu keeps every other command
+  board and a concept keep their own header, whose title is their name, with the palette's
+  `HomeButton` and the room's dab at its start — on the lists in place of their *Back*, which
+  went to the same place — and the app shell lays the room's 2 px pigment line along the top of
+  every room but a running pose
+- ✅ `CrossRoomButton(room, label)`: the target room's dab before the label, lettered in the
+  surface's own ink (light on the table, dark on cork). Every hand-off is on it: Sketch's *To a
+  board* and *To a concept*; on a board every *Draw* — the selection's, a group's, a smart
+  section's — with cadmium's dab, since drawing is Practice's; a session's *Pin* and *Sketch*;
+  the summary's *Pin flagged*; a concept's *Boards…*. *Continue in Live Sketch* is the ring's
+  *Sketch*, and on a concept's picture a chip with madder's dab
+- ✅ The **ring menu** on a board (`board/ui/RingMenu.kt`): a right click on a card opens six
+  porcelain wells round it, each with its room's pigment — **Draw these** (Practice), **Sketch
+  over** (Live Sketch with the picture beside the page, through a new `BoardHost.sketchOver`; a
+  picture Live Sketch made is continued instead), **To a collage** (a dry well, *coming*), **To a
+  concept** (which one; linked first if it is not yet — `selectionToConcept`), **Tag**,
+  **Group** — and *More…* in the middle for the full menu with every other command. It is a
+  `ContextMenuRepresentation`, so `ContextMenuArea` still decides when it opens and what the full
+  menu holds, and nothing else on the board changed. Arrows and Tab go round, Enter takes, Esc
+  closes. `RingMenuTest` (5); five guards broken on purpose and seen red
 - ✅ Lettered names: group tags, post-it notes and the ramp's legs in the `Hand` style (Caveat),
   board and concept names on the lists too
 

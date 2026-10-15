@@ -90,6 +90,7 @@ import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.CrossRoomButton
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.Canvas
@@ -291,6 +292,7 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)?
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
                 if (onHome != null) HomeButton(onHome, size = 32.dp)
+                PigmentDab(Room.CONCEPTS.pigment, seed = Room.CONCEPTS.seed)
                 Text(
                     concept.name,
                     style = MaterialTheme.typography.subtitle1,
@@ -311,7 +313,7 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)?
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { state.closeConcept() }, modifier = Modifier.testTag("concept-up")) { Text("↑ All concepts") }
                 AddMenu(state)
-                TextButton(onClick = { state.openEditor(ConceptEditor.LinkToBoards) }, modifier = Modifier.testTag("concept-link")) { Text("Boards…") }
+                CrossRoomButton(Room.BOARDS, "Boards…", Modifier.testTag("concept-link")) { state.openEditor(ConceptEditor.LinkToBoards) }
                 TextButton(onClick = { state.openEditor(ConceptEditor.DeleteConcept(state.root!!, concept.name)) }) { Text("Delete…") }
             }
         }

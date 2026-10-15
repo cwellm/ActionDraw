@@ -103,11 +103,7 @@ fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Thumb
             if (pinTargets != null && flagged.isNotEmpty()) {
                 var open by remember { mutableStateOf(false) }
                 Box {
-                    OutlinedButton(onClick = { open = true }) {
-                        PigmentDab(Room.BOARDS.pigment, size = 11.dp, seed = Room.BOARDS.seed)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Pin ${flagged.size} flagged to a board ▾")
-                    }
+                    CrossRoomButton(Room.BOARDS, "Pin ${flagged.size} flagged to a board ▾", Modifier.testTag("summary-pin")) { open = true }
                     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                         val boards = pinTargets.boards()
                         if (boards.isEmpty()) {

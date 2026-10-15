@@ -115,9 +115,19 @@ board knows lives in one file next to the pictures — `.actiondraw_board.json`.
 still have an ordinary folder of images; the board never renames, moves or deletes your files.
 
 On the board the pictures are prints on paper: pinned through on the free canvas, or taped when
-they are sketches you can continue, so the two are told apart at a glance. A group is drawn round
-its cards in graphite, its name lettered on a paper tag pinned in the group's colour; what is
-selected is marked in ultramarine. *Plain* is the graphite table, *cork* and *papyrus* stay.
+they are sketches you can continue, so the two are told apart at a glance. Notes are yellow slips
+or ruled sheets, links index cards held by a paperclip, and a card borrowed from a concept wears
+the concept's green tab. A group is drawn round its cards in graphite, its name lettered on a
+paper tag pinned in the group's colour; what is selected is marked in ultramarine. *Plain* is the
+graphite table, *cork* and *papyrus* stay.
+
+**The ring.** Right-click a card and six porcelain buttons open round it, each leading into a
+room and carrying its pigment: **Draw these** (Practice), **Sketch over** — Live Sketch with the
+picture beside the page, or *Continue sketch* for one Live Sketch made — **To a collage** (a dry
+well until Collage is built), **To a concept** (any concept; linked onto the board if it is not
+yet, and the cards become the concept's), **Tag** and **Group**. The middle button, *More…*,
+opens the full menu with every other command. The arrows or `Tab` go round the ring, `Enter`
+takes a button, `Esc` closes it.
 
 ### Getting started
 - The palette's **Boards** well opens the board you had open last, or the board list:

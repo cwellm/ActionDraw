@@ -96,6 +96,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.seed
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.PigmentDab
+import de.creaflect.actiondraw.ui.CrossRoomButton
 import de.creaflect.actiondraw.ui.grainBehind
 
 /**
@@ -211,6 +215,7 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onHome: 
         modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
     ) {
         if (onHome != null) HomeButton(onHome, size = 32.dp, modifier = Modifier.align(Alignment.CenterVertically).padding(end = 6.dp))
+        PigmentDab(Room.BOARDS.pigment, seed = Room.BOARDS.seed, modifier = Modifier.align(Alignment.CenterVertically).padding(end = 6.dp))
         Text(
             name,
             style = MaterialTheme.typography.subtitle1,
@@ -622,7 +627,8 @@ private fun BoardActionBar(state: BoardState) {
             modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
         ) {
             val drawable = state.selectedImageFiles.size
-            Button(onClick = { state.drawSelection() }, enabled = drawable > 0) { Text("Draw ($drawable)") }
+            // Drawing is Practice's: the way there carries cadmium's dab.
+            CrossRoomButton(Room.PRACTICE, "Draw ($drawable)", Modifier.testTag("draw-selection"), enabled = drawable > 0) { state.drawSelection() }
             val viewable = state.viewableIds.size
             FlatButton("View ($viewable)") { state.openViewer() }
             FlatButton("Group (${state.selection.size})") { state.startGrouping() }
@@ -666,7 +672,7 @@ private fun SmartHeader(state: BoardState, title: String, items: List<BoardItem>
             color = MaterialTheme.colors.secondary,
         )
         Spacer(Modifier.weight(1f))
-        OutlinedButton(onClick = { state.drawItems(items) }) { Text("Draw ${items.size}") }
+        CrossRoomButton(Room.PRACTICE, "Draw ${items.size}") { state.drawItems(items) }
     }
 }
 

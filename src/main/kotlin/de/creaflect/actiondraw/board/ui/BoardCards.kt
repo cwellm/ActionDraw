@@ -64,6 +64,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.ui.CrossRoomButton
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
@@ -111,7 +112,7 @@ fun BoardCard(
         Modifier
     }
     Box(modifier) {
-        ContextMenuArea(items = { gridOrderMenuItems(state, item, groupId) + cardMenuItems(state, item) }) {
+        CardMenuArea(state, items = { gridOrderMenuItems(state, item, groupId) + cardMenuItems(state, item) }) {
             when (item) {
                 is ImageItem -> ImageCard(state, thumbs, item, textured)
                 is NoteItem -> NoteCard(state, item, textured)
@@ -461,7 +462,7 @@ fun GroupHeader(state: BoardState, group: BoardGroup?, count: Int, dropTarget: B
                 Spacer(Modifier.weight(1f))
                 val drawable = if (group == null) count else state.itemsInTree(group.id).size
                 if (drawable > 0) {
-                    OutlinedButton(onClick = { state.drawGroup(group?.id) }) { Text("Draw $drawable") }
+                    CrossRoomButton(Room.PRACTICE, "Draw $drawable") { state.drawGroup(group?.id) }
                 }
             }
             // A hairline in the group's colour ties its cards to the header above them.

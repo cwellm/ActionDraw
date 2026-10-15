@@ -34,4 +34,7 @@ interface BoardHost {
 
     /** Continue the sketch saved in [file] (a `.sketch.json`) in Live Sketch. */
     fun openSketch(file: File) {}
+
+    /** Open Live Sketch on a page with [picture] beside it as the reference, to draw over or from. */
+    fun sketchOver(picture: File) {}
 }

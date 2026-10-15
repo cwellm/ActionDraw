@@ -204,6 +204,8 @@ object Hotkeys {
     )
     val BOARD: List<Pair<String, String>> = listOf(
         "Click · Ctrl+click · Shift+click" to "select · toggle · range",
+        "Right click a card" to "the ring: draw · sketch over · collage · to a concept · tag · group · More… for the full menu",
+        "← → ↑ ↓ · Tab · Enter · Esc (ring open)" to "round the ring · take a button · close it",
         "Ctrl+A · Ctrl+C · Ctrl+V" to "select all · copy · paste",
         "← → ↑ ↓" to "move focus (grid) · nudge the selection (free)",
         "Ctrl+↑ / ↓ (+Shift)" to "reorder one step (all the way)",
