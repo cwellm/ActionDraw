@@ -194,7 +194,7 @@ private fun ToolRow(key: String, label: String, chosen: Boolean, tag: String, on
 private fun DrawScope.drawTool(lead: Lead) {
     val w = size.width
     val t = size.height
-    shadow(Size(w - t * 0.4f, t))
+    toolShadow(Size(w - t * 0.4f, t))
     when (lead) {
         Lead.HARD -> pencil(Color(0xFFA9B4BF), Color(0xFF77726D))
         Lead.MEDIUM -> pencil(Color(0xFF3E5873), Color(0xFF3A3734))
@@ -206,7 +206,7 @@ private fun DrawScope.drawTool(lead: Lead) {
     }
 }
 
-private fun DrawScope.shadow(of: Size) {
+private fun DrawScope.toolShadow(of: Size) {
     val outline = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, of.width, of.height, CornerRadius(of.height * 0.3f))) }
     drawLampShadow(outline, size.height * 0.45f, alpha = 0.55f)
 }

@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.sketch.ui
 
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -175,7 +177,7 @@ internal fun LargeReference(file: File, thumbs: ThumbCache, onClose: () -> Unit,
         value = withContext(Dispatchers.IO) { thumbs.load(file, maxSize = 900) }
     }
     val bmp = bitmap ?: return
-    Surface(elevation = 8.dp, shape = RoundedCornerShape(4.dp), color = Atelier.Paper, modifier = modifier.padding(12.dp)) {
+    Surface(elevation = 0.dp, shape = RoundedCornerShape(4.dp), color = Atelier.Paper, modifier = modifier.padding(12.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(4.dp))) {
         Image(
             bitmap = bmp,
             contentDescription = file.name,

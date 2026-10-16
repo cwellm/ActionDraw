@@ -28,8 +28,8 @@ concepts*, *New sketch* or *Continue the sketch*.
   the small palette button at the start of every room's header.
 - **Settings** and **Hotkeys** sit in the palette's top right corner.
 - A room opens as its colour spreads from the well like watercolour, and drains back into it on
-  the way home. While you draw, Live Sketch's header, tray and paper and a session's controls step back; bring
-  the pointer to them and they return. **Settings → Reduce motion** keeps all of this to short
+  the way home. While you draw, Live Sketch's header, tray and paper and a session's controls step back — in a
+  pose the picture grows into the controls' room — and bring the pointer to them and they return. **Settings → Reduce motion** keeps all of this to short
   fades; until it is set, it follows Windows' *Show animations*.
 
 ## Draw — timed reference practice

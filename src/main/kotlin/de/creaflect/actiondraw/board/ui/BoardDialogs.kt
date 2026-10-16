@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.board.ui
 
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -772,9 +774,10 @@ private fun DialogScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.
     ) {
         Surface(
             shape = RoundedCornerShape(8.dp),
-            elevation = 16.dp,
+            elevation = 0.dp,
             modifier = Modifier
                 .widthIn(min = 380.dp, max = 540.dp)
+                .lampShadow(Lift.HELD, RoundedCornerShape(8.dp))
                 // Swallow taps so the dialog body doesn't dismiss itself.
                 .pointerInput(Unit) { detectTapGestures { } },
         ) {

@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.board.ui
 
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -169,9 +171,9 @@ private fun MenuScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.()
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            elevation = 12.dp,
+            elevation = 0.dp,
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.widthIn(max = 640.dp).padding(24.dp).clickable(enabled = false) {},
+            modifier = Modifier.widthIn(max = 640.dp).padding(24.dp).lampShadow(Lift.HELD, RoundedCornerShape(8.dp)).clickable(enabled = false) {},
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
         }

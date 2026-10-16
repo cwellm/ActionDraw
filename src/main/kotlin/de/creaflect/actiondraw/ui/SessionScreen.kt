@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -121,12 +122,32 @@ fun SessionScreen(
         }
     } else {
         val watch = remember { PointerWatch() }
-        Column(Modifier.fillMaxSize().watchPointer(watch)) {
-            Box(Modifier.weight(1f).fillMaxWidth()) {
+        val reduced = LocalReducedMotion.current
+        // While the controls are back, the picture takes their room (CONCEPT.md, *Recede*): it
+        // grows as they fade and gives the room back as they return. Read in layout only, so the
+        // fade measures the picture again and recomposes nothing.
+        val give = animateFloatAsState(
+            if (receded.value) 1f else 0f,
+            tween(if (reduced) Motion.REDUCED_MS else if (receded.value) Motion.RECEDE_MS else Motion.RETURN_MS),
+        )
+        val barHeight = remember { mutableStateOf(0) }
+        Box(Modifier.fillMaxSize().watchPointer(watch)) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .layout { measurable, constraints ->
+                        val room = (barHeight.value * (1f - give.value)).roundToInt()
+                        val h = (constraints.maxHeight - room).coerceAtLeast(0)
+                        val picture = measurable.measure(constraints.copy(minHeight = h, maxHeight = h))
+                        layout(constraints.maxWidth, constraints.maxHeight) { picture.place(0, 0) }
+                    },
+            ) {
                 ImageArea(state, bitmap, current, Modifier.fillMaxSize())
                 Enso(state, dimmed = receded.value, modifier = Modifier.align(Alignment.TopEnd).padding(20.dp))
             }
-            SessionChrome(state, watch, receded) { ControlBar(state, bitmap, onToggleFullscreen, pinTargets, onSketch) }
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { barHeight.value = it.height }) {
+                SessionChrome(state, watch, receded) { ControlBar(state, bitmap, onToggleFullscreen, pinTargets, onSketch) }
+            }
         }
     }
 }

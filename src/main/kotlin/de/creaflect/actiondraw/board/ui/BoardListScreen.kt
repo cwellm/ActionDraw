@@ -12,6 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -175,14 +182,13 @@ private fun BoardTile(
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(6.dp)
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, board.cover) {
         value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 320) } }
     }
-    // A board on the shelf: its cover as a print, its name lettered under it.
+    // A board on the shelf: its cover as a print standing on a plank, its name lettered under it.
+    // Not clipped, so the plank can reach into the gaps and a row of boards reads as one shelf.
     Column(
         Modifier
-            .clip(shape)
             .clickable { onOpen() }
             .padding(bottom = 8.dp),
     ) {
@@ -210,6 +216,7 @@ private fun BoardTile(
                 Text("empty", color = Color.White.copy(alpha = 0.35f), style = MaterialTheme.typography.caption)
             }
         }
+        Shelf(Modifier.fillMaxWidth().offset(y = (-6).dp).testTag("shelf"))
         board.parent?.let {
             Text(
                 "in $it",
@@ -267,4 +274,28 @@ private fun BoardTile(
             )
         }
     }
+}
+
+/**
+ * A stretch of the shelf the covers stand on: a wooden plank, lit along its front edge, its
+ * shadow under it, reaching half the grid's gap to each side to meet the next one.
+ */
+@Composable
+private fun Shelf(modifier: Modifier) {
+    Box(
+        modifier
+            .height(9.dp)
+            .drawBehind {
+                val reach = 7.dp.toPx()
+                val left = -reach
+                val width = size.width + 2 * reach
+                drawRect(Color.Black.copy(alpha = 0.35f), Offset(left, size.height), Size(width, 4.dp.toPx()))
+                drawRect(
+                    Brush.verticalGradient(listOf(Color(0xFF8A6446), Color(0xFF5E4130), Color(0xFF3B271A)), 0f, size.height),
+                    Offset(left, 0f),
+                    Size(width, size.height),
+                )
+                drawLine(Color.White.copy(alpha = 0.18f), Offset(left, 1f), Offset(left + width, 1f), 1.dp.toPx())
+            },
+    )
 }

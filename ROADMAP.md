@@ -647,7 +647,7 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   ultramarine (the room's own colour for what helps arrange), the star in Naples yellow, the
   practice badges in Practice's cadmium (*redo*) and quiet ink (*drawn*)
 
-### 🔄 F9.2 Materials in code
+### ✅ F9.2 Materials in code
 - ✅ `ui/Materials.kt`: a grain over the ground — one SkSL tile of per-pixel noise in two-pixel
   clumps, light and dark at most 6 % strong, made once and drawn as a repeating shader
   (`Modifier.grain()`); no per-frame `ImageBitmap`
@@ -657,9 +657,12 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   list's covers, the concept folios (kraft, on rough paper), the exercise cards, the summary's
   prints, the glass's print; Sketch's swatches were already drawn by it (F9.8). `BoardDressTest`
   holds paper to having its tooth and the table to having none
-- 🔄 One lamp: a `Lift` scale (resting, lifted, held) and `drawLampShadow`/`Modifier.lampShadow`,
-  a blurred shadow cast to the bottom right; the palette uses it — the scattered `elevation =`
-  values go as each room is re-dressed
+- ✅ One lamp: a `Lift` scale (resting, lifted, held) and `drawLampShadow`/`Modifier.lampShadow`,
+  a blurred shadow cast to the bottom right, for everything that lies on the table or over it:
+  cards and prints resting, the drawer, the fold-outs and the large reference lifted, every
+  dialog held. Material's elevation is gone from the app; `OneLampTest` reads the sources and
+  fails on any `elevation =` above zero or `Modifier.shadow`, so a new screen cannot bring a
+  second light into the room (seen red with the drawer's old elevation put back)
 - ✅ Small `DrawScope` pieces: pigment dab (a seeded blob, wet with the lamp's highlight or dry and
   pale), porcelain well (in shadow along its top), masking tape (torn ends), push-pin, a lacquered
   pencil. `MaterialsTest` (7) draws each into a bitmap and reads the pixels back
@@ -688,7 +691,7 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   room's top, a sketch from a pose, the keys passing the dry wells, and the palette on screen
   (click, second click, centre button, arrows, Enter). Four guards broken on purpose and seen red
 
-### 🔄 F9.4 Motion
+### ✅ F9.4 Motion
 - ✅ `ui/Motion.kt`: the tokens (durations, easings), and **reduced motion** — a box in Settings,
   following Windows' *Show animations* (`SPI_GETCLIENTAREAANIMATION`, read through JNA) until it
   is set; reduced, the bloom is a 120 ms wash, nothing ripples, chrome fades in 120 ms
@@ -713,18 +716,22 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   units, so it does not swim when zooming, closing where it began) — drawn, clipped to and
   hit-tested, so all 270 board tests, `CanvasHitTest` among them, pass on the wobbly frames.
   The drawing starts at the path's start, not yet where the pointer let go
-- 🔄 **Recede** — `RecedingChrome` and `PointerWatch` (watches the pointer, takes nothing): Sketch's
-  toolbar steps back 1.5 s into a stroke (not while Pen or Tune is open) and stays back until the
-  pointer comes up to it; a session's controls step back while a pose runs and the mouse rests,
-  and come back near the bottom edge or on a pause. They keep their space for now — the picture
-  and the page take it over when the rooms are re-dressed (F9.6, F9.8); the ensō comes with F9.6
+- ✅ **Recede** — `RecedingChrome` and `PointerWatch` (watches the pointer, takes nothing): Sketch's
+  header, tray and paper step back 1.5 s into a stroke (not while Pen or Tune is open) and stay
+  back until the pointer comes up to any of them; a session's controls step back while a pose
+  runs and the mouse rests, and come back near the bottom edge or on a pause. In a pose the
+  **picture takes the controls' room** as they fade and gives it back as they return — measured
+  again in layout, nothing recomposed (`MotionTest`: the whole height the picture's, then exactly
+  the bar's room given back, the paused bar being taller). In Sketch the **page keeps still** on
+  purpose: the chrome steps back mid-stroke, and a page that moved then would move the line under
+  the pen
 - ✅ A guard for stroke latency: the chrome recomposes on its own, never the page, and
   `SketchSurface.snapshotsTaken` counts tile pictures made for the screen — none while the
   toolbar fades during a live stroke (`SketchStateTest`). Four guards broken on purpose and seen
   red (chrome that never recedes, a toolbar that never returns, a pause that does not bring the
   controls back, a watercolour without its rim)
 
-### 🔄 F9.5 Room chrome and hand-offs
+### ✅ F9.5 Room chrome and hand-offs
 - ✅ `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a
   title and actions) heads the Practice room, the board list, the concept list and Sketch; a
   board and a concept keep their own header, whose title is their name, with the palette's
@@ -778,7 +785,7 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   when its picture came into the session flagged (`AppStateTest`, both cases seen red first)
 - ✅ `PracticeTest` (7); three more guards broken on purpose and seen red
 
-### 🔄 F9.7 Boards, re-dressed
+### ✅ F9.7 Boards, re-dressed
 - ✅ Pictures as **prints** on every surface — the picture on paper with a 6 dp border (on the
   plain board too, where it sat on black), in the grid and on the free canvas; on the canvas a
   print is held by an ultramarine **pin**, a sketch that can be continued by **tape**, which is how
@@ -797,7 +804,8 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 - ✅ Cork and papyrus stay; **plain** is the graphite table, with the table's grain under the cards
 - ✅ The board list: covers as prints under the lamp, names lettered; the concept list as **folios**
   — kraft, a viridian tab with the kind, the cover as a print, the name lettered (ink on kraft
-  7.6:1, the counts 4.8:1). Both under the room's header. No shelf plank yet
+  7.6:1, the counts 4.8:1). Both under the room's header. The covers stand on a **shelf**: a
+  wooden plank under each, reaching into the gaps, so a row of boards reads as one shelf
 - ✅ `BoardDressTest` (2) reads the pixels at a card's top: a pin on a print and none on a sketch,
   tape the other way round, the pin gone under a single selection's handle and back when two are
   selected. Three guards broken on purpose and seen red. The test lays the canvas on the table

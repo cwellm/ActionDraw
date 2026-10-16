@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.sketch.ui
 
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -270,9 +272,9 @@ private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> 
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            elevation = 12.dp,
+            elevation = 0.dp,
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.widthIn(min = 380.dp, max = 620.dp).padding(24.dp).pointerInput(Unit) { detectTapGestures { } },
+            modifier = Modifier.widthIn(min = 380.dp, max = 620.dp).padding(24.dp).lampShadow(Lift.HELD, RoundedCornerShape(8.dp)).pointerInput(Unit) { detectTapGestures { } },
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
         }

@@ -285,7 +285,7 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
 fun ConceptScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     val concept = state.concept ?: return
     Column(Modifier.fillMaxSize()) {
-        Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 3.dp, modifier = Modifier.fillMaxWidth().testTag("concept-header")) {
+        Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 0.dp, modifier = Modifier.fillMaxWidth().lampShadow(Lift.RESTING).testTag("concept-header")) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -720,10 +720,10 @@ private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> 
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            elevation = 12.dp,
+            elevation = 0.dp,
             shape = RoundedCornerShape(8.dp),
             // Swallow taps so the dialog body doesn't dismiss itself.
-            modifier = Modifier.widthIn(max = 760.dp).padding(24.dp).pointerInput(Unit) { detectTapGestures { } },
+            modifier = Modifier.widthIn(max = 760.dp).padding(24.dp).lampShadow(Lift.HELD, RoundedCornerShape(8.dp)).pointerInput(Unit) { detectTapGestures { } },
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
         }

@@ -149,11 +149,17 @@ class MotionTest {
         rule.waitForIdle()
         val chrome = rule.onNodeWithTag("session-chrome")
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+        fun pictureHeight() = rule.onNodeWithTag("reference").fetchSemanticsNode().size.height
+        val window = rule.onRoot().fetchSemanticsNode().size.height
+        assertEquals(window, pictureHeight() + chrome.fetchSemanticsNode().size.height, "the controls take their room")
 
-        // The mouse rests: the drawing is on paper.
+        // The mouse rests: the drawing is on paper, and the picture takes the controls' room.
         rule.mainClock.advanceTimeBy(Motion.RECEDE_AFTER_MS + 200L)
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        rule.mainClock.advanceTimeBy(Motion.RECEDE_MS + 100L)
+        rule.waitForIdle()
+        assertEquals(window, pictureHeight(), "the whole height is the picture's")
 
         // Down to the bar: there it is.
         chrome.performMouseInput { moveTo(center) }
@@ -168,5 +174,9 @@ class MotionTest {
         state.togglePause()
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+        rule.mainClock.advanceTimeBy(Motion.RETURN_MS + 100L)
+        rule.waitForIdle()
+        // Paused, the bar is taller (the time can be set): the picture gives back just what it takes.
+        assertEquals(window, pictureHeight() + chrome.fetchSemanticsNode().size.height, "and gives the room back as they return")
     }
 }

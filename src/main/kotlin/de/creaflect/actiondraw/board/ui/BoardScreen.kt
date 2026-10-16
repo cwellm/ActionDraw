@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.board.ui
 
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -160,8 +162,8 @@ fun BoardScreen(
                     // A stripe under the chrome: text-weight controls straight on cork or a
                     // wallpaper were barely there. Slightly translucent so the board shows through.
                     color = MaterialTheme.colors.surface.copy(alpha = 0.94f),
-                    elevation = 3.dp,
-                    modifier = Modifier.fillMaxWidth().testTag("board-header"),
+                    elevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth().lampShadow(Lift.RESTING).testTag("board-header"),
                 ) { Column {
                     BoardHeader(state, board.name, board.theme, onHome, onImmersive = {
                         state.immersive = true
@@ -620,7 +622,7 @@ private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BoardActionBar(state: BoardState) {
-    Surface(elevation = 8.dp, modifier = Modifier.testTag("action-bar")) {
+    Surface(elevation = 0.dp, modifier = Modifier.lampShadow(Lift.LIFTED).testTag("action-bar")) {
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),

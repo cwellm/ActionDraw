@@ -888,10 +888,11 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
     Surface(
         color = Atelier.Paper,
         shape = RoundedCornerShape(2.dp),
-        elevation = 2.dp,
+        elevation = 0.dp,
         modifier = Modifier
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
             .graphicsLayer { alpha = shown }
+            .lampShadow(Lift.RESTING, RoundedCornerShape(2.dp))
             .onSizeChanged { size = it }
             .testTag("group-label-" + hull.group.id)
             // The label is the group's handle: a press picks the group up, a drag moves it — the

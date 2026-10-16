@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.board.ui
 
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,8 +55,8 @@ import kotlinx.coroutines.withContext
 fun BoardDrawer(state: BoardState, thumbs: ThumbCache) {
     Surface(
         color = MaterialTheme.colors.surface,
-        elevation = 6.dp,
-        modifier = Modifier.width(280.dp).fillMaxHeight(),
+        elevation = 0.dp,
+        modifier = Modifier.width(280.dp).fillMaxHeight().lampShadow(Lift.LIFTED),
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(

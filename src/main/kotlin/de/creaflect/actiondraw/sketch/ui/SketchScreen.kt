@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.sketch.ui
 
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -278,7 +280,7 @@ private fun StatusLine(state: SketchState) {
 
 @Composable
 private fun FoldOut(content: @Composable () -> Unit) {
-    Surface(color = Atelier.Raised, shape = RoundedCornerShape(10.dp), elevation = 6.dp, modifier = Modifier.widthIn(max = 640.dp)) {
+    Surface(color = Atelier.Raised, shape = RoundedCornerShape(10.dp), elevation = 0.dp, modifier = Modifier.widthIn(max = 640.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(10.dp))) {
         Box(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) { content() }
     }
 }

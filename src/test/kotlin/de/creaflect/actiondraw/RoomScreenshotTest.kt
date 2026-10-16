@@ -10,6 +10,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.isRoot
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
@@ -41,6 +42,7 @@ import java.nio.file.Files
 import javax.imageio.ImageIO
 import kotlin.test.AfterTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -193,6 +195,11 @@ class RoomScreenshotTest {
     fun boardsListedAndOpen() = window {
         val world = World()
         val home = File(root, "boards")
+        // Two more boards first, so the list has a shelf of covers.
+        listOf("Hands" to 0xE6C9B8, "Faces" to 0xD8D2E8).forEach { (name, tint) ->
+            world.boards.createBoard(home, name)
+            world.boards.importExternal(listOf(picture(File(world.boards.root!!, "cover.png"), tint)))
+        }
         world.boards.createBoard(home, "Drachenbuch")
         val board = world.boards.root!!
         val files = listOf(0xE8DCC8, 0xC9D8C0, 0xE6C9B8, 0xD8D2E8).mapIndexed { i, tint -> picture(File(board, "p$i.png"), tint) }
@@ -231,6 +238,13 @@ class RoomScreenshotTest {
         world.boards.closeBoard()
         world.boards.openBoardList()
         mainClock.advanceTimeBy(1000)
+        // The tiles are read off the disk away from the screen: wait for them, not for the clock.
+        repeat(100) {
+            if (onAllNodesWithTag("shelf", useUnmergedTree = true).fetchSemanticsNodes().size == 3) return@repeat
+            Thread.sleep(50)
+            mainClock.advanceTimeBy(50)
+        }
+        assertEquals(3, onAllNodesWithTag("shelf", useUnmergedTree = true).fetchSemanticsNodes().size, "three boards on the shelf")
         shoot("10-board-list", Room.BOARDS)
     }
 
