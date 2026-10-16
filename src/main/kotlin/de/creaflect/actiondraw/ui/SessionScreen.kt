@@ -42,6 +42,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -123,6 +128,7 @@ fun SessionScreen(
     } else {
         val watch = remember { PointerWatch() }
         val reduced = LocalReducedMotion.current
+        SessionRecede(state, watch, receded)
         // While the controls are back, the picture takes their room (CONCEPT.md, *Recede*): it
         // grows as they fade and gives the room back as they return. Read in layout only, so the
         // fade measures the picture again and recomposes nothing.
@@ -131,7 +137,13 @@ fun SessionScreen(
             tween(if (reduced) Motion.REDUCED_MS else if (receded.value) Motion.RECEDE_MS else Motion.RETURN_MS),
         )
         val barHeight = remember { mutableStateOf(0) }
-        Box(Modifier.fillMaxSize().watchPointer(watch)) {
+        // The settings above the tray: of what was just chosen or turned on.
+        val settings = remember { mutableStateOf<SessionSettings?>(null) }
+        OpenSettingsWithTheirControls(state, settings)
+        // Where each control with settings sits along the tray, so they open right above it.
+        val anchors = remember { mutableStateMapOf<SessionSettings, Float>() }
+        val originX = remember { mutableStateOf(0f) }
+        Box(Modifier.fillMaxSize().watchPointer(watch).onGloballyPositioned { coordinates -> coordinates.positionInRoot().x.let { if (originX.value != it) originX.value = it } }) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -143,42 +155,390 @@ fun SessionScreen(
                     },
             ) {
                 ImageArea(state, bitmap, current, Modifier.fillMaxSize())
-                Enso(state, dimmed = receded.value, modifier = Modifier.align(Alignment.TopEnd).padding(20.dp))
+            }
+            // Top left: the way out, and what is running.
+            SessionPiece(receded, watch, ChromeEdge.TOP, "session-top", Modifier.align(Alignment.TopStart)) {
+                TopRow(state, onToggleFullscreen)
+            }
+            // Top right: the enso, which never leaves - a click pauses - and under it what can be
+            // done with this picture.
+            Column(
+                Modifier.align(Alignment.TopEnd).padding(top = 20.dp, end = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Enso(
+                    state,
+                    dimmed = receded.value,
+                    modifier = Modifier.clickable(role = Role.Button, onClickLabel = if (state.isPaused) "Go on" else "Pause") { state.togglePause() },
+                )
+                SessionPiece(receded, watch, ChromeEdge.RIGHT, "session-side") { SideButtons(state, pinTargets, onSketch) }
+            }
+            if (state.isPaused) PausePanel(state, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
+            settings.value?.takeIf { it.isOn(state) }?.let { target ->
+                val above = with(LocalDensity.current) { barHeight.value.toDp() } + 6.dp
+                Box(
+                    Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .padding(bottom = above)
+                        .layout { measurable, constraints ->
+                            // Centred over its control, kept on screen.
+                            val popover = measurable.measure(constraints.copy(minWidth = 0))
+                            val margin = 12.dp.roundToPx()
+                            val centre = anchors[target] ?: (constraints.maxWidth / 2f)
+                            val x = (centre - popover.width / 2f).roundToInt()
+                                .coerceIn(margin, (constraints.maxWidth - popover.width - margin).coerceAtLeast(margin))
+                            layout(constraints.maxWidth, popover.height) { popover.place(x, 0) }
+                        },
+                ) {
+                    SessionPiece(receded, watch, ChromeEdge.BOTTOM, "session-settings") {
+                        SettingsPopover(state, target, onClose = { settings.value = null })
+                    }
+                }
             }
             Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { barHeight.value = it.height }) {
-                SessionChrome(state, watch, receded) { ControlBar(state, bitmap, onToggleFullscreen, pinTargets, onSketch) }
+                SessionPiece(receded, watch, ChromeEdge.BOTTOM, "session-chrome", Modifier.fillMaxWidth()) {
+                    Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp, start = 12.dp, end = 12.dp), contentAlignment = Alignment.Center) {
+                        Tray(state, bitmap, settings, onAnchor = { target, x -> (x - originX.value).let { if (anchors[target] != it) anchors[target] = it } })
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * While a pose runs and the mouse rests — the drawing happens on paper — the controls step back
- * (CONCEPT.md, *Recede*); bringing the pointer down to them, or pausing, brings them back. The
+ * While a pose runs and the mouse rests - the drawing happens on paper - the controls step back
+ * (CONCEPT.md, *Recede*); bringing the pointer to any of them, or pausing, brings them back. The
  * keys work all the while.
  */
 @Composable
-private fun SessionChrome(state: AppState, watch: PointerWatch, receded: MutableState<Boolean>, bar: @Composable () -> Unit) {
+private fun SessionRecede(state: AppState, watch: PointerWatch, receded: MutableState<Boolean>) {
     val paused = state.isPaused
     LaunchedEffect(paused) {
         if (paused) {
             receded.value = false
             return@LaunchedEffect
         }
-        // Every move starts the wait again; a move does not bring the bar back, nearing it does.
+        // Every move starts the wait again; a move does not bring the controls back, nearing them does.
         snapshotFlow { watch.moves }.collectLatest {
             delay(Motion.RECEDE_AFTER_MS)
             receded.value = true
         }
     }
+}
+
+/** One piece of the pose's chrome, stepping back with the others and back as the pointer nears its [edge]. */
+@Composable
+private fun SessionPiece(
+    receded: MutableState<Boolean>,
+    watch: PointerWatch,
+    edge: ChromeEdge,
+    tag: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
     RecedingChrome(
         receded = receded.value,
         watch = watch,
-        edge = ChromeEdge.BOTTOM,
-        modifier = Modifier.testTag("session-chrome"),
+        edge = edge,
+        modifier = modifier.testTag(tag),
         onOver = { receded.value = false },
-        content = bar,
+        content = content,
     )
+}
+
+// ---------------- Round the picture ----------------
+
+/** What the settings above the tray can show: the chosen lens's, the light, blur, shards, the glass. */
+private enum class SessionSettings { LENS, LIGHT, BLUR, SHARDS, GLASS }
+
+private fun ViewMode.hasSettings(): Boolean =
+    this == ViewMode.POSTERIZE || this == ViewMode.PIXELATE || this == ViewMode.SILHOUETTE || this == ViewMode.NOTAN
+
+/** Whether there is anything to set: a lens with settings chosen, blur or shards on, the glass in hand. */
+private fun SessionSettings.isOn(state: AppState): Boolean = when (this) {
+    SessionSettings.LENS -> state.viewMode.hasSettings()
+    SessionSettings.LIGHT -> true
+    SessionSettings.BLUR -> state.blur
+    SessionSettings.SHARDS -> state.defraction
+    SessionSettings.GLASS -> state.glass.inHand
+}
+
+/** Choosing a lens with settings, or turning blur, shards or the glass on - by click or key - opens its settings. */
+@Composable
+private fun OpenSettingsWithTheirControls(state: AppState, settings: MutableState<SessionSettings?>) {
+    fun follow(target: SessionSettings, on: Boolean) {
+        if (on) settings.value = target else if (settings.value == target) settings.value = null
+    }
+    LaunchedEffect(state.viewMode) { follow(SessionSettings.LENS, state.viewMode.hasSettings()) }
+    LaunchedEffect(state.blur) { if (state.blur || settings.value == SessionSettings.BLUR) follow(SessionSettings.BLUR, state.blur) }
+    LaunchedEffect(state.defraction) { if (state.defraction || settings.value == SessionSettings.SHARDS) follow(SessionSettings.SHARDS, state.defraction) }
+    LaunchedEffect(state.glass.inHand) { if (state.glass.inHand || settings.value == SessionSettings.GLASS) follow(SessionSettings.GLASS, state.glass.inHand) }
+}
+
+/** Top left: Stop, and what is running - its plan and where the pictures come from - and two quiet switches. */
+@Composable
+private fun TopRow(state: AppState, onToggleFullscreen: () -> Unit) {
+    Column(Modifier.padding(start = 20.dp, top = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Atelier.Raised)
+                    .clickable(role = Role.Button, onClickLabel = "Stop the session") { state.stop() }
+                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                    .testTag("session-stop"),
+            ) {
+                Text("✕", fontSize = 13.sp, color = Atelier.Text)
+                Text("Stop", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Text)
+                Text("Esc", fontSize = 11.sp, color = Atelier.Muted)
+            }
+            Text(sessionCaption(state), fontSize = 13.sp, color = Atelier.TextSoft, maxLines = 1, modifier = Modifier.overPicture().testTag("session-caption"))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.overPicture()) {
+            QuietSwitch("Auto-advance", "A", state.autoAdvance, "session-auto") { state.autoAdvance = !state.autoAdvance }
+            QuietSwitch("Fullscreen", "F", false, "session-fullscreen") { onToggleFullscreen() }
+        }
+        // What the last pin did, until the next one.
+        state.pinNotice?.let { Text(it, fontSize = 12.sp, color = Room.CONCEPTS.pigment.glow, modifier = Modifier.overPicture()) }
+    }
+}
+
+/** Words lying over the picture get a dark wash under them, so they read on any picture. */
+private fun Modifier.overPicture(): Modifier =
+    clip(RoundedCornerShape(5.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp)
+
+/** The plan running and where its pictures come from: "Classic gesture · Drachenbuch". */
+internal fun sessionCaption(state: AppState): String =
+    listOfNotNull(state.rampPlan?.name ?: (formatTime(state.intervalSeconds) + " each"), state.folder?.name).joinToString(" · ")
+
+/** A switch said in words, its key beside it: lit when on. */
+@Composable
+private fun QuietSwitch(label: String, key: String, on: Boolean, tag: String, onClick: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .clickable(role = Role.Switch, onClickLabel = label, onClick = onClick)
+            .semantics { selected = on }
+            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .testTag(tag),
+    ) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Atelier.Line))
+        Text(label, fontSize = 12.sp, color = if (on) Atelier.Text else Atelier.Muted)
+        Text(key, fontSize = 10.sp, color = Atelier.InkQuiet)
+    }
+}
+
+/**
+ * Under the enso: back and on, and what can be done with this picture - flag it to redo, hide it,
+ * sketch from it, pin it to a board. The last two lead into other rooms and carry their dabs.
+ */
+@Composable
+private fun SideButtons(state: AppState, pinTargets: PinTargets?, onSketch: ((File) -> Unit)?) {
+    val current = state.currentImage
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RoundButton("Back", PREV_ICON, size = 34.dp, label = false, tag = "session-prev") { state.previous() }
+            RoundButton("On", NEXT_ICON, size = 34.dp, label = false, tag = "session-next") { state.next() }
+        }
+        RoundButton("Redo", REDO_ICON, on = state.isCurrentRedo, tag = "session-redo") { state.toggleRedoCurrent() }
+        RoundButton("Hide", EYE_ICON, on = state.referenceFlipped, tag = "session-hide") { state.toggleReference() }
+        onSketch?.let { open ->
+            RoundButton("Sketch", PENCIL_ICON, room = Room.SKETCH, enabled = current != null, tag = "session-sketch") { current?.let(open) }
+        }
+        pinTargets?.let { PinButton(state, it) }
+    }
+}
+
+/**
+ * Pin - files the picture on screen away on an Idea Board. The session itself knows nothing
+ * about boards; [PinTargets] supplies both the list and the action.
+ */
+@Composable
+private fun PinButton(state: AppState, pinTargets: PinTargets) {
+    var open by remember { mutableStateOf(false) }
+    val current = state.currentImage
+    Box {
+        RoundButton("Pin", PIN_ICON, room = Room.BOARDS, enabled = current != null, tag = "session-pin") { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            val boards = pinTargets.boards()
+            if (boards.isEmpty()) {
+                DropdownMenuItem(onClick = { open = false }) { Text("No boards yet") }
+            }
+            boards.forEach { (name, dir) ->
+                DropdownMenuItem(onClick = {
+                    open = false
+                    current?.let { state.pinNotice = pinTargets.pin(dir, listOf(it)) }
+                }) { Text(name) }
+            }
+        }
+    }
+}
+
+private const val PREV_ICON = "M11 3 L5 9 L11 15"
+private const val NEXT_ICON = "M7 3 L13 9 L7 15"
+private const val REDO_ICON = "M14.5 9 A5.5 5.5 0 1 1 9 3.5 L13 3.5 M10.5 1 L13 3.5 L10.5 6"
+private const val EYE_ICON = "M1.5 9 Q9 1.5 16.5 9 Q9 16.5 1.5 9 Z M9 6.5 A2.5 2.5 0 1 1 8.99 6.5"
+private const val PENCIL_ICON = "M3.5 14.5 L4.5 11 L12 3.5 L14.5 6 L7 13.5 Z M10.5 5 L13 7.5"
+private const val PIN_ICON = "M9 2 A3.5 3.5 0 1 1 8.99 2 M9 9 L9 16.5"
+
+/** A round button with a pencil glyph ([icon], an 18-unit box) and its name; [room]'s dab where it leads elsewhere. */
+@Composable
+private fun RoundButton(
+    name: String,
+    icon: String,
+    on: Boolean = false,
+    room: Room? = null,
+    enabled: Boolean = true,
+    size: androidx.compose.ui.unit.Dp = 46.dp,
+    label: Boolean = true,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    val glyph = remember(icon) { PathParser().parsePathString(icon).toPath() }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = name, onClick = onClick)
+            .semantics {
+                selected = on
+                contentDescription = name
+            }
+            .testTag(tag),
+    ) {
+        Box {
+            Box(
+                Modifier.size(size).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Atelier.Raised),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(Modifier.size(18.dp)) {
+                    val k = this.size.width / 18f
+                    drawContext.transform.scale(k, k, Offset.Zero)
+                    drawPath(
+                        glyph,
+                        when {
+                            !enabled -> Atelier.Muted
+                            on -> Atelier.OnGlow
+                            else -> Atelier.TextSoft
+                        },
+                        style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                    )
+                }
+            }
+            room?.let { PigmentDab(it.pigment, size = 11.dp, seed = it.seed, wet = enabled, modifier = Modifier.align(Alignment.TopEnd)) }
+        }
+        if (label) Text(name, fontSize = 11.sp, color = if (on) Atelier.Text else Atelier.TextSoft, modifier = Modifier.overPicture())
+    }
+}
+
+/** Paused: said once, plainly, with the time per picture to set (fixed time only - a ramp's poses are its own). */
+@Composable
+private fun PausePanel(state: AppState, modifier: Modifier) {
+    val shape = RoundedCornerShape(10.dp)
+    Surface(color = Atelier.Raised, shape = shape, modifier = modifier.lampShadow(Lift.LIFTED, shape).testTag("session-paused")) {
+        Column(
+            Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text("Paused — a click on the ensō or Space goes on", fontSize = 13.sp, color = Atelier.TextSoft)
+            if (!state.isRamp) IntervalSelector(seconds = state.intervalSeconds, onChange = { state.intervalSeconds = it })
+        }
+    }
+}
+
+/**
+ * The tray along the bottom: the lenses as glass slides, then the knobs - light, blur, mirror, flip,
+ * invert, shards, grid, the glass. It wraps onto two lines in a narrow window.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Tray(
+    state: AppState,
+    bitmap: ImageBitmap?,
+    settings: MutableState<SessionSettings?>,
+    onAnchor: (SessionSettings, Float) -> Unit,
+) {
+    val shape = RoundedCornerShape(16.dp)
+    Surface(color = Atelier.Board, shape = shape, modifier = Modifier.lampShadow(Lift.LIFTED, shape)) {
+        FlowRow(
+            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LensTray(
+                state, bitmap,
+                onChosenAgain = { settings.value = if (settings.value == SessionSettings.LENS) null else SessionSettings.LENS },
+                onAnchor = { x -> onAnchor(SessionSettings.LENS, x) },
+            )
+            Box(Modifier.width(1.dp).height(72.dp).background(Atelier.Line).align(Alignment.CenterVertically))
+            Knobs(state, settings, onAnchor)
+        }
+    }
+}
+
+/** The settings of one thing, above the tray: a title, a way to put them away, and what can be set. */
+@Composable
+private fun SettingsPopover(state: AppState, target: SessionSettings, onClose: () -> Unit) {
+    val shape = RoundedCornerShape(10.dp)
+    val title = when (target) {
+        SessionSettings.LENS -> LENSES.firstOrNull { it.first == state.viewMode }?.second ?: "Lens"
+        SessionSettings.LIGHT -> "Light"
+        SessionSettings.BLUR -> "Blur"
+        SessionSettings.SHARDS -> "Shards"
+        SessionSettings.GLASS -> "The glass"
+    }
+    Surface(color = Atelier.Raised, shape = shape, modifier = Modifier.lampShadow(Lift.LIFTED, shape).testTag("settings-" + target.name.lowercase())) {
+        // As wide as what it holds, not the window - a popover over the picture must leave the
+        // picture be - so nothing in it fills the width; the x sits over its top right corner.
+        Box {
+            Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Text, modifier = Modifier.padding(end = 28.dp))
+                when (target) {
+                    SessionSettings.LENS -> LensParameters(state)
+                    SessionSettings.LIGHT -> {
+                        ParamSlider(label = temperatureLabel(state.temperature), value = state.temperature, range = -1f..1f, steps = 39) { state.temperature = it }
+                    }
+                    SessionSettings.BLUR -> {
+                        ParamSlider(label = "Radius: ${state.blurRadius} dp", value = state.blurRadius.toFloat(), range = 2f..40f, steps = 18) { state.blurRadius = it.roundToInt() }
+                    }
+                    SessionSettings.SHARDS -> {
+                        ParamSlider(label = "Size: ${state.defractionBlock} px", value = state.defractionBlock.toFloat(), range = 32f..192f, steps = 9) { state.defractionBlock = it.roundToInt() }
+                        ParamSlider(label = "Strength: " + "%.0f%%".format(state.defractionStrength * 100), value = state.defractionStrength, range = 0.1f..1f, steps = 8) { state.defractionStrength = it }
+                    }
+                    SessionSettings.GLASS -> {
+                        OpticChoices(state)
+                        ParamSlider(
+                            label = "×" + "%.1f".format(state.glass.magnification),
+                            value = state.glass.magnification,
+                            range = GlassState.MIN_MAGNIFICATION..GlassState.MAX_MAGNIFICATION,
+                            steps = 0,
+                        ) { state.glass.magnify(it) }
+                    }
+                }
+            }
+            Text(
+                "×",
+                fontSize = 16.sp,
+                color = Atelier.Muted,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 8.dp)
+                    .clip(CircleShape)
+                    .clickable(role = Role.Button, onClickLabel = "Close") { onClose() }
+                    .padding(horizontal = 6.dp)
+                    .testTag("settings-close"),
+            )
+        }
+    }
 }
 
 // ---------------- The ensō ----------------
@@ -216,9 +576,10 @@ private fun Enso(state: AppState, dimmed: Boolean, modifier: Modifier) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(timerText(state), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (low) LowTimeColor else Atelier.Text)
                 Text(
-                    state.rampPlan?.let { "pose ${state.rampPose + 1} of ${state.rampTotalPoses}" } ?: "${state.sessionPoses} drawn",
+                    if (state.isPaused) "paused"
+                    else state.rampPlan?.let { "pose ${state.rampPose + 1} of ${state.rampTotalPoses}" } ?: "${state.sessionPoses} drawn",
                     fontSize = 11.sp,
-                    color = Atelier.Muted,
+                    color = if (state.isPaused) Room.PRACTICE.pigment.glow else Atelier.Muted,
                 )
             }
         }
@@ -277,32 +638,6 @@ private fun rememberLensEffect(mode: ViewMode, state: AppState): RenderEffect? =
     ViewMode.PIXELATE -> remember(state.pixelateBlock) { pixelateRenderEffect(state.pixelateBlock) }
     ViewMode.NOTAN -> remember(state.notanBands, state.notanThreshold) { notanRenderEffect(state.notanBands, state.notanThreshold) }
     else -> null
-}
-
-/**
- * "Pin ▾" — files the picture on screen away on an Idea Board. The session itself knows nothing
- * about boards; [PinTargets] supplies both the list and the action. It leads into the Boards
- * room, so it carries ultramarine's dab.
- */
-@Composable
-private fun PinMenu(state: AppState, pinTargets: PinTargets) {
-    var open by remember { mutableStateOf(false) }
-    val current = state.currentImage
-    Box {
-        CrossRoomButton(Room.BOARDS, "Pin ▾", Modifier.testTag("session-pin"), enabled = current != null) { open = true }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            val boards = pinTargets.boards()
-            if (boards.isEmpty()) {
-                DropdownMenuItem(onClick = { open = false }) { Text("No boards yet") }
-            }
-            boards.forEach { (name, dir) ->
-                DropdownMenuItem(onClick = {
-                    open = false
-                    current?.let { state.pinNotice = pinTargets.pin(dir, listOf(it)) }
-                }) { Text(name) }
-            }
-        }
-    }
 }
 
 /**
@@ -410,117 +745,21 @@ private fun ProportionOverlay(bitmap: ImageBitmap, mode: GridMode, modifier: Mod
 
 // ---------------- The controls ----------------
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ControlBar(
-    state: AppState,
-    bitmap: ImageBitmap?,
-    onToggleFullscreen: () -> Unit,
-    pinTargets: PinTargets?,
-    onSketch: ((File) -> Unit)? = null,
-) {
-    Surface(color = Atelier.Board) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            // The transport, the redo flag, and the ways into other rooms.
-            FlowRow(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                OutlinedButton(onClick = { state.previous() }) { Text("◀ Prev") }
-                OutlinedButton(onClick = { state.play() }) { Text("Play") }
-                Button(onClick = { state.togglePause() }) { Text(if (state.isPaused) "Resume" else "Pause") }
-                OutlinedButton(onClick = { state.stop() }) { Text("■ Stop") }
-                OutlinedButton(onClick = { state.next() }) { Text("Next ▶") }
-                Spacer(Modifier.width(12.dp))
-                SelectChip("Redo", state.isCurrentRedo, tag = "session-redo") { state.toggleRedoCurrent() }
-                SelectChip("Auto-advance", state.autoAdvance) { state.autoAdvance = !state.autoAdvance }
-                OutlinedButton(onClick = onToggleFullscreen) { Text("Fullscreen") }
-                pinTargets?.let { PinMenu(state, it) }
-                // The paper beside the monitor, digitised: sketch with the reference kept in view.
-                onSketch?.let { open ->
-                    val current = state.currentImage
-                    CrossRoomButton(Room.SKETCH, "Sketch", Modifier.testTag("session-sketch"), enabled = current != null) { current?.let(open) }
-                }
-            }
-
-            // What the last pin did, until the next one.
-            state.pinNotice?.let { notice ->
-                Text(notice, fontSize = 12.sp, color = Room.CONCEPTS.pigment.glow, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            }
-
-            // The lens tray and the knobs beside it.
-            FlowRow(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterHorizontally),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                LensTray(state, bitmap)
-                Box(Modifier.width(1.dp).height(84.dp).background(Atelier.Line).align(Alignment.CenterVertically))
-                Knobs(state)
-                Box(Modifier.width(1.dp).height(84.dp).background(Atelier.Line).align(Alignment.CenterVertically))
-                GlassTray(state)
-            }
-
-            // The settings of whatever is on: the lens's, the light, blur, shards.
-            FlowRow(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
-            ) {
-                LensParameters(state)
-                if (state.glass.inHand) {
-                    ParamSlider(
-                        label = "Glass: ×" + "%.1f".format(state.glass.magnification),
-                        value = state.glass.magnification,
-                        range = GlassState.MIN_MAGNIFICATION..GlassState.MAX_MAGNIFICATION,
-                        steps = 0,
-                    ) { state.glass.magnify(it) }
-                }
-                // White balance is always on offer: it is an adjustment, not a mode.
-                ParamSlider(label = temperatureLabel(state.temperature), value = state.temperature, range = -1f..1f, steps = 39) { state.temperature = it }
-                if (state.blur) {
-                    ParamSlider(label = "Blur: ${state.blurRadius} dp", value = state.blurRadius.toFloat(), range = 2f..40f, steps = 18) { state.blurRadius = it.roundToInt() }
-                }
-                if (state.defraction) {
-                    ParamSlider(label = "Shards: ${state.defractionBlock} px", value = state.defractionBlock.toFloat(), range = 32f..192f, steps = 9) { state.defractionBlock = it.roundToInt() }
-                    ParamSlider(label = "Strength: " + "%.0f%%".format(state.defractionStrength * 100), value = state.defractionStrength, range = 0.1f..1f, steps = 8) { state.defractionStrength = it }
-                }
-            }
-
-            // Adjusting the time is only allowed while paused; elapsed time is left untouched.
-            // (In a ramp the durations are fixed by the plan, so the slider only shows in fixed mode.)
-            if (state.isPaused && !state.isRamp) {
-                IntervalSelector(seconds = state.intervalSeconds, onChange = { state.intervalSeconds = it })
-            }
-
-            Text(
-                "Space pause · ←/→ prev/next · 1-9 lens · N notan · ,/. cooler/warmer · 0 neutral light · " +
-                    "H hide/peek · A auto · B blur · I invert · D shards · M mirror · U flip · G grid · " +
-                    "L glass · O optic · +/− nearer · R redo · F fullscreen · Esc stop",
-                fontSize = 11.sp,
-                color = Atelier.Muted.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-    }
-}
-
 /**
  * The lenses as glass slides, keys 1 to 9 under them. Each shows the picture on screen through
  * its own lens, so you see what it will do before choosing it; the chosen one rises.
  */
 @Composable
-private fun LensTray(state: AppState, bitmap: ImageBitmap?) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.testTag("lens-tray")) {
+private fun LensTray(state: AppState, bitmap: ImageBitmap?, onChosenAgain: () -> Unit, onAnchor: (Float) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.testTag("lens-tray")) {
         LENSES.forEachIndexed { i, (mode, name) ->
-            LensSlide(state, mode, name, key = i + 1, bitmap = bitmap)
+            LensSlide(state, mode, name, key = i + 1, bitmap = bitmap, onChosenAgain = onChosenAgain, onAnchor = onAnchor)
         }
     }
 }
 
 @Composable
-private fun LensSlide(state: AppState, mode: ViewMode, name: String, key: Int, bitmap: ImageBitmap?) {
+private fun LensSlide(state: AppState, mode: ViewMode, name: String, key: Int, bitmap: ImageBitmap?, onChosenAgain: () -> Unit, onAnchor: (Float) -> Unit) {
     val chosen = state.viewMode == mode
     val rise by animateFloatAsState(if (chosen) 1f else 0f, tween(if (LocalReducedMotion.current) Motion.REDUCED_MS else 200))
     val glow = Room.PRACTICE.pigment.glow
@@ -528,15 +767,16 @@ private fun LensSlide(state: AppState, mode: ViewMode, name: String, key: Int, b
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier
-            .width(62.dp)
-            .clickable(role = Role.Button, onClickLabel = name) { state.viewMode = mode }
+            .width(58.dp)
+            .onGloballyPositioned { if (chosen) onAnchor(it.boundsInRoot().center.x) }
+            .clickable(role = Role.Button, onClickLabel = name) { if (chosen) onChosenAgain() else state.viewMode = mode }
             .semantics { selected = chosen }
             .testTag("lens-" + mode.name.lowercase())
             .graphicsLayer { translationY = -8.dp.toPx() * rise },
     ) {
         Box(
             Modifier
-                .size(52.dp)
+                .size(48.dp)
                 .drawBehind {
                     if (chosen) drawRoundRect(glow, Offset(-3.dp.toPx(), -3.dp.toPx()), Size(size.width + 6.dp.toPx(), size.height + 6.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(10.dp.toPx()), style = Stroke(2.dp.toPx()))
                 }
@@ -584,31 +824,48 @@ private fun LensParameters(state: AppState) {
 
 /** The adjustments as round knobs, each with its key: they stack on any lens. */
 @Composable
-private fun Knobs(state: AppState) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
-        Knob("Blur", "B", "M9 2.5 A6.5 6.5 0 1 1 8.99 2.5", dashed = true, on = state.blur) { state.blur = it }
+private fun Knobs(state: AppState, settings: MutableState<SessionSettings?>, onAnchor: (SessionSettings, Float) -> Unit) {
+    fun anchor(target: SessionSettings) = Modifier.onGloballyPositioned { onAnchor(target, it.boundsInRoot().center.x) }
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
+        // The light is not on or off: the knob opens its setting, and glows while it is not neutral.
+        Knob(
+            "Light", ", .", "M9 2.5 A6.5 6.5 0 1 1 8.99 2.5 M9 2.5 V15.5", on = state.temperature != 0f,
+            tag = "knob-light", modifier = anchor(SessionSettings.LIGHT),
+        ) { settings.value = if (settings.value == SessionSettings.LIGHT) null else SessionSettings.LIGHT }
+        Knob("Blur", "B", "M9 2.5 A6.5 6.5 0 1 1 8.99 2.5", dashed = true, on = state.blur, modifier = anchor(SessionSettings.BLUR)) { state.blur = it }
         Knob("Mirror", "M", "M9 2 V16 M7 4 L2 13 H7 Z M11 4 L16 13 H11 Z", on = state.mirror) { state.mirror = it }
         Knob("Flip", "U", "M5 14 V7 A4 4 0 0 1 13 7 V14 M10.5 11.5 L13 14 L15.5 11.5", on = state.upsideDown) { state.upsideDown = it }
         Knob("Invert", "I", "M2.5 2.5 H15.5 V15.5 H2.5 Z M2.5 15.5 L15.5 2.5", on = state.invert) { state.invert = it }
-        Knob("Shards", "D", "M2 3 L9 7 L16 2 M9 7 L7 16 M9 7 L16 11 M2 12 L7 16", on = state.defraction) { state.toggleDefraction() }
+        Knob("Shards", "D", "M2 3 L9 7 L16 2 M9 7 L7 16 M9 7 L16 11 M2 12 L7 16", on = state.defraction, modifier = anchor(SessionSettings.SHARDS)) { state.toggleDefraction() }
         Knob(
             if (state.gridMode == GridMode.OFF) "Grid" else state.gridMode.name.lowercase().replaceFirstChar { it.uppercase() },
             "G", "M6.5 2 V16 M11.5 2 V16 M2 6.5 H16 M2 11.5 H16", on = state.gridMode != GridMode.OFF,
         ) { state.gridMode = GridMode.entries[(state.gridMode.ordinal + 1) % GridMode.entries.size] }
+        // The glass (F10.9): taken up and put away; its optics and magnification in its settings.
+        Knob("Glass", "L", "M7.5 2.5 A5 5 0 1 1 7.49 2.5 M11 11 L16 16", on = state.glass.inHand, tag = "glass", modifier = anchor(SessionSettings.GLASS)) { state.glass.toggle() }
     }
 }
 
 /** One knob: a round button with a pencil glyph ([icon], in an 18-unit box), its name and its key. */
 @Composable
-private fun Knob(label: String, key: String, icon: String, on: Boolean, dashed: Boolean = false, onChange: (Boolean) -> Unit) {
+private fun Knob(
+    label: String,
+    key: String,
+    icon: String,
+    on: Boolean,
+    dashed: Boolean = false,
+    tag: String = "knob-" + key.lowercase(),
+    modifier: Modifier = Modifier,
+    onChange: (Boolean) -> Unit,
+) {
     val glyph = remember(icon) { PathParser().parsePathString(icon).toPath() }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
-        modifier = Modifier
-            .width(48.dp)
+        modifier = modifier
+            .width(46.dp)
             .toggleable(value = on, role = Role.Switch, onValueChange = onChange)
-            .testTag("knob-" + key.lowercase()),
+            .testTag(tag),
     ) {
         Box(
             Modifier.size(40.dp).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Atelier.Raised),

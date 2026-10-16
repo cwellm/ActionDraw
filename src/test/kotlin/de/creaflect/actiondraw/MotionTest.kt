@@ -166,8 +166,8 @@ class MotionTest {
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
 
-        // Away again and resting: back it steps; a pause brings it back.
-        rule.onRoot().performMouseInput { moveTo(androidx.compose.ui.geometry.Offset(10f, 10f)) }
+        // Away again, resting over the picture: back it steps; a pause brings it back.
+        rule.onNodeWithTag("reference").performMouseInput { moveTo(center) }
         rule.mainClock.advanceTimeBy(Motion.RECEDE_AFTER_MS + 200L)
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))

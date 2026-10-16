@@ -413,36 +413,13 @@ private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, p
 // ---------------- The glass among the controls ----------------
 
 /**
- * The glass beside the knobs: the glass itself, taken up and put away (L), and its six optics
- * as cross-sections of their glass; choosing one takes the glass up. O turns to the next.
+ * The glass's six optics as cross-sections of their glass, in its settings above the tray;
+ * choosing one takes the glass up. O turns to the next.
  */
 @Composable
-fun GlassTray(state: AppState) {
+fun OpticChoices(state: AppState) {
     val glass = state.glass
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.testTag("glass-tray")) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(3.dp),
-            modifier = Modifier
-                .width(52.dp)
-                .toggleable(value = glass.inHand, role = Role.Switch) { glass.toggle() }
-                .testTag("glass"),
-        ) {
-            Box(
-                Modifier.size(40.dp).clip(CircleShape).background(if (glass.inHand) Room.LENS.pigment.glow else Atelier.Raised),
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(Modifier.size(20.dp)) {
-                    val ink = if (glass.inHand) Atelier.OnGlow else Atelier.TextSoft
-                    val r = size.minDimension * 0.3f
-                    val c = Offset(r + 1.5f, r + 1.5f)
-                    drawCircle(ink, r, c, style = Stroke(1.6f))
-                    drawLine(ink, c + Offset(r * 0.72f, r * 0.72f), Offset(size.width - 1f, size.height - 1f), 2.6f, cap = StrokeCap.Round)
-                }
-            }
-            Text("Glass", fontSize = 11.sp, color = if (glass.inHand) Atelier.Text else Atelier.Muted)
-            Text("L", fontSize = 10.sp, color = Atelier.InkQuiet)
-        }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag("glass-optics")) {
         Optic.entries.forEach { optic ->
             val chosen = glass.inHand && glass.optic == optic
             Column(
@@ -454,13 +431,12 @@ fun GlassTray(state: AppState) {
                     .testTag("glass-optic-${optic.name.lowercase()}"),
             ) {
                 Box(
-                    Modifier.size(44.dp, 40.dp).clip(RoundedCornerShape(8.dp)).background(if (chosen) Atelier.Raised else Color.Transparent),
+                    Modifier.size(44.dp, 40.dp).clip(RoundedCornerShape(8.dp)).background(if (chosen) Atelier.Board else Color.Transparent),
                     contentAlignment = Alignment.Center,
                 ) {
                     Canvas(Modifier.size(34.dp, 26.dp)) { drawOpticSection(optic, chosen) }
                 }
                 Text(optic.label, fontSize = 11.sp, color = if (chosen) Atelier.Text else Atelier.Muted, maxLines = 1)
-                Text(if (glass.optic == optic) "O" else " ", fontSize = 10.sp, color = Atelier.InkQuiet)
             }
         }
     }

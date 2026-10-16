@@ -37,8 +37,13 @@ concepts*, *New sketch* or *Continue the sketch*.
 ### Sessions & timing
 - The palette's **Practice** well opens the room: choose an exercise from the cards (*Action
   drawing*, *Lens studies*, *From memory*), the timing beside them — a ramp is drawn as one bar
-  per pose — and **Start**. In a pose, the **ensō** over the picture's corner closes as the time
-  runs out, and the **lens tray** under it shows the picture through every lens at once.
+  per pose — and **Start**. In a pose the picture has the room: the **ensō** over its corner
+  closes as the time runs out (a click on it pauses, and paused, the time per picture can be set);
+  **Stop** and what is running sit at the top left; under the ensō, ‹ › and round buttons
+  for **Redo**, **Hide**, **Sketch** and **Pin**. One **tray** along the bottom holds the lenses as
+  glass slides, each showing the picture through itself, and the knobs — Light, Blur, Mirror,
+  Flip, Invert, Shards, Grid, Glass. What a lens or a knob can be set to opens right above it;
+  a click on the chosen slide again, or ×, puts it away.
 - Pick a folder; images are shown in **random order**. The folder is **remembered across
   restarts** (`~/.actiondraw/settings.properties`); a folder that has moved or been deleted is
   silently forgotten.
@@ -72,10 +77,10 @@ concepts*, *New sketch* or *Continue the sketch*.
   with a centre cross.
 
 ### The glass — drawing through a lens
-A reading glass to hold over the picture. **Glass** beside the knobs (or `L`) takes it up: a
+A reading glass to hold over the picture. The **Glass** knob in the tray (or `L`) takes it up: a
 round glass with a rim and a handle follows the pointer and shows what is under it larger —
 the wheel magnifies (×1.25 to ×12), `Shift`+wheel makes the glass itself larger. Its optic is
-chosen from six cross-sections beside it (`O` turns to the next):
+chosen from six cross-sections in its settings, above the knob (`O` turns to the next):
 
 - **Plain** — flat glass: larger, nothing bent. A plain zoom.
 - **Convex** — a magnifier: the middle swells, the rim draws in.
@@ -285,7 +290,7 @@ takes a button, `Esc` closes it.
 - A **session recipe** per board ("Drachenbuch is always 60 s in Notan") remembers interval or
   ramp, auto-advance, view mode and grid, and applies to every session started from that board.
   Without one, the Practice room's settings are used.
-- **Pin ▾** during any session files the picture on screen onto a board; the summary offers to pin
+- **Pin**, under the ensō, files the picture on screen onto a board; the summary offers to pin
   the pictures you flagged for redo.
 - Board sessions open in **their own window**: the board stays visible behind them, closing the
   window aborts the drawing, and the summary offers **Back to board**.

@@ -853,6 +853,39 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 - ⬜ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
   between the hand and the page
 
+
+### 🔄 F9.10 The design, to the letter
+What the design canvas shows and the first pass left out, gathered by laying the archived boards
+(`docs/design/previews`) beside the app on 2026-10-16.
+
+- ✅ **A pose's chrome as designed** — the picture gets the room: *Stop · Esc* and what is
+  running (*Classic gesture · Drachenbuch*) at the top left with *Auto-advance* and *Fullscreen*
+  as quiet switches; under the ensō ‹ › and a column of round buttons — Redo, Hide, Sketch
+  (madder's dab), Pin (ultramarine's); one tray along the bottom with the lens slides and the
+  knobs — Light, Blur, Mirror, Flip, Invert, Shards, Grid and the Glass. The settings of what was
+  just chosen open in a popover right above its control: a lens's, the light's, blur's, shards',
+  the glass's optics and magnification; clicking the chosen slide again or × puts them away. A
+  click on the ensō pauses; paused, the time per picture is offered under a plain *Paused*. The
+  transport buttons and the line of key hints are gone (the keys and the Hotkeys sheet stay).
+  Words lying over the picture get a dark wash, so they read on any picture. Caught on the way:
+  the popover stretched across the whole window (a weighted spacer in its title row) and took the
+  clicks meant for the picture under it. `SessionChromeTest` (4); four guards broken on purpose
+  and seen red
+- ⬜ **The board's header**: *Boards / Drachenbuch* as a breadcrumb, the search in the middle,
+  Cork / Papyrus / Plain as a visible switch, *Draw from this board*; zoom (− % +) at the bottom
+  left and *Contents* at the bottom right
+- ⬜ **A palette as a card**: colour swatches pinned on the board, from the palette dialog
+- ⬜ **A natural tilt**: prints and tags lie a little askew — through the stored rotation, so the
+  drawn card stays the clicked card
+- ⬜ **A board as Practice's source**, beside a folder; **Start with a lens** for every exercise
+- ⬜ **Sketch**: the tilt-shading switch, *Preset* as a dropdown, undo and redo as icons, and the
+  session's reference shown **underneath** the page (strength, or laid over instead) — F10.5's
+  first part
+- ⬜ **Motion**: a new group's frame drawn from where the pointer let go; the dashed ghost of where
+  a held card will land
+- ⬜ **Graphite guides**: snapping guides in graphite, as the materials board has them, not the
+  pale ultramarine they got in F9.7
+
 ---
 
 ## ⬜ M9 — Shaping the features
