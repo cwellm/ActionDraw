@@ -3,6 +3,7 @@ package de.creaflect.actiondraw.board
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performKeyInput
@@ -38,8 +39,9 @@ class BoardChromeTest {
     private val home: File = Files.createTempDirectory("chrome-home").toFile()
     private val config: File = Files.createTempDirectory("chrome-cfg").toFile()
     private var left = 0
+    private var started: List<File> = emptyList()
     private val host = object : BoardHost {
-        override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
+        override fun startSession(root: File, images: List<File>, setup: SessionSetup?) { started = images }
         override fun showBoard() = Unit
         override fun showBoardList() = Unit
         override fun leaveBoard() { left++ }
@@ -175,5 +177,40 @@ class BoardChromeTest {
 
         assertTrue(state.snapping)
         assertTrue(BoardState(Settings(config), host).snapping, "and it is remembered")
+    }
+    @Test
+    fun theHeaderSaysWhereYouAreAndDrawsTheWholeBoard() {
+        val (state, _) = shownBoard()
+        rule.onNodeWithTag("board-switcher").assertIsDisplayed()
+        rule.onNodeWithText("Chrome").assertIsDisplayed()
+        rule.onNodeWithTag("board-draw-all").performClick()
+        rule.waitForIdle()
+        assertEquals(listOf("a.jpg", "b.jpg"), started.map { it.name }.sorted(), "every picture on the board")
+        rule.onNodeWithTag("board-surface-cork").performClick()
+        rule.waitForIdle()
+        assertEquals(BoardThemes.CORK, state.theme)
+    }
+
+    @Test
+    fun theCornersHoldTheLayoutTheZoomAndTheContents() {
+        val (state, _) = shownBoard()
+        rule.onNodeWithTag("zoom-in").assertDoesNotExist()
+        rule.onNodeWithTag("layout-Free", useUnmergedTree = true).performClick()
+        rule.waitForIdle()
+        val zoom = state.zoom
+        rule.onNodeWithTag("zoom-in").performClick()
+        rule.waitForIdle()
+        assertTrue(state.zoom > zoom, "plus comes nearer")
+        rule.onNodeWithTag("zoom-out").performClick()
+        rule.onNodeWithTag("zoom-out").performClick()
+        rule.waitForIdle()
+        assertTrue(state.zoom < zoom, "minus goes further")
+        val corner = rule.onNodeWithTag("board-view-corner").fetchSemanticsNode().boundsInRoot
+        val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().boundsInRoot
+        assertTrue(corner.left < canvas.left + 40f && corner.bottom > canvas.bottom - 40f, "bottom left: $corner in $canvas")
+        assertFalse(state.drawerOpen)
+        rule.onNodeWithTag("board-contents").performClick()
+        rule.waitForIdle()
+        assertTrue(state.drawerOpen, "Contents, from the bottom right")
     }
 }

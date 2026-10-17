@@ -13,6 +13,8 @@ import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
+import de.creaflect.actiondraw.board.paletteCaption
+import de.creaflect.actiondraw.board.paletteColours
 import de.creaflect.actiondraw.image.ThumbCache
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
@@ -180,5 +182,29 @@ class BoardDressTest {
         rule.onNodeWithTag("concept-tab-" + borrowed.single().id).assertExists()
         rule.onNodeWithTag("concept-tab-" + own.single().id).assertDoesNotExist()
         conceptsHome.deleteRecursively()
+    }
+    @Test
+    fun aPaletteIsPinnedAsACardBesideItsPicture() {
+        val (state, ids) = board()
+        val picture = state.board!!.items.single { it.id == ids[0] } as ImageItem
+        state.pinPalette(picture, listOf(0xC0A080, 0x405060, 0x202020))
+        val card = state.board!!.items.filterIsInstance<NoteItem>().single()
+        assertEquals(NoteKind.PALETTE, card.kind)
+        assertEquals(listOf(0xC0A080, 0x405060, 0x202020), card.paletteColours())
+        assertEquals("colours of print", card.paletteCaption())
+        assertEquals(setOf(card.id), state.selection, "selected, to be moved straight on")
+        show(state)
+        rule.onNodeWithTag("palette-" + card.id).assertExists()
+    }
+
+    @Test
+    fun cardsAreLaidDownALittleAskewAndAlwaysTheSameWay() {
+        val (state, _) = board()
+        state.board!!.items.forEach { item ->
+            assertEquals(BoardState.naturalTilt(item.id), item.pos!!.rotation, "${item.id} lies as its own tilt says")
+        }
+        val tilts = (1..40).map { BoardState.naturalTilt("card-$it") }
+        assertTrue(tilts.all { it in -1.81f..1.81f }, "a degree or two at most: $tilts")
+        assertTrue(tilts.toSet().size > 3, "and not all the same")
     }
 }

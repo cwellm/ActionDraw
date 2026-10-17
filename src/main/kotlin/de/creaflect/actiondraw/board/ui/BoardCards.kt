@@ -64,6 +64,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.fillMaxHeight
+import de.creaflect.actiondraw.board.paletteCaption
+import de.creaflect.actiondraw.board.paletteColours
 import de.creaflect.actiondraw.ui.CrossRoomButton
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.widthIn
@@ -298,7 +303,9 @@ private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, te
 private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
     val ink = Themes.noteInk
-    if (item.kind == NoteKind.POSTIT) {
+    if (item.kind == NoteKind.PALETTE) {
+        PaletteCard(state, item, Modifier.fillMaxWidth().aspectRatio(BoardState.PALETTE_ASPECT))
+    } else if (item.kind == NoteKind.POSTIT) {
         // A post-it: a yellow slip on any surface, the text as typed, in a written hand.
         Box(
             Modifier
@@ -534,3 +541,36 @@ internal fun PracticeBadge(practice: BoardState.Practice, modifier: Modifier) {
 @Composable
 private fun accentOf(state: BoardState, group: BoardGroup?): Color? =
     group?.let { Themes.parseColor(state.accentOfGroup(it)) }
+
+/**
+ * A palette pinned to the board: the colours read off a picture as a strip of swatches on a card
+ * of paper, whose they are lettered under it - "colours of the cliff photo".
+ */
+@Composable
+internal fun PaletteCard(state: BoardState, item: NoteItem, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(2.dp)
+    val colours = remember(item.text) { item.paletteColours() }
+    Column(
+        modifier
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Atelier.Paper)
+            .paperTooth()
+            .border(2.dp, selectionBorder(state, item.id), shape)
+            .cardClicks(state, item.id)
+            .padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 4.dp)
+            .testTag("palette-" + item.id),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Row(Modifier.fillMaxWidth().weight(1f)) {
+            colours.forEach { colour -> Box(Modifier.weight(1f).fillMaxHeight().background(Color(0xFF000000.toInt() or colour))) }
+        }
+        Text(
+            item.paletteCaption(),
+            style = AtelierType.Hand.copy(fontSize = 16.sp, lineHeight = 17.sp),
+            color = Atelier.InkQuiet,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}

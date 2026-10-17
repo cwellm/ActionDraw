@@ -6,6 +6,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -177,5 +178,77 @@ class PracticeTest {
         rule.waitForIdle()
         rule.onNodeWithTag("summary-flagged").assertIsDisplayed()
         assertNull(state.pinNotice)
+    }
+    /** A board as the source: its pictures - wherever they are - and its folder for seen and redo. */
+    @Test
+    fun aBoardCanBeWhatThePracticeRoomDrawsFrom() {
+        val boardDir = Files.createTempDirectory("practice-board").toFile()
+        val elsewhere = Files.createTempDirectory("practice-concept").toFile()
+        val onBoard = listOf(File(boardDir, "own.png"), File(elsewhere, "borrowed.png")).onEach { f ->
+            ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", f)
+        }
+        val boards = object : AppState.PracticeBoards {
+            override fun boards() = listOf("Buch" to boardDir)
+            override fun pictures(dir: File) = if (dir == boardDir) onBoard else emptyList()
+        }
+        try {
+            val state = stateWithPictures()
+            state.practiceBoards = boards
+            state.selectBoard("Buch", boardDir)
+            assertEquals("Buch" to boardDir, state.practiceBoard)
+            assertEquals(2, state.totalCount, "the board's own picture and its concept's")
+            state.start()
+            assertEquals(Screen.Session, state.screen)
+            assertTrue(state.currentImage in onBoard, "drawing from the board: ${state.currentImage}")
+
+            val next = AppState(Settings(config))
+            assertNull(next.practiceBoard, "until the boards are handed over")
+            next.practiceBoards = boards
+            assertEquals("Buch" to boardDir, next.practiceBoard, "remembered for the next start")
+            next.selectFolder(pictures)
+            assertNull(next.practiceBoard, "a folder chosen is a folder again")
+            assertNull(Settings(config).practiceBoard())
+        } finally {
+            boardDir.deleteRecursively()
+            elsewhere.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun theSourceIsChosenFromOneMenuWithTheBoardsInIt() {
+        val boardDir = Files.createTempDirectory("practice-board").toFile()
+        try {
+            ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", File(boardDir, "a.png"))
+            val state = stateWithPictures()
+            state.practiceBoards = object : AppState.PracticeBoards {
+                override fun boards() = listOf("Buch" to boardDir)
+                override fun pictures(dir: File) = listOf(File(boardDir, "a.png"))
+            }
+            rule.setContent { PracticeScreen(state, onHome = {}) }
+            rule.waitForIdle()
+            rule.onNodeWithTag("drawing-from").performClick()
+            rule.waitForIdle()
+            rule.onNodeWithTag("source-board-Buch").performClick()
+            rule.waitForIdle()
+            assertEquals("Buch" to boardDir, state.practiceBoard)
+            rule.onNodeWithTag("drawing-from").assertTextContains("Buch", substring = true)
+        } finally {
+            boardDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun everyExerciseCanStartWithALens() {
+        val state = stateWithPictures()
+        rule.setContent { PracticeScreen(state, onHome = {}) }
+        rule.waitForIdle()
+        assertEquals(Exercise.ACTION, state.exercise)
+        rule.onNodeWithTag("start-lens-notan").performClick()
+        rule.waitForIdle()
+        assertEquals(ViewMode.NOTAN, state.viewMode)
+        assertEquals(Exercise.LENS, state.exercise, "a lens to start with makes it a lens study")
+        rule.onNodeWithTag("start-lens-none").performClick()
+        rule.waitForIdle()
+        assertEquals(Exercise.ACTION, state.exercise)
     }
 }

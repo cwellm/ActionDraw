@@ -33,6 +33,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.border
+import androidx.compose.material.Divider
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.DropdownMenu
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -195,11 +202,10 @@ private fun TimingPanel(state: AppState, modifier: Modifier) {
                     )
                 }
             }
-            if (exercise == Exercise.LENS) {
-                Overline("Starting lens")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LENSES.drop(1).forEach { (mode, name) -> LensChoice(mode, name, state.viewMode == mode) { state.viewMode = mode } }
-                }
+            // Any exercise can start with a lens; a lens chosen makes it a lens study.
+            Overline("Start with a lens")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LENSES.forEach { (mode, name) -> LensChoice(mode, name, state.viewMode == mode) { state.viewMode = mode } }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = state.autoAdvance, onCheckedChange = { state.autoAdvance = it })
@@ -230,20 +236,58 @@ private fun TimingPanel(state: AppState, modifier: Modifier) {
     }
 }
 
-/** Where the pictures come from, in one line: the folder, how many are unseen, and the ways to change both. */
+/**
+ * Where the pictures come from, in one line: a folder or a board - chosen from one menu, a board
+ * with ultramarine's dot - how many are unseen, and the pictures to draw from it.
+ */
 @Composable
 private fun DrawingFrom(state: AppState) {
+    var open by remember { mutableStateOf(false) }
+    val board = state.practiceBoard
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("Drawing from", fontSize = 13.sp, color = Atelier.Muted)
-        Text(
-            state.folder?.name ?: "no folder yet",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Atelier.Text,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = 240.dp),
-        )
+        Box {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .border(1.dp, Atelier.Line, RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Choose where the pictures come from") { open = true }
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .testTag("drawing-from"),
+            ) {
+                if (board != null) PigmentDab(Room.BOARDS.pigment, size = 10.dp, seed = Room.BOARDS.seed)
+                Text(
+                    board?.first ?: state.folder?.name ?: "no folder yet",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Atelier.Text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 220.dp),
+                )
+                Text(if (board != null) "board ▾" else "folder ▾", fontSize = 12.sp, color = Atelier.Muted)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                DropdownMenuItem(onClick = {
+                    open = false
+                    chooseFolder(state.folder)?.let { state.selectFolder(it) }
+                }, modifier = Modifier.testTag("source-folder")) { Text("A folder…") }
+                val boards = state.practiceBoards?.boards().orEmpty()
+                if (boards.isNotEmpty()) Divider()
+                boards.forEach { (name, dir) ->
+                    DropdownMenuItem(onClick = {
+                        open = false
+                        state.selectBoard(name, dir)
+                    }, modifier = Modifier.testTag("source-board-$name")) {
+                        PigmentDab(Room.BOARDS.pigment, size = 10.dp, seed = Room.BOARDS.seed)
+                        Spacer(Modifier.width(8.dp))
+                        Text(name)
+                    }
+                }
+            }
+        }
         if (state.folder != null) {
             Text(
                 if (state.selection == null) "${state.unseenCount} of ${state.totalCount} unseen"
@@ -251,11 +295,6 @@ private fun DrawingFrom(state: AppState) {
                 fontSize = 12.sp,
                 color = Atelier.Muted,
             )
-        }
-        TextButton(onClick = { chooseFolder(state.folder)?.let { state.selectFolder(it) } }) {
-            Text(if (state.folder == null) "Choose a folder…" else "Change…")
-        }
-        if (state.folder != null) {
             TextButton(onClick = { state.openPicker() }) {
                 Text(
                     if (state.selection == null) "Choose pictures… (all ${state.totalCount})"

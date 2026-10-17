@@ -36,6 +36,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.CheckboxDefaults
+import androidx.compose.material.Checkbox
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -131,14 +139,17 @@ internal fun SketchTray(state: SketchState, modifier: Modifier = Modifier) {
                             .testTag("sketch-colour"),
                     )
                 }
-                if (state.presets.isNotEmpty()) {
-                    Text("Presets", style = MaterialTheme.typography.caption, color = Atelier.Muted)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        state.presets.forEach { preset ->
-                            SelectChip(preset.name, !state.eraser && state.activePreset == preset.name, tag = "sketch-preset-${preset.name}") { state.applyPreset(preset) }
-                        }
-                    }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .toggleable(value = state.tiltShading, role = Role.Checkbox) { state.shadeWithTilt(it) }
+                        .testTag("sketch-tilt"),
+                ) {
+                    Checkbox(checked = state.tiltShading, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = Room.SKETCH.pigment.glow))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Shade with the side (tilt)", style = MaterialTheme.typography.caption, color = Atelier.TextSoft)
                 }
+                PresetChoice(state)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     SelectChip(
                         when {
@@ -330,4 +341,37 @@ private fun DrawScope.drawRubber() {
     drawRoundRect(Color(0xFFEFEAE0), Offset(0f, y), Size(w, t), CornerRadius(t * 0.12f))
     drawRect(Brush.verticalGradient(listOf(Color(0xFF3F61A8), Color(0xFF2B4785)), y, y + t), Offset(0f, y), Size(w * 0.58f, t))
     drawRect(Color(0x22FFFFFF), Offset(0f, y), Size(w * 0.58f, t * 0.2f))
+}
+
+/** The preset as a dropdown: none - the tool as it comes - or one of the tunings kept by name. */
+@Composable
+private fun PresetChoice(state: SketchState) {
+    var open by remember { mutableStateOf(false) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Preset", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+        Spacer(Modifier.weight(1f))
+        Box {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(1.dp, Atelier.Line, RoundedCornerShape(6.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Choose a preset") { open = true }
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                    .testTag("sketch-preset"),
+            ) {
+                Text(state.activePreset ?: "None", style = MaterialTheme.typography.body2, color = Atelier.Text, maxLines = 1)
+                Text("▾", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+            }
+            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                DropdownMenuItem(onClick = { open = false; state.clearPreset() }, modifier = Modifier.testTag("sketch-preset-none")) { Text("None") }
+                state.presets.forEach { preset ->
+                    DropdownMenuItem(onClick = { open = false; state.applyPreset(preset) }, modifier = Modifier.testTag("sketch-preset-${preset.name}")) {
+                        Text("${preset.name} (${preset.base.label})")
+                    }
+                }
+            }
+        }
+    }
 }

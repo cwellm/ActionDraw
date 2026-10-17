@@ -3,6 +3,13 @@ package de.creaflect.actiondraw.board
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
+import kotlin.test.assertNotNull
+import de.creaflect.actiondraw.ui.Atelier
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
@@ -182,5 +189,85 @@ class SettleDrawOnTest {
         assertEquals(0f, length(partOfOutline(smooth, 0f)), 0.5f)
         assertEquals(whole / 2f, length(partOfOutline(smooth, 0.5f)), 2f)
         assertEquals(whole, length(partOfOutline(smooth, 1f)), 2f)
+    }
+    @Test
+    fun theFrameIsBegunWhereThePointerLetGo() {
+        // A frame of 300 x 200 from its top left; the pointer let go by the middle of its right side.
+        val smooth = frameUnion(listOf(listOf(0f, 0f, 300f, 200f)), emptyList(), 0f, 0f, 1f)
+        val right = smooth.bounds.right
+        val middle = (smooth.bounds.top + smooth.bounds.bottom) / 2f
+        val begun = partOfOutline(smooth, 0.05f, Offset(right + 30f, middle))
+        val first = PathMeasure(begun, false).getPosition(0f)!!
+        assertEquals(right, first.x, 4f, "on the right side")
+        assertEquals(middle, first.y, 6f, "level with where it let go")
+        fun length(p: org.jetbrains.skia.Path): Float {
+            val m = PathMeasure(p, false)
+            var sum = 0f
+            do sum += m.length while (m.nextContour())
+            return sum
+        }
+        assertEquals(length(smooth), length(partOfOutline(smooth, 1f, Offset(right, middle))), 3f, "and still all of it in the end")
+    }
+
+    @Test
+    fun theCanvasNotesWhereThePointerLetGo() {
+        val (state, ids) = freeBoard()
+        rule.setContent { BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize()) }
+        rule.waitForIdle()
+        val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
+        state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())
+        rule.waitForIdle()
+        val pos = state.item(ids[0])!!.pos!!
+        val onScreen = Offset((pos.x - state.camX) * state.zoom + canvas.width / 2f, (pos.y - state.camY) * state.zoom + canvas.height / 2f)
+        rule.onNodeWithTag("canvas").performMouseInput { click(onScreen) }
+        rule.waitForIdle()
+        val (bx, by) = assertNotNull(state.lastRelease)
+        assertEquals(pos.x, bx, 2f / state.zoom)
+        assertEquals(pos.y, by, 2f / state.zoom)
+    }
+
+    @Test
+    fun aHeldCardsLandingPlaceIsMarkedAroundIt() {
+        val (state, ids) = freeBoard()
+        rule.setContent {
+            Box(Modifier.fillMaxSize().background(Atelier.Ground)) {
+                BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            }
+        }
+        rule.waitForIdle()
+        val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
+        state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())
+        rule.waitForIdle()
+        val id = ids[0]
+        // Squared up first: a card is laid down at its own slight tilt, and a slanted edge would
+        // cross a one-pixel column only near a corner.
+        state.rotateBy(id, -state.item(id)!!.pos!!.rotation)
+        state.commitLayout()
+        rule.waitForIdle()
+        // Just outside the card's left edge, from top to bottom: the table, or the dashed footprint.
+        fun marks(): Int {
+            val card = rule.onNodeWithTag("card-$id").fetchSemanticsNode().boundsInRoot
+            val map = rule.onNodeWithTag("canvas").captureToImage().toPixelMap()
+            val x = (card.left - 6f * rule.density.density).toInt()
+            return (card.top.toInt() until card.bottom.toInt()).count { y ->
+                val c = map[x, y]
+                (c.red + c.green + c.blue) / 3f > 0.35f
+            }
+        }
+        assertEquals(0, marks(), "resting: the table")
+        val pos = state.item(id)!!.pos!!
+        val from = Offset((pos.x - state.camX) * state.zoom + canvas.width / 2f, (pos.y - state.camY) * state.zoom + canvas.height / 2f)
+        rule.onNodeWithTag("canvas").performMouseInput {
+            moveTo(from)
+            press()
+            repeat(12) { moveBy(Offset(0f, 2f)) }
+        }
+        rule.mainClock.advanceTimeBy(Motion.LIFT_MS + 100L)
+        rule.waitForIdle()
+        assertTrue(marks() > 10, "held: its landing place marked, dashed: ${marks()}")
+        rule.onNodeWithTag("canvas").performMouseInput { release() }
+        rule.mainClock.advanceTimeBy(1000L)
+        rule.waitForIdle()
+        assertEquals(0, marks(), "landed: gone")
     }
 }

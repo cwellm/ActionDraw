@@ -238,7 +238,7 @@ class BoardStateTest {
         assertEquals(before.x + 40f, pos.x)
         assertEquals(before.y - 20f, pos.y)
         assertEquals(before.scale * 2f, pos.scale)
-        assertEquals(30f, pos.rotation)
+        assertEquals(before.rotation + 30f, pos.rotation, "turned from the tilt it was put down with")
     }
 
     @Test

@@ -44,6 +44,9 @@ concepts*, *New sketch* or *Continue the sketch*.
   glass slides, each showing the picture through itself, and the knobs — Light, Blur, Mirror,
   Flip, Invert, Shards, Grid, Glass. What a lens or a knob can be set to opens right above it;
   a click on the chosen slide again, or ×, puts it away.
+- **Drawing from** is one menu: a folder, or any **board** — its own pictures and its concepts',
+  seen and redo kept in the board's folder. Any exercise can **start with a lens**; choosing one
+  makes it a lens study.
 - Pick a folder; images are shown in **random order**. The folder is **remembered across
   restarts** (`~/.actiondraw/settings.properties`); a folder that has moved or been deleted is
   silently forgotten.
@@ -135,6 +138,11 @@ opens the full menu with every other command. The arrows or `Tab` go round the r
 takes a button, `Esc` closes it.
 
 ### Getting started
+- A board's header says where you are — *Boards ▾ / Drachenbuch* — with the search in the
+  middle; on the right, the surface as a swatch of cork, papyrus or the graphite table,
+  *Concepts ▾*, *+*, *⋯* and **Draw from this board**. Grid | Free and the zoom (− % +; the
+  percentage fits every card) sit in the bottom left corner, **Contents** in the bottom right.
+  Cards are put down a degree or two askew, as by hand; the rotate handle turns them on from there.
 - The palette's **Boards** well opens the board you had open last, or the board list:
   a tile per board with its cover picture, counts and path, plus **New board…** and **Explore…**
   for a board folder elsewhere.
@@ -241,7 +249,8 @@ takes a button, `Esc` closes it.
   picture the page advertises beside the title; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
   captions, tags, note text and link addresses.
-- **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
+- **Palettes** (`P`): the dominant colours of a picture as swatches with hex values; **Pin to the
+  board** puts them beside the picture as a taped card of swatches, lettered with whose they are.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
   them. In grid mode a section's name selects that group's cards
 - **Adding a card to a group later**: on the canvas, drag it onto one of the group's *pictures*
@@ -379,6 +388,8 @@ step back; come up to any of them and they are there.
   The **rubber** (`E`), at the bottom of the tray: **soft** by default, a pass
   lifts part of the graphite and two or three clear a light mark; **hard** takes it all at once
   (the chip under it switches). Size with `[` `]`, the slider under the tray, or `Shift`+wheel.
+  **Shade with the side (tilt)** can be turned off: a leaning pen then draws upright. **Preset**
+  picks a tuning kept by name, or *None* for the tool as it comes.
   The colour swatch there opens a picker: a saturation/value square, a hue strip, hex, recent colours.
 - **Undo / Redo** (`Ctrl`+`Z` / `Ctrl`+`Y`) replay the strokes; there is no limit but memory.
 - **Back** (or `Esc`) keeps the sketch: it is still there when you come back, for as long as
@@ -408,7 +419,10 @@ step back; come up to any of them and they are there.
   click) on a board, or **Continue sketch** on a concept's page, opens them again; **Back**
   returns to the board or the concept.
 - **Sketch** beside *Pin* in a drawing session pauses the session and opens Live Sketch with the
-  picture on screen kept beside the page, under the paper (click it for a larger view over the
+  picture on screen kept beside the page, under the paper. **Show the reference underneath**
+  lays it on the page itself, between the paper and the graphite, at a strength you set — or
+  **over** the strokes, to check them against it; the saved picture never includes it (click the
+  reference for a larger view over the
   page, **Put away** to put it away); **Back**
   returns to the paused session. The paper beside the monitor, digitised.
 

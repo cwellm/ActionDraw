@@ -201,6 +201,9 @@ class BoardState(
     var zoom by mutableStateOf(1f)
         private set
 
+    /** Where the pointer last let go on the canvas, in board units: where a new group's frame is begun. */
+    var lastRelease: Pair<Float, Float>? = null
+
     val isOpen: Boolean get() = root != null && board != null
     val theme: String get() = board?.theme ?: BoardThemes.CORK
     val layout: String get() = board?.layout ?: BoardLayouts.GRID
@@ -1171,6 +1174,40 @@ class BoardState(
     fun openUrl(url: String) = linkOpener(url)
 
     /** Dominant colours of the given cards, in display order (empty for notes and links). */
+    /**
+     * Pins [colours] read off [picture] to the board as a palette card, beside the picture and in
+     * its group; it is selected, so it can be moved straight on.
+     */
+    fun pinPalette(picture: ImageItem, colours: List<Int>) {
+        if (colours.isEmpty() || board == null) return
+        val name = picture.caption ?: File(picture.path).nameWithoutExtension
+        val text = "colours of $name" + "\n" + colours.joinToString(" ") { Palette.hex(it) }
+        val near = picture.pos?.let { it.copy(x = it.x + BASE_SIZE * 0.6f, y = it.y + BASE_SIZE * 0.55f, scale = 1f) }
+        val card = NoteItem(
+            id = Importer.newId(),
+            text = text,
+            kind = NoteKind.PALETTE,
+            groups = picture.groups.filterNot { it.startsWith(ConceptLink.PREFIX) },
+            pos = near?.copy(rotation = naturalTilt(text)),
+        )
+        update { it.copy(items = it.items + card) }
+        if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+        selection = setOf(card.id)
+        focusId = card.id
+    }
+
+    /**
+     * The pictures on the board in [dir] - its own and its linked concepts' - read from its file
+     * without opening it: what the Practice room draws from a board.
+     */
+    fun picturesOf(dir: File): List<File> {
+        val file = BoardStore.peek(dir) ?: return emptyList()
+        return file.items.filterIsInstance<ImageItem>().mapNotNull { item ->
+            val borrowed = ConceptLink.splitBorrowed(item.path)
+            if (borrowed == null) File(dir, item.path) else concepts.snapshot(borrowed.first)?.root?.let { File(it, borrowed.second) }
+        }.filter { it.isFile }.distinct()
+    }
+
     fun palettesOf(ids: Set<String>): List<Pair<ImageItem, List<Int>>> =
         displayItems.filterIsInstance<ImageItem>()
             .filter { it.id in ids }
@@ -1241,7 +1278,11 @@ class BoardState(
     fun aspectOf(item: BoardItem): Float = when (item) {
         is ImageItem -> (item.aspect ?: 1f).coerceIn(0.2f, 5f)
         is LinkItem -> STRIP_ASPECT
-        is NoteItem -> if (item.kind == NoteKind.POSTIT) item.estimatedAspect() else STRIP_ASPECT
+        is NoteItem -> when (item.kind) {
+            NoteKind.POSTIT -> item.estimatedAspect()
+            NoteKind.PALETTE -> PALETTE_ASPECT
+            else -> STRIP_ASPECT
+        }
     }
 
     /** One hull per group that has placed, currently visible cards. */
@@ -1914,6 +1955,9 @@ class BoardState(
 
     fun drawSelection() = draw(selectedImageFiles)
 
+    /** Every picture on the board, its own and its concepts' - *Draw from this board*. */
+    fun drawBoard() = draw(board?.items.orEmpty().filterIsInstance<ImageItem>().mapNotNull(::fileOf))
+
     fun drawGroup(groupId: String?) =
         draw((if (groupId == null) itemsIn(null) else itemsInTree(groupId)).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
 
@@ -2079,6 +2123,16 @@ class BoardState(
         /** Width over height of a link or document-note strip on the canvas. */
         const val STRIP_ASPECT = 3.4f
 
+        /** A palette card: a strip of swatches over its lettered caption. */
+        const val PALETTE_ASPECT = 2.2f
+
+        /**
+         * The small tilt a card is put down with, as by a hand: a degree or two either way, the
+         * same for the same card. It is the card's stored rotation, so the drawn card stays the
+         * clicked card, and the rotate handle takes it from there.
+         */
+        fun naturalTilt(id: String): Float = ((id.hashCode() and 0x7fffffff) % 7 - 3) * 0.6f
+
         /** Where a board keeps the copy of its background picture. */
         const val WALLPAPER_DIR = "_wallpaper"
 
@@ -2123,7 +2177,7 @@ class BoardState(
             var i = 0
             return board.copy(items = board.items.map { item ->
                 if (item.pos != null) item
-                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap)).also { i++ }
+                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap, rotation = naturalTilt(item.id))).also { i++ }
             })
         }
     }

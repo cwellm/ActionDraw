@@ -94,6 +94,24 @@ class SketchState(
     /** Leads tuned and named, from the settings. */
     var presets by mutableStateOf(LeadPresets.parse(settings.leadPresetsJson()))
         private set
+    /** A tilted pen shades with the side of the lead; off, every mark is drawn upright. */
+    var tiltShading by mutableStateOf(settings.tiltShading())
+        private set
+
+    fun shadeWithTilt(on: Boolean) {
+        tiltShading = on
+        settings.setTiltShading(on)
+    }
+
+    /**
+     * The reference from a session, shown on the page itself (F10.5, its first part): under the
+     * strokes - between the paper and the graphite - or, [referenceOver], laid over them, at
+     * [referenceStrength]. On screen only; a saved picture is the strokes on clean paper.
+     */
+    var referenceUnder by mutableStateOf(false)
+    var referenceOver by mutableStateOf(false)
+    var referenceStrength by mutableStateOf(0.3f)
+
     /** The preset applied last, until a knob moves. */
     var activePreset by mutableStateOf<String?>(null)
         private set
@@ -346,6 +364,13 @@ class SketchState(
         activePreset = null
     }
 
+    /** No preset: the current tool as it comes, untuned. */
+    fun clearPreset() {
+        Pencils.reset(brush.lead)
+        activePreset = null
+        tunablesVersion++
+    }
+
     // ---- Drawing ----
 
     /** Page coordinates of a point given in view pixels. */
@@ -374,7 +399,8 @@ class SketchState(
                 penDrawing = true
             }
             val page = toPage(sample.x - viewOrigin.x, sample.y - viewOrigin.y)
-            s.add(InputSample(page.x, page.y, sample.pressure, sample.tiltX.toFloat(), sample.tiltY.toFloat(), sample.timeNanos, InputSample.Source.PEN))
+            val (tiltX, tiltY) = if (tiltShading) sample.tiltX.toFloat() to sample.tiltY.toFloat() else 0f to 0f
+            s.add(InputSample(page.x, page.y, sample.pressure, tiltX, tiltY, sample.timeNanos, InputSample.Source.PEN))
             tick++
         } else if (penDrawing) {
             penDrawing = false

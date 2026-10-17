@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
@@ -127,7 +128,7 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifier: Modifier) {
+fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifier: Modifier, showCorner: Boolean = true) {
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var shiftHeld by remember { mutableStateOf(false) }
 
@@ -137,6 +138,17 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
             .testTag("canvas")
             .pointerLogging("root")
             .onSizeChanged { viewSize = it }
+            // Every release, wherever it lands, noted and passed on: a group made next is drawn from there.
+            .pointerInput(state) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Release) {
+                            event.changes.firstOrNull()?.let { state.lastRelease = boardPoint(it.position, IntSize(size.width, size.height), state) }
+                        }
+                    }
+                }
+            }
             .pointerInput(state) {
                 // Plain drag pans the board; Shift+drag pulls a rubber band over the cards.
                 var marqueeing = false
@@ -233,8 +245,8 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
 
         // Alignment guides and the rubber band, drawn over the cards.
         Canvas(Modifier.fillMaxSize()) {
-            // Pale ultramarine: the Boards room's own colour for what helps arrange.
-            val guideColor = Room.BOARDS.pigment.glow.copy(alpha = 0.6f)
+            // Graphite, as the design's materials have it: dark on cork and papyrus, pencil-light on the table.
+            val guideColor = if (textured) Color(0xB32B2724) else Atelier.TextSoft.copy(alpha = 0.6f)
             state.snapGuideX?.let { gx ->
                 val x = (gx - state.camX) * state.zoom + size.width / 2
                 drawLine(guideColor, Offset(x, 0f), Offset(x, size.height), 1f)
@@ -267,10 +279,13 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
             )
         }
 
-        OutlinedButton(
-            onClick = { state.fitAll(viewSize.width.toFloat(), viewSize.height.toFloat()) },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
-        ) { Text("Fit · ${(state.zoom * 100).toInt()}%") }
+        if (showCorner) {
+            ViewCorner(
+                state,
+                onFit = { state.fitAll(viewSize.width.toFloat(), viewSize.height.toFloat()); state.commitCamera() },
+                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+            )
+        }
     }
 }
 
@@ -310,9 +325,12 @@ private fun CanvasItem(
         if (held && !reduced) lean else 0f,
         spring(dampingRatio = Motion.SETTLE_DAMPING, stiffness = Motion.SETTLE_STIFFNESS),
     )
+    // Pencil on cork and papyrus, a lighter line on the graphite table.
+    val ghostColor = if (textured) Color(0xB32B2724) else Atelier.TextSoft.copy(alpha = 0.6f)
     // Asked of the disk once per card, not on every frame.
     val holder = remember(item.id, (item as? ImageItem)?.path) {
         when {
+            item is NoteItem && item.kind == NoteKind.PALETTE -> CardHolder.TAPE
             item !is ImageItem -> CardHolder.NONE
             state.sketchOf(item) != null -> CardHolder.TAPE
             else -> CardHolder.PIN
@@ -388,7 +406,20 @@ private fun CanvasItem(
                             },
                         )
                     }
-                    .semantics { lifted = held },
+                    .semantics { lifted = held }
+                    // Held, the card's footprint on the board stays marked, dashed, just outside it:
+                    // where it will land.
+                    .drawBehind {
+                        if (lift > 0.01f) {
+                            val out = 6.dp.toPx()
+                            drawRect(
+                                ghostColor.copy(alpha = ghostColor.alpha * lift.coerceAtMost(1f)),
+                                Offset(-out, -out),
+                                Size(size.width + 2 * out, size.height + 2 * out),
+                                style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(7f, 5f))),
+                            )
+                        }
+                    },
             ) {
                 Box(
                     Modifier
@@ -490,7 +521,9 @@ private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(3.dp)
     val paper = notePaper(item)
     val ink = Themes.noteInk
-    if (item.kind == NoteKind.POSTIT) {
+    if (item.kind == NoteKind.PALETTE) {
+        PaletteCard(state, item, Modifier.fillMaxSize())
+    } else if (item.kind == NoteKind.POSTIT) {
         // A post-it: a yellow slip, all of the text as typed, in a written hand.
         Box(
             Modifier
@@ -648,6 +681,10 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
         state.frameDrawn(hull.group.id)
     }
     val composePath = remember(shape) { shape.asComposePath() }
+    // The pencil starts the loop where the pointer let go - the nearest point of the outline to it.
+    val beginAt = remember(hull.group.id) {
+        state.lastRelease?.let { (bx, by) -> Offset((bx - hull.left) * zoom, (by - hull.top) * zoom) }
+    }
     // The frame's layer clips to its own shape, and Compose hit-tests a clipping layer by its
     // outline: a press outside the shape is not a hit here at all and goes on to whatever is
     // drawn underneath. Without this, a frame's rectangle swallowed presses meant for another
@@ -697,7 +734,7 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
                     .drawBehind {
                         val p = drawn.value
                         drawPath(composePath, fill.copy(alpha = fill.alpha * p))
-                        val outline = if (p >= 1f) composePath else partOfOutline(shape, p).asComposePath()
+                        val outline = if (p >= 1f) composePath else partOfOutline(shape, p, beginAt).asComposePath()
                         drawPath(outline, line, style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round, pathEffect = borrowedDash))
                     }
                     // A press on the frame picks the group up; a drag moves it as one. The layer
@@ -841,20 +878,50 @@ private fun wobbleNoise(t: Float, seed: Int): Float {
 
 /**
  * The first [fraction] of [path]'s outline, all contours walked in turn: the frame as far as the
- * pencil has got.
+ * pencil has got. With [start], the walk begins at the point of the outline nearest to it - on
+ * its contour, round to where it began - and then takes the others.
  */
-internal fun partOfOutline(path: org.jetbrains.skia.Path, fraction: Float): org.jetbrains.skia.Path {
+internal fun partOfOutline(path: org.jetbrains.skia.Path, fraction: Float, start: Offset? = null): org.jetbrains.skia.Path {
     val measure = org.jetbrains.skia.PathMeasure(path, false)
     val lengths = mutableListOf<Float>()
     do lengths += measure.length while (measure.nextContour())
+    // Where on which contour the pencil sets down: the nearest of points a few pixels apart.
+    var first = 0
+    var at = 0f
+    if (start != null) {
+        var best = Float.MAX_VALUE
+        val probe = org.jetbrains.skia.PathMeasure(path, false)
+        lengths.forEachIndexed { i, length ->
+            var d = 0f
+            while (d < length) {
+                probe.getPosition(d)?.let { p ->
+                    val dist = (p.x - start.x) * (p.x - start.x) + (p.y - start.y) * (p.y - start.y)
+                    if (dist < best) { best = dist; first = i; at = d }
+                }
+                d += 4f
+            }
+            probe.nextContour()
+        }
+    }
     var left = lengths.sum() * fraction.coerceIn(0f, 1f)
     val out = org.jetbrains.skia.Path()
-    val walk = org.jetbrains.skia.PathMeasure(path, false)
-    for (length in lengths) {
+    // The contours from the first, then the rest in their order.
+    val order = listOf(first) + lengths.indices.filter { it != first }
+    for (i in order) {
         if (left <= 0f) break
-        walk.getSegment(0f, minOf(left, length), out, true)
-        left -= length
-        if (!walk.nextContour()) break
+        val walk = org.jetbrains.skia.PathMeasure(path, false)
+        repeat(i) { walk.nextContour() }
+        val length = lengths[i]
+        val from = if (i == first) at else 0f
+        val firstLeg = minOf(left, length - from)
+        walk.getSegment(from, from + firstLeg, out, true)
+        left -= firstLeg
+        // Round past the contour's start, back to where the pencil set down.
+        if (left > 0f && from > 0f) {
+            val second = minOf(left, from)
+            walk.getSegment(0f, second, out, false)
+            left -= second
+        }
     }
     return out
 }
@@ -891,7 +958,11 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
         elevation = 0.dp,
         modifier = Modifier
             .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
-            .graphicsLayer { alpha = shown }
+            // Pinned a little askew, as by hand; a layer turns hits with what it draws.
+            .graphicsLayer {
+                alpha = shown
+                rotationZ = BoardState.naturalTilt(hull.group.id) * 1.5f
+            }
             .lampShadow(Lift.RESTING, RoundedCornerShape(2.dp))
             .onSizeChanged { size = it }
             .testTag("group-label-" + hull.group.id)

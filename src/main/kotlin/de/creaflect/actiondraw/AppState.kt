@@ -299,12 +299,58 @@ class AppState(private val settings: Settings = Settings()) {
         settings.lastFolder()?.let { loadFolder(it) }
     }
 
+    // ---- A board as the source (F9.10) ----
+
+    /** The boards there are and the pictures on one: the board side's, handed over by the app shell. */
+    interface PracticeBoards {
+        fun boards(): List<Pair<String, File>>
+        fun pictures(dir: File): List<File>
+    }
+
+    /**
+     * The board the Practice room draws from - name and folder - or null while a folder is the
+     * source. Its pictures are the board's own and its concepts'; seen and redo live in the
+     * board's folder, as for a session started on the board.
+     */
+    var practiceBoard by mutableStateOf<Pair<String, File>?>(null)
+        private set
+
+    /** Set by the app shell; a board remembered from the last run is taken up again once it is. */
+    var practiceBoards: PracticeBoards? = null
+        set(value) {
+            field = value
+            val remembered = settings.practiceBoard() ?: return
+            if (practiceBoard != null || value == null) return
+            value.boards().firstOrNull { it.second.absolutePath == remembered.absolutePath }?.let { (name, dir) -> loadBoard(name, dir) }
+        }
+
+    /** Draws from the board [name] in [dir] from now on, and next time. */
+    fun selectBoard(name: String, dir: File) {
+        if (practiceBoards == null) return
+        loadBoard(name, dir)
+        settings.setPracticeBoard(dir)
+    }
+
+    private fun loadBoard(name: String, dir: File) {
+        val pictures = practiceBoards?.pictures(dir) ?: return
+        practiceBoard = name to dir
+        folder = dir
+        allImages = pictures
+        selection = null
+        seen = SeenStore.read(dir).toMutableSet()
+        redo = RedoStore.read(dir).toMutableSet()
+    }
+
     // ---- Menu ----
 
     /** Called when the user picks a folder; also remembered for the next start. */
     fun selectFolder(dir: File) {
         loadFolder(dir)
         settings.setLastFolder(dir)
+        if (practiceBoard != null) {
+            practiceBoard = null
+            settings.setPracticeBoard(null)
+        }
     }
 
     /** Loads the image list and the saved seen/redo sets for [dir]. */
@@ -355,8 +401,8 @@ class AppState(private val settings: Settings = Settings()) {
         }
         val dir = folder ?: return
         sessionOrigin = Screen.Menu
-        // Re-read in case the folder contents changed since it was selected.
-        allImages = ImageScanner.scan(dir)
+        // Re-read in case the folder - or the board - changed since it was chosen.
+        allImages = practiceBoard?.let { practiceBoards?.pictures(it.second) } ?: ImageScanner.scan(dir)
         seen = SeenStore.read(dir).toMutableSet()
         redo = RedoStore.read(dir).toMutableSet()
         beginSession()

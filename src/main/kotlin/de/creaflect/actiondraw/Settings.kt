@@ -40,6 +40,24 @@ class Settings(private val dir: File = defaultDir()) {
     }
 
     /** The well selected on the palette when the app was last used, by room name. */
+    /** The board the Practice room draws from, or null while a folder is the source. */
+    fun practiceBoard(): File? = runCatching { read().getProperty(KEY_PRACTICE_BOARD)?.takeIf { it.isNotBlank() }?.let(::File) }.getOrNull()
+
+    fun setPracticeBoard(dir: File?) {
+        val props = read()
+        if (dir == null) props.remove(KEY_PRACTICE_BOARD) else props.setProperty(KEY_PRACTICE_BOARD, dir.absolutePath)
+        write(props)
+    }
+
+    /** Whether a tilted pen shades with the side of the lead; on unless it was turned off. */
+    fun tiltShading(): Boolean = runCatching { read().getProperty(KEY_TILT_SHADING)?.toBooleanStrictOrNull() }.getOrNull() ?: true
+
+    fun setTiltShading(on: Boolean) {
+        val props = read()
+        props.setProperty(KEY_TILT_SHADING, on.toString())
+        write(props)
+    }
+
     fun lastRoom(): String? = runCatching { read().getProperty(KEY_LAST_ROOM)?.takeIf { it.isNotBlank() } }.getOrNull()
 
     fun setLastRoom(room: String) {
@@ -162,6 +180,8 @@ class Settings(private val dir: File = defaultDir()) {
         const val FILE_NAME = "settings.properties"
         private const val KEY_LAST_FOLDER = "lastFolder"
         private const val KEY_LAST_ROOM = "lastRoom"
+        private const val KEY_TILT_SHADING = "tiltShading"
+        private const val KEY_PRACTICE_BOARD = "practiceBoard"
         private const val KEY_REDUCED_MOTION = "reducedMotion"
         private const val KEY_BOARDS_HOME = "boardsHome"
         private const val KEY_SNAP = "snapByDefault"

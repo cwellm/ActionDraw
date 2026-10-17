@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
@@ -41,6 +42,7 @@ import de.creaflect.sketch.PageSize
 import de.creaflect.sketch.Paper
 import de.creaflect.sketch.Pencils
 import de.creaflect.sketch.SketchDocument
+import de.creaflect.sketch.SampleRecord
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -587,7 +589,7 @@ class SketchStateTest {
             rule.waitForIdle()
             assertEquals(listOf("mine"), state.presets.map { it.name })
             assertNull(state.editor)
-            rule.onNodeWithTag("sketch-preset-mine").assertIsDisplayed()
+            rule.onNodeWithTag("sketch-preset").assertTextContains("mine")
         } finally {
             Pencils.reset(Lead.MEDIUM)
         }
@@ -745,5 +747,93 @@ class SketchStateTest {
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
         rule.onNodeWithTag("sketch-tray").assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+    }
+    // ---- The design, to the letter (F9.10) ----
+
+    @Test
+    fun withTiltShadingOffAPenLeansWithoutShading() {
+        val state = ready()
+        fun strokeWith(tilt: Int): SampleRecord {
+            var t = 50_000L
+            listOf(true, true, true, false).forEachIndexed { i, contact ->
+                state.onPen(pen(40f + i * 20f, 50f, contact, t).copy(tiltX = tilt, tiltY = tilt / 2))
+                t += 10
+            }
+            return state.session!!.document().strokes.last().samples.first()
+        }
+        assertTrue(strokeWith(40).tx != 0f, "on: the lean reaches the pencil")
+        state.shadeWithTilt(false)
+        assertEquals(0f, strokeWith(40).tx, "off: every mark upright")
+        assertFalse(newState().tiltShading, "and it is remembered")
+        newState().shadeWithTilt(true)
+    }
+
+    @Test
+    fun theReferenceLiesUnderTheStrokesOrOverThem() {
+        val red = File(home, "red.png").also { f ->
+            val image = java.awt.image.BufferedImage(60, 40, java.awt.image.BufferedImage.TYPE_INT_RGB)
+            image.createGraphics().apply { paint = java.awt.Color(200, 30, 30); fillRect(0, 0, 60, 40); dispose() }
+            javax.imageio.ImageIO.write(image, "png", f)
+        }
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(600, 400))
+        state.openFromSession(red)
+        rule.waitForIdle()
+        state.fit()
+        state.setLead(Lead.SOFT)
+        state.setSize(30f)
+        var t = 10_000_000_000L
+        val y = state.panY + 200f * state.zoom
+        state.mouseDown(state.panX + 100f * state.zoom, y, t)
+        for (x in 100..500 step 4) {
+            t += 5_000_000L
+            state.mouseMove(state.panX + x * state.zoom, y, t)
+        }
+        state.mouseUp()
+        rule.waitForIdle()
+        fun at(px: Float, py: Float) = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()[px.toInt(), py.toInt()]
+        val paper = Offset(state.panX + 300f * state.zoom, state.panY + 60f * state.zoom)
+        val line = Offset(state.panX + 300f * state.zoom, y)
+        assertTrue(at(paper.x, paper.y).red > 0.9f && at(paper.x, paper.y).green > 0.9f, "bare paper without it")
+
+        state.referenceUnder = true
+        state.referenceStrength = 0.6f
+        rule.waitForIdle()
+        val under = at(paper.x, paper.y)
+        assertTrue(under.red - under.green > 0.25f, "the reference shows through the paper: $under")
+        fun lum(c: androidx.compose.ui.graphics.Color) = (c.red + c.green + c.blue) / 3f
+        val lineUnder = at(line.x, line.y)
+        assertTrue(lum(lineUnder) < lum(under) - 0.15f, "under the graphite, which stays the darker: $lineUnder against $under")
+
+        state.referenceOver = true
+        state.referenceStrength = 1f
+        rule.waitForIdle()
+        val over = at(line.x, line.y)
+        assertTrue(over.red - over.green > 0.4f, "laid over, it covers the line: $over")
+    }
+
+    @Test
+    fun thePresetIsChosenFromADropdown() {
+        try {
+            val state = newState()
+            rule.setContent { SketchScreen(state, ThumbCache(config)) }
+            state.newSketch(PageSize.pixels(300, 200))
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-preset").assertTextContains("None", substring = true)
+            Pencils.set(Lead.SOFT, Pencils.SOFT.copy(maxWidth = 1.7f))
+            state.setLead(Lead.SOFT)
+            assertNull(state.savePreset("soft one"))
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-preset").assertTextContains("soft one", substring = true)
+            rule.onNodeWithTag("sketch-preset").performClick()
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-preset-none").performClick()
+            rule.waitForIdle()
+            assertNull(state.activePreset)
+            assertEquals(Pencils.SOFT.maxWidth, Pencils.of(Lead.SOFT).maxWidth, "none: the tool as it comes")
+        } finally {
+            Pencils.reset(Lead.SOFT)
+        }
     }
 }

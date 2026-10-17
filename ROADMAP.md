@@ -854,7 +854,7 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   between the hand and the page
 
 
-### 🔄 F9.10 The design, to the letter
+### ✅ F9.10 The design, to the letter
 What the design canvas shows and the first pass left out, gathered by laying the archived boards
 (`docs/design/previews`) beside the app on 2026-10-16.
 
@@ -871,20 +871,44 @@ What the design canvas shows and the first pass left out, gathered by laying the
   the popover stretched across the whole window (a weighted spacer in its title row) and took the
   clicks meant for the picture under it. `SessionChromeTest` (4); four guards broken on purpose
   and seen red
-- ⬜ **The board's header**: *Boards / Drachenbuch* as a breadcrumb, the search in the middle,
-  Cork / Papyrus / Plain as a visible switch, *Draw from this board*; zoom (− % +) at the bottom
-  left and *Contents* at the bottom right
-- ⬜ **A palette as a card**: colour swatches pinned on the board, from the palette dialog
-- ⬜ **A natural tilt**: prints and tags lie a little askew — through the stored rotation, so the
-  drawn card stays the clicked card
-- ⬜ **A board as Practice's source**, beside a folder; **Start with a lens** for every exercise
-- ⬜ **Sketch**: the tilt-shading switch, *Preset* as a dropdown, undo and redo as icons, and the
-  session's reference shown **underneath** the page (strength, or laid over instead) — F10.5's
-  first part
-- ⬜ **Motion**: a new group's frame drawn from where the pointer let go; the dashed ghost of where
-  a held card will land
-- ⬜ **Graphite guides**: snapping guides in graphite, as the materials board has them, not the
-  pale ultramarine they got in F9.7
+- ✅ **The board's header**: *Boards ▾ / parent / Drachenbuch* as a breadcrumb after home and the
+  room's dab, the search in the middle (*Search captions, tags, notes*), the surface chosen by a
+  swatch of cork, papyrus and the graphite table itself (the theme row left the ⋯ menu), then
+  *Concepts ▾*, *+*, *⋯* and *Draw from this board* — every picture on it, its own and its
+  concepts'. Grid | Free and, on the free canvas, − 100 % + (the percentage fits every card) sit
+  in the bottom left corner; *Contents* in the bottom right. Still one line at 1024 px
+- ✅ **A palette as a card**: *Pin to the board* in the palette dialog puts the colours read off a
+  picture on the board as a taped card of swatches beside it, lettered *colours of ‹picture›* — a
+  note of a new kind (`palette`: its caption, then the colours as `#rrggbb`), which an older app
+  shows as a document note titled by the caption
+- ✅ **A natural tilt**: a card is put down on the free canvas a degree or two askew, the same for
+  the same card (`naturalTilt`, from its id) — its stored rotation, so the drawn card stays the
+  clicked card and the rotate handle takes it on from there; existing cards keep theirs, and a
+  concept's free layout, which places its cards the same way, lays them down askew too. A group's
+  tag is pinned askew too, turned in its layer, which turns its hit area with it. All 290 board
+  tests, the canvas's hit tests among them, pass on tilted cards. `BoardChromeTest` (+2),
+  `BoardDressTest` (+2); five guards broken on purpose and seen red. The screenshot test caught
+  the new search placeholder wrapping in its field
+- ✅ **A board as Practice's source**: *Drawing from* is one menu — a folder, or any board, with
+  ultramarine's dot. A board gives its own pictures and its linked concepts' (`picturesOf`, read
+  from its file without opening it); seen and redo live in its folder, as for a session started on
+  the board; it is remembered for the next start and taken up again once the board side has handed
+  the boards over (`AppState.PracticeBoards`). **Start with a lens** for every exercise, *None*
+  first: a lens chosen makes it a lens study, as the exercise is what the settings amount to
+- ✅ **Sketch**: *Shade with the side (tilt)* — off, a leaning pen draws upright (remembered);
+  *Preset* as a dropdown, *None* being the tool as it comes; undo and redo as round icons; and the
+  session's reference on the page itself, **underneath** — between the paper and the graphite,
+  the tiles being clear where nothing is drawn — at a strength, or **laid over** the strokes
+  instead to check them against it. On screen only: a saved picture is still the strokes on clean
+  paper. F10.5's first part (the picture underneath from a board, a concept or a collage remains)
+- ✅ **Motion**: a new group's frame is begun at the point of its outline nearest to where the
+  pointer last let go — the canvas notes every release without taking it — and walked round
+  from there; a held card leaves its footprint marked, dashed, just outside it, where it will land
+- ✅ **Graphite guides**: the snapping guides and the landing mark in graphite — dark on cork and
+  papyrus, pencil-light on the graphite table — as the materials board has them
+- ✅ `PracticeTest` (+3), `SketchStateTest` (+3), `SettleDrawOnTest` (+3); seven guards broken on
+  purpose and seen red. The tilt reached the concept page's free layout too, which a concept test
+  noticed
 
 ---
 
@@ -922,12 +946,14 @@ one*, *How the rooms hand things over*) and the design canvas.
   drawing mirrored; a flicker between the two (F10.2)
 - One subject's attempts over months as a row of prints
 
-### ⬜ F10.5 Sketch — the picture underneath
-- Any picture under the page (from a session, a card, a concept, a collage, a file) at a chosen
-  strength, moved, scaled and turned to fit, never part of the saved PNG
-- *Lay it over instead*: the reference over the strokes, for checking at the end
-- In `.sketch.json` by path and placement, so a continued sketch has it again; today's corner
-  reference stays as the "beside the page" option
+### 🔄 F10.5 Sketch — the picture underneath
+- 🔄 Any picture under the page (from a session, a card, a concept, a collage, a file) at a chosen
+  strength, moved, scaled and turned to fit, never part of the saved PNG — a session's reference
+  can lie under the page, fitted whole, at a strength (F9.10); the other sources, and moving,
+  scaling and turning it, remain
+- ✅ *Lay it over instead*: the reference over the strokes, for checking at the end (F9.10)
+- ⬜ In `.sketch.json` by path and placement, so a continued sketch has it again; the reference
+  beside the page stays as the other option
 
 ### ⬜ F10.6 Collage — scissors on a cutting mat
 - `name.collage.json` beside `name.png`: pieces with a source (file, board card, concept item,

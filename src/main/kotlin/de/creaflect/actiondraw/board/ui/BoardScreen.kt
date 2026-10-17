@@ -98,6 +98,14 @@ import androidx.compose.ui.text.input.VisualTransformation
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.ui.HomeButton
+import androidx.compose.foundation.layout.size
+import kotlin.math.roundToInt
+import de.creaflect.actiondraw.ui.Atelier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.TooltipArea
 import de.creaflect.actiondraw.ui.seed
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.PigmentDab
@@ -189,10 +197,14 @@ fun BoardScreen(
                     }
                     if (state.allTags.isNotEmpty()) FilterBar(state)
                 } }
-                if (state.layout == BoardLayouts.FREE) {
-                    BoardCanvas(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
-                } else {
-                    BoardGrid(state, thumbs, textured, Modifier.weight(1f).fillMaxWidth())
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    if (state.layout == BoardLayouts.FREE) {
+                        BoardCanvas(state, thumbs, textured, Modifier.fillMaxSize(), showCorner = !hideChrome)
+                    } else {
+                        BoardGrid(state, thumbs, textured, Modifier.fillMaxSize())
+                        if (!hideChrome) ViewCorner(state, onFit = null, modifier = Modifier.align(Alignment.BottomStart).padding(12.dp))
+                    }
+                    if (!hideChrome) ContentsCorner(state, Modifier.align(Alignment.BottomEnd).padding(12.dp))
                 }
                 // The empty board is just the board: the action bar exists for a selection.
                 if (!hideChrome && state.selection.isNotEmpty()) BoardActionBar(state)
@@ -208,6 +220,12 @@ fun BoardScreen(
  * contents drawer, a menu for adding things, and an overflow for everything used once a session.
  * The header used to be a settings page sitting on top of the board; now it is a toolbar.
  */
+/**
+ * The board's header, as the design has it: where you are on the left - home, the room's dab,
+ * *Boards / parent / this board* - the search in the middle, and on the right the board's surface,
+ * its concepts, what can be added, the rest, and *Draw from this board*. Grid | Free and the zoom
+ * sit in the bottom left corner, *Contents* in the bottom right.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BoardHeader(state: BoardState, name: String, theme: String, onHome: (() -> Unit)?, onImmersive: () -> Unit) {
@@ -216,35 +234,116 @@ private fun BoardHeader(state: BoardState, name: String, theme: String, onHome: 
         verticalArrangement = Arrangement.spacedBy(2.dp),
         modifier = Modifier.fillMaxWidth().padding(start = 12.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
     ) {
-        if (onHome != null) HomeButton(onHome, size = 32.dp, modifier = Modifier.align(Alignment.CenterVertically).padding(end = 6.dp))
-        PigmentDab(Room.BOARDS.pigment, seed = Room.BOARDS.seed, modifier = Modifier.align(Alignment.CenterVertically).padding(end = 6.dp))
-        Text(
-            name,
-            style = MaterialTheme.typography.subtitle1,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colors.primary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .align(Alignment.CenterVertically)
-                .clickable { state.openEditor(BoardEditor.RenameBoard) }
-                .padding(end = 4.dp),
-        )
-        BoardSwitcher(state)
-        ConceptSwitcher(state)
-        state.parentBoard?.let { parent ->
-            FlatButton("↑ " + parent.name, Modifier.testTag("board-up")) { state.openBoard(parent.dir) }
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.align(Alignment.CenterVertically)) {
+            if (onHome != null) HomeButton(onHome, size = 32.dp, modifier = Modifier.padding(end = 6.dp))
+            PigmentDab(Room.BOARDS.pigment, seed = Room.BOARDS.seed, modifier = Modifier.padding(end = 2.dp))
+            BoardSwitcher(state)
+            Crumb()
+            state.parentBoard?.let { parent ->
+                FlatButton(parent.name, Modifier.widthIn(max = 140.dp).testTag("board-up")) { state.openBoard(parent.dir) }
+                Crumb()
+            }
+            Text(
+                name,
+                style = MaterialTheme.typography.subtitle1,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .widthIn(max = 200.dp)
+                    .clickable { state.openEditor(BoardEditor.RenameBoard) }
+                    .padding(horizontal = 4.dp),
+            )
         }
-        Segmented(
-            options = listOf(BoardLayouts.GRID to "Grid", BoardLayouts.FREE to "Free"),
-            selected = state.layout,
-            tag = "layout",
-        ) { state.setLayout(it) }
+        Spacer(Modifier.weight(1f))
         CompactSearch(state)
-        FlatButton(if (state.drawerOpen) "Contents ✕" else "Contents") { state.drawerOpen = !state.drawerOpen }
+        Spacer(Modifier.weight(1f))
+        SurfaceSwatches(state, theme, Modifier.align(Alignment.CenterVertically))
+        ConceptSwitcher(state)
         AddMenu(state)
-        MoreMenu(state, theme, onImmersive)
+        MoreMenu(state, onImmersive)
+        // Drawing is Practice's: the way there carries cadmium's dab.
+        CrossRoomButton(
+            Room.PRACTICE,
+            "Draw from this board",
+            Modifier.align(Alignment.CenterVertically).testTag("board-draw-all"),
+            enabled = state.board?.items.orEmpty().any { it is ImageItem },
+        ) { state.drawBoard() }
+    }
+}
+
+/** The slash of the breadcrumb. */
+@Composable
+private fun Crumb() {
+    Text("/", style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f), modifier = Modifier.padding(horizontal = 2.dp))
+}
+
+/**
+ * Cork, papyrus or the plain graphite table, chosen by a swatch of each surface itself; the one
+ * the board is on is ringed in ultramarine.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun SurfaceSwatches(state: BoardState, theme: String, modifier: Modifier = Modifier) {
+    Row(horizontalArrangement = Arrangement.spacedBy(5.dp), modifier = modifier.padding(horizontal = 4.dp).testTag("board-surface")) {
+        BoardThemes.ALL.forEach { surface ->
+            val label = surface.replaceFirstChar { it.uppercase() }
+            val tile = remember(surface) { Themes.tile(surface) }
+            val on = surface == theme
+            TooltipArea(tooltip = {
+                Text(label, style = MaterialTheme.typography.caption, color = Atelier.Text, modifier = Modifier.background(Atelier.Raised, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+            }) {
+                Box(
+                    Modifier
+                        .size(22.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .then(
+                            if (tile != null) Modifier.background(ShaderBrush(ImageShader(tile, TileMode.Repeated, TileMode.Repeated)))
+                            else Modifier.background(Atelier.Ground).grainBehind(),
+                        )
+                        .border(if (on) 2.dp else 1.dp, if (on) Room.BOARDS.pigment.glow else MaterialTheme.colors.onSurface.copy(alpha = 0.3f), RoundedCornerShape(5.dp))
+                        .selectable(on, role = Role.RadioButton) { state.setTheme(surface) }
+                        .semantics { contentDescription = label }
+                        .testTag("board-surface-$surface"),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The bottom left corner: how the board is laid out, and on the free canvas how near it is -
+ * minus, the percentage (a click fits every card), plus.
+ */
+@Composable
+internal fun ViewCorner(state: BoardState, onFit: (() -> Unit)?, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(8.dp)
+    Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), shape = shape, modifier = modifier.lampShadow(Lift.RESTING, shape).testTag("board-view-corner")) {
+        Row(Modifier.padding(4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Segmented(
+                options = listOf(BoardLayouts.GRID to "Grid", BoardLayouts.FREE to "Free"),
+                selected = state.layout,
+                tag = "layout",
+            ) { state.setLayout(it) }
+            if (onFit != null) {
+                Spacer(Modifier.width(6.dp))
+                FlatButton("−", Modifier.testTag("zoom-out")) { state.setZoom(state.zoom / ZOOM_STEP, state.camX, state.camY); state.commitCamera() }
+                FlatButton("${(state.zoom * 100).roundToInt()} %", Modifier.testTag("zoom-fit")) { onFit() }
+                FlatButton("+", Modifier.testTag("zoom-in")) { state.setZoom(state.zoom * ZOOM_STEP, state.camX, state.camY); state.commitCamera() }
+            }
+        }
+    }
+}
+
+private const val ZOOM_STEP = 1.25f
+
+/** The bottom right corner: the board's contents, folded out to the left. */
+@Composable
+private fun ContentsCorner(state: BoardState, modifier: Modifier = Modifier) {
+    val shape = RoundedCornerShape(8.dp)
+    Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), shape = shape, modifier = modifier.lampShadow(Lift.RESTING, shape)) {
+        FlatButton(if (state.drawerOpen) "Contents ✕" else "Contents", Modifier.testTag("board-contents")) { state.drawerOpen = !state.drawerOpen }
     }
 }
 
@@ -275,7 +374,7 @@ private fun FlowRowScope.CompactSearch(state: BoardState) {
         textStyle = MaterialTheme.typography.body2.copy(color = MaterialTheme.colors.onSurface),
         cursorBrush = SolidColor(MaterialTheme.colors.primary),
         interactionSource = interaction,
-        modifier = Modifier.width(180.dp).height(32.dp).align(Alignment.CenterVertically).testTag("board-search"),
+        modifier = Modifier.width(200.dp).height(32.dp).align(Alignment.CenterVertically).testTag("board-search"),
     ) { inner ->
         TextFieldDefaults.OutlinedTextFieldDecorationBox(
             value = state.query,
@@ -284,7 +383,7 @@ private fun FlowRowScope.CompactSearch(state: BoardState) {
             singleLine = true,
             visualTransformation = VisualTransformation.None,
             interactionSource = interaction,
-            placeholder = { Text("Search", style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f)) },
+            placeholder = { Text("Search captions, tags, notes", style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface.copy(alpha = 0.5f), maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) },
             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
         )
     }
@@ -340,7 +439,7 @@ private fun AddMenu(state: BoardState) {
 
 /** "⋯": what is used once a session, out of the way until then. */
 @Composable
-private fun MoreMenu(state: BoardState, theme: String, onImmersive: () -> Unit) {
+private fun MoreMenu(state: BoardState, onImmersive: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         FlatButton("⋯", Modifier.testTag("board-more")) { open = true }
@@ -353,12 +452,6 @@ private fun MoreMenu(state: BoardState, theme: String, onImmersive: () -> Unit) 
                 Text("Hotkeys…")
             }
             Divider()
-            // One row for the theme, cycling: three rows for three themes made the menu too long.
-            val themes = BoardThemes.ALL
-            val next = themes[(themes.indexOf(theme) + 1).mod(themes.size)]
-            DropdownMenuItem(onClick = { state.setTheme(next) }, modifier = Modifier.testTag("board-theme")) {
-                Text("Theme: " + theme.replaceFirstChar { it.uppercase() } + "  ›  " + next.replaceFirstChar { it.uppercase() })
-            }
             if (state.layout == BoardLayouts.FREE) {
                 DropdownMenuItem(onClick = { open = false; state.setSnappingPreference(!state.snapping) }, modifier = Modifier.testTag("snap-toggle")) {
                     Text((if (state.snapping) "• " else "   ") + "Snap to neighbours")

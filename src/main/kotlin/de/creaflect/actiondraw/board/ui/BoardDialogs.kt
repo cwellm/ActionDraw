@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.TextButton
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -542,12 +543,20 @@ private fun PaletteDialog(state: BoardState, ids: Set<String>) {
             Text("Reading the colours…", style = MaterialTheme.typography.body2)
         }
         palettes.forEach { (item, colors) ->
-            Text(
-                item.caption ?: item.path,
-                style = MaterialTheme.typography.caption,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    item.caption ?: item.path,
+                    style = MaterialTheme.typography.caption,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                // Onto the board as a card of its own, beside its picture.
+                TextButton(
+                    onClick = { state.pinPalette(item, colors); state.closeEditor() },
+                    modifier = Modifier.testTag("pin-palette-" + item.id),
+                ) { Text("Pin to the board") }
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 colors.forEach { color ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {

@@ -310,7 +310,8 @@ class ConceptTest {
 
         val fresh = newState().also { it.openConcept(state.root!!) }
         assertEquals(BoardLayouts.FREE, fresh.layout)
-        assertEquals(ItemPos(before.x + 40f, before.y - 10f), fresh.item(picture.id)!!.pos)
+        // Moved, and still at the slight tilt it was laid down with.
+        assertEquals(ItemPos(before.x + 40f, before.y - 10f, rotation = before.rotation), fresh.item(picture.id)!!.pos)
         assertEquals(Triple(100f, 50f, 2f), Triple(fresh.camX, fresh.camY, fresh.zoom))
     }
 

@@ -40,6 +40,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.clip
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect as ComposeRect
@@ -116,7 +128,7 @@ fun SketchScreen(state: SketchState, thumbs: ThumbCache, onHome: (() -> Unit)? =
             SketchChrome(state, watch, receded, ChromeEdge.LEFT, "sketch-tray") { SketchTray(state) }
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
-                    Page(state)
+                    Page(state, thumbs)
                     // Pen and Tune fold out from the tray, over the page's near edge.
                     if (state.showPenPanel || state.showTunables) {
                         Column(Modifier.align(Alignment.TopStart).padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -199,8 +211,8 @@ private fun Header(state: SketchState, onHome: (() -> Unit)?) {
                 }
             },
             actions = {
-                Flat("Undo", enabled = state.canUndo, tag = "sketch-undo") { state.undo() }
-                Flat("Redo", enabled = state.canRedo, tag = "sketch-redo") { state.redo() }
+                IconFlat("Undo", UNDO_ICON, enabled = state.canUndo, tag = "sketch-undo") { state.undo() }
+                IconFlat("Redo", REDO_ICON, enabled = state.canRedo, tag = "sketch-redo") { state.redo() }
                 FileMenu(state)
                 Flat("Save", tag = "sketch-save") { state.save() }
                 CrossRoomButton(Room.BOARDS, "To a board", Modifier.testTag("sketch-to-board")) { state.openEditor(SketchEditor.ToBoard) }
@@ -225,6 +237,31 @@ private fun Flat(label: String, enabled: Boolean = true, tag: String? = null, on
         Text(label, style = MaterialTheme.typography.body2, maxLines = 1)
     }
 }
+
+/** A round button with a pencil glyph ([icon], an 18-unit box), named for the ear and the eye that looks for words. */
+@Composable
+private fun IconFlat(name: String, icon: String, enabled: Boolean, tag: String, onClick: () -> Unit) {
+    val glyph = remember(icon) { PathParser().parsePathString(icon).toPath() }
+    Box(
+        Modifier
+            .size(34.dp)
+            .clip(CircleShape)
+            .background(Atelier.Raised)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = name, onClick = onClick)
+            .semantics { contentDescription = name }
+            .testTag(tag),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.size(18.dp)) {
+            val k = size.width / 18f
+            drawContext.transform.scale(k, k, Offset.Zero)
+            drawPath(glyph, if (enabled) Atelier.TextSoft else Atelier.Line, style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+        }
+    }
+}
+
+private const val UNDO_ICON = "M4 7 H11 A4.5 4.5 0 0 1 11 16 H7 M7 3.5 L3.5 7 L7 10.5"
+private const val REDO_ICON = "M14 7 H7 A4.5 4.5 0 0 0 7 16 H11 M11 3.5 L14.5 7 L11 10.5"
 
 /** New, open, save as. */
 @Composable
@@ -387,7 +424,13 @@ private fun RowScope.Knob(label: String, value: Float, range: ClosedFloatingPoin
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Page(state: SketchState) {
+private fun Page(state: SketchState, thumbs: ThumbCache) {
+    // The session's reference, as an image the page can draw under or over its strokes.
+    val reference by produceState<org.jetbrains.skia.Image?>(null, state.reference) {
+        value = state.reference?.let { file ->
+            withContext(Dispatchers.IO) { thumbs.load(file, maxSize = 1600) }?.let { org.jetbrains.skia.Image.makeFromBitmap(it.asSkiaBitmap()) }
+        }
+    }
     Box(
         Modifier
             .fillMaxSize()
@@ -466,6 +509,9 @@ private fun Page(state: SketchState) {
                 // The paper's tooth, faintly, so the page reads as paper and the graphite sits *in*
                 // something. On screen only; the saved picture is clean paper.
                 drawIntoCanvas { session.tooth.grain.shade(it.nativeCanvas, panX, panY, panX + w, panY + h, zoom, sampling = sampling) }
+                // The reference underneath: between the paper and the graphite.
+                val underlay = reference?.takeIf { state.referenceUnder }
+                if (underlay != null && !state.referenceOver) drawIntoCanvas { drawReference(it.nativeCanvas, underlay, panX, panY, w, h, state.referenceStrength) }
                 drawIntoCanvas { canvas ->
                     val native = canvas.nativeCanvas
                     for (i in 0 until surface.tileCount) {
@@ -484,6 +530,8 @@ private fun Page(state: SketchState) {
                         )
                     }
                 }
+                // Or laid over the strokes, to check them against it.
+                if (underlay != null && state.referenceOver) drawIntoCanvas { drawReference(it.nativeCanvas, underlay, panX, panY, w, h, state.referenceStrength) }
             }
             // Over its corners: tape, across each corner.
             Canvas(Modifier.fillMaxSize()) {
@@ -498,5 +546,23 @@ private fun Page(state: SketchState) {
                 drawTape(Offset(r, b), tape, -45f, seed = 4)
             }
         }
+    }
+}
+
+/** The reference fitted whole into the page at ([left], [top]), [w] × [h] on screen, at [strength]. */
+private fun drawReference(canvas: org.jetbrains.skia.Canvas, image: org.jetbrains.skia.Image, left: Float, top: Float, w: Float, h: Float, strength: Float) {
+    val scale = minOf(w / image.width, h / image.height)
+    val rw = image.width * scale
+    val rh = image.height * scale
+    org.jetbrains.skia.Paint().use { paint ->
+        paint.setAlphaf(strength.coerceIn(0f, 1f))
+        canvas.drawImageRect(
+            image,
+            Rect.makeWH(image.width.toFloat(), image.height.toFloat()),
+            Rect.makeXYWH(left + (w - rw) / 2f, top + (h - rh) / 2f, rw, rh),
+            FilterMipmap(FilterMode.LINEAR, MipmapMode.LINEAR),
+            paint,
+            true,
+        )
     }
 }

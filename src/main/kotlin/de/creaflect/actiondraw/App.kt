@@ -73,6 +73,14 @@ fun App(
         }
     }
 
+    // The Practice room can draw from a board: the board side says which there are and what is on them.
+    LaunchedEffect(boardState) {
+        state.practiceBoards = object : AppState.PracticeBoards {
+            override fun boards() = boardState.availableBoards()
+            override fun pictures(dir: java.io.File) = boardState.picturesOf(dir)
+        }
+    }
+
     AtelierTheme(reducedMotion = state.reducedMotion) {
         Surface {
             Box {

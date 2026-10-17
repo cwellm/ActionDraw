@@ -33,6 +33,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.OutlinedButton
+import androidx.compose.material.SliderDefaults
+import androidx.compose.material.Slider
+import androidx.compose.material.CheckboxDefaults
+import androidx.compose.material.Checkbox
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -150,7 +158,7 @@ private fun ReferenceCard(state: SketchState, file: File, thumbs: ThumbCache, la
     }
     Surface(color = Atelier.Board, shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Overline("Reference")
+            Overline("Underneath")
             bitmap?.let { bmp ->
                 Image(
                     bitmap = bmp,
@@ -158,6 +166,33 @@ private fun ReferenceCard(state: SketchState, file: File, thumbs: ThumbCache, la
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxWidth().heightIn(max = 220.dp).clickable { onEnlarge() }.testTag("sketch-reference"),
                 )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .toggleable(value = state.referenceUnder, role = Role.Checkbox) { state.referenceUnder = it }
+                    .testTag("sketch-underlay"),
+            ) {
+                Checkbox(checked = state.referenceUnder, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = Room.SKETCH.pigment.glow))
+                Spacer(Modifier.width(6.dp))
+                Text(if (state.referenceOver) "Lay the reference over the strokes" else "Show the reference underneath", style = MaterialTheme.typography.body2, color = Atelier.TextSoft)
+            }
+            if (state.referenceUnder) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Strength", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+                    Spacer(Modifier.weight(1f))
+                    Text("${(state.referenceStrength * 100).roundToInt()} %", style = MaterialTheme.typography.caption, color = Atelier.TextSoft)
+                }
+                Slider(
+                    value = state.referenceStrength,
+                    onValueChange = { state.referenceStrength = it },
+                    valueRange = 0.05f..1f,
+                    colors = SliderDefaults.colors(thumbColor = Room.SKETCH.pigment.glow, activeTrackColor = Room.SKETCH.pigment.glow),
+                    modifier = Modifier.height(24.dp).testTag("sketch-underlay-strength"),
+                )
+                OutlinedButton(onClick = { state.referenceOver = !state.referenceOver }, modifier = Modifier.fillMaxWidth().testTag("sketch-underlay-over")) {
+                    Text(if (state.referenceOver) "Lay it under instead" else "Lay it over instead", style = MaterialTheme.typography.body2)
+                }
             }
             Row {
                 TextButton(onClick = onEnlarge) { Text(if (large) "Smaller" else "Larger", style = MaterialTheme.typography.body2) }
