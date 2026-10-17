@@ -6,8 +6,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performMouseInput
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings

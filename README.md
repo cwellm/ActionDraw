@@ -12,11 +12,41 @@ A small desktop tool for **action drawing**, in three parts:
   graphite, undo, save the picture with its strokes, hand it to a board or a concept.
 
 Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows and Linux
-(e.g. ArchLinux).
+(e.g. ArchLinux). How it looks and where it is going: [CONCEPT.md](CONCEPT.md).
+
+## The palette — home
+
+ActionDraw opens on a porcelain mixing palette. Each of its six wells is a room — **Practice**
+(the timed sessions below), **Boards**, **Concepts**, **Sketch** (Live Sketch), and **Lens** and
+**Collage**, whose wells stay dry until they are built. The centre well says what the chosen room
+is for and offers its next step: *Set up a session*, *Open* the board you had open last, *All
+concepts*, *New sketch* or *Continue the sketch*.
+
+- A click chooses a well, a second click (or the centre's button) opens it. The arrow keys and
+  `Tab` turn the palette, `Enter` opens. The well you chose is remembered for the next start.
+- `Esc` climbs out of any room, and from the top of a room it lands back on the palette; so does
+  the small palette button at the start of every room's header.
+- **Settings** and **Hotkeys** sit in the palette's top right corner.
+- A room opens as its colour spreads from the well like watercolour, and drains back into it on
+  the way home. While you draw, Live Sketch's header, tray and paper and a session's controls step back — in a
+  pose the picture grows into the controls' room — and bring the pointer to them and they return. **Settings → Reduce motion** keeps all of this to short
+  fades; until it is set, it follows Windows' *Show animations*.
 
 ## Draw — timed reference practice
 
 ### Sessions & timing
+- The palette's **Practice** well opens the room: choose an exercise from the cards (*Action
+  drawing*, *Lens studies*, *From memory*), the timing beside them — a ramp is drawn as one bar
+  per pose — and **Start**. In a pose the picture has the room: the **ensō** over its corner
+  closes as the time runs out (a click on it pauses, and paused, the time per picture can be set);
+  **Stop** and what is running sit at the top left; under the ensō, ‹ › and round buttons
+  for **Redo**, **Hide**, **Sketch** and **Pin**. One **tray** along the bottom holds the lenses as
+  glass slides, each showing the picture through itself, and the knobs — Light, Blur, Mirror,
+  Flip, Invert, Shards, Grid, Glass. What a lens or a knob can be set to opens right above it;
+  a click on the chosen slide again, or ×, puts it away.
+- **Drawing from** is one menu: a folder, or any **board** — its own pictures and its concepts',
+  seen and redo kept in the board's folder. Any exercise can **start with a lens**; choosing one
+  makes it a lens study.
 - Pick a folder; images are shown in **random order**. The folder is **remembered across
   restarts** (`~/.actiondraw/settings.properties`); a folder that has moved or been deleted is
   silently forgotten.
@@ -49,8 +79,29 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 - **Proportion grids** (`G` cycles): **Thirds**, **Phi** (golden section), **Diagonal** — each
   with a centre cross.
 
+### The glass — drawing through a lens
+A reading glass to hold over the picture. The **Glass** knob in the tray (or `L`) takes it up: a
+round glass with a rim and a handle follows the pointer and shows what is under it larger —
+the wheel magnifies (×1.25 to ×12), `Shift`+wheel makes the glass itself larger. Its optic is
+chosen from six cross-sections in its settings, above the knob (`O` turns to the next):
+
+- **Plain** — flat glass: larger, nothing bent. A plain zoom.
+- **Convex** — a magnifier: the middle swells, the rim draws in.
+- **Concave** — the middle shrinks away, the rim stretches.
+- **Fisheye** — near in the middle, the edges bending round a much wider field.
+- **Cylinder** — a glass rod: stretched one way, untouched the other.
+- **Prism** — flat, but the colours part towards the rim.
+
+**Set it down**: a click puts the glass down on the point under it, and that part of the picture
+fills the view, as large as the glass showed it; drag out a rectangle instead and exactly that
+part fills it. Down, a drag slides the picture under the glass and the wheel comes nearer about
+the pointer. The whole picture waits in the corner as a small print with the part ringed: click
+it — or right-click, or `Esc` — and you are back to the whole. The lenses, the light and the
+knobs work through the glass as on the picture; a new pose starts whole. Drawing what a bulge or
+a pinch shows, rather than what you know is there, is the exercise.
+
 ### Choosing & remembering pictures
-- **Picture picker** (menu → "Choose pictures…"): a thumbnail grid to include/exclude images,
+- **Picture picker** (Practice → "Choose pictures…"): a thumbnail grid to include/exclude images,
   with All/None; sessions draw only from the selection.
 - **Remembers what you've drawn**: shown images are recorded per folder in
   `.actiondraw_seen.txt` and skipped next time. Once every (selected) image has been shown, the
@@ -60,8 +111,9 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 - Both state files are plain text inside the image folder — safe to delete for a fresh start.
 
 ### Display
-- **Fullscreen** (`F`): the image fills the entire screen with only the remaining time in the
-  bottom corner. `Esc` first leaves fullscreen; pressed again (windowed) it stops the session.
+- **Fullscreen** (`F`): the picture fills the entire screen with only the ensō over its corner.
+  `Esc` steps back one thing at a time — the glass lifted, the glass put away, fullscreen left —
+  and only then stops the session.
 
 ## Idea Boards — collect your material
 
@@ -70,8 +122,28 @@ organised into groups (or placed freely), described by captions, stars and tags.
 board knows lives in one file next to the pictures — `.actiondraw_board.json`. Delete it and you
 still have an ordinary folder of images; the board never renames, moves or deletes your files.
 
+On the board the pictures are prints on paper: pinned through on the free canvas, or taped when
+they are sketches you can continue, so the two are told apart at a glance. Notes are yellow slips
+or ruled sheets, links index cards held by a paperclip, and a card borrowed from a concept wears
+the concept's green tab. A group is drawn round its cards in graphite, its name lettered on a
+paper tag pinned in the group's colour; what is selected is marked in ultramarine. *Plain* is the
+graphite table, *cork* and *papyrus* stay.
+
+**The ring.** Right-click a card and six porcelain buttons open round it, each leading into a
+room and carrying its pigment: **Draw these** (Practice), **Sketch over** — Live Sketch with the
+picture beside the page, or *Continue sketch* for one Live Sketch made — **To a collage** (a dry
+well until Collage is built), **To a concept** (any concept; linked onto the board if it is not
+yet, and the cards become the concept's), **Tag** and **Group**. The middle button, *More…*,
+opens the full menu with every other command. The arrows or `Tab` go round the ring, `Enter`
+takes a button, `Esc` closes it.
+
 ### Getting started
-- The menu offers **Draw**, **Boards** and **Concepts** as equal entry points. **Boards** opens the board list:
+- A board's header says where you are — *Boards ▾ / Drachenbuch* — with the search in the
+  middle; on the right, the surface as a swatch of cork, papyrus or the graphite table,
+  *Concepts ▾*, *+*, *⋯* and **Draw from this board**. Grid | Free and the zoom (− % +; the
+  percentage fits every card) sit in the bottom left corner, **Contents** in the bottom right.
+  Cards are put down a degree or two askew, as by hand; the rotate handle turns them on from there.
+- The palette's **Boards** well opens the board you had open last, or the board list:
   a tile per board with its cover picture, counts and path, plus **New board…** and **Explore…**
   for a board folder elsewhere.
 - New boards are created under the **boards home** (`~/ActionDraw Boards` by default), which the
@@ -92,10 +164,10 @@ still have an ordinary folder of images; the board never renames, moves or delet
   you get copies. A notes-only selection copies as plain text.
 
 ### Settings and hotkeys
-- **Settings** and **Hotkeys** are buttons on the start menu, under *Draw* and *Boards*, and
-  entries in every board's **⋯** menu. On the start menu, Settings holds the boards home, the
+- **Settings** and **Hotkeys** are links in the palette's top right corner, and
+  entries in every board's **⋯** menu. On the palette, Settings holds the boards home, the
   reference folder, and whether dragged cards snap to their neighbours' centre lines — **off**
-  unless you switch it on — and Hotkeys lists every shortcut for the session and the board.
+  unless you switch it on — and Hotkeys lists every shortcut for the palette, the session, the board and the sketch.
   Inside a board, both show only what pertains to the board: *Board settings* (boards home,
   snapping) and the board's hotkeys.
 - Pressing **Enter** in a name field confirms it: a new group or board, a rename, a caption,
@@ -177,7 +249,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
   picture the page advertises beside the title; one-line **captions** (`F2`), **stars** (`S`)
   and **tags** (`T`) with an AND-filter chip bar, and a **search box** that matches file names,
   captions, tags, note text and link addresses.
-- **Palettes** (`P`): the dominant colours of a picture as swatches with hex values.
+- **Palettes** (`P`): the dominant colours of a picture as swatches with hex values; **Pin to the
+  board** puts them beside the picture as a taped card of swatches, lettered with whose they are.
 - **Grouping**: select cards and press `G` (or *Group (n)* in the action bar) to make a group of
   them. In grid mode a section's name selects that group's cards
 - **Adding a card to a group later**: on the canvas, drag it onto one of the group's *pictures*
@@ -225,8 +298,8 @@ still have an ordinary folder of images; the board never renames, moves or delet
   buttons. They are views: a card stays in its own group.
 - A **session recipe** per board ("Drachenbuch is always 60 s in Notan") remembers interval or
   ramp, auto-advance, view mode and grid, and applies to every session started from that board.
-  Without one, the menu's settings are used.
-- **Pin ▾** during any session files the picture on screen onto a board; the summary offers to pin
+  Without one, the Practice room's settings are used.
+- **Pin**, under the ensō, files the picture on screen onto a board; the summary offers to pin
   the pictures you flagged for redo.
 - Board sessions open in **their own window**: the board stays visible behind them, closing the
   window aborts the drawing, and the summary offers **Back to board**.
@@ -241,7 +314,7 @@ Things recur across places, and copying their pictures onto every board lets the
 apart. A concept lives once, in a folder of its own, and is **linked** onto any number of boards.
 
 ### A concept
-- **Concepts** on the start menu opens the list: tiles grouped by *kind* (character, creature,
+- The palette's **Concepts** well opens the list: kraft folios grouped by *kind* (character, creature,
   landscape, prop, colour — a label with suggestions, not a fixed set), each with a cover, its
   counts, and how many boards link it. **New concept…** makes a folder under the concepts home
   (`~/ActionDraw Concepts` by default; **Change home…** moves it, and existing concepts stay where
@@ -291,14 +364,20 @@ and reads pressure, tilt and rotation straight from the pen, alongside the mouse
 everything else keeps using. Without a pen, the mouse draws at one middling pressure.
 
 ### The page
-- **Live Sketch** on the start menu opens a page straight away — A4 at 150 dpi, or the size you
-  chose last. **Sketch ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
+The page lies in the middle of the table, taped at its corners; the **pencil tray** on its left
+holds the tools, the **paper** on its right, a status line under it says what the pen is doing and
+how near the page is (click the zoom to fit). While you draw, the header, the tray and the paper
+step back; come up to any of them and they are there.
+
+- The palette's **Sketch** well opens a page straight away — A4 at 150 dpi, or the size you
+  chose last. **File ▾ → New…** (or `Ctrl`+`N`) offers A5, A4 or A3 at 150 or 300 dpi,
   portrait or landscape, or a width × height in pixels; white, cream, grey or toned paper;
   **smooth**, **medium** or **rough** — the tooth: a light line stays whole on smooth paper and
-  breaks up on rough. The page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
+  breaks up on rough. The paper beside the page shows the three as swatches of their own tooth
+  and the four shades as chips: either changes the page under its strokes. The page is fitted into the view; the wheel zooms about the cursor — with or without `Ctrl`, so
   the XPPen's dial in its zoom setting zooms too — `+` `−` zoom, `Ctrl`+`0` fits again,
   `Space`+drag or the middle button pans.
-- Seven tools on one model: the leads **H · HB · 4B** (`1` `2` `3`), a **0.5** mm mechanical
+- Seven tools on one model, lying in the tray with their keys, the one in hand slid out: the leads **H · HB · 4B** (`1` `2` `3`), a **0.5** mm mechanical
   pencil (`4`, one width whatever the pressure), **Charcoal** (`5`, wide, black under a light
   hand, all tooth), a **Fineliner** (`6`, one width, one blackness, no tooth) and a **Brush**
   pen (`7`, a hair to a broad stroke from pressure, no tooth). The leads differ in more than width: a hard lead
@@ -306,22 +385,24 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
   speed lightens, soft leads most. The mark is made of dabs of paper grain, so light pressure
   catches only the tops of the tooth. Lean the pen and you draw with the side of the lead: the
   mark stretches along the lean, lightens and skims the tooth — a shading stroke, not a line.
-  **Eraser** (`E`) is a rubber: **soft** by default, a pass
+  The **rubber** (`E`), at the bottom of the tray: **soft** by default, a pass
   lifts part of the graphite and two or three clear a light mark; **hard** takes it all at once
-  (the chip beside it switches). Size with `[` `]`, the toolbar's − +, or `Shift`+wheel. The
-  colour swatch opens a picker: a saturation/value square, a hue strip, hex, recent colours.
+  (the chip under it switches). Size with `[` `]`, the slider under the tray, or `Shift`+wheel.
+  **Shade with the side (tilt)** can be turned off: a leaning pen then draws upright. **Preset**
+  picks a tuning kept by name, or *None* for the tool as it comes.
+  The colour swatch there opens a picker: a saturation/value square, a hue strip, hex, recent colours.
 - **Undo / Redo** (`Ctrl`+`Z` / `Ctrl`+`Y`) replay the strokes; there is no limit but memory.
 - **Back** (or `Esc`) keeps the sketch: it is still there when you come back, for as long as
   the app runs. Only starting another sketch or closing the app asks about unsaved strokes.
-- **Pen** on the toolbar folds out what the pen reports — pressure, tilt, rotation, contact,
+- **Pen** under the tray folds out, over the page, what the pen reports — pressure, tilt, rotation, contact,
   sample rate — and **Record samples** appends every reading to `~/.actiondraw/pen-samples.csv`.
   It also shows the last key or wheel event in words, so what a tablet's dial sends can be read off.
   If it reads **Pen ⚠**, the strokes are arriving as a mouse, at one pressure: in the XPPen
   driver, enable Windows Ink and restart ActionDraw.
   **Tune** folds out every number of the current lead, live, for finding what feels like a
   pencil — the tilt's stretch and lightening among them. **Save as preset…** keeps the lead as
-  tuned under a name of your own: a chip beside the leads from then on, in
-  `~/.actiondraw/settings.properties`. The paper can be changed there too, under the strokes.
+  tuned under a name of your own: a chip under the tray from then on, in
+  `~/.actiondraw/settings.properties`.
   The numbers that survive go into [LEARNINGS.md](LEARNINGS.md).
 
 ### Saving, and into the loop
@@ -331,14 +412,18 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
   folder, and will not overwrite another sketch.
 - **Open…** (`Ctrl`+`O`) lists the sketches saved or opened lately, wherever they are, and can
   browse for any `.sketch.json`: the page comes back with every stroke, and undo goes on.
-- **To board…** saves into a board's folder and puts the picture on the board as a card, the
-  `.sketch.json` beside it; **To concept…** the same into a concept's folder, so every board that
+- **To a board** (in the header, with the boards' blue dab) saves into a board's folder and puts the picture on the board as a card, the
+  `.sketch.json` beside it; **To a concept** the same into a concept's folder, so every board that
   links the concept has the sketch. A name already there gets `(2)`, never overwritten.
 - A sketched picture carries its strokes along: **Continue in Live Sketch** on its card (right
   click) on a board, or **Continue sketch** on a concept's page, opens them again; **Back**
   returns to the board or the concept.
 - **Sketch** beside *Pin* in a drawing session pauses the session and opens Live Sketch with the
-  picture on screen kept in the corner of the page (click to enlarge, ✕ to put away); **Back**
+  picture on screen kept beside the page, under the paper. **Show the reference underneath**
+  lays it on the page itself, between the paper and the graphite, at a strength you set — or
+  **over** the strokes, to check them against it; the saved picture never includes it (click the
+  reference for a larger view over the
+  page, **Put away** to put it away); **Back**
   returns to the paused session. The paper beside the monitor, digitised.
 
 ## Keyboard shortcuts
@@ -358,7 +443,8 @@ everything else keeps using. Without a pen, the mouse draws at one middling pres
 | `R` | toggle redo flag |
 | `A` | toggle auto-advance |
 | `F` | toggle fullscreen |
-| `Esc` | leave fullscreen · stop session · close picker/summary |
+| `L` · `O` · `+` / `−` | the glass: take up / put away · next optic · nearer / further |
+| `Esc` | lift the glass · put it away · leave fullscreen · stop session · close picker/summary |
 | `Enter` | close picker/summary |
 
 ### Board
@@ -394,7 +480,7 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 
 | Key | Action |
 |---|---|
-| `1` – `7` · `E` | H · HB · 4B · 0.5 · charcoal · fineliner · brush · eraser |
+| `1` – `7` · `E` | H · HB · 4B · 0.5 · charcoal · fineliner · brush · the rubber |
 | `[` `]` · `Shift`+wheel | thinner · thicker (by the character, so AltGr+8/9 on a German keyboard) |
 | wheel (`Ctrl` or not) · `+` `−` (`Ctrl` or not, numpad too) · `Ctrl`+`0` | zoom about the cursor · zoom · fit the page |
 | `Space`+drag · middle drag | pan |
@@ -450,6 +536,22 @@ board's canvas, with every decision its gestures take, is appended to
 misbehaves on one machine only. Unset, it costs nothing.
 ```sh
 ./gradlew test
+```
+
+## Checks on every pull request
+Two GitHub Actions run on every pull request and on `main`, and `main` only takes a pull request
+whose checks have passed:
+
+- **Tests** (`.github/workflows/tests.yml`) — every test of the app and the sketch engine, on
+  Windows, where the app's fonts and pen are measured; the reports and the room screenshots are
+  kept as the run's artifacts.
+- **Lint** (`.github/workflows/lint.yml`) — ktlint over every Kotlin file, with the rules in
+  `.editorconfig`: the IntelliJ IDEA style, hygiene on (imports, indentation, spacing, naming),
+  wrapping left to the code.
+
+```sh
+./gradlew ktlintCheck    # what the Lint check runs
+./gradlew ktlintFormat   # fixes most of what it finds
 ```
 
 ## Build a native installer

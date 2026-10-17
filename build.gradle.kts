@@ -5,6 +5,15 @@ plugins {
     kotlin("plugin.serialization") version "2.1.0"
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
     id("org.jetbrains.compose") version "1.7.3"
+    // The lint gate on every pull request (.github/workflows/lint.yml); the rules are in .editorconfig.
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
+}
+
+allprojects {
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+    configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
+        version.set("1.5.0")
+    }
 }
 
 group = "de.creaflect.actiondraw"

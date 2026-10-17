@@ -7,6 +7,8 @@ import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.systemPrefersReducedMotion
 import java.io.File
 import kotlin.random.Random
 
@@ -24,8 +26,40 @@ enum class GridMode { OFF, THIRDS, PHI, DIAGONAL }
  * tests so they never touch the real user config.
  */
 class AppState(private val settings: Settings = Settings()) {
-    var screen by mutableStateOf(Screen.Menu)
+    /** The app opens on the palette, its home; every room is entered from there. */
+    var screen by mutableStateOf(Screen.Palette)
         private set
+
+    /** The well selected on the palette, kept from one run to the next. */
+    var paletteRoom by mutableStateOf(
+        settings.lastRoom()?.let { name -> Room.entries.firstOrNull { it.name == name } } ?: Room.PRACTICE,
+    )
+        private set
+
+    fun selectRoom(room: Room) {
+        if (room == paletteRoom) return
+        paletteRoom = room
+        settings.setLastRoom(room.name)
+    }
+
+    /** Movement kept to short cross-fades: the setting once made, until then the system's preference. */
+    var reducedMotion by mutableStateOf(settings.reducedMotion() ?: systemPrefersReducedMotion())
+        private set
+
+    fun setReducedMotionPreference(on: Boolean) {
+        reducedMotion = on
+        settings.setReducedMotion(on)
+    }
+
+    /** Home: back to the palette. */
+    fun showPalette() {
+        screen = Screen.Palette
+    }
+
+    /** The Practice room: the session setup that was the start menu before the palette. */
+    fun showPractice() {
+        screen = Screen.Menu
+    }
 
     var folder by mutableStateOf<File?>(null)
         private set
@@ -87,6 +121,9 @@ class AppState(private val settings: Settings = Settings()) {
     var upsideDown by mutableStateOf(false)
     var mirror by mutableStateOf(false)
     var gridMode by mutableStateOf(GridMode.OFF)
+
+    /** The glass held over the picture (F10.9): kept for the app's life, so its optic carries over. */
+    val glass = de.creaflect.actiondraw.ui.GlassState()
 
     /**
      * White balance from -1 (cool) through 0 (neutral) to +1 (warm). Independent of the view
@@ -262,12 +299,58 @@ class AppState(private val settings: Settings = Settings()) {
         settings.lastFolder()?.let { loadFolder(it) }
     }
 
+    // ---- A board as the source (F9.10) ----
+
+    /** The boards there are and the pictures on one: the board side's, handed over by the app shell. */
+    interface PracticeBoards {
+        fun boards(): List<Pair<String, File>>
+        fun pictures(dir: File): List<File>
+    }
+
+    /**
+     * The board the Practice room draws from - name and folder - or null while a folder is the
+     * source. Its pictures are the board's own and its concepts'; seen and redo live in the
+     * board's folder, as for a session started on the board.
+     */
+    var practiceBoard by mutableStateOf<Pair<String, File>?>(null)
+        private set
+
+    /** Set by the app shell; a board remembered from the last run is taken up again once it is. */
+    var practiceBoards: PracticeBoards? = null
+        set(value) {
+            field = value
+            val remembered = settings.practiceBoard() ?: return
+            if (practiceBoard != null || value == null) return
+            value.boards().firstOrNull { it.second.absolutePath == remembered.absolutePath }?.let { (name, dir) -> loadBoard(name, dir) }
+        }
+
+    /** Draws from the board [name] in [dir] from now on, and next time. */
+    fun selectBoard(name: String, dir: File) {
+        if (practiceBoards == null) return
+        loadBoard(name, dir)
+        settings.setPracticeBoard(dir)
+    }
+
+    private fun loadBoard(name: String, dir: File) {
+        val pictures = practiceBoards?.pictures(dir) ?: return
+        practiceBoard = name to dir
+        folder = dir
+        allImages = pictures
+        selection = null
+        seen = SeenStore.read(dir).toMutableSet()
+        redo = RedoStore.read(dir).toMutableSet()
+    }
+
     // ---- Menu ----
 
     /** Called when the user picks a folder; also remembered for the next start. */
     fun selectFolder(dir: File) {
         loadFolder(dir)
         settings.setLastFolder(dir)
+        if (practiceBoard != null) {
+            practiceBoard = null
+            settings.setPracticeBoard(null)
+        }
     }
 
     /** Loads the image list and the saved seen/redo sets for [dir]. */
@@ -318,8 +401,8 @@ class AppState(private val settings: Settings = Settings()) {
         }
         val dir = folder ?: return
         sessionOrigin = Screen.Menu
-        // Re-read in case the folder contents changed since it was selected.
-        allImages = ImageScanner.scan(dir)
+        // Re-read in case the folder - or the board - changed since it was chosen.
+        allImages = practiceBoard?.let { practiceBoards?.pictures(it.second) } ?: ImageScanner.scan(dir)
         seen = SeenStore.read(dir).toMutableSet()
         redo = RedoStore.read(dir).toMutableSet()
         beginSession()
@@ -372,7 +455,14 @@ class AppState(private val settings: Settings = Settings()) {
     /** Result of the last pin from a session, shown briefly in the session/summary chrome. */
     var pinNotice by mutableStateOf<String?>(null)
 
+    /**
+     * The redo flags the session began with. Drawing one of those pictures is the redo, and clears
+     * its flag; a flag set during this session is for next time and stays.
+     */
+    private var flaggedAtStart: Set<String> = emptySet()
+
     private fun beginSession() {
+        flaggedAtStart = redo.toSet()
         rebuildPool()
         index = 0
         rampPose = 0
@@ -459,7 +549,7 @@ class AppState(private val settings: Settings = Settings()) {
     }
 
     fun leaveBoard() {
-        screen = Screen.Menu
+        screen = Screen.Palette
     }
 
     // ---- Concept navigation (the same arrangement as for boards) ----
@@ -473,18 +563,29 @@ class AppState(private val settings: Settings = Settings()) {
     }
 
     fun leaveConcepts() {
-        screen = Screen.Menu
+        screen = Screen.Palette
     }
 
     // ---- Live Sketch ----
 
-    /** Where Back from Live Sketch goes: the menu, a paused session, a board, a concept. */
-    var sketchOrigin by mutableStateOf(Screen.Menu)
+    /** Where Back from Live Sketch goes: the palette, a paused session, a board, a concept. */
+    var sketchOrigin by mutableStateOf(Screen.Palette)
         private set
 
-    fun showSketch(from: Screen = Screen.Menu) {
-        if (screen != Screen.Sketch) sketchOrigin = if (from == Screen.Sketch) Screen.Menu else from
+    fun showSketch(from: Screen = Screen.Palette) {
+        if (screen != Screen.Sketch) sketchOrigin = if (from == Screen.Sketch) Screen.Palette else from
         screen = Screen.Sketch
+    }
+
+    /**
+     * Home from Live Sketch. A session paused for the sketch is not left behind: then home means
+     * back to that session, as Back does.
+     */
+    fun sketchHome() {
+        if (sketchOrigin == Screen.Session) leaveSketch() else {
+            sketchOrigin = Screen.Palette
+            screen = Screen.Palette
+        }
     }
 
     /**
@@ -498,7 +599,7 @@ class AppState(private val settings: Settings = Settings()) {
 
     fun leaveSketch() {
         screen = sketchOrigin
-        sketchOrigin = Screen.Menu
+        sketchOrigin = Screen.Palette
     }
 
     /** Undo what [startBoardSession] borrowed, so the menu shows the practice folder again. */
@@ -539,8 +640,10 @@ class AppState(private val settings: Settings = Settings()) {
         val dir = folder ?: return
         val k = currentImage?.let(::key) ?: return
         if (seen.add(k)) SeenStore.write(dir, seen)
-        // Drawing a flagged image counts as having redone it -> clear the flag.
-        if (redo.remove(k)) {
+        // Drawing an image that came into the session flagged counts as having redone it -> clear
+        // the flag. One flagged during this session is for the next: clearing it as the pose ended
+        // meant every R was lost the moment you moved on.
+        if (k in flaggedAtStart && redo.remove(k)) {
             RedoStore.write(dir, redo)
             redoTick++
         }

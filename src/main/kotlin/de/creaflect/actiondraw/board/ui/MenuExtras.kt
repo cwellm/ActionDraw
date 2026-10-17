@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -22,6 +20,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,25 +34,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.chooseFolder
+import de.creaflect.actiondraw.ui.lampShadow
 
 /**
- * Two quiet links under the menu's big buttons: the app's settings, and every hotkey on one
- * sheet. Both are dialogs over the menu, so the menu stays the menu.
+ * Two quiet links in the palette's top right corner: the app's settings, and every hotkey on one
+ * sheet. Both are dialogs over the palette, so the palette stays the palette. This fills the
+ * screen (and draws nothing but the links) so a sheet's backdrop can cover all of it.
  */
 @Composable
 fun MenuExtras(app: AppState, boards: BoardState) {
     var settings by remember { mutableStateOf(false) }
     var hotkeys by remember { mutableStateOf(false) }
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-    ) {
-        OutlinedButton(onClick = { settings = true }, modifier = Modifier.weight(1f).testTag("menu-settings")) { Text("Settings") }
-        OutlinedButton(onClick = { hotkeys = true }, modifier = Modifier.weight(1f).testTag("menu-hotkeys")) { Text("Hotkeys") }
+    Box(Modifier.fillMaxSize()) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 24.dp),
+        ) {
+            TextButton(onClick = { settings = true }, modifier = Modifier.testTag("menu-settings")) { Text("Settings", color = Atelier.Muted) }
+            TextButton(onClick = { hotkeys = true }, modifier = Modifier.testTag("menu-hotkeys")) { Text("Hotkeys", color = Atelier.Muted) }
+        }
+        if (settings) MenuScrim(onDismiss = { settings = false }) { SettingsSheet(app, boards) { settings = false } }
+        if (hotkeys) MenuScrim(onDismiss = { hotkeys = false }) { HotkeysSheet { hotkeys = false } }
     }
-    if (settings) MenuScrim(onDismiss = { settings = false }) { SettingsSheet(app, boards) { settings = false } }
-    if (hotkeys) MenuScrim(onDismiss = { hotkeys = false }) { HotkeysSheet { hotkeys = false } }
 }
 
 /** What the app remembers between runs, in one place. [app] is null when opened from a board. */
@@ -106,6 +111,23 @@ internal fun ColumnScope.SettingsSheet(app: AppState?, boards: BoardState, onClo
         Text("Snap dragged cards to their neighbours' centre lines", style = MaterialTheme.typography.body2)
     }
 
+    if (app != null) {
+        Text("Motion", style = MaterialTheme.typography.caption)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = app.reducedMotion,
+                onCheckedChange = { app.setReducedMotionPreference(it) },
+                modifier = Modifier.testTag("settings-reduced-motion"),
+            )
+            Text("Reduce motion: rooms open with a short fade, nothing spreads, ripples or slides", style = MaterialTheme.typography.body2)
+        }
+        Text(
+            "Until it is set here, it follows Windows' “Show animations”.",
+            style = MaterialTheme.typography.caption,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+        )
+    }
+
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(onClick = onClose) { Text("Done") }
     }
@@ -147,9 +169,9 @@ private fun MenuScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.()
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            elevation = 12.dp,
+            elevation = 0.dp,
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.widthIn(max = 640.dp).padding(24.dp).clickable(enabled = false) {},
+            modifier = Modifier.widthIn(max = 640.dp).padding(24.dp).lampShadow(Lift.HELD, RoundedCornerShape(8.dp)).clickable(enabled = false) {},
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
         }
@@ -158,6 +180,11 @@ private fun MenuScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.()
 
 /** The one list both hotkey sheets draw from, so they cannot drift apart. */
 object Hotkeys {
+    val PALETTE: List<Pair<String, String>> = listOf(
+        "← → ↑ ↓ · Tab" to "turn the palette to the next room",
+        "Enter · click the chosen well" to "open the room",
+        "Esc (in any room)" to "back up, and from a room's top back to the palette",
+    )
     val SESSION: List<Pair<String, String>> = listOf(
         "Space" to "play / pause",
         "← / →" to "previous / next picture",
@@ -170,10 +197,15 @@ object Hotkeys {
         "R" to "toggle the redo flag",
         "A" to "toggle auto-advance",
         "F" to "toggle fullscreen",
-        "Esc" to "leave fullscreen · stop the session",
+        "L · O · + / −" to "the glass: take up / put away · next optic · nearer / further",
+        "click · drag · right click (glass in hand)" to "set it down on a point · on a part · lift it off",
+        "wheel · Shift+wheel (glass in hand)" to "magnify · a larger glass (set down: nearer about the pointer)",
+        "Esc" to "lift the glass · put it away · leave fullscreen · stop the session",
     )
     val BOARD: List<Pair<String, String>> = listOf(
         "Click · Ctrl+click · Shift+click" to "select · toggle · range",
+        "Right click a card" to "the ring: draw · sketch over · collage · to a concept · tag · group · More… for the full menu",
+        "← → ↑ ↓ · Tab · Enter · Esc (ring open)" to "round the ring · take a button · close it",
         "Ctrl+A · Ctrl+C · Ctrl+V" to "select all · copy · paste",
         "← → ↑ ↓" to "move focus (grid) · nudge the selection (free)",
         "Ctrl+↑ / ↓ (+Shift)" to "reorder one step (all the way)",
@@ -190,7 +222,7 @@ object Hotkeys {
     )
     val SKETCH: List<Pair<String, String>> = listOf(
         "1 – 7" to "H · HB · 4B · 0.5 · charcoal · fineliner · brush",
-        "E" to "eraser",
+        "E" to "the rubber",
         "[ / ] · Shift+wheel" to "thinner / thicker",
         "wheel (Ctrl or not) · + / − (any, Ctrl or not) · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
         "Space+drag · middle drag" to "pan the page",
@@ -198,9 +230,10 @@ object Hotkeys {
         "Ctrl+S · Ctrl+N · Ctrl+O" to "save · new sketch · open a sketch",
         "Esc" to "close a dialog · back (the sketch stays)",
     )
+    const val PALETTE_TITLE = "The palette"
     const val SESSION_TITLE = "Drawing session"
     const val BOARD_TITLE = "Idea Board"
     const val SKETCH_TITLE = "Live Sketch"
     val SECTIONS: List<Pair<String, List<Pair<String, String>>>> =
-        listOf(SESSION_TITLE to SESSION, BOARD_TITLE to BOARD, SKETCH_TITLE to SKETCH)
+        listOf(PALETTE_TITLE to PALETTE, SESSION_TITLE to SESSION, BOARD_TITLE to BOARD, SKETCH_TITLE to SKETCH)
 }

@@ -35,14 +35,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
+import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.chooseSketchFile
-import de.creaflect.sketch.SketchDocument
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
+import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.sketch.PageSize
 import de.creaflect.sketch.Paper
+import de.creaflect.sketch.SketchDocument
 import java.io.File
 
 /** Renders whichever Live Sketch dialog is open — mounted at app level, above every screen. */
@@ -94,7 +96,7 @@ private fun NewSketchDialog(state: SketchState) {
     var landscape by remember { mutableStateOf(false) }
     var customW by remember { mutableStateOf("1600") }
     var customH by remember { mutableStateOf("1200") }
-    var paper by remember { mutableStateOf(PAPERS.first().second) }
+    var paper by remember { mutableStateOf(SketchState.SHADES.first().second) }
     var tooth by remember { mutableStateOf(Paper.MEDIUM) }
     fun create() {
         val size = chosen?.let { if (landscape) it.landscape else it }
@@ -123,7 +125,7 @@ private fun NewSketchDialog(state: SketchState) {
         }
         Text("Colour of the paper", style = MaterialTheme.typography.caption)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            PAPERS.forEach { (name, argb) -> SelectChip(name, paper == argb) { paper = argb } }
+            SketchState.SHADES.forEach { (name, argb) -> SelectChip(name, paper == argb) { paper = argb } }
         }
         Text("Tooth of the paper", style = MaterialTheme.typography.caption)
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -137,13 +139,6 @@ private fun NewSketchDialog(state: SketchState) {
         Buttons("Create", onOk = ::create, onCancel = state::closeEditor, tag = "sketch-create")
     }
 }
-
-private val PAPERS = listOf(
-    "White" to 0xFFFFFFFF.toInt(),
-    "Cream" to 0xFFFBF5E4.toInt(),
-    "Grey" to 0xFFD9D9D6.toInt(),
-    "Toned" to 0xFFC9B99A.toInt(),
-)
 
 /** A name for the current lead as it is tuned; Enter keeps it. */
 @Composable
@@ -277,12 +272,11 @@ private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> 
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            elevation = 12.dp,
+            elevation = 0.dp,
             shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.widthIn(min = 380.dp, max = 620.dp).padding(24.dp).pointerInput(Unit) { detectTapGestures { } },
+            modifier = Modifier.widthIn(min = 380.dp, max = 620.dp).padding(24.dp).lampShadow(Lift.HELD, RoundedCornerShape(8.dp)).pointerInput(Unit) { detectTapGestures { } },
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
         }
     }
 }
-

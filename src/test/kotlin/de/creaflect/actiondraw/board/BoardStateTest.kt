@@ -12,9 +12,9 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Behavioural tests for BoardState against real temp folders, with a recording fake host. */
@@ -238,7 +238,7 @@ class BoardStateTest {
         assertEquals(before.x + 40f, pos.x)
         assertEquals(before.y - 20f, pos.y)
         assertEquals(before.scale * 2f, pos.scale)
-        assertEquals(30f, pos.rotation)
+        assertEquals(before.rotation + 30f, pos.rotation, "turned from the tilt it was put down with")
     }
 
     @Test

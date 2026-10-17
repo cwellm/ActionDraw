@@ -107,6 +107,44 @@ class SessionKeysTest {
         assertFalse(fullscreen, "the first Esc only restores the window")
     }
 
+    // ---- The glass ----
+
+    @Test
+    fun lTakesTheGlassUpAndPutsItAwayAndOTurnsTheOptic() {
+        val state = state()
+        assertTrue(press(Key.L, state))
+        assertTrue(state.glass.inHand)
+        assertTrue(press(Key.O, state))
+        assertEquals(de.creaflect.actiondraw.ui.Optic.CONVEX, state.glass.optic)
+        val m = state.glass.magnification
+        assertTrue(press(Key.Plus, state))
+        assertTrue(state.glass.magnification > m, "+ brings the glass nearer")
+        press(Key.Minus, state)
+        press(Key.Minus, state)
+        assertTrue(state.glass.magnification < m)
+        press(Key.L, state)
+        assertFalse(state.glass.inHand)
+        assertFalse(press(Key.Plus, state), "without the glass, + is nobody's")
+    }
+
+    @Test
+    fun escapeLiftsTheGlassThenPutsItAwayBeforeAnythingElse() {
+        val state = state()
+        val screen = state.screen
+        var fullscreen = true
+        state.glass.setDown(state.currentImage, 0.3f, 0.3f)
+        press(Key.Escape, state, isFullscreen = true) { fullscreen = it }
+        assertEquals(null, state.glass.focus, "first the whole picture again")
+        assertTrue(state.glass.inHand)
+        assertTrue(fullscreen)
+        press(Key.Escape, state, isFullscreen = true) { fullscreen = it }
+        assertFalse(state.glass.inHand, "then the glass put away")
+        assertTrue(fullscreen)
+        press(Key.Escape, state, isFullscreen = true) { fullscreen = it }
+        assertFalse(fullscreen, "then the window")
+        assertEquals(screen, state.screen, "and the session is still on")
+    }
+
     @Test
     fun hCoversAndUncoversTheReference() {
         val state = state()

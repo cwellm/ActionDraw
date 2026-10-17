@@ -1,16 +1,17 @@
 package de.creaflect.actiondraw.concept.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -42,6 +43,7 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -50,50 +52,56 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.board.BoardLayouts
+import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.ui.Markdown
+import de.creaflect.actiondraw.board.ui.Themes
 import de.creaflect.actiondraw.concept.ConceptEditor
 import de.creaflect.actiondraw.concept.ConceptEntry
 import de.creaflect.actiondraw.concept.ConceptKinds
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ConceptStore
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.PigmentDab
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RoomHeader
+import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.chooseImages
+import de.creaflect.actiondraw.ui.confirmOnEnter
+import de.creaflect.actiondraw.ui.drawPaperclip
+import de.creaflect.actiondraw.ui.focusOnShow
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.ruled
+import de.creaflect.actiondraw.ui.seed
+import de.creaflect.sketch.Paper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
-import androidx.compose.runtime.LaunchedEffect
-import de.creaflect.actiondraw.board.BoardLink
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import de.creaflect.actiondraw.board.BoardLayouts
-import de.creaflect.actiondraw.ui.confirmOnEnter
-import de.creaflect.actiondraw.ui.focusOnShow
-
-/** The Concepts entry on the menu, equal in weight to Draw and Boards. */
-@Composable
-fun RowScope.ConceptMenuButton(state: ConceptState) {
-    Button(
-        onClick = { state.openList() },
-        modifier = Modifier.weight(1f).height(56.dp).testTag("menu-concepts"),
-    ) {
-        Text("Concepts", style = MaterialTheme.typography.h6)
-    }
-}
 
 // ---------------- The list ----------------
 
@@ -108,7 +116,7 @@ private data class ConceptSummary(
 
 /** Every concept, grouped by kind, each with a cover and its counts. */
 @Composable
-fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache) {
+fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     val concepts by produceState(initialValue = emptyList<ConceptSummary>(), state.listTick) {
         value = withContext(Dispatchers.IO) {
             state.availableConcepts().map { entry ->
@@ -126,7 +134,13 @@ fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache) {
     }
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        // The list is the room's top: its way back is the way home.
+        if (onHome != null) RoomHeader(Room.CONCEPTS, onHome)
+        else Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text("Concepts", style = MaterialTheme.typography.h4, color = MaterialTheme.colors.primary)
             Spacer(Modifier.weight(1f))
             OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
@@ -201,42 +215,65 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, summary.cover) {
         value = summary.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 400) } }
     }
+    // A folio: a kraft folder with a viridian tab naming its kind, the cover as a print inside.
     Column(
         Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colors.surface)
             .clickable { onOpen() }
             .testTag("concept-" + summary.entry.name),
     ) {
-        Box(Modifier.fillMaxWidth().aspectRatio(1.4f).background(Color(0x22000000)), contentAlignment = Alignment.Center) {
-            val bmp = cover
-            if (bmp != null) {
-                Image(bitmap = bmp, contentDescription = summary.entry.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            } else {
-                Text("no picture yet", color = Color.White.copy(alpha = 0.35f), style = MaterialTheme.typography.caption)
-            }
-        }
         Text(
-            summary.entry.name,
-            style = MaterialTheme.typography.subtitle1,
+            summary.entry.kind.ifBlank { "concept" },
+            style = AtelierType.Hand.copy(fontSize = 18.sp),
+            color = Atelier.Paper,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 8.dp),
+            modifier = Modifier
+                .padding(start = 14.dp)
+                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                .background(Room.CONCEPTS.pigment.mass)
+                .padding(horizontal = 12.dp),
         )
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
+        Column(
+            Modifier
+                .lampShadow(Lift.RESTING, RoundedCornerShape(4.dp))
+                .clip(RoundedCornerShape(4.dp))
+                .background(FolioKraft)
+                .paperTooth(Paper.ROUGH, strength = 0.16f)
+                .padding(10.dp),
+        ) {
+            Box(
+                Modifier.fillMaxWidth().background(Atelier.Paper).paperTooth().padding(5.dp).aspectRatio(1.4f).background(Color(0xFF1A1715)),
+                contentAlignment = Alignment.Center,
+            ) {
+                val bmp = cover
+                if (bmp != null) {
+                    Image(bitmap = bmp, contentDescription = summary.entry.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                } else {
+                    Text("no picture yet", color = Color.White.copy(alpha = 0.45f), style = MaterialTheme.typography.caption)
+                }
+            }
             Text(
-                "${summary.pictures} picture${if (summary.pictures == 1) "" else "s"} · ${summary.documents} doc${if (summary.documents == 1) "" else "s"}" +
-                    if (summary.boards > 0) " · on ${summary.boards} board${if (summary.boards == 1) "" else "s"}" else "",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.secondary,
-                modifier = Modifier.weight(1f),
+                summary.entry.name,
+                style = AtelierType.Hand.copy(fontSize = 24.sp),
+                color = Atelier.Ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = 6.dp),
             )
-            Text(
-                "Delete…",
-                style = MaterialTheme.typography.caption,
-                color = MaterialTheme.colors.error,
-                modifier = Modifier.clip(RoundedCornerShape(3.dp)).clickable { onDelete() }.padding(horizontal = 4.dp, vertical = 2.dp),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${summary.pictures} picture${if (summary.pictures == 1) "" else "s"} · ${summary.documents} doc${if (summary.documents == 1) "" else "s"}" +
+                        if (summary.boards > 0) " · on ${summary.boards} board${if (summary.boards == 1) "" else "s"}" else "",
+                    style = MaterialTheme.typography.caption,
+                    color = FolioInk,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "Delete…",
+                    style = MaterialTheme.typography.caption,
+                    color = Atelier.Ink,
+                    modifier = Modifier.clip(RoundedCornerShape(3.dp)).clickable { onDelete() }.padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+            }
         }
     }
 }
@@ -245,15 +282,17 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
 
 /** A concept opened: its pictures, notes and links in a grid, its documents rendered beside. */
 @Composable
-fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
+fun ConceptScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     val concept = state.concept ?: return
     Column(Modifier.fillMaxSize()) {
-        Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 3.dp, modifier = Modifier.fillMaxWidth().testTag("concept-header")) {
+        Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 0.dp, modifier = Modifier.fillMaxWidth().lampShadow(Lift.RESTING).testTag("concept-header")) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
+                if (onHome != null) HomeButton(onHome, size = 32.dp)
+                PigmentDab(Room.CONCEPTS.pigment, seed = Room.CONCEPTS.seed)
                 Text(
                     concept.name,
                     style = MaterialTheme.typography.subtitle1,
@@ -274,13 +313,15 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = { state.closeConcept() }, modifier = Modifier.testTag("concept-up")) { Text("↑ All concepts") }
                 AddMenu(state)
-                TextButton(onClick = { state.openEditor(ConceptEditor.LinkToBoards) }, modifier = Modifier.testTag("concept-link")) { Text("Boards…") }
+                CrossRoomButton(Room.BOARDS, "Boards…", Modifier.testTag("concept-link")) { state.openEditor(ConceptEditor.LinkToBoards) }
                 TextButton(onClick = { state.openEditor(ConceptEditor.DeleteConcept(state.root!!, concept.name)) }) { Text("Delete…") }
             }
         }
         state.notice?.let {
-            Text("$it  (click to dismiss)", style = MaterialTheme.typography.caption, color = MaterialTheme.colors.error,
-                modifier = Modifier.padding(horizontal = 12.dp).clickable { state.notice = null })
+            Text(
+                "$it  (click to dismiss)", style = MaterialTheme.typography.caption, color = MaterialTheme.colors.error,
+                modifier = Modifier.padding(horizontal = 12.dp).clickable { state.notice = null },
+            )
         }
         Row(Modifier.fillMaxSize()) {
             // Cards: pictures, notes, links — in a grid, or placed by hand.
@@ -387,26 +428,41 @@ internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageIte
     // Once the picture is decoded its shape is known, and the free layout sizes the card by it.
     LaunchedEffect(thumb) { thumb?.let { state.rememberAspect(item.id, it.width.toFloat() / it.height) } }
     val selected = item.id in state.selection
+    // A print, as on a board: the picture on paper; chosen, it is ringed in the room's viridian.
+    val shape = RoundedCornerShape(2.dp)
     Box(
         modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color(0x14000000))
-            .border(if (selected) 3.dp else 1.dp, if (selected) MaterialTheme.colors.primary else Color(0x33000000), RoundedCornerShape(4.dp))
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Atelier.Paper)
+            .paperTooth()
+            .border(if (selected) 3.dp else 0.dp, if (selected) Room.CONCEPTS.pigment.glow else Color.Transparent, shape)
             .clickable { state.toggleSelected(item.id) }
-            .testTag("concept-picture-" + item.id),
+            .testTag("concept-picture-" + item.id)
+            .padding(6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        val bmp = thumb
-        if (bmp != null) Image(bitmap = bmp, contentDescription = item.path, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-        else Text("…", color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f))
+        Box(Modifier.fillMaxSize().background(Color(0x14000000)), contentAlignment = Alignment.Center) {
+            val bmp = thumb
+            if (bmp != null) Image(bitmap = bmp, contentDescription = item.path, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else Text("…", color = Atelier.InkQuiet)
+        }
         if (selected) {
-            Text("Remove", style = MaterialTheme.typography.caption, color = Color.White,
-                modifier = Modifier.align(Alignment.BottomEnd).background(Color(0xAA000000)).clickable { state.removeItems(setOf(item.id)) }.padding(4.dp))
-            // A picture Live Sketch saved can be taken up again where it was left.
+            Text(
+                "Remove", style = MaterialTheme.typography.caption, color = Color.White,
+                modifier = Modifier.align(Alignment.BottomEnd).background(Color(0xAA000000)).clickable { state.removeItems(setOf(item.id)) }.padding(4.dp),
+            )
+            // A picture Live Sketch saved can be taken up again where it was left: into Sketch, so madder's dab.
             val sketch = remember(item.id) { state.sketchOf(item) }
             if (sketch != null) {
-                Text("Continue sketch", style = MaterialTheme.typography.caption, color = Color.White,
-                    modifier = Modifier.align(Alignment.BottomStart).background(Color(0xAA000000)).clickable { state.openSketch(item) }.padding(4.dp).testTag("continue-sketch-" + item.id))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.align(Alignment.BottomStart).background(Color(0xAA000000)).clickable { state.openSketch(item) }.padding(4.dp).testTag("continue-sketch-" + item.id),
+                ) {
+                    PigmentDab(Room.SKETCH.pigment, size = 9.dp, seed = Room.SKETCH.seed)
+                    Spacer(Modifier.width(4.dp))
+                    Text("Continue sketch", style = MaterialTheme.typography.caption, color = Color.White)
+                }
             }
         }
     }
@@ -414,33 +470,52 @@ internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageIte
 
 @Composable
 internal fun NoteCard(state: ConceptState, item: NoteItem, modifier: Modifier = Modifier) {
+    // A slip or a ruled sheet, as on a board.
+    val postit = item.kind == NoteKind.POSTIT
+    val shape = RoundedCornerShape(3.dp)
     Column(
         modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color(0xFFFFF3B8))
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Themes.parseColor(item.color) ?: if (postit) Themes.noteBacking else Atelier.Paper)
+            .paperTooth()
+            .then(if (postit) Modifier else Modifier.ruled(first = 10.dp, spacing = 9.dp))
             .clickable { state.openEditor(ConceptEditor.EditNote(item.id)) }
             .padding(10.dp),
     ) {
-        if (item.kind == NoteKind.POSTIT) {
-            Text(item.text, style = MaterialTheme.typography.body2, color = Color(0xFF3A3315))
+        if (postit) {
+            Text(item.text, style = AtelierType.Hand.copy(fontSize = 20.sp, lineHeight = 22.sp), color = Themes.noteInk)
         } else {
-            Markdown.Rendered(item.text, style = MaterialTheme.typography.body2, color = Color(0xFF3A3315), onLink = ::browse)
+            Markdown.Rendered(item.text, style = MaterialTheme.typography.body2, color = Themes.noteInk, onLink = ::browse)
         }
     }
 }
 
 @Composable
 internal fun LinkCard(state: ConceptState, item: LinkItem, modifier: Modifier = Modifier) {
+    // An index card, as on a board, held by a paperclip.
+    val shape = RoundedCornerShape(3.dp)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(MaterialTheme.colors.surface)
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Atelier.Paper)
+            .paperTooth()
+            .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
             .clickable { browse(item.url) }
             .padding(10.dp),
     ) {
-        Text("🔗 ", style = MaterialTheme.typography.body2)
-        Text(item.title.ifBlank { item.url }, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Canvas(Modifier.size(14.dp, 30.dp)) { drawPaperclip(Offset(1f, 0f), size.height) }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            item.title.ifBlank { item.url },
+            style = MaterialTheme.typography.body2,
+            color = Room.BOARDS.pigment.mass,
+            textDecoration = TextDecoration.Underline,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -551,8 +626,10 @@ fun ConceptDialogs(state: ConceptState) {
                         Markdown.Rendered(text, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface, onLink = {})
                     }
                 }
-                Text("Markdown: # heading · **bold** · *italic* · - list · [text](url) · --- ; saved as a .md file in the concept's _docs folder.",
-                    style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f))
+                Text(
+                    "Markdown: # heading · **bold** · *italic* · - list · [text](url) · --- ; saved as a .md file in the concept's _docs folder.",
+                    style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
                     if (editor.path != null) OutlinedButton(onClick = { state.deleteDocument(editor.path); state.closeEditor() }) { Text("Delete document") }
                     OutlinedButton(onClick = state::closeEditor) { Text("Cancel") }
@@ -649,12 +726,16 @@ private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> 
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            elevation = 12.dp,
+            elevation = 0.dp,
             shape = RoundedCornerShape(8.dp),
             // Swallow taps so the dialog body doesn't dismiss itself.
-            modifier = Modifier.widthIn(max = 760.dp).padding(24.dp).pointerInput(Unit) { detectTapGestures { } },
+            modifier = Modifier.widthIn(max = 760.dp).padding(24.dp).lampShadow(Lift.HELD, RoundedCornerShape(8.dp)).pointerInput(Unit) { detectTapGestures { } },
         ) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
         }
     }
 }
+
+/** A concept's folio: kraft card, and ink dark enough to read on it (4.8:1). */
+private val FolioKraft = Color(0xFFCDB08A)
+private val FolioInk = Color(0xFF4A4136)

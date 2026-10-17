@@ -12,8 +12,8 @@ class PoolGroupsTest {
     fun redoFirstThenUnseenAndSeenDropped() {
         val all = files("a.jpg", "b.jpg", "c.jpg", "d.jpg")
         val (redoFirst, rest) = poolGroups(all, seen = setOf("b.jpg"), redo = setOf("c.jpg"))
-        assertEquals(listOf("c.jpg"), names(redoFirst))       // flagged -> first group
-        assertEquals(listOf("a.jpg", "d.jpg"), names(rest))   // b seen -> dropped, c only in redo group
+        assertEquals(listOf("c.jpg"), names(redoFirst)) // flagged -> first group
+        assertEquals(listOf("a.jpg", "d.jpg"), names(rest)) // b seen -> dropped, c only in redo group
     }
 
     @Test

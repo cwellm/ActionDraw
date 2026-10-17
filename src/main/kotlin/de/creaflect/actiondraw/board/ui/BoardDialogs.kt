@@ -3,6 +3,7 @@ package de.creaflect.actiondraw.board.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,26 +12,31 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.Checkbox
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.OutlinedTextField
+import androidx.compose.material.Slider
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -38,6 +44,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.GridMode
@@ -50,29 +58,23 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteColors
 import de.creaflect.actiondraw.board.NoteItem
+import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.Palette
 import de.creaflect.actiondraw.board.SessionRecipe
+import de.creaflect.actiondraw.board.WallpaperFit
+import de.creaflect.actiondraw.samePathAs
 import de.creaflect.actiondraw.ui.IntervalSelector
+import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
+import de.creaflect.actiondraw.ui.chooseImages
+import de.creaflect.actiondraw.ui.confirmOnEnter
+import de.creaflect.actiondraw.ui.focusOnShow
+import de.creaflect.actiondraw.ui.lampShadow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.platform.testTag
-import de.creaflect.actiondraw.samePathAs
-import androidx.compose.material.Slider
-import de.creaflect.actiondraw.board.WallpaperFit
-import de.creaflect.actiondraw.ui.chooseImages
-import androidx.compose.ui.input.key.key
-import de.creaflect.actiondraw.board.NoteKind
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import de.creaflect.actiondraw.ui.confirmOnEnter
-import de.creaflect.actiondraw.ui.focusOnShow
 
 /** Renders whichever board dialog is open — mounted once at app level, above every screen. */
 @Composable
@@ -540,12 +542,20 @@ private fun PaletteDialog(state: BoardState, ids: Set<String>) {
             Text("Reading the colours…", style = MaterialTheme.typography.body2)
         }
         palettes.forEach { (item, colors) ->
-            Text(
-                item.caption ?: item.path,
-                style = MaterialTheme.typography.caption,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    item.caption ?: item.path,
+                    style = MaterialTheme.typography.caption,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                // Onto the board as a card of its own, beside its picture.
+                TextButton(
+                    onClick = { state.pinPalette(item, colors); state.closeEditor() },
+                    modifier = Modifier.testTag("pin-palette-" + item.id),
+                ) { Text("Pin to the board") }
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 colors.forEach { color ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -772,9 +782,10 @@ private fun DialogScrim(onDismiss: () -> Unit, content: @Composable ColumnScope.
     ) {
         Surface(
             shape = RoundedCornerShape(8.dp),
-            elevation = 16.dp,
+            elevation = 0.dp,
             modifier = Modifier
                 .widthIn(min = 380.dp, max = 540.dp)
+                .lampShadow(Lift.HELD, RoundedCornerShape(8.dp))
                 // Swallow taps so the dialog body doesn't dismiss itself.
                 .pointerInput(Unit) { detectTapGestures { } },
         ) {

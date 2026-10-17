@@ -4,6 +4,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Typography
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -49,6 +50,7 @@ enum class Room(val label: String, val pigment: Pigment) {
     PRACTICE("Practice", Pigment("Cadmium orange", Color(0xFFE0782F), Color(0xFFF5A25E), Atelier.Ink)),
     LENS("Lens", Pigment("Payne's grey", Color(0xFF46525F), Color(0xFFA3B0BE), Atelier.Paper)),
     BOARDS("Boards", Pigment("Ultramarine", Color(0xFF3446B8), Color(0xFF8E9EF4), Atelier.Paper)),
+
     // A shade deeper than the design canvas's #1F7F6E: paper text on that reached only 4.2:1.
     CONCEPTS("Concepts", Pigment("Viridian", Color(0xFF1A6F60), Color(0xFF5CC4AE), Atelier.Paper)),
     SKETCH("Sketch", Pigment("Madder rose", Color(0xFFB8324A), Color(0xFFEE8094), Atelier.Paper)),
@@ -112,8 +114,10 @@ object AtelierType {
     val Hand = TextStyle(fontFamily = Caveat, fontWeight = FontWeight.Medium, fontSize = 22.sp)
 }
 
-/** The atelier around a window's content: its colours and its type. */
+/** The atelier around a window's content: its colours, its type, and how much it may move. */
 @Composable
-fun AtelierTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colors = AtelierColors, typography = AtelierType.typography, content = content)
+fun AtelierTheme(reducedMotion: Boolean = false, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalReducedMotion provides reducedMotion) {
+        MaterialTheme(colors = AtelierColors, typography = AtelierType.typography, content = content)
+    }
 }

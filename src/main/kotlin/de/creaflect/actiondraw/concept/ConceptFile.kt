@@ -1,9 +1,9 @@
 package de.creaflect.actiondraw.concept
 
 import de.creaflect.actiondraw.board.BoardItem
-import kotlinx.serialization.Serializable
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.Camera
+import kotlinx.serialization.Serializable
 
 /**
  * The concept sidecar (`.actiondraw_concept.json`), stored in the concept's folder next to its

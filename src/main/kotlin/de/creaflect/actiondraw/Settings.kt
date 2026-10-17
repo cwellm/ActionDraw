@@ -30,6 +30,42 @@ class Settings(private val dir: File = defaultDir()) {
         write(props)
     }
 
+    /** Reduced motion as chosen in ActionDraw; null until chosen, when the system's preference counts. */
+    fun reducedMotion(): Boolean? = runCatching { read().getProperty(KEY_REDUCED_MOTION)?.toBooleanStrictOrNull() }.getOrNull()
+
+    fun setReducedMotion(on: Boolean) {
+        val props = read()
+        props.setProperty(KEY_REDUCED_MOTION, on.toString())
+        write(props)
+    }
+
+    /** The well selected on the palette when the app was last used, by room name. */
+    /** The board the Practice room draws from, or null while a folder is the source. */
+    fun practiceBoard(): File? = runCatching { read().getProperty(KEY_PRACTICE_BOARD)?.takeIf { it.isNotBlank() }?.let(::File) }.getOrNull()
+
+    fun setPracticeBoard(dir: File?) {
+        val props = read()
+        if (dir == null) props.remove(KEY_PRACTICE_BOARD) else props.setProperty(KEY_PRACTICE_BOARD, dir.absolutePath)
+        write(props)
+    }
+
+    /** Whether a tilted pen shades with the side of the lead; on unless it was turned off. */
+    fun tiltShading(): Boolean = runCatching { read().getProperty(KEY_TILT_SHADING)?.toBooleanStrictOrNull() }.getOrNull() ?: true
+
+    fun setTiltShading(on: Boolean) {
+        val props = read()
+        props.setProperty(KEY_TILT_SHADING, on.toString())
+        write(props)
+    }
+
+    fun lastRoom(): String? = runCatching { read().getProperty(KEY_LAST_ROOM)?.takeIf { it.isNotBlank() } }.getOrNull()
+
+    fun setLastRoom(room: String) {
+        val props = read()
+        props.setProperty(KEY_LAST_ROOM, room)
+        write(props)
+    }
+
     // ---- Idea Boards ----
 
     /** Default parent directory for concepts, beside the boards home. Doesn't have to exist yet. */
@@ -84,8 +120,10 @@ class Settings(private val dir: File = defaultDir()) {
     }.getOrDefault(emptyList())
 
     fun addRecentBoard(dir: File) {
-        val next = (listOf(dir.absoluteFile) +
-            recentBoards().filter { !it.samePathAs(dir) })
+        val next = (
+            listOf(dir.absoluteFile) +
+                recentBoards().filter { !it.samePathAs(dir) }
+            )
             .take(MAX_RECENT_BOARDS)
         val props = read()
         (0 until MAX_RECENT_BOARDS).forEach { props.remove("$KEY_RECENT_BOARD.$it") }
@@ -143,6 +181,10 @@ class Settings(private val dir: File = defaultDir()) {
     companion object {
         const val FILE_NAME = "settings.properties"
         private const val KEY_LAST_FOLDER = "lastFolder"
+        private const val KEY_LAST_ROOM = "lastRoom"
+        private const val KEY_TILT_SHADING = "tiltShading"
+        private const val KEY_PRACTICE_BOARD = "practiceBoard"
+        private const val KEY_REDUCED_MOTION = "reducedMotion"
         private const val KEY_BOARDS_HOME = "boardsHome"
         private const val KEY_SNAP = "snapByDefault"
         private const val KEY_CONCEPTS_HOME = "conceptsHome"

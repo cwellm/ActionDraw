@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw.board
 
+import androidx.compose.ui.graphics.Color
 import de.creaflect.actiondraw.board.ui.Markdown
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.EncodedImageFormat
@@ -14,7 +15,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import androidx.compose.ui.graphics.Color
 
 /** Phase-3 pieces that are pure enough to test on their own: note markup, palettes, sheets. */
 class M3Test {

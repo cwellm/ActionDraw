@@ -124,14 +124,9 @@ half4 main(float2 xy) {
         onSurface = Atelier.Ink,
     )
 
-    /** Card backing — "paper pinned to cork". */
-    val cardBacking = Atelier.Paper
-
-    /** Note-card paper, light and dark variants. */
+    /** A post-it's yellow slip, and the ink every note is written in. */
     val noteBacking = Color(0xFFFFF3B8)
-    val noteBackingDark = Color(0xFF474021)
     val noteInk = Color(0xFF3A3315)
-    val noteInkDark = Color(0xFFF0E7BE)
 
     fun parseColor(hex: String?): Color? =
         hex?.removePrefix("#")?.takeIf { it.length == 6 }?.toLongOrNull(16)

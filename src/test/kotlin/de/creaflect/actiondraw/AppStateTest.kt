@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import java.io.File
 import java.nio.file.Files
@@ -134,7 +135,7 @@ class AppStateTest {
             state.startBoardSession(boardRoot, listOf(w1, w2))
             // Board sessions run in their own window; the main screen is left alone.
             assertEquals(Screen.Session, state.boardWindowScreen)
-            assertEquals(Screen.Menu, state.screen)
+            assertEquals(Screen.Palette, state.screen)
             assertEquals(setOf("w1.jpg", "w2.jpg"), state.pool.map { it.name }.toSet())
 
             state.next() // marks the first pose seen -> key must be the relative path
@@ -174,5 +175,39 @@ class AppStateTest {
         val restarted = newState()
         assertNull(restarted.folder)
         assertEquals(0, restarted.totalCount)
+    }
+
+    // ---- Redo flags ----
+
+    @Test
+    fun aRedoFlagSetDuringAPoseSurvivesMovingOnAndStopping() {
+        makeImages("a.jpg", "b.jpg", "c.jpg")
+        val state = newState()
+        state.selectFolder(dir)
+        state.start()
+        val flagged = state.currentImage!!
+        state.toggleRedoCurrent()
+        state.next()
+        state.toggleRedoCurrent() // the second pose too, and then stop on it
+        val second = state.currentImage!!
+        state.stop()
+        assertEquals(setOf(flagged, second), state.sessionFlaggedFiles.toSet(), "flagged for another go, not for nothing")
+        assertEquals(setOf(flagged.name, second.name), RedoStore.read(dir), "and kept on disk")
+    }
+
+    @Test
+    fun aRedoFlagFromAnEarlierSessionClearsOnceThePictureIsRedrawn() {
+        makeImages("a.jpg", "b.jpg")
+        val state = newState()
+        state.selectFolder(dir)
+        state.start()
+        val flagged = state.currentImage!!
+        state.toggleRedoCurrent()
+        state.stop()
+
+        state.start()
+        assertEquals(flagged, state.currentImage, "a flagged picture comes first")
+        state.next()
+        assertTrue(RedoStore.read(dir).isEmpty(), "redrawn: the flag has done its job")
     }
 }

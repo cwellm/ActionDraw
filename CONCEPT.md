@@ -191,6 +191,11 @@ exercise*, *Open Drachenbuch* or *New sketch*.
 - **Lens** (designed in the Practice session's tray; no screen of its own yet). Open any picture
   (a file, the clipboard, a board card, the current collage) and look at it through the same
   tray, with no clock running. It is the vision's "schnelle Filter zum Ausprobieren".
+  And a real lens: **the glass**, a reading glass held over the picture — plain, or bending what
+  it shows (convex, concave, fisheye, a glass rod, a prism) — and set down on a part, which then
+  fills the view, the whole picture one click back in the corner. Drawing what the glass shows
+  rather than what one knows is there. It lives in the session for now (F10.9) and comes into the
+  Lens room with it.
 
 ## What stays true
 

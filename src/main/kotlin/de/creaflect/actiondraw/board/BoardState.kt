@@ -8,18 +8,18 @@ import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
-import de.creaflect.actiondraw.isInside
-import de.creaflect.actiondraw.samePathAs
+import de.creaflect.actiondraw.board.ui.Markdown
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
+import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.isInside
+import de.creaflect.actiondraw.samePathAs
+import de.creaflect.sketch.SketchDocument
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import de.creaflect.actiondraw.board.ui.Markdown
-import de.creaflect.actiondraw.image.relKey
-import de.creaflect.sketch.SketchDocument
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
@@ -42,6 +42,7 @@ sealed class BoardEditor {
 
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
+
     /** [parentId] nests the new group inside an existing top-level group. */
     data class NewGroup(val parentId: String? = null) : BoardEditor()
 
@@ -201,6 +202,9 @@ class BoardState(
     var zoom by mutableStateOf(1f)
         private set
 
+    /** Where the pointer last let go on the canvas, in board units: where a new group's frame is begun. */
+    var lastRelease: Pair<Float, Float>? = null
+
     val isOpen: Boolean get() = root != null && board != null
     val theme: String get() = board?.theme ?: BoardThemes.CORK
     val layout: String get() = board?.layout ?: BoardLayouts.GRID
@@ -231,6 +235,12 @@ class BoardState(
      * Because the registry holds absolute paths, pointing the boards home somewhere else adds a
      * place to look; it does not take the existing boards away.
      */
+    /** The board opened last, by name, if it is still a board: what the palette offers to open. */
+    fun lastBoard(): Pair<String, File>? {
+        val dir = settings.recentBoards().firstOrNull { BoardStore.exists(it) } ?: return null
+        return (BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name) to dir
+    }
+
     fun availableBoards(): List<Pair<String, File>> {
         registry.prune()
         val dirs = LinkedHashMap<String, File>()
@@ -304,7 +314,6 @@ class BoardState(
         }.getOrDefault(false)
         registry.register(name, dir, ownsFolder = underHome)
     }
-
 
     // ---- Derived views ----
 
@@ -487,6 +496,15 @@ class BoardState(
         sketchOf(item)?.let(host::openSketch)
     }
 
+    /**
+     * Into Live Sketch with [item]: its own sketch again, if Live Sketch made it; otherwise a page
+     * with the picture beside it as the reference.
+     */
+    fun sketchOver(item: ImageItem) {
+        val sketch = sketchOf(item)
+        if (sketch != null) host.openSketch(sketch) else fileOf(item)?.let(host::sketchOver)
+    }
+
     val selectedItems: List<BoardItem> get() = board?.items.orEmpty().filter { it.id in selection }
 
     val selectedImageFiles: List<File>
@@ -528,7 +546,6 @@ class BoardState(
                 if (removed) "Board removed. The pictures are still in ${dir.name}."
                 else "Couldn't remove the board file in ${dir.name}."
             }
-
 
             Deletion.DELETE_FOLDER ->
                 if (dir.deleteRecursively()) "Deleted ${dir.name} and everything in it."
@@ -643,6 +660,7 @@ class BoardState(
     }
 
     private fun afterOpen(dir: File) {
+        freshGroupId = null
         selection = emptySet()
         focusId = null
         filterTags = emptySet()
@@ -675,7 +693,6 @@ class BoardState(
         host.leaveBoard()
     }
 
-
     // ---- Concepts on the board ----
 
     /** Ids of the concepts linked onto the open board, in link order. */
@@ -704,6 +721,16 @@ class BoardState(
         val synced = ConceptLink.reconcile(b) { snapshots[it] }
         if (synced != b) update { synced }
         if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+    }
+
+    /**
+     * Gives the selection to a concept: linked onto the board first if it is not yet, then the
+     * board's own cards go into its group — which makes them the concept's ([moveToGroup]).
+     */
+    fun selectionToConcept(conceptId: String) {
+        if (conceptId !in linkedConcepts) linkConcept(conceptId)
+        val group = sortedGroups.find { it.conceptId == conceptId } ?: return
+        moveToGroup(selection, group.id)
     }
 
     /** Links a concept onto the open board: its group appears with the concept's cards. */
@@ -868,10 +895,12 @@ class BoardState(
     fun cycleGroupColor(id: String) {
         if (groupById(id)?.isConcept == true) return // a concept's colour is not the board's to change
         update { b ->
-            b.copy(groups = b.groups.map { g ->
-                if (g.id == id) g.copy(color = GROUP_COLORS[(GROUP_COLORS.indexOf(g.color) + 1) % GROUP_COLORS.size])
-                else g
-            })
+            b.copy(
+                groups = b.groups.map { g ->
+                    if (g.id == id) g.copy(color = GROUP_COLORS[(GROUP_COLORS.indexOf(g.color) + 1) % GROUP_COLORS.size])
+                    else g
+                },
+            )
         }
     }
 
@@ -925,7 +954,17 @@ class BoardState(
             )
         }
         pruneEmptyGroups()
+        freshGroupId = id
         return id
+    }
+
+    /** A group just made: on the canvas its frame is drawn round its cards once, then this is cleared. */
+    var freshGroupId by mutableStateOf<String?>(null)
+        private set
+
+    /** The new group's frame has been drawn; from now on it is simply there. */
+    fun frameDrawn(id: String) {
+        if (freshGroupId == id) freshGroupId = null
     }
 
     /**
@@ -961,13 +1000,15 @@ class BoardState(
         val own = withoutBorrowed(ids)
         if (own.isEmpty()) return
         update { b ->
-            b.copy(items = b.items.map { item ->
-                if (item.id !in own || item.groups.isEmpty()) item
-                else {
-                    val parent = b.groups.find { it.id == item.groups.first() }?.parentId
-                    item.withGroups(listOfNotNull(parent))
-                }
-            })
+            b.copy(
+                items = b.items.map { item ->
+                    if (item.id !in own || item.groups.isEmpty()) item
+                    else {
+                        val parent = b.groups.find { it.id == item.groups.first() }?.parentId
+                        item.withGroups(listOfNotNull(parent))
+                    }
+                },
+            )
         }
         pruneEmptyGroups()
     }
@@ -1049,10 +1090,12 @@ class BoardState(
         val removed = before - after
         if (added.isEmpty() && removed.isEmpty()) return
         update { b ->
-            b.copy(items = b.items.map {
-                if (it is ImageItem && it.id in ids) it.copy(tags = (it.tags - removed + added).distinct())
-                else it
-            })
+            b.copy(
+                items = b.items.map {
+                    if (it is ImageItem && it.id in ids) it.copy(tags = (it.tags - removed + added).distinct())
+                    else it
+                },
+            )
         }
         filterTags = filterTags.filter { it in allTags }.toSet() // a removed tag may be gone entirely
     }
@@ -1135,6 +1178,40 @@ class BoardState(
     fun openUrl(url: String) = linkOpener(url)
 
     /** Dominant colours of the given cards, in display order (empty for notes and links). */
+    /**
+     * Pins [colours] read off [picture] to the board as a palette card, beside the picture and in
+     * its group; it is selected, so it can be moved straight on.
+     */
+    fun pinPalette(picture: ImageItem, colours: List<Int>) {
+        if (colours.isEmpty() || board == null) return
+        val name = picture.caption ?: File(picture.path).nameWithoutExtension
+        val text = "colours of $name" + "\n" + colours.joinToString(" ") { Palette.hex(it) }
+        val near = picture.pos?.let { it.copy(x = it.x + BASE_SIZE * 0.6f, y = it.y + BASE_SIZE * 0.55f, scale = 1f) }
+        val card = NoteItem(
+            id = Importer.newId(),
+            text = text,
+            kind = NoteKind.PALETTE,
+            groups = picture.groups.filterNot { it.startsWith(ConceptLink.PREFIX) },
+            pos = near?.copy(rotation = naturalTilt(text)),
+        )
+        update { it.copy(items = it.items + card) }
+        if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
+        selection = setOf(card.id)
+        focusId = card.id
+    }
+
+    /**
+     * The pictures on the board in [dir] - its own and its linked concepts' - read from its file
+     * without opening it: what the Practice room draws from a board.
+     */
+    fun picturesOf(dir: File): List<File> {
+        val file = BoardStore.peek(dir) ?: return emptyList()
+        return file.items.filterIsInstance<ImageItem>().mapNotNull { item ->
+            val borrowed = ConceptLink.splitBorrowed(item.path)
+            if (borrowed == null) File(dir, item.path) else concepts.snapshot(borrowed.first)?.root?.let { File(it, borrowed.second) }
+        }.filter { it.isFile }.distinct()
+    }
+
     fun palettesOf(ids: Set<String>): List<Pair<ImageItem, List<Int>>> =
         displayItems.filterIsInstance<ImageItem>()
             .filter { it.id in ids }
@@ -1205,7 +1282,11 @@ class BoardState(
     fun aspectOf(item: BoardItem): Float = when (item) {
         is ImageItem -> (item.aspect ?: 1f).coerceIn(0.2f, 5f)
         is LinkItem -> STRIP_ASPECT
-        is NoteItem -> if (item.kind == NoteKind.POSTIT) item.estimatedAspect() else STRIP_ASPECT
+        is NoteItem -> when (item.kind) {
+            NoteKind.POSTIT -> item.estimatedAspect()
+            NoteKind.PALETTE -> PALETTE_ASPECT
+            else -> STRIP_ASPECT
+        }
     }
 
     /** One hull per group that has placed, currently visible cards. */
@@ -1265,14 +1346,16 @@ class BoardState(
     /** Moves every card of a group together — the group behaves as one object. */
     fun dragGroupBy(groupId: String, dx: Float, dy: Float) = updateTransient { b ->
         val inTree = setOf(groupId) + b.groups.filter { it.parentId == groupId }.map { it.id }
-        b.copy(items = b.items.map { item ->
-            val pos = item.pos
-            if (item.groups.any { it in inTree } && pos != null) {
-                item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
-            } else {
-                item
-            }
-        })
+        b.copy(
+            items = b.items.map { item ->
+                val pos = item.pos
+                if (item.groups.any { it in inTree } && pos != null) {
+                    item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
+                } else {
+                    item
+                }
+            },
+        )
     }
 
     /**
@@ -1385,12 +1468,14 @@ class BoardState(
         val previous = wallpaperFile
         val kept = wallpaper
         update { b ->
-            b.copy(wallpaper = de.creaflect.actiondraw.board.Wallpaper(
-                path = WALLPAPER_DIR + "/" + target.name,
-                fit = kept?.fit ?: WallpaperFit.COVER,
-                dim = kept?.dim ?: 0.35f,
-                blur = kept?.blur ?: 0f,
-            ))
+            b.copy(
+                wallpaper = de.creaflect.actiondraw.board.Wallpaper(
+                    path = WALLPAPER_DIR + "/" + target.name,
+                    fit = kept?.fit ?: WallpaperFit.COVER,
+                    dim = kept?.dim ?: 0.35f,
+                    blur = kept?.blur ?: 0f,
+                ),
+            )
         }
         if (previous != null && !previous.samePathAs(target)) previous.delete()
         return null
@@ -1615,27 +1700,33 @@ class BoardState(
     fun dragBy(id: String, dx: Float, dy: Float) {
         val ids = if (id in selection) selection else setOf(id)
         updateTransient { b ->
-            b.copy(items = b.items.map {
-                val pos = it.pos
-                if (it.id in ids && pos != null) it.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else it
-            })
+            b.copy(
+                items = b.items.map {
+                    val pos = it.pos
+                    if (it.id in ids && pos != null) it.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else it
+                },
+            )
         }
     }
 
     fun resizeBy(id: String, factor: Float) = updateTransient { b ->
-        b.copy(items = b.items.map {
-            val pos = it.pos
-            if (it.id == id && pos != null) {
-                it.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.15f, 8f)))
-            } else it
-        })
+        b.copy(
+            items = b.items.map {
+                val pos = it.pos
+                if (it.id == id && pos != null) {
+                    it.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.15f, 8f)))
+                } else it
+            },
+        )
     }
 
     fun rotateBy(id: String, degrees: Float) = updateTransient { b ->
-        b.copy(items = b.items.map {
-            val pos = it.pos
-            if (it.id == id && pos != null) it.withPos(pos.copy(rotation = (pos.rotation + degrees) % 360f)) else it
-        })
+        b.copy(
+            items = b.items.map {
+                val pos = it.pos
+                if (it.id == id && pos != null) it.withPos(pos.copy(rotation = (pos.rotation + degrees) % 360f)) else it
+            },
+        )
     }
 
     /** Arrow keys in freeform: move the selection and persist right away. */
@@ -1878,6 +1969,9 @@ class BoardState(
 
     fun drawSelection() = draw(selectedImageFiles)
 
+    /** Every picture on the board, its own and its concepts' - *Draw from this board*. */
+    fun drawBoard() = draw(board?.items.orEmpty().filterIsInstance<ImageItem>().mapNotNull(::fileOf))
+
     fun drawGroup(groupId: String?) =
         draw((if (groupId == null) itemsIn(null) else itemsInTree(groupId)).filterIsInstance<ImageItem>().mapNotNull(::fileOf))
 
@@ -2043,6 +2137,16 @@ class BoardState(
         /** Width over height of a link or document-note strip on the canvas. */
         const val STRIP_ASPECT = 3.4f
 
+        /** A palette card: a strip of swatches over its lettered caption. */
+        const val PALETTE_ASPECT = 2.2f
+
+        /**
+         * The small tilt a card is put down with, as by a hand: a degree or two either way, the
+         * same for the same card. It is the card's stored rotation, so the drawn card stays the
+         * clicked card, and the rotate handle takes it from there.
+         */
+        fun naturalTilt(id: String): Float = ((id.hashCode() and 0x7fffffff) % 7 - 3) * 0.6f
+
         /** Where a board keeps the copy of its background picture. */
         const val WALLPAPER_DIR = "_wallpaper"
 
@@ -2085,10 +2189,12 @@ class BoardState(
             val inRow = minOf(unplaced, perRow)
             val startX = originX - (inRow - 1) * gap / 2
             var i = 0
-            return board.copy(items = board.items.map { item ->
-                if (item.pos != null) item
-                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap)).also { i++ }
-            })
+            return board.copy(
+                items = board.items.map { item ->
+                    if (item.pos != null) item
+                    else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap, rotation = naturalTilt(item.id))).also { i++ }
+                },
+            )
         }
     }
 }

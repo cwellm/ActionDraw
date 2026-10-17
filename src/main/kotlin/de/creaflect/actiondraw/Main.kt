@@ -2,12 +2,17 @@ package de.creaflect.actiondraw
 
 import androidx.compose.material.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -19,22 +24,17 @@ import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.ReferenceStrip
 import de.creaflect.actiondraw.board.ui.handleBoardKey
+import de.creaflect.actiondraw.concept.ConceptHost
+import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.sketch.SketchHost
+import de.creaflect.actiondraw.sketch.SketchState
+import de.creaflect.actiondraw.sketch.handleSketchChar
+import de.creaflect.actiondraw.sketch.handleSketchShortcut
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
 import java.io.File
-import de.creaflect.actiondraw.concept.ConceptHost
-import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.sketch.SketchState
-import androidx.compose.ui.input.key.isAltPressed
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import de.creaflect.actiondraw.sketch.SketchHost
-import de.creaflect.actiondraw.sketch.handleSketchShortcut
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.input.key.utf16CodePoint
-import de.creaflect.actiondraw.sketch.handleSketchChar
 
 fun main() = application {
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
@@ -49,20 +49,23 @@ fun main() = application {
     // The main window, so a sketch started from a session's own window can come to the front.
     val mainWindow = remember { mutableStateOf<java.awt.Window?>(null) }
     val conceptState = remember {
-        ConceptState(settings, object : ConceptHost {
-            override fun showConcepts() = appState.showConcepts()
-            override fun showConcept() = appState.showConcept()
-            override fun leaveConcepts() = appState.leaveConcepts()
-            override fun boardsFor(conceptId: String) = boardHolder.state.boardsFor(conceptId)
-            override fun setLinked(conceptId: String, board: File, linked: Boolean) {
-                boardHolder.state.setLinked(conceptId, board, linked)
-            }
-            override fun unlinkEverywhere(conceptId: String) = boardHolder.state.unlinkEverywhere(conceptId)
-            override fun openSketch(file: File) {
-                sketchHolder.state.open(file)
-                appState.showSketch(from = Screen.Concept)
-            }
-        })
+        ConceptState(
+            settings,
+            object : ConceptHost {
+                override fun showConcepts() = appState.showConcepts()
+                override fun showConcept() = appState.showConcept()
+                override fun leaveConcepts() = appState.leaveConcepts()
+                override fun boardsFor(conceptId: String) = boardHolder.state.boardsFor(conceptId)
+                override fun setLinked(conceptId: String, board: File, linked: Boolean) {
+                    boardHolder.state.setLinked(conceptId, board, linked)
+                }
+                override fun unlinkEverywhere(conceptId: String) = boardHolder.state.unlinkEverywhere(conceptId)
+                override fun openSketch(file: File) {
+                    sketchHolder.state.open(file)
+                    appState.showSketch(from = Screen.Concept)
+                }
+            },
+        )
     }
     // The board talks to the rest of the app only through this host (its "plugin" boundary).
     val boardState = remember {
@@ -82,6 +85,10 @@ fun main() = application {
                 override fun showConcepts() = conceptState.openList()
                 override fun openSketch(file: File) {
                     sketchHolder.state.open(file)
+                    appState.showSketch(from = Screen.Board)
+                }
+                override fun sketchOver(picture: File) {
+                    sketchHolder.state.openFromSession(picture)
                     appState.showSketch(from = Screen.Board)
                 }
             },
@@ -154,7 +161,7 @@ fun main() = application {
             state = stripState,
             alwaysOnTop = true,
         ) {
-            AtelierTheme {
+            AtelierTheme(reducedMotion = appState.reducedMotion) {
                 Surface { ReferenceStrip(boardState, thumbs) }
             }
         }
@@ -171,10 +178,10 @@ fun main() = application {
             state = sessionWindowState,
             onKeyEvent = { handleSessionWindowKey(it, appState, sessionWindowState) },
         ) {
-            AtelierTheme {
+            AtelierTheme(reducedMotion = appState.reducedMotion) {
                 Surface {
                     when (boardWindow) {
-                        Screen.Summary -> SummaryScreen(appState, pinTargets)
+                        Screen.Summary -> SummaryScreen(appState, pinTargets, thumbs)
                         else -> SessionScreen(
                             appState,
                             onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
@@ -272,6 +279,9 @@ private fun handleKey(
             else -> false
         }
 
+        // The top of a room: Esc goes home to the palette.
+        Screen.Menu, Screen.BoardList -> event.key == Key.Escape && escapeToPalette(state.screen, state, boardState)
+
         Screen.Board -> handleBoardKey(
             event,
             boardState,
@@ -328,11 +338,21 @@ internal fun handleSessionShortcut(
         Key.DirectionLeft -> { state.previous(); true }
         Key.DirectionRight -> { state.next(); true }
         Key.Escape -> {
-            // Esc leaves fullscreen first (restoring the decorated window);
-            // when already windowed, it ends the session.
-            if (isFullscreen) setFullscreen(false) else state.stop()
+            // Esc steps back one thing at a time: the glass off the picture, the glass put away,
+            // fullscreen left (restoring the decorated window), and only then the session ended.
+            when {
+                state.glass.focusOn(state.currentImage) != null -> state.glass.wholePicture()
+                state.glass.inHand -> state.glass.putAway()
+                isFullscreen -> setFullscreen(false)
+                else -> state.stop()
+            }
             true
         }
+        // The glass: L takes it up or puts it away, O turns to the next optic, + − magnify.
+        Key.L -> { state.glass.toggle(); true }
+        Key.O -> { state.glass.nextOptic(); true }
+        Key.Plus, Key.Equals, Key.NumPadAdd -> state.glass.inHand.also { if (it) state.glass.magnifyBy(1f) }
+        Key.Minus, Key.NumPadSubtract -> state.glass.inHand.also { if (it) state.glass.magnifyBy(-1f) }
         Key.F -> { setFullscreen(!isFullscreen); true }
         Key.G -> { state.cycleGrid(); true }
         Key.R -> { state.toggleRedoCurrent(); true }

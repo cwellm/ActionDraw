@@ -25,10 +25,13 @@ import kotlin.math.sqrt
 enum class Paper(val label: String, val floor: Float, val contrast: Float, val octaves: List<Pair<Int, Float>>) {
     /** Hot-pressed: a shallow, fine tooth; lines stay whole. */
     SMOOTH("smooth", 0.45f, 0.6f, listOf(32 to 0.1f, 85 to 0.3f, 256 to 0.6f)),
+
     /** Cartridge paper: one- and three-pixel tooth with a little eight-pixel unevenness. */
     MEDIUM("medium", 0.2f, 1f, listOf(32 to 0.2f, 85 to 0.35f, 256 to 0.45f)),
+
     /** Cold-pressed: deep and coarse, two to sixteen pixels; a light line breaks up on it. */
-    ROUGH("rough", 0.08f, 1.8f, listOf(16 to 0.3f, 43 to 0.35f, 128 to 0.35f));
+    ROUGH("rough", 0.08f, 1.8f, listOf(16 to 0.3f, 43 to 0.35f, 128 to 0.35f)),
+    ;
 
     val grain: PaperGrain by lazy { PaperGrain(floor = floor, contrast = contrast, octaves = octaves) }
 
@@ -53,6 +56,7 @@ class PaperGrain(
     private val octaves: List<Pair<Int, Float>> = Paper.MEDIUM.octaves,
 ) : AutoCloseable {
     val image: Image
+
     /** The same tooth as a shade for the screen: black at alpha 1 − g; see [shade]. */
     val shadow: Image
 

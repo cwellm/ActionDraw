@@ -1,0 +1,18 @@
+root = true
+
+# The lint gate (ktlint, on every pull request). The IntelliJ IDEA style is how this code is
+# written; the rules below that only decide how a long expression wraps are off, because the
+# code wraps by meaning - a key table keeps `{ state.stop(); true }` on one line, a short `if`
+# without braces reads as one thought. What stays on is hygiene: unused and unordered imports,
+# indentation, spacing, naming, blank lines.
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+ktlint_function_naming_ignore_when_annotated_with = Composable
+ktlint_standard_statement-wrapping = disabled
+ktlint_standard_multiline-if-else = disabled
+ktlint_standard_function-signature = disabled
+ktlint_standard_argument-list-wrapping = disabled
+ktlint_standard_enum-wrapping = disabled
+ktlint_standard_multiline-loop = disabled
+ktlint_standard_condition-wrapping = disabled
+ktlint_standard_function-literal = disabled

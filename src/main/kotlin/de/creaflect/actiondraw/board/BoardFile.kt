@@ -196,7 +196,23 @@ data class NoteItem(
 object NoteKind {
     const val DOCUMENT = "document"
     const val POSTIT = "postit"
+
+    /**
+     * A palette pinned to the board: its first line says whose colours they are, its second holds
+     * them as `#rrggbb` words. An app that does not know the kind shows it as a document note
+     * titled by that first line.
+     */
+    const val PALETTE = "palette"
 }
+
+/** The colours of a palette note, as `0xRRGGBB`, in their order. */
+fun NoteItem.paletteColours(): List<Int> =
+    text.lines().drop(1).joinToString(" ").split(' ', ',').mapNotNull { word ->
+        word.trim().removePrefix("#").takeIf { it.length == 6 }?.toIntOrNull(16)
+    }
+
+/** What a palette note says it is: its first line. */
+fun NoteItem.paletteCaption(): String = text.lines().firstOrNull().orEmpty()
 
 /**
  * A card that points somewhere on the web. ActionDraw never fetches it: the URL is stored as

@@ -1,10 +1,10 @@
 package de.creaflect.actiondraw.board
 
 import de.creaflect.actiondraw.GridMode
-import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.isInside
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest

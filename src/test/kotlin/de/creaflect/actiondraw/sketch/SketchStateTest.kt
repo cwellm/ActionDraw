@@ -8,13 +8,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -22,21 +25,23 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.text.TextLayoutResult
-import de.creaflect.actiondraw.sketch.ui.ColorPicker
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.sketch.input.PenSample
+import de.creaflect.actiondraw.sketch.ui.ColorPicker
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
+import de.creaflect.actiondraw.ui.ChromeAlpha
+import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
 import de.creaflect.sketch.Paper
 import de.creaflect.sketch.Pencils
+import de.creaflect.sketch.SampleRecord
 import de.creaflect.sketch.SketchDocument
 import org.junit.After
 import org.junit.Rule
@@ -517,6 +522,22 @@ class SketchStateTest {
     }
 
     @Test
+    fun aPageCanTakeAnotherShadeUnderItsStrokes() {
+        val state = ready()
+        val (white, toned) = SketchState.SHADES.first().second to SketchState.SHADES.last().second
+        assertEquals(white, state.shade)
+        state.mouseLine(100f)
+        state.setShade(toned)
+        assertEquals(toned, state.shade)
+        assertEquals(toned, state.session!!.document().paper)
+        assertTrue(state.darkness(150, 100) > 0.3f, "the line is drawn again on the toned paper: ${state.darkness(150, 100)}")
+        assertTrue(state.dirty, "a new shade is a change")
+        assertTrue(state.canUndo, "and the strokes are still strokes")
+        state.newSketch(PageSize.pixels(300, 200))
+        assertEquals(toned, state.shade, "the next page comes on the shade chosen last")
+    }
+
+    @Test
     fun aPresetKeepsATunedLeadByNameAcrossStates() {
         try {
             val state = ready()
@@ -545,7 +566,7 @@ class SketchStateTest {
     }
 
     @Test
-    fun theTunePanelOffersThePaperAndPresetsAndTheToolbarShowsThePreset() {
+    fun thePaperPanelChangesThePaperAndASavedPresetLiesInTheTray() {
         try {
             val state = newState()
             rule.setContent {
@@ -568,7 +589,7 @@ class SketchStateTest {
             rule.waitForIdle()
             assertEquals(listOf("mine"), state.presets.map { it.name })
             assertNull(state.editor)
-            rule.onNodeWithTag("sketch-preset-mine").assertIsDisplayed()
+            rule.onNodeWithTag("sketch-preset").assertTextContains("mine")
         } finally {
             Pencils.reset(Lead.MEDIUM)
         }
@@ -639,5 +660,180 @@ class SketchStateTest {
         val after = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()
         val lx = (state.panX + 256f * state.zoom).toInt()
         assertEquals(bare[lx, y.toInt()], after[lx, y.toInt()], "undo takes it off the screen too")
+    }
+
+    /**
+     * The room re-dressed (F9.8): the tools and the rubber are chosen from the tray, the shade
+     * from the paper panel — each a click, each what the keys and the state already do.
+     */
+    @Test
+    fun theTrayHoldsTheToolsAndThePanelThePaper() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(300, 200))
+        rule.waitForIdle()
+        rule.onNodeWithTag("sketch-tool-SOFT").performClick()
+        rule.waitForIdle()
+        assertEquals(Lead.SOFT, state.brush.lead)
+        rule.onNodeWithTag("sketch-rubber").performClick()
+        rule.waitForIdle()
+        assertTrue(state.eraser, "the rubber is taken up")
+        rule.onNodeWithTag("sketch-tool-INK").performClick()
+        rule.waitForIdle()
+        assertFalse(state.eraser, "a tool puts the rubber down")
+        assertEquals(Lead.INK, state.brush.lead)
+        rule.onNodeWithTag("sketch-shade-grey").performClick()
+        rule.waitForIdle()
+        assertEquals(SketchState.SHADES.single { it.first == "Grey" }.second, state.shade)
+    }
+
+    @Test
+    fun thePageIsTapedToTheTableAtItsCorners() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(600, 300))
+        rule.waitForIdle()
+        state.fit()
+        rule.waitForIdle()
+        val shot = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()
+        fun light(x: Float, y: Float): Float = shot[x.toInt(), y.toInt()].let { (it.red + it.green + it.blue) / 3f }
+        val w = 600f * state.zoom
+        val h = 300f * state.zoom
+        // Just off each corner, on the dark table: the tape reaches past the page there.
+        val off = 5f
+        val corners = listOf(
+            state.panX - off to state.panY - off,
+            state.panX + w + off to state.panY - off,
+            state.panX - off to state.panY + h + off,
+            state.panX + w + off to state.panY + h + off,
+        )
+        corners.forEach { (x, y) -> assertTrue(light(x, y) > 0.5f, "tape off the corner at $x,$y: ${light(x, y)}") }
+        // Off the middle of an edge, the table is bare.
+        assertTrue(light(state.panX + w / 2, state.panY - off) < 0.2f, "the table between: ${light(state.panX + w / 2, state.panY - off)}")
+    }
+
+    // ---- Recede (M8, F9.4) ----
+
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun theToolbarStepsBackDuringAStrokeAndThePageUploadsNothingForIt() {
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(600, 300))
+        rule.waitForIdle()
+        state.fit()
+        rule.waitForIdle()
+        val chrome = rule.onNodeWithTag("sketch-chrome")
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+
+        // A stroke begins, and the pencil rests on the page.
+        state.mouseDown(state.panX + 100f * state.zoom, state.panY + 150f * state.zoom)
+        rule.waitForIdle()
+        val surface = state.session!!.surface
+        val before = surface.snapshotsTaken
+        rule.mainClock.advanceTimeBy(Motion.RECEDE_AFTER_MS + Motion.RECEDE_MS + 100L)
+        rule.waitForIdle()
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        // The tray and the paper beside the page step back with it.
+        rule.onNodeWithTag("sketch-tray").assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        rule.onNodeWithTag("sketch-paper-panel").assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        assertEquals(before, surface.snapshotsTaken, "the toolbar's fading drew nothing on the page")
+
+        // Lifted, it stays back until the pointer comes up to it.
+        state.mouseUp()
+        rule.waitForIdle()
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        chrome.performMouseInput { moveTo(center) }
+        rule.waitForIdle()
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+        rule.onNodeWithTag("sketch-tray").assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))
+    }
+    // ---- The design, to the letter (F9.10) ----
+
+    @Test
+    fun withTiltShadingOffAPenLeansWithoutShading() {
+        val state = ready()
+        fun strokeWith(tilt: Int): SampleRecord {
+            var t = 50_000L
+            listOf(true, true, true, false).forEachIndexed { i, contact ->
+                state.onPen(pen(40f + i * 20f, 50f, contact, t).copy(tiltX = tilt, tiltY = tilt / 2))
+                t += 10
+            }
+            return state.session!!.document().strokes.last().samples.first()
+        }
+        assertTrue(strokeWith(40).tx != 0f, "on: the lean reaches the pencil")
+        state.shadeWithTilt(false)
+        assertEquals(0f, strokeWith(40).tx, "off: every mark upright")
+        assertFalse(newState().tiltShading, "and it is remembered")
+        newState().shadeWithTilt(true)
+    }
+
+    @Test
+    fun theReferenceLiesUnderTheStrokesOrOverThem() {
+        val red = File(home, "red.png").also { f ->
+            val image = java.awt.image.BufferedImage(60, 40, java.awt.image.BufferedImage.TYPE_INT_RGB)
+            image.createGraphics().apply { paint = java.awt.Color(200, 30, 30); fillRect(0, 0, 60, 40); dispose() }
+            javax.imageio.ImageIO.write(image, "png", f)
+        }
+        val state = newState()
+        rule.setContent { SketchScreen(state, ThumbCache(config)) }
+        state.newSketch(PageSize.pixels(600, 400))
+        state.openFromSession(red)
+        rule.waitForIdle()
+        state.fit()
+        state.setLead(Lead.SOFT)
+        state.setSize(30f)
+        var t = 10_000_000_000L
+        val y = state.panY + 200f * state.zoom
+        state.mouseDown(state.panX + 100f * state.zoom, y, t)
+        for (x in 100..500 step 4) {
+            t += 5_000_000L
+            state.mouseMove(state.panX + x * state.zoom, y, t)
+        }
+        state.mouseUp()
+        rule.waitForIdle()
+        fun at(px: Float, py: Float) = rule.onNodeWithTag("sketch-page").captureToImage().toPixelMap()[px.toInt(), py.toInt()]
+        val paper = Offset(state.panX + 300f * state.zoom, state.panY + 60f * state.zoom)
+        val line = Offset(state.panX + 300f * state.zoom, y)
+        assertTrue(at(paper.x, paper.y).red > 0.9f && at(paper.x, paper.y).green > 0.9f, "bare paper without it")
+
+        state.referenceUnder = true
+        state.referenceStrength = 0.6f
+        rule.waitForIdle()
+        val under = at(paper.x, paper.y)
+        assertTrue(under.red - under.green > 0.25f, "the reference shows through the paper: $under")
+        fun lum(c: androidx.compose.ui.graphics.Color) = (c.red + c.green + c.blue) / 3f
+        val lineUnder = at(line.x, line.y)
+        assertTrue(lum(lineUnder) < lum(under) - 0.15f, "under the graphite, which stays the darker: $lineUnder against $under")
+
+        state.referenceOver = true
+        state.referenceStrength = 1f
+        rule.waitForIdle()
+        val over = at(line.x, line.y)
+        assertTrue(over.red - over.green > 0.4f, "laid over, it covers the line: $over")
+    }
+
+    @Test
+    fun thePresetIsChosenFromADropdown() {
+        try {
+            val state = newState()
+            rule.setContent { SketchScreen(state, ThumbCache(config)) }
+            state.newSketch(PageSize.pixels(300, 200))
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-preset").assertTextContains("None", substring = true)
+            Pencils.set(Lead.SOFT, Pencils.SOFT.copy(maxWidth = 1.7f))
+            state.setLead(Lead.SOFT)
+            assertNull(state.savePreset("soft one"))
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-preset").assertTextContains("soft one", substring = true)
+            rule.onNodeWithTag("sketch-preset").performClick()
+            rule.waitForIdle()
+            rule.onNodeWithTag("sketch-preset-none").performClick()
+            rule.waitForIdle()
+            assertNull(state.activePreset)
+            assertEquals(Pencils.SOFT.maxWidth, Pencils.of(Lead.SOFT).maxWidth, "none: the tool as it comes")
+        } finally {
+            Pencils.reset(Lead.SOFT)
+        }
     }
 }

@@ -616,7 +616,7 @@ the answers taken to its open questions). A thing that lives once and is linked 
 
 ---
 
-## 🔄 M8 — The atelier: the design realised
+## ✅ M8 — The atelier: the design realised
 
 The design recap of 2026-10-05: [CONCEPT.md](CONCEPT.md) and its design canvas. A graphite table,
 real paper, one lamp, six pigments sprinkled rather than poured, a porcelain palette as the home
@@ -643,94 +643,273 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   canvas), and the font weights above
 - ✅ `Themes.paperColors` and the card backing taken from the paper tokens; the plain board's
   link cards, the strip's ground and the frame tags' ink from the table's
-- The remaining hard-coded accents (the amber guide lines, the star, the practice badges) move
-  with their rooms in F9.5–F9.8
+- ✅ The last hard-coded accents moved onto pigments: a board's alignment guides in pale
+  ultramarine (the room's own colour for what helps arrange), the star in Naples yellow, the
+  practice badges in Practice's cadmium (*redo*) and quiet ink (*drawn*)
 
-### ⬜ F9.2 Materials in code
-- ⬜ One shared SkSL value noise (the cork's, generalised) → a faint grain over the ground, cached
-  as a 256-px tile and drawn through the native canvas — no per-frame `ImageBitmap`
-- ⬜ Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
-  sketch's paper are the same paper
-- ⬜ One lamp: a `Lift` scale (resting, lifted, held) giving shadow offset and blur from the top
-  left, replacing the scattered `elevation =` values
-- ⬜ Small `DrawScope` pieces, each with a screenshot test: masking tape (torn ends from a seeded
-  polygon), push-pin, porcelain well, pigment dab (a seeded blob with a gloss)
+### ✅ F9.2 Materials in code
+- ✅ `ui/Materials.kt`: a grain over the ground — one SkSL tile of per-pixel noise in two-pixel
+  clumps, light and dark at most 6 % strong, made once and drawn as a repeating shader
+  (`Modifier.grain()`); no per-frame `ImageBitmap`
+- ✅ Cards and sheets get their tooth from `sketch-engine`'s `Paper`, so the board's paper and the
+  sketch's paper are the same paper: `Modifier.paperTooth()` draws the engine's grain over a
+  sheet's colour — prints, slips, ruled sheets and index cards on boards and concepts, the board
+  list's covers, the concept folios (kraft, on rough paper), the exercise cards, the summary's
+  prints, the glass's print; Sketch's swatches were already drawn by it (F9.8). `BoardDressTest`
+  holds paper to having its tooth and the table to having none
+- ✅ One lamp: a `Lift` scale (resting, lifted, held) and `drawLampShadow`/`Modifier.lampShadow`,
+  a blurred shadow cast to the bottom right, for everything that lies on the table or over it:
+  cards and prints resting, the drawer, the fold-outs and the large reference lifted, every
+  dialog held. Material's elevation is gone from the app; `OneLampTest` reads the sources and
+  fails on any `elevation =` above zero or `Modifier.shadow`, so a new screen cannot bring a
+  second light into the room (seen red with the drawer's old elevation put back)
+- ✅ Small `DrawScope` pieces: pigment dab (a seeded blob, wet with the lamp's highlight or dry and
+  pale), porcelain well (in shadow along its top), masking tape (torn ends), push-pin, a lacquered
+  pencil. `MaterialsTest` (7) draws each into a bitmap and reads the pixels back
 
-### ⬜ F9.3 Home: the palette
-- ⬜ `PaletteScreen` replaces `MenuScreen` as `Screen.Menu`: a porcelain disk, six wells at 60°
-  steps, each room's name outside the rim with its verb lettered in the room's glow, the centre
-  well holding the selected room's one line and its next step
-- ⬜ Select by click, arrow keys and Tab; Enter opens; the selected dab goes wet with a ripple; the
-  last room is remembered in the settings
-- ⬜ Each room's next step: Practice → the exercise screen; Boards → the last board, else the list;
-  Concepts → the list; Sketch → the open sketch, else a new page; Lens and Collage → their rooms
-  once built (until then their wells say so)
-- ⬜ The session settings leave the start menu for the Practice room (F9.6); Settings and Hotkeys
-  move to the top-right corner
-- ⬜ `Esc` from any room's top level returns to the palette — one rule instead of each screen's own
-  way back, with a test per room
-- ⬜ UI tests: every well reachable by keyboard, Enter on each opens the right screen
+### ✅ F9.3 Home: the palette
+- ✅ `PaletteScreen` is the new `Screen.Palette`, where the app starts: a porcelain disk under the
+  lamp, six wells at 60° steps, each room's name outside the rim with its verb lettered in the
+  room's glow, the centre well with the chosen room's one line and its next step; a pencil lies on
+  the table. The old start menu stays as `Screen.Menu`, now the Practice room
+- ✅ A click chooses a well, a second click or the centre's button opens it; the arrows and Tab turn
+  the palette, Enter opens; the chosen dab is wet, with a ripple; the well is remembered in the
+  settings (`lastRoom`). The wells take no focus from a pointer — taken on the press, the focus
+  chose the well before the release opened it, so **one click opened every room** (the UI test
+  caught it)
+- ✅ Each room's next step: Practice → the session setup (the exercise screen comes with F9.6);
+  Boards → the board opened last, else the list (a board that cannot be read lands on the list,
+  which says so); Concepts → the list; Sketch → the open sketch, else a new page. Lens and Collage
+  are **dry wells**: matte, lettered *coming*, not choosable, skipped by the keys
+- ✅ The room buttons left the start menu; Settings and Hotkeys sit in the palette's top right
+  corner as quiet links, and the hotkeys sheet has a palette section
+- ✅ `Esc` from the top of every room ends on the palette: Practice and the board list through one
+  pure `escapeToPalette`, the others through their own Esc, whose last step now leads home;
+  leaving a board, the concept list or a sketch begun at home all land there. A sketch made
+  from a pose goes back to the pose, never home over it
+- ✅ `PaletteTest` (6): the start and the remembered well, every room's next step, Esc from every
+  room's top, a sketch from a pose, the keys passing the dry wells, and the palette on screen
+  (click, second click, centre button, arrows, Enter). Four guards broken on purpose and seen red
 
-### ⬜ F9.4 Motion
-- ⬜ `Motion` tokens (durations, easings, the spring) and **reduced motion** in Settings, following
-  the system's preference where the platform exposes it; reduced = a 120 ms cross-fade
-- ⬜ **Bloom** — the room transition as a mask grown from the pressed well, its edge displaced by
-  noise (SkSL), settling into the room's 2 px top line; Esc plays it backwards
-- ⬜ **Settle** — lift, lean (from drag velocity, at most 4°) and land on a spring for cards and
-  frames, as a draw-time layer on the box *around* the `ContextMenuArea` (M5's hit-box rule)
-- ⬜ **Draw-on** — a group's frame drawn with `PathMeasure` from where the pointer let go, then its
-  tag lettered; the hand-drawn wobble baked into the frame's one path, so the drawn path stays the
-  hit-tested path (`CanvasHitTest` keeps proving it)
-- ⬜ **Recede** — chrome fades 1.5 s after pen-down in Sketch and in a session and comes back edge
-  by edge on approach; the ensō waits at 40 %
-- ⬜ A guard for stroke latency: no animation invalidates the sketch surface while a stroke is live
-  (a test that an animation tick during a stroke re-uploads no tile)
+### ✅ F9.4 Motion
+- ✅ `ui/Motion.kt`: the tokens (durations, easings), and **reduced motion** — a box in Settings,
+  following Windows' *Show animations* (`SPI_GETCLIENTAREAANIMATION`, read through JNA) until it
+  is set; reduced, the bloom is a 120 ms wash, nothing ripples, chrome fades in 120 ms
+- ✅ **Bloom** — a room opens under its pigment: an SkSL disk spreading from the well's place on
+  screen, its edge wandering with the direction, darker in a drying rim, a little granulated;
+  the room is opened beneath once it covers the palette (55 %), then the pigment thins away onto
+  the room's 2 px line. Home from any room drains it back into the well. The design's
+  ease-out (0.2, 0.8, 0.2, 1) covered the screen in 80 ms — a flash, seen in a capture — so the
+  spread starts slower (0.35, 0, 0.25, 1). `MotionTest`: the timelines, and the shader read back
+  (pigment inside, nothing outside, an edge that is not a circle, a darker rim)
+- ✅ **Settle** — a dragged card lifts (120 ms, 3 % larger, the lamp's shadow growing), leans into
+  its sideways speed (at most 4°) and lands on a spring (damping 0.7). Only what is drawn moves:
+  the lift sits on a layer *inside* the box that takes the drag, so the drag's arithmetic — which
+  already undoes the card's own rotation — never meets the lean, and the hit box stays where M5
+  put it (around the `ContextMenuArea`). A real mouse drag in 3-px steps ends exactly where the
+  pointer went; a lean on the dragging box itself was tried as a mutation and caught. Frames move
+  without it for now
+- ✅ **Draw-on** — a group made from a selection has its frame drawn round its cards once
+  (360 ms, the outline walked contour by contour), its fill and then its tag fading in after; every
+  other frame is simply there. The hand's wobble is baked into the frame's one path
+  (`handDrawn`: ±1.4 board px along the normal, a smooth noise of the distance walked in board
+  units, so it does not swim when zooming, closing where it began) — drawn, clipped to and
+  hit-tested, so all 270 board tests, `CanvasHitTest` among them, pass on the wobbly frames.
+  The drawing starts at the path's start, not yet where the pointer let go
+- ✅ **Recede** — `RecedingChrome` and `PointerWatch` (watches the pointer, takes nothing): Sketch's
+  header, tray and paper step back 1.5 s into a stroke (not while Pen or Tune is open) and stay
+  back until the pointer comes up to any of them; a session's controls step back while a pose
+  runs and the mouse rests, and come back near the bottom edge or on a pause. In a pose the
+  **picture takes the controls' room** as they fade and gives it back as they return — measured
+  again in layout, nothing recomposed (`MotionTest`: the whole height the picture's, then exactly
+  the bar's room given back, the paused bar being taller). In Sketch the **page keeps still** on
+  purpose: the chrome steps back mid-stroke, and a page that moved then would move the line under
+  the pen
+- ✅ A guard for stroke latency: the chrome recomposes on its own, never the page, and
+  `SketchSurface.snapshotsTaken` counts tile pictures made for the screen — none while the
+  toolbar fades during a live stroke (`SketchStateTest`). Four guards broken on purpose and seen
+  red (chrome that never recedes, a toolbar that never returns, a pause that does not bring the
+  controls back, a watercolour without its rim)
 
-### ⬜ F9.5 Room chrome and hand-offs
-- ⬜ One `RoomHeader` for every room: back to the palette, the room's dab and name, the 2 px pigment
-  line, slots for a title and actions
-- ⬜ `CrossRoomButton(room, label)`: the target room's dab before the label; every existing hand-off
-  (*Draw from this board*, *Sketch*, *Pin*, *To board…*, *To concept…*, *Continue in Live Sketch*)
-  moved onto it
-- ⬜ The **ring menu** on a board: right-click on a selection opens six porcelain buttons round it
-  (Draw these, Sketch over, To a collage, Add to concept, Tag, Group), reachable by keyboard; the
-  context menu keeps every other command
-- ⬜ Lettered names: group tags, note text and the ramp's labels in the `Hand` style
+### ✅ F9.5 Room chrome and hand-offs
+- ✅ `ui/RoomChrome.kt`: `RoomHeader` (back to the palette, the room's dab and name, slots for a
+  title and actions) heads the Practice room, the board list, the concept list and Sketch; a
+  board and a concept keep their own header, whose title is their name, with the palette's
+  `HomeButton` and the room's dab at its start — on the lists in place of their *Back*, which
+  went to the same place — and the app shell lays the room's 2 px pigment line along the top of
+  every room but a running pose
+- ✅ `CrossRoomButton(room, label)`: the target room's dab before the label, lettered in the
+  surface's own ink (light on the table, dark on cork). Every hand-off is on it: Sketch's *To a
+  board* and *To a concept*; on a board every *Draw* — the selection's, a group's, a smart
+  section's — with cadmium's dab, since drawing is Practice's; a session's *Pin* and *Sketch*;
+  the summary's *Pin flagged*; a concept's *Boards…*. *Continue in Live Sketch* is the ring's
+  *Sketch*, and on a concept's picture a chip with madder's dab
+- ✅ The **ring menu** on a board (`board/ui/RingMenu.kt`): a right click on a card opens six
+  porcelain wells round it, each with its room's pigment — **Draw these** (Practice), **Sketch
+  over** (Live Sketch with the picture beside the page, through a new `BoardHost.sketchOver`; a
+  picture Live Sketch made is continued instead), **To a collage** (a dry well, *coming*), **To a
+  concept** (which one; linked first if it is not yet — `selectionToConcept`), **Tag**,
+  **Group** — and *More…* in the middle for the full menu with every other command. It is a
+  `ContextMenuRepresentation`, so `ContextMenuArea` still decides when it opens and what the full
+  menu holds, and nothing else on the board changed. Arrows and Tab go round, Enter takes, Esc
+  closes. `RingMenuTest` (5); five guards broken on purpose and seen red
+- ✅ Lettered names: group tags, post-it notes and the ramp's legs in the `Hand` style (Caveat),
+  board and concept names on the lists too
 
-### ⬜ F9.6 Practice, re-dressed
-- ⬜ The exercise screen: taped index cards with an ink drawing each (Action drawing, Lens studies,
-  From memory; Flicker, Staged and Compare join as M9 builds them); the chosen card lifted and
-  taped in cadmium
-- ⬜ The timing panel: plan chips, the ramp drawn as graphite bars (one per pose, height by
-  duration, labels lettered), total poses and time, auto-advance, a starting lens, and *Drawing
-  from* a folder or a board
-- ⬜ The **ensō timer** in the session: an arc that grows with the elapsed pose, dry-brush edge, the
-  time inside, the poses as ticks below it
-- ⬜ The **lens tray**: nine slides with live miniatures of their effect and their keys, the active
-  slide's parameters popping up above it, the adjustments as round knobs; the tray recedes while
-  drawing
-- ⬜ The summary in the same language: the poses as a strip of prints, redo flags as pencil marks
+### ✅ F9.6 Practice, re-dressed
+- ✅ `PracticeScreen` (the old `MenuScreen`, gone): the exercises as index cards on the table, each
+  with an ink drawing from the design — Action drawing, Lens studies, From memory, and Flicker,
+  Staged and Compare as cards lettered *coming* that cannot be chosen; the chosen card lifted and
+  taped in cadmium. The exercise is not stored: it is what the settings amount to (a plan that
+  hides the picture is memory work, a lens to start with a lens study), and choosing a card sets
+  just that (`Exercises.kt`)
+- ✅ The timing panel: plan chips, the ramp drawn as graphite bars (one per pose, height by its
+  length on a log scale, the first in cadmium, each leg lettered), total poses and time, a
+  starting lens for lens studies, auto-advance, and Start with the session's length. *Drawing
+  from* — folder, unseen count, Change…, Choose pictures… — sits in the room's header
+- ✅ The **ensō timer** over the picture's top right corner: a brush arc that closes as the pose runs
+  out, a dry-brush line where it began, the time and the pose inside, the ramp's poses as ticks
+  under it, a memory pose's beat under those; faint while the controls are back. The first ensō
+  animated its sweep and drew nothing at all — a capture showed the empty ring; it now moves on
+  with each second, and a test counts its brush pixels
+- ✅ The **lens tray**: nine glass slides, each showing the picture on screen through its own lens,
+  keys 1–9 under them, the chosen one risen; the adjustments as round knobs with their keys
+  (blur, mirror, flip, invert, shards, and grid turning through its kinds); the lens's own
+  settings under the tray rather than popping up over it
+- ✅ The summary in the same language, without its emoji: the pictures flagged for another go as
+  prints ringed in pencil, ready to pin to a board. *A strip of every pose drawn* is not there:
+  the session does not keep which pictures it showed
+- ✅ **Fixed on the way — redo flags were lost.** Moving on from a pose (or stopping) marked it
+  drawn, and drawing a flagged picture cleared its flag — including the flag just set with R, so
+  no flag ever reached the next session or the summary's *Pin flagged*. A flag now clears only
+  when its picture came into the session flagged (`AppStateTest`, both cases seen red first)
+- ✅ `PracticeTest` (7); three more guards broken on purpose and seen red
 
-### ⬜ F9.7 Boards, re-dressed
-- ⬜ Pictures as prints (white border, a pin), sketches taped, notes as yellow slips, concept cards
-  with a viridian tab, link cards as index cards
-- ⬜ Group frames in graphite with a lettered tag on a pin; the selected card lifted with an
-  ultramarine outline
-- ⬜ Cork and papyrus stay; *plain* becomes the graphite table
-- ⬜ The board list as a shelf of covers with lettered names; the concept list as folios
+### ✅ F9.7 Boards, re-dressed
+- ✅ Pictures as **prints** on every surface — the picture on paper with a 6 dp border (on the
+  plain board too, where it sat on black), in the grid and on the free canvas; on the canvas a
+  print is held by an ultramarine **pin**, a sketch that can be continued by **tape**, which is how
+  the two are told apart at a glance. A single selected card shows its rotate handle where the pin
+  was rather than over it. Post-its are lettered in Caveat
+- ✅ Notes are paper on every surface: a post-it a **yellow slip**, a document a **ruled sheet**,
+  a colour chosen for a note that paper whole (the plain board drew both dark olive); link cards
+  are **index cards**, a red line at the top, faint blue rules, held by a drawn **paperclip** (the
+  🔗 emoji gone) or by their preview picture. A card borrowed from a concept wears the concept's
+  **viridian tab**, its name lettered, half over the card's top edge, in the grid and on the
+  canvas. Their shadows are the lamp's (`Lift.RESTING`), not Material's elevation
+- ✅ Group frames drawn in **graphite** (the group's colour only while it is about to take a card),
+  their tag a paper label pinned with the group's colour — viridian for a concept — the name
+  lettered, the count beside it; the selection marked in ultramarine. The selected card is not
+  lifted: lifting is what a held card does (F9.4)
+- ✅ Cork and papyrus stay; **plain** is the graphite table, with the table's grain under the cards
+- ✅ The board list: covers as prints under the lamp, names lettered; the concept list as **folios**
+  — kraft, a viridian tab with the kind, the cover as a print, the name lettered (ink on kraft
+  7.6:1, the counts 4.8:1). Both under the room's header. The covers stand on a **shelf**: a
+  wooden plank under each, reaching into the gaps, so a row of boards reads as one shelf
+- ✅ `BoardDressTest` (2) reads the pixels at a card's top: a pin on a print and none on a sketch,
+  tape the other way round, the pin gone under a single selection's handle and back when two are
+  selected. Three guards broken on purpose and seen red. The test lays the canvas on the table
+  colour: with nothing behind it, the test window kept the last frame's pixels where nothing
+  drew, and a removed pin seemed to linger
 
-### ⬜ F9.8 Sketch, re-dressed
-- ⬜ The pencil tray: the seven tools and the rubber as objects, the chosen one slid out, keys beside
-  them
-- ⬜ Papers as swatches of real tooth, shades as chips, the page taped at its corners; Pen and Tune
-  folding out of the tray
-- ⬜ A status line under the page (pen state, zoom) instead of readouts in the toolbar
+### ✅ F9.8 Sketch, re-dressed
+- ✅ The **pencil tray** on the page's left: the seven tools and the rubber drawn as themselves (three
+  lacquered pencils, a mechanical one, a charcoal stick, a fineliner, a brush, a rubber in its
+  sleeve), each with its key, the one in hand slid out and underlined in madder. Under it the
+  size (a slider), the colour, the presets, and **Pen** and **Tune**, which fold out from there
+  over the page's near edge instead of pushing the page down
+- ✅ The **paper** on the page's right: the three papers as swatches drawn by the engine's own grain,
+  the four shades as chips — the shade, like the tooth, can now be changed under the strokes
+  (`setShade`; the next page comes on it too). The reference from a session lies under the paper,
+  larger over the page on a click. *Show it underneath* from the design is a feature, M9
+- ✅ The page on the graphite table under the lamp's shadow, **taped at its corners**. The shadow and
+  the tape are their own layers reading only the view, so a stroke redraws neither
+- ✅ A **status line** under the page: a dot and a line for the pen (samples arriving, the mouse
+  standing in for it, or how it is hooked), the page's size, and the zoom, which fits on a click
+- ✅ The header is the room's: home, the madder dab, the sketch's name; Undo, Redo, *File ▾*
+  (New, Open, Save as), Save, *To a board*, *To a concept*, Back. While a stroke goes on, the
+  header, the tray and the paper all step back (`ChromeEdge` has left and right now); coming up
+  to any one brings them all back
+- ✅ `SketchStateTest` (+3, and the recede test extended): the shade under the strokes, the tray and the shade chips on screen,
+  the tape off each corner, the side chrome stepping back with the header. Five guards broken
+  on purpose and seen red
 
-### ⬜ F9.9 Wrap-up
-- ⬜ Screenshot tests of the palette and of each room, selected and running
-- ⬜ README and the Hotkeys sheet: the palette, Esc home, the ring menu
-- ⬜ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
-  between the hand and the page
+### ✅ F9.9 Wrap-up
+- ✅ `RoomScreenshotTest`: fourteen screens through the whole app shell at the window's starting
+  size — the palette (and with a well chosen), the Practice room, a running pose, the glass in
+  hand and set down, the summary, a board free and in a cork grid, the board list, a concept,
+  the concept list, Sketch at rest and mid-stroke — saved to `build/screenshots` to be looked at,
+  and each held to two things: no label cut off at the bottom or losing lines without a "…", and
+  the room's line along the top. Pixel goldens left out on purpose: a font or Skia update would
+  fail every one with nothing wrong
+- ✅ Looked at: the grid's group headings were lettered in the group's colour, and teal vanished
+  into cork; now in the surface's own ink, the dot and the hairline carrying the colour
+- ✅ README and the Hotkeys sheet: the palette and Esc home, the rooms as re-dressed (prints, pins
+  and tape, folios, the pencil tray, the paper), the glass and its keys, Esc's order in a pose.
+  The ring menu is documented when it is built (F9.5)
+- ✅ The concept page's cards in the same language: pictures as prints (chosen, ringed in
+  viridian), notes as slips and sheets, links as index cards; *Continue sketch* carries
+  madder's dab
+- ✅ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
+  between the hand and the page — tried by hand on 2026-10-17: the pen draws and the dial's zoom
+  works, as it should
+
+
+### ✅ F9.10 The design, to the letter
+What the design canvas shows and the first pass left out, gathered by laying the archived boards
+(`docs/design/previews`) beside the app on 2026-10-16.
+
+- ✅ **A pose's chrome as designed** — the picture gets the room: *Stop · Esc* and what is
+  running (*Classic gesture · Drachenbuch*) at the top left with *Auto-advance* and *Fullscreen*
+  as quiet switches; under the ensō ‹ › and a column of round buttons — Redo, Hide, Sketch
+  (madder's dab), Pin (ultramarine's); one tray along the bottom with the lens slides and the
+  knobs — Light, Blur, Mirror, Flip, Invert, Shards, Grid and the Glass. The settings of what was
+  just chosen open in a popover right above its control: a lens's, the light's, blur's, shards',
+  the glass's optics and magnification; clicking the chosen slide again or × puts them away. A
+  click on the ensō pauses; paused, the time per picture is offered under a plain *Paused*. The
+  transport buttons and the line of key hints are gone (the keys and the Hotkeys sheet stay).
+  Words lying over the picture get a dark wash, so they read on any picture. Caught on the way:
+  the popover stretched across the whole window (a weighted spacer in its title row) and took the
+  clicks meant for the picture under it. `SessionChromeTest` (4); four guards broken on purpose
+  and seen red
+- ✅ **The board's header**: *Boards ▾ / parent / Drachenbuch* as a breadcrumb after home and the
+  room's dab, the search in the middle (*Search captions, tags, notes*), the surface chosen by a
+  swatch of cork, papyrus and the graphite table itself (the theme row left the ⋯ menu), then
+  *Concepts ▾*, *+*, *⋯* and *Draw from this board* — every picture on it, its own and its
+  concepts'. Grid | Free and, on the free canvas, − 100 % + (the percentage fits every card) sit
+  in the bottom left corner; *Contents* in the bottom right. Still one line at 1024 px
+- ✅ **A palette as a card**: *Pin to the board* in the palette dialog puts the colours read off a
+  picture on the board as a taped card of swatches beside it, lettered *colours of ‹picture›* — a
+  note of a new kind (`palette`: its caption, then the colours as `#rrggbb`), which an older app
+  shows as a document note titled by the caption
+- ✅ **A natural tilt**: a card is put down on the free canvas a degree or two askew, the same for
+  the same card (`naturalTilt`, from its id) — its stored rotation, so the drawn card stays the
+  clicked card and the rotate handle takes it on from there; existing cards keep theirs, and a
+  concept's free layout, which places its cards the same way, lays them down askew too. A group's
+  tag is pinned askew too, turned in its layer, which turns its hit area with it. All 290 board
+  tests, the canvas's hit tests among them, pass on tilted cards. `BoardChromeTest` (+2),
+  `BoardDressTest` (+2); five guards broken on purpose and seen red. The screenshot test caught
+  the new search placeholder wrapping in its field
+- ✅ **A board as Practice's source**: *Drawing from* is one menu — a folder, or any board, with
+  ultramarine's dot. A board gives its own pictures and its linked concepts' (`picturesOf`, read
+  from its file without opening it); seen and redo live in its folder, as for a session started on
+  the board; it is remembered for the next start and taken up again once the board side has handed
+  the boards over (`AppState.PracticeBoards`). **Start with a lens** for every exercise, *None*
+  first: a lens chosen makes it a lens study, as the exercise is what the settings amount to
+- ✅ **Sketch**: *Shade with the side (tilt)* — off, a leaning pen draws upright (remembered);
+  *Preset* as a dropdown, *None* being the tool as it comes; undo and redo as round icons; and the
+  session's reference on the page itself, **underneath** — between the paper and the graphite,
+  the tiles being clear where nothing is drawn — at a strength, or **laid over** the strokes
+  instead to check them against it. On screen only: a saved picture is still the strokes on clean
+  paper. F10.5's first part (the picture underneath from a board, a concept or a collage remains)
+- ✅ **Motion**: a new group's frame is begun at the point of its outline nearest to where the
+  pointer last let go — the canvas notes every release without taking it — and walked round
+  from there; a held card leaves its footprint marked, dashed, just outside it, where it will land
+- ✅ **Graphite guides**: the snapping guides and the landing mark in graphite — dark on cork and
+  papyrus, pencil-light on the graphite table — as the materials board has them
+- ✅ `PracticeTest` (+3), `SketchStateTest` (+3), `SettleDrawOnTest` (+3); seven guards broken on
+  purpose and seen red. The tilt reached the concept page's free layout too, which a concept test
+  noticed
 
 ---
 
@@ -768,12 +947,14 @@ one*, *How the rooms hand things over*) and the design canvas.
   drawing mirrored; a flicker between the two (F10.2)
 - One subject's attempts over months as a row of prints
 
-### ⬜ F10.5 Sketch — the picture underneath
-- Any picture under the page (from a session, a card, a concept, a collage, a file) at a chosen
-  strength, moved, scaled and turned to fit, never part of the saved PNG
-- *Lay it over instead*: the reference over the strokes, for checking at the end
-- In `.sketch.json` by path and placement, so a continued sketch has it again; today's corner
-  reference stays as the "beside the page" option
+### 🔄 F10.5 Sketch — the picture underneath
+- 🔄 Any picture under the page (from a session, a card, a concept, a collage, a file) at a chosen
+  strength, moved, scaled and turned to fit, never part of the saved PNG — a session's reference
+  can lie under the page, fitted whole, at a strength (F9.10); the other sources, and moving,
+  scaling and turning it, remain
+- ✅ *Lay it over instead*: the reference over the strokes, for checking at the end (F9.10)
+- ⬜ In `.sketch.json` by path and placement, so a continued sketch has it again; the reference
+  beside the page stays as the other option
 
 ### ⬜ F10.6 Collage — scissors on a cutting mat
 - `name.collage.json` beside `name.png`: pieces with a source (file, board card, concept item,
@@ -797,6 +978,35 @@ one*, *How the rooms hand things over*) and the design canvas.
 - A concept as a Collage source and as a Sketch underlay
 - F8.4's open question settled: does practice on a concept's picture belong to the concept or to
   the board
+
+### 🔄 F10.9 The glass — drawing through a lens
+- ✅ A reading glass over the session's picture (`ui/Glass.kt`, `ui/GlassView.kt`): taken up from
+  the tray beside the knobs or with `L`, a round glass with a turned rim, a wooden handle, the
+  lamp's light and its shadow follows the pointer (the cursor gone) and shows what is under it
+  ×1.25–×12 (wheel; `Shift`+wheel the glass's size; `+` `−`)
+- ✅ Six optics, as cross-sections of their glass in the tray (`O` turns): **plain** (a zoom,
+  nothing bent), **convex** (the middle swells), **concave** (the middle shrinks away),
+  **fisheye** (a far wider field at the edge), **cylinder** (one way stretched), **prism** (the
+  colours part towards the rim). One SkSL shader; `opticSource` is its arithmetic in Kotlin, and
+  a test renders a picture whose colours are its own coordinates through every optic to hold the
+  two together
+- ✅ **Set down**: a click — that point, as large as the glass showed it — or a dragged-out
+  rectangle, which then fills the view; the zoom there and back takes 380 ms (reduced: 120).
+  Down, a drag slides the picture under the glass and the wheel comes nearer about the pointer;
+  the bending eases in as it lands
+- ✅ **Back to the whole**: a print of the whole picture in the corner, the part ringed — a click
+  on it, a right click or `Esc`. Esc steps back one thing at a time: the glass lifted, put away,
+  fullscreen left, and only then the session stopped. A new pose starts whole
+- ✅ Drawn inside the picture's filter layers, so every lens, the light and the knobs work through
+  it; mirrored or upside down, the glass is set down where the picture is seen. The rim, the
+  print and the dragged-out frame are over the filters
+- ✅ `GlassTest` (9: the state, where the picture lies, the optics against the shader),
+  `GlassSessionTest` (5: on screen — drawn where the pointer is, set down by a click, by a part
+  dragged out, mirrored, lifted by the print and by a right click), `SessionKeysTest` (+2). Caught
+  on the way: the print's click lifted the glass and the same release, passing on to the picture,
+  set it straight down again. Seven guards broken on purpose and seen red
+- ⬜ The glass in the Lens room (F10.1), on a board's large view, and in Sketch over the reference
+- ⬜ Kept between runs (the optic and the magnification are kept only while the app runs)
 
 ---
 

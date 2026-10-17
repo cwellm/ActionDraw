@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -27,17 +29,30 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardStore
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.chooseFolder
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.paperTooth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -58,7 +73,7 @@ private data class BoardSummary(
  * with a cover picture and its counts. Clicking one opens it.
  */
 @Composable
-fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
+fun BoardListScreen(state: BoardState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
     val boards by produceState(initialValue = emptyList<BoardSummary>(), state.boardsHomeTick, state.recent) {
         value = withContext(Dispatchers.IO) {
             // Tree order, so a sub-board sits right after the board it belongs to.
@@ -78,7 +93,13 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache) {
     }
 
     Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+        // The list is the room's top: its way back is the way home.
+        if (onHome != null) RoomHeader(Room.BOARDS, onHome)
+        else Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text("Idea Boards", style = MaterialTheme.typography.h4, color = MaterialTheme.colors.primary)
             Spacer(Modifier.weight(1f))
             OutlinedButton(onClick = { state.leaveList() }) { Text("Back") }
@@ -161,19 +182,26 @@ private fun BoardTile(
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(6.dp)
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, board.cover) {
         value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 320) } }
     }
+    // A board on the shelf: its cover as a print standing on a plank, its name lettered under it.
+    // Not clipped, so the plank can reach into the gaps and a row of boards reads as one shelf.
     Column(
         Modifier
-            .clip(shape)
-            .background(MaterialTheme.colors.surface)
             .clickable { onOpen() }
             .padding(bottom = 8.dp),
     ) {
         Box(
-            Modifier.fillMaxWidth().aspectRatio(1.4f).background(Color(0xFF0D0D0D)),
+            Modifier
+                .padding(8.dp)
+                .lampShadow(Lift.RESTING)
+                .background(Atelier.Paper)
+                .paperTooth()
+                .padding(6.dp)
+                .fillMaxWidth()
+                .aspectRatio(1.4f)
+                .background(Color(0xFF1A1715)),
             contentAlignment = Alignment.Center,
         ) {
             val bmp = cover
@@ -188,6 +216,7 @@ private fun BoardTile(
                 Text("empty", color = Color.White.copy(alpha = 0.35f), style = MaterialTheme.typography.caption)
             }
         }
+        Shelf(Modifier.fillMaxWidth().offset(y = (-6).dp).testTag("shelf"))
         board.parent?.let {
             Text(
                 "in $it",
@@ -200,7 +229,8 @@ private fun BoardTile(
         }
         Text(
             board.name,
-            style = MaterialTheme.typography.subtitle1,
+            style = AtelierType.Hand.copy(fontSize = 24.sp),
+            color = Atelier.Text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = if (board.parent == null) 8.dp else 0.dp),
@@ -244,4 +274,28 @@ private fun BoardTile(
             )
         }
     }
+}
+
+/**
+ * A stretch of the shelf the covers stand on: a wooden plank, lit along its front edge, its
+ * shadow under it, reaching half the grid's gap to each side to meet the next one.
+ */
+@Composable
+private fun Shelf(modifier: Modifier) {
+    Box(
+        modifier
+            .height(9.dp)
+            .drawBehind {
+                val reach = 7.dp.toPx()
+                val left = -reach
+                val width = size.width + 2 * reach
+                drawRect(Color.Black.copy(alpha = 0.35f), Offset(left, size.height), Size(width, 4.dp.toPx()))
+                drawRect(
+                    Brush.verticalGradient(listOf(Color(0xFF8A6446), Color(0xFF5E4130), Color(0xFF3B271A)), 0f, size.height),
+                    Offset(left, 0f),
+                    Size(width, size.height),
+                )
+                drawLine(Color.White.copy(alpha = 0.18f), Offset(left, 1f), Offset(left + width, 1f), 1.dp.toPx())
+            },
+    )
 }

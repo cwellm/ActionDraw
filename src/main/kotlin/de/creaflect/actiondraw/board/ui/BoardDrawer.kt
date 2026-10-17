@@ -41,6 +41,8 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.lampShadow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -53,8 +55,8 @@ import kotlinx.coroutines.withContext
 fun BoardDrawer(state: BoardState, thumbs: ThumbCache) {
     Surface(
         color = MaterialTheme.colors.surface,
-        elevation = 6.dp,
-        modifier = Modifier.width(280.dp).fillMaxHeight(),
+        elevation = 0.dp,
+        modifier = Modifier.width(280.dp).fillMaxHeight().lampShadow(Lift.LIFTED),
     ) {
         Column(Modifier.fillMaxSize()) {
             Row(

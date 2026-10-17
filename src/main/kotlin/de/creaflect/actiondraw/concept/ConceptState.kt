@@ -4,23 +4,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.board.BoardFile
 import de.creaflect.actiondraw.board.BoardItem
+import de.creaflect.actiondraw.board.BoardLayouts
+import de.creaflect.actiondraw.board.BoardLink
+import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.Camera
+import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptSnapshot
+import de.creaflect.actiondraw.board.ConceptSource
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.Importer
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.samePathAs
-import java.io.File
-import de.creaflect.actiondraw.board.BoardLink
-import de.creaflect.actiondraw.board.ConceptRef
-import de.creaflect.actiondraw.board.ConceptSnapshot
-import de.creaflect.actiondraw.board.ConceptSource
-import de.creaflect.actiondraw.board.BoardFile
-import de.creaflect.actiondraw.board.BoardLayouts
-import de.creaflect.actiondraw.board.BoardState
-import de.creaflect.actiondraw.board.Camera
 import de.creaflect.sketch.SketchDocument
+import java.io.File
 
 /**
  * Everything the concept module is allowed to ask of the rest of the app — the same kind of seam
@@ -50,9 +50,11 @@ sealed class ConceptEditor {
     data object Rename : ConceptEditor()
     data class EditNote(val itemId: String?) : ConceptEditor()
     data class EditLink(val itemId: String?) : ConceptEditor()
+
     /** `path == null` starts a new document. */
     data class EditDocument(val path: String?) : ConceptEditor()
     data class DeleteConcept(val dir: File, val name: String) : ConceptEditor()
+
     /** Which boards the open concept is linked onto — ticks to set and clear. */
     data object LinkToBoards : ConceptEditor()
 }
@@ -76,6 +78,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     var openFailed by mutableStateOf(false)
         private set
     var notice by mutableStateOf<String?>(null)
+
     /** Bumped when the list of concepts should be re-read. */
     var listTick by mutableStateOf(0)
         private set
@@ -329,19 +332,23 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     fun dragBy(id: String, dx: Float, dy: Float) {
         val ids = if (id in selection) selection else setOf(id)
         concept = concept?.let { c ->
-            c.copy(items = c.items.map { item ->
-                val pos = item.pos
-                if (item.id in ids && pos != null) item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else item
-            })
+            c.copy(
+                items = c.items.map { item ->
+                    val pos = item.pos
+                    if (item.id in ids && pos != null) item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else item
+                },
+            )
         }
     }
 
     fun resizeBy(id: String, factor: Float) {
         concept = concept?.let { c ->
-            c.copy(items = c.items.map { item ->
-                val pos = item.pos
-                if (item.id == id && pos != null) item.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.3f, 4f))) else item
-            })
+            c.copy(
+                items = c.items.map { item ->
+                    val pos = item.pos
+                    if (item.id == id && pos != null) item.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.3f, 4f))) else item
+                },
+            )
         }
     }
 

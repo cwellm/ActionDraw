@@ -16,11 +16,11 @@ import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
-import de.creaflect.actiondraw.board.ui.BoardMenuButton
 import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.image.ThumbCache
-import de.creaflect.actiondraw.ui.MenuScreen
+import de.creaflect.actiondraw.paletteWells
+import de.creaflect.actiondraw.ui.PaletteScreen
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -188,11 +188,13 @@ class DropIntoGroupTest {
 
     @Test
     fun theStartMenuShowsSettingsAndHotkeys() {
+        // The start menu is the palette now; Settings and Hotkeys sit in its corner.
         val settings = Settings(config)
         val app = AppState(settings)
         val boards = BoardState(settings, host)
+        val wells = paletteWells(lastBoard = null, sketchOpen = false)
         rule.setContent {
-            MenuScreen(app, boardButton = { BoardMenuButton(boards) }, extras = { MenuExtras(app, boards) })
+            PaletteScreen(wells, app.paletteRoom, app::selectRoom, onOpen = {}, corner = { MenuExtras(app, boards) })
         }
         rule.waitForIdle()
         rule.onNodeWithTag("menu-settings").assertIsDisplayed()
@@ -233,24 +235,24 @@ class DropIntoGroupTest {
     }
 
     @Test
-    fun settingsAndHotkeysComeFirstInTheOverflowAndTheThemeRowCycles() {
+    fun settingsAndHotkeysComeFirstInTheOverflowAndTheSurfaceIsChosenInTheHeader() {
         val (state, _) = boardWithAGroup()
         rule.setContent {
             BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
             BoardDialogs(state)
         }
         rule.waitForIdle()
+        // The surface is a swatch of itself in the header, not a row in the overflow.
+        rule.onNodeWithTag("board-surface-papyrus").performClick()
+        rule.waitForIdle()
+        assertTrue(state.theme == "papyrus", "on papyrus: ${state.theme}")
+
         rule.onNodeWithTag("board-more").performClick()
         rule.waitForIdle()
         val settings = rule.onNodeWithTag("board-settings").fetchSemanticsNode().boundsInRoot.top
         val hotkeys = rule.onNodeWithTag("board-hotkeys").fetchSemanticsNode().boundsInRoot.top
-        val theme = rule.onNodeWithTag("board-theme").fetchSemanticsNode().boundsInRoot.top
         val close = rule.onNodeWithTag("board-close").fetchSemanticsNode().boundsInRoot.top
-        assertTrue(settings < hotkeys && hotkeys < theme && theme < close, "Settings, Hotkeys, then the rest")
-
-        val before = state.theme
-        rule.onNodeWithTag("board-theme").performClick()
-        rule.waitForIdle()
-        assertTrue(state.theme != before, "one row cycles the theme: $before -> ${state.theme}")
+        assertTrue(settings < hotkeys && hotkeys < close, "Settings, Hotkeys, then the rest")
+        rule.onNodeWithTag("board-theme").assertDoesNotExist()
     }
 }
