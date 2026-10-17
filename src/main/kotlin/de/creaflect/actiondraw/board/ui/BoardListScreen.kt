@@ -12,13 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -34,9 +29,14 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,17 +45,17 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardStore
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.image.ThumbCache
-import de.creaflect.actiondraw.ui.chooseFolder
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
-import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RoomHeader
+import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.paperTooth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /** One entry of the board list: what can be shown without opening the board. */
 private data class BoardSummary(

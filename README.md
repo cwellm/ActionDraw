@@ -538,6 +538,22 @@ misbehaves on one machine only. Unset, it costs nothing.
 ./gradlew test
 ```
 
+## Checks on every pull request
+Two GitHub Actions run on every pull request and on `main`, and `main` only takes a pull request
+whose checks have passed:
+
+- **Tests** (`.github/workflows/tests.yml`) — every test of the app and the sketch engine, on
+  Windows, where the app's fonts and pen are measured; the reports and the room screenshots are
+  kept as the run's artifacts.
+- **Lint** (`.github/workflows/lint.yml`) — ktlint over every Kotlin file, with the rules in
+  `.editorconfig`: the IntelliJ IDEA style, hygiene on (imports, indentation, spacing, naming),
+  wrapping left to the code.
+
+```sh
+./gradlew ktlintCheck    # what the Lint check runs
+./gradlew ktlintFormat   # fixes most of what it finds
+```
+
 ## Build a native installer
 ```sh
 ./gradlew packageMsi    # Windows installer

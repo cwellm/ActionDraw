@@ -1,0 +1,49 @@
+# Every test, on every pull request and on main: the gate a change passes before it is merged.
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests
+    # Windows, where the app lives and its tests were written: the fonts are measured through
+    # DirectWrite, the pen comes in through WM_POINTER, and the room screenshots are Windows'.
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Caches Gradle's downloads between runs and checks the wrapper is Gradle's own.
+      - uses: gradle/actions/setup-gradle@v4
+
+      # The app's tests and the sketch engine's; --continue so one failing module does not hide
+      # the other's results. The gate is Gradle's exit code.
+      - name: Run every test
+        run: ./gradlew.bat test --continue --console=plain
+
+      - name: Keep the test reports and the room screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            build/reports/tests/test
+            sketch-engine/build/reports/tests/test
+            build/screenshots
+          if-no-files-found: ignore
+          retention-days: 14

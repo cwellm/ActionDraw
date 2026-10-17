@@ -50,6 +50,7 @@ enum class Room(val label: String, val pigment: Pigment) {
     PRACTICE("Practice", Pigment("Cadmium orange", Color(0xFFE0782F), Color(0xFFF5A25E), Atelier.Ink)),
     LENS("Lens", Pigment("Payne's grey", Color(0xFF46525F), Color(0xFFA3B0BE), Atelier.Paper)),
     BOARDS("Boards", Pigment("Ultramarine", Color(0xFF3446B8), Color(0xFF8E9EF4), Atelier.Paper)),
+
     // A shade deeper than the design canvas's #1F7F6E: paper text on that reached only 4.2:1.
     CONCEPTS("Concepts", Pigment("Viridian", Color(0xFF1A6F60), Color(0xFF5CC4AE), Atelier.Paper)),
     SKETCH("Sketch", Pigment("Madder rose", Color(0xFFB8324A), Color(0xFFEE8094), Atelier.Paper)),

@@ -1,7 +1,5 @@
 package de.creaflect.actiondraw.sketch.ui
 
-import de.creaflect.actiondraw.ui.lampShadow
-import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,31 +33,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clip
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.Dispatchers
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.Role
-import androidx.compose.runtime.produceState
-import androidx.compose.ui.graphics.asSkiaBitmap
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect as ComposeRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isPrimaryPressed
@@ -72,6 +64,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +77,7 @@ import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.ChromeEdge
 import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.actiondraw.ui.PointerWatch
 import de.creaflect.actiondraw.ui.RecedingChrome
@@ -89,15 +85,19 @@ import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.drawLampShadow
 import de.creaflect.actiondraw.ui.drawTape
+import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.watchPointer
 import de.creaflect.sketch.PencilModel
 import de.creaflect.sketch.Pencils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import org.jetbrains.skia.FilterMipmap
 import org.jetbrains.skia.FilterMode
 import org.jetbrains.skia.MipmapMode
 import org.jetbrains.skia.Rect
 import kotlin.math.roundToInt
+import androidx.compose.ui.geometry.Rect as ComposeRect
 
 /**
  * The Sketch room (CONCEPT.md, *Sketch*): the page in the middle, taped to the table; the pencil
@@ -289,8 +289,9 @@ private fun StatusLine(state: SketchState) {
     val sample = state.last
     val (dot, text) = when {
         hint != null -> Room.PRACTICE.pigment.glow to "The pen arrives as a mouse, without pressure — see Pen"
-        sample != null -> Room.CONCEPTS.pigment.glow to
-            "Pen · " + (if (sample.tiltX != 0 || sample.tiltY != 0) "pressure and tilt arriving" else "pressure arriving") + " · ${state.rateHz} Hz"
+        sample != null ->
+            Room.CONCEPTS.pigment.glow to
+                "Pen · " + (if (sample.tiltX != 0 || sample.tiltY != 0) "pressure and tilt arriving" else "pressure arriving") + " · ${state.rateHz} Hz"
         else -> Atelier.Muted to state.penStatus
     }
     Row(

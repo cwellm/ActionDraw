@@ -332,4 +332,3 @@ fun BloomLayer(bloom: Bloom?, onCovered: () -> Unit, onDone: () -> Unit) {
         }
     }
 }
-

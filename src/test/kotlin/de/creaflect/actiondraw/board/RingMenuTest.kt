@@ -56,11 +56,14 @@ class RingMenuTest {
         override fun currentSetup() = SessionSetup(null, 120, true, ViewMode.NONE, GridMode.OFF)
         override fun sketchOver(picture: File) { sketchedOver = picture }
     }
-    private val concepts = ConceptState(Settings(config), object : ConceptHost {
-        override fun showConcepts() = Unit
-        override fun showConcept() = Unit
-        override fun leaveConcepts() = Unit
-    }).also { it.setConceptsHomeDir(conceptsHome) }
+    private val concepts = ConceptState(
+        Settings(config),
+        object : ConceptHost {
+            override fun showConcepts() = Unit
+            override fun showConcept() = Unit
+            override fun leaveConcepts() = Unit
+        },
+    ).also { it.setConceptsHomeDir(conceptsHome) }
 
     @After
     fun cleanup() {

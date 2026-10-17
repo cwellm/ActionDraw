@@ -59,18 +59,24 @@ class PaletteTest {
     private inner class Shell {
         val settings = Settings(config)
         val app = AppState(settings)
-        val boards = BoardState(settings, object : BoardHost {
-            override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
-            override fun showBoard() = app.showBoard()
-            override fun showBoardList() = app.showBoardList()
-            override fun leaveBoard() = app.leaveBoard()
-            override fun currentSetup() = app.currentSetup()
-        })
-        val concepts = ConceptState(settings, object : ConceptHost {
-            override fun showConcepts() = app.showConcepts()
-            override fun showConcept() = app.showConcept()
-            override fun leaveConcepts() = app.leaveConcepts()
-        })
+        val boards = BoardState(
+            settings,
+            object : BoardHost {
+                override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
+                override fun showBoard() = app.showBoard()
+                override fun showBoardList() = app.showBoardList()
+                override fun leaveBoard() = app.leaveBoard()
+                override fun currentSetup() = app.currentSetup()
+            },
+        )
+        val concepts = ConceptState(
+            settings,
+            object : ConceptHost {
+                override fun showConcepts() = app.showConcepts()
+                override fun showConcept() = app.showConcept()
+                override fun leaveConcepts() = app.leaveConcepts()
+            },
+        )
 
         fun open(room: Room) = openRoom(room, app, boards, concepts)
     }

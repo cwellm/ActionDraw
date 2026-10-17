@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw.board.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ContextMenuArea
 import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.Image
@@ -7,32 +8,37 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -43,9 +49,12 @@ import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardGroup
 import de.creaflect.actiondraw.board.BoardItem
@@ -54,32 +63,22 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteColors
 import de.creaflect.actiondraw.board.NoteItem
-import de.creaflect.actiondraw.ui.Atelier
-import de.creaflect.actiondraw.ui.AtelierType
-import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.image.ThumbCache
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.NoteKind
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.layout.fillMaxHeight
 import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
+import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.CrossRoomButton
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.Canvas
-import de.creaflect.actiondraw.ui.drawPaperclip
-import de.creaflect.actiondraw.ui.RuleRed
-import de.creaflect.actiondraw.ui.ruled
-import de.creaflect.actiondraw.ui.paperTooth
-import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RuleRed
+import de.creaflect.actiondraw.ui.drawPaperclip
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.ruled
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * One board cell (image or note) with its right-click menu; [groupId] is the section it sits in.
@@ -513,9 +512,11 @@ private fun groupMenuItems(state: BoardState, group: BoardGroup): List<ContextMe
     } else {
         add(ContextMenuItem("New subgroup inside…") { state.openEditor(BoardEditor.NewGroup(group.id)) })
     }
-    add(ContextMenuItem(if (group.parentId == null) "Delete group (cards → Inbox)" else "Dissolve (cards → parent)") {
-        state.ungroup(group.id)
-    })
+    add(
+        ContextMenuItem(if (group.parentId == null) "Delete group (cards → Inbox)" else "Dissolve (cards → parent)") {
+            state.ungroup(group.id)
+        },
+    )
 }
 
 /** Shows how a picture stands with the practice side: flagged to redo, drawn, or never drawn. */

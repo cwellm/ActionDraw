@@ -8,10 +8,10 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.pressKey
@@ -72,33 +72,43 @@ class RoomScreenshotTest {
         val app = AppState(settings)
         lateinit var boards: BoardState
         lateinit var sketch: SketchState
-        val concepts = ConceptState(settings, object : ConceptHost {
-            override fun showConcepts() = app.showConcepts()
-            override fun showConcept() = app.showConcept()
-            override fun leaveConcepts() = app.leaveConcepts()
-        }).also { it.setConceptsHomeDir(File(root, "concepts")) }
+        val concepts = ConceptState(
+            settings,
+            object : ConceptHost {
+                override fun showConcepts() = app.showConcepts()
+                override fun showConcept() = app.showConcept()
+                override fun leaveConcepts() = app.leaveConcepts()
+            },
+        ).also { it.setConceptsHomeDir(File(root, "concepts")) }
 
         init {
-            boards = BoardState(settings, object : BoardHost {
-                override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = app.startBoardSession(root, images, setup)
-                override fun showBoard() = app.showBoard()
-                override fun showBoardList() = app.showBoardList()
-                override fun leaveBoard() = app.leaveBoard()
-                override fun currentSetup(): SessionSetup = app.currentSetup()
-                override fun showConcept(id: String) {
-                    concepts.openById(id)
-                }
-                override fun showConcepts() = concepts.openList()
-            }, concepts = concepts)
+            boards = BoardState(
+                settings,
+                object : BoardHost {
+                    override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = app.startBoardSession(root, images, setup)
+                    override fun showBoard() = app.showBoard()
+                    override fun showBoardList() = app.showBoardList()
+                    override fun leaveBoard() = app.leaveBoard()
+                    override fun currentSetup(): SessionSetup = app.currentSetup()
+                    override fun showConcept(id: String) {
+                        concepts.openById(id)
+                    }
+                    override fun showConcepts() = concepts.openList()
+                },
+                concepts = concepts,
+            )
             boards.setBoardsHomeDir(File(root, "boards").apply { mkdirs() })
-            sketch = SketchState(settings, object : SketchHost {
-                override fun boards() = boards.availableBoards()
-                override fun addToBoard(dir: File, pictures: List<File>) = boards.pinTo(dir, pictures)
-                override fun concepts() = concepts.available()
-                override fun conceptDir(id: String) = concepts.entryById(id)?.dir
-                override fun addToConcept(id: String, pictures: List<File>) = concepts.addToConcept(id, pictures, emptyList()) != null
-                override fun leaveSketch() = app.leaveSketch()
-            }).also { it.setSketchesHomeDir(File(root, "sketches")) }
+            sketch = SketchState(
+                settings,
+                object : SketchHost {
+                    override fun boards() = boards.availableBoards()
+                    override fun addToBoard(dir: File, pictures: List<File>) = boards.pinTo(dir, pictures)
+                    override fun concepts() = concepts.available()
+                    override fun conceptDir(id: String) = concepts.entryById(id)?.dir
+                    override fun addToConcept(id: String, pictures: List<File>) = concepts.addToConcept(id, pictures, emptyList()) != null
+                    override fun leaveSketch() = app.leaveSketch()
+                },
+            ).also { it.setSketchesHomeDir(File(root, "sketches")) }
         }
 
         val thumbs = ThumbCache(config)

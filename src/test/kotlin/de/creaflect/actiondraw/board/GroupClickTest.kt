@@ -2,6 +2,7 @@ package de.creaflect.actiondraw.board
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -17,7 +18,6 @@ import org.junit.Rule
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
-import androidx.compose.ui.geometry.Offset
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 

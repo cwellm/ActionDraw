@@ -1,7 +1,5 @@
 package de.creaflect.actiondraw.sketch.ui
 
-import de.creaflect.actiondraw.ui.lampShadow
-import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -37,14 +35,16 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
+import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.chooseSketchFile
-import de.creaflect.sketch.SketchDocument
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
+import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.sketch.PageSize
 import de.creaflect.sketch.Paper
+import de.creaflect.sketch.SketchDocument
 import java.io.File
 
 /** Renders whichever Live Sketch dialog is open — mounted at app level, above every screen. */
@@ -280,4 +280,3 @@ private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> 
         }
     }
 }
-

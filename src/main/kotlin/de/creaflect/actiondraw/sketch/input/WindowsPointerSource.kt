@@ -35,8 +35,10 @@ class WindowsPointerSource(private val window: Window) : PenSource {
     override val name: String = "Windows Ink (WM_POINTER)"
 
     private var frame: HWND? = null
+
     /** Each hooked window's original procedure, by handle. */
     private val previous = LinkedHashMap<Long, Pointer>()
+
     // A strong reference: JNA's callback thunk lives as long as this object does, and the windows
     // would call into freed memory if the callback were collected.
     private var proc: WindowProc? = null
@@ -152,33 +154,56 @@ internal interface User32Pointer : StdCallLibrary {
     "ptPixelLocation", "ptHimetricLocation", "ptPixelLocationRaw", "ptHimetricLocationRaw",
     "dwTime", "historyCount", "inputData", "dwKeyStates", "performanceCount", "buttonChangeType",
 )
+@Suppress("ktlint:standard:class-naming") // named as in winuser.h, field for field
 open class POINTER_INFO : Structure() {
     @JvmField var pointerType: Int = 0
+
     @JvmField var pointerId: Int = 0
+
     @JvmField var frameId: Int = 0
+
     @JvmField var pointerFlags: Int = 0
+
     @JvmField var sourceDevice: Pointer? = null
+
     @JvmField var hwndTarget: Pointer? = null
+
     @JvmField var ptPixelLocation: POINT = POINT()
+
     @JvmField var ptHimetricLocation: POINT = POINT()
+
     @JvmField var ptPixelLocationRaw: POINT = POINT()
+
     @JvmField var ptHimetricLocationRaw: POINT = POINT()
+
     @JvmField var dwTime: Int = 0
+
     @JvmField var historyCount: Int = 0
+
     @JvmField var inputData: Int = 0
+
     @JvmField var dwKeyStates: Int = 0
+
     @JvmField var performanceCount: Long = 0
+
     @JvmField var buttonChangeType: Int = 0
 }
 
 /** `POINTER_PEN_INFO`: the pointer info plus what only a pen has. Pressure is 0..1024. */
 @Structure.FieldOrder("pointerInfo", "penFlags", "penMask", "pressure", "rotation", "tiltX", "tiltY")
+@Suppress("ktlint:standard:class-naming") // named as in winuser.h, field for field
 class POINTER_PEN_INFO : Structure() {
     @JvmField var pointerInfo: POINTER_INFO = POINTER_INFO()
+
     @JvmField var penFlags: Int = 0
+
     @JvmField var penMask: Int = 0
+
     @JvmField var pressure: Int = 0
+
     @JvmField var rotation: Int = 0
+
     @JvmField var tiltX: Int = 0
+
     @JvmField var tiltY: Int = 0
 }

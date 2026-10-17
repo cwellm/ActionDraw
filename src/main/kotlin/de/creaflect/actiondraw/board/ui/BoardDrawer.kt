@@ -1,7 +1,5 @@
 package de.creaflect.actiondraw.board.ui
 
-import de.creaflect.actiondraw.ui.lampShadow
-import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,6 +41,8 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.lampShadow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 

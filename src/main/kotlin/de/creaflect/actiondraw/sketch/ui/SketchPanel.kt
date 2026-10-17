@@ -1,7 +1,5 @@
 package de.creaflect.actiondraw.sketch.ui
 
-import de.creaflect.actiondraw.ui.lampShadow
-import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -15,16 +13,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Checkbox
+import androidx.compose.material.CheckboxDefaults
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedButton
+import androidx.compose.material.Slider
+import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
@@ -33,14 +38,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import kotlin.math.roundToInt
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.SliderDefaults
-import androidx.compose.material.Slider
-import androidx.compose.material.CheckboxDefaults
-import androidx.compose.material.Checkbox
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -56,11 +53,14 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.sketch.Paper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
  * Beside the page, what it is drawn on: the papers as swatches of their own tooth, the shades as

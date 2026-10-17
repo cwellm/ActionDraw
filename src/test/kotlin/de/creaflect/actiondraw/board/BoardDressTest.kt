@@ -2,32 +2,32 @@ package de.creaflect.actiondraw.board
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
-import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
-import de.creaflect.actiondraw.image.ThumbCache
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.Themes
 import de.creaflect.actiondraw.board.ui.notePaper
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierTheme
+import de.creaflect.actiondraw.ui.paperTooth
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -165,11 +165,14 @@ class BoardDressTest {
     @Test
     fun aBorrowedCardWearsItsConceptsTab() {
         val conceptsHome = Files.createTempDirectory("dress-concepts").toFile()
-        val concepts = ConceptState(Settings(config), object : ConceptHost {
-            override fun showConcepts() = Unit
-            override fun showConcept() = Unit
-            override fun leaveConcepts() = Unit
-        }).also { it.setConceptsHomeDir(conceptsHome) }
+        val concepts = ConceptState(
+            Settings(config),
+            object : ConceptHost {
+                override fun showConcepts() = Unit
+                override fun showConcept() = Unit
+                override fun leaveConcepts() = Unit
+            },
+        ).also { it.setConceptsHomeDir(conceptsHome) }
         concepts.createConcept("Drache", "creature")
         concepts.addPictures(listOf(File(conceptsHome, "wing.jpg").apply { createNewFile() }))
         val state = BoardState(Settings(config), host, concepts = concepts)
@@ -183,6 +186,7 @@ class BoardDressTest {
         rule.onNodeWithTag("concept-tab-" + own.single().id).assertDoesNotExist()
         conceptsHome.deleteRecursively()
     }
+
     @Test
     fun aPaletteIsPinnedAsACardBesideItsPicture() {
         val (state, ids) = board()

@@ -1,15 +1,15 @@
 package de.creaflect.actiondraw.board
 
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
-import androidx.compose.ui.input.key.Key
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
@@ -178,6 +178,7 @@ class BoardChromeTest {
         assertTrue(state.snapping)
         assertTrue(BoardState(Settings(config), host).snapping, "and it is remembered")
     }
+
     @Test
     fun theHeaderSaysWhereYouAreAndDrawsTheWholeBoard() {
         val (state, _) = shownBoard()

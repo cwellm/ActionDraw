@@ -32,10 +32,13 @@ sealed class SketchEditor {
     data object ToBoard : SketchEditor()
     data object ToConcept : SketchEditor()
     data object Colour : SketchEditor()
+
     /** A name for the current lead as it is tuned, to keep it. */
     data object SavePreset : SketchEditor()
+
     /** Recent sketches, and a way to browse for one. */
     data object Open : SketchEditor()
+
     /** The sketch has unsaved strokes and something is about to replace it or close the app. */
     data class Confirm(val then: () -> Unit) : SketchEditor()
 }
@@ -58,11 +61,13 @@ class SketchState(
 
     var session by mutableStateOf<SketchSession?>(null)
         private set
+
     /** The `.sketch.json` this sketch was saved to or opened from, or null while it has none. */
     var file by mutableStateOf<File?>(null)
         private set
     var title by mutableStateOf("Untitled")
         private set
+
     /** The page's size in words, for the toolbar: "A4 150 dpi", "1600 × 1200 px". */
     var pageName by mutableStateOf("")
         private set
@@ -70,30 +75,37 @@ class SketchState(
         private set
     var eraser by mutableStateOf(false)
         private set
+
     /** A soft eraser lifts part of the graphite per pass, like a rubber; a hard one all of it. */
     var eraserSoft by mutableStateOf(true)
         private set
     var recentColors by mutableStateOf(listOf(0xFF1A1A1A.toInt(), 0xFF8B2F1E.toInt(), 0xFF1F4E8C.toInt()))
         private set
+
     /** Bumped whenever the page changed, so the screen draws it again. */
     var tick by mutableStateOf(0)
         private set
+
     /** Bumped when the history changed (a stroke kept, undo, redo, save, a new page), so the toolbar follows. */
     var version by mutableStateOf(0)
         private set
     var editor by mutableStateOf<SketchEditor?>(null)
         private set
     var notice by mutableStateOf<String?>(null)
+
     /** A picture kept in view while sketching — the reference from a session. */
     var reference by mutableStateOf<File?>(null)
     var showPenPanel by mutableStateOf(false)
     var showTunables by mutableStateOf(false)
+
     /** Bumped when a preset is applied, so the Tune panel reads the lead's model again. */
     var tunablesVersion by mutableStateOf(0)
         private set
+
     /** Leads tuned and named, from the settings. */
     var presets by mutableStateOf(LeadPresets.parse(settings.leadPresetsJson()))
         private set
+
     /** A tilted pen shades with the side of the lead; off, every mark is drawn upright. */
     var tiltShading by mutableStateOf(settings.tiltShading())
         private set
@@ -129,6 +141,7 @@ class SketchState(
 
     var zoom by mutableStateOf(1f)
         private set
+
     /** The page's top-left corner in view pixels. */
     var panX by mutableStateOf(0f)
         private set
@@ -136,6 +149,7 @@ class SketchState(
         private set
     var viewSize: IntSize = IntSize.Zero
         private set
+
     /** Where the view sits in the window, in pixels; pen samples are window-relative. */
     var viewOrigin: Offset = Offset.Zero
     var spaceHeld by mutableStateOf(false)
@@ -146,6 +160,7 @@ class SketchState(
         private set
     var penStatus by mutableStateOf("Mouse only — no pen source on this machine.")
         private set
+
     /** The last key or wheel event the sketch screen saw, in words — the Pen panel shows it, so what a dial sends can be read off. */
     var lastInput by mutableStateOf<String?>(null)
     var last by mutableStateOf<PenSample?>(null)
@@ -162,6 +177,7 @@ class SketchState(
     private var source: PenSource? = null
     private val recentTimes = ArrayDeque<Long>()
     private var recordFile: File? = null
+
     // State, not plain fields: whether a stroke is live is what makes the chrome step back.
     private var penDrawing by mutableStateOf(false)
     private var mouseDrawing by mutableStateOf(false)
@@ -170,6 +186,7 @@ class SketchState(
     val drawing: Boolean get() = penDrawing || mouseDrawing
     private var penSeen = false
     private var lastPenNanos = 0L
+
     /** Strokes the mouse made — with no pen sample ever seen, that is the pen arriving as a mouse. */
     private var mouseStrokes by mutableStateOf(0)
 
@@ -682,10 +699,13 @@ class SketchState(
         const val MIN_ZOOM = 0.05f
         const val MAX_ZOOM = 8f
         const val KEY_ZOOM = 1.25f
+
         /** What a mouse presses with: enough for a firm line, not the lead's heaviest. */
         const val MOUSE_PRESSURE = 0.7f
+
         /** What a soft eraser lifts per pass. */
         const val SOFT_ERASER = 0.45f
+
         /** How long after a pen sample mouse input still counts as that pen: hover to touch. */
         const val PEN_GRACE_NANOS = 300_000_000L
 

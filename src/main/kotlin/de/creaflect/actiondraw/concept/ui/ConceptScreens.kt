@@ -1,9 +1,11 @@
 package de.creaflect.actiondraw.concept.ui
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -49,59 +52,56 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.board.BoardLayouts
+import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.ui.Markdown
+import de.creaflect.actiondraw.board.ui.Themes
 import de.creaflect.actiondraw.concept.ConceptEditor
 import de.creaflect.actiondraw.concept.ConceptEntry
 import de.creaflect.actiondraw.concept.ConceptKinds
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ConceptStore
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.PigmentDab
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RoomHeader
+import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.chooseImages
+import de.creaflect.actiondraw.ui.confirmOnEnter
+import de.creaflect.actiondraw.ui.drawPaperclip
+import de.creaflect.actiondraw.ui.focusOnShow
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.ruled
+import de.creaflect.actiondraw.ui.seed
+import de.creaflect.sketch.Paper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
-import androidx.compose.runtime.LaunchedEffect
-import de.creaflect.actiondraw.board.BoardLink
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
-import de.creaflect.actiondraw.board.BoardLayouts
-import de.creaflect.actiondraw.ui.confirmOnEnter
-import de.creaflect.actiondraw.ui.focusOnShow
-import de.creaflect.actiondraw.ui.HomeButton
-import de.creaflect.actiondraw.ui.Atelier
-import de.creaflect.actiondraw.ui.AtelierType
-import de.creaflect.actiondraw.ui.Lift
-import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.RoomHeader
-import de.creaflect.actiondraw.ui.lampShadow
-import de.creaflect.actiondraw.ui.CrossRoomButton
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.foundation.Canvas
-import de.creaflect.sketch.Paper
-import de.creaflect.actiondraw.board.ui.Themes
-import de.creaflect.actiondraw.ui.seed
-import de.creaflect.actiondraw.ui.PigmentDab
-import de.creaflect.actiondraw.ui.drawPaperclip
-import de.creaflect.actiondraw.ui.RuleRed
-import de.creaflect.actiondraw.ui.ruled
-import de.creaflect.actiondraw.ui.paperTooth
 
 // ---------------- The list ----------------
 
@@ -318,8 +318,10 @@ fun ConceptScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)?
             }
         }
         state.notice?.let {
-            Text("$it  (click to dismiss)", style = MaterialTheme.typography.caption, color = MaterialTheme.colors.error,
-                modifier = Modifier.padding(horizontal = 12.dp).clickable { state.notice = null })
+            Text(
+                "$it  (click to dismiss)", style = MaterialTheme.typography.caption, color = MaterialTheme.colors.error,
+                modifier = Modifier.padding(horizontal = 12.dp).clickable { state.notice = null },
+            )
         }
         Row(Modifier.fillMaxSize()) {
             // Cards: pictures, notes, links — in a grid, or placed by hand.
@@ -446,8 +448,10 @@ internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageIte
             else Text("…", color = Atelier.InkQuiet)
         }
         if (selected) {
-            Text("Remove", style = MaterialTheme.typography.caption, color = Color.White,
-                modifier = Modifier.align(Alignment.BottomEnd).background(Color(0xAA000000)).clickable { state.removeItems(setOf(item.id)) }.padding(4.dp))
+            Text(
+                "Remove", style = MaterialTheme.typography.caption, color = Color.White,
+                modifier = Modifier.align(Alignment.BottomEnd).background(Color(0xAA000000)).clickable { state.removeItems(setOf(item.id)) }.padding(4.dp),
+            )
             // A picture Live Sketch saved can be taken up again where it was left: into Sketch, so madder's dab.
             val sketch = remember(item.id) { state.sketchOf(item) }
             if (sketch != null) {
@@ -622,8 +626,10 @@ fun ConceptDialogs(state: ConceptState) {
                         Markdown.Rendered(text, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface, onLink = {})
                     }
                 }
-                Text("Markdown: # heading · **bold** · *italic* · - list · [text](url) · --- ; saved as a .md file in the concept's _docs folder.",
-                    style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f))
+                Text(
+                    "Markdown: # heading · **bold** · *italic* · - list · [text](url) · --- ; saved as a .md file in the concept's _docs folder.",
+                    style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f),
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
                     if (editor.path != null) OutlinedButton(onClick = { state.deleteDocument(editor.path); state.closeEditor() }) { Text("Delete document") }
                     OutlinedButton(onClick = state::closeEditor) { Text("Cancel") }

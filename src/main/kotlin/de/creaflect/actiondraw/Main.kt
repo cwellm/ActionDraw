@@ -2,12 +2,17 @@ package de.creaflect.actiondraw
 
 import androidx.compose.material.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -19,22 +24,17 @@ import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.ReferenceStrip
 import de.creaflect.actiondraw.board.ui.handleBoardKey
+import de.creaflect.actiondraw.concept.ConceptHost
+import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.sketch.SketchHost
+import de.creaflect.actiondraw.sketch.SketchState
+import de.creaflect.actiondraw.sketch.handleSketchChar
+import de.creaflect.actiondraw.sketch.handleSketchShortcut
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
 import java.io.File
-import de.creaflect.actiondraw.concept.ConceptHost
-import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.sketch.SketchState
-import androidx.compose.ui.input.key.isAltPressed
-import androidx.compose.ui.input.key.isCtrlPressed
-import androidx.compose.ui.input.key.isShiftPressed
-import de.creaflect.actiondraw.sketch.SketchHost
-import de.creaflect.actiondraw.sketch.handleSketchShortcut
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.input.key.utf16CodePoint
-import de.creaflect.actiondraw.sketch.handleSketchChar
 
 fun main() = application {
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
@@ -49,20 +49,23 @@ fun main() = application {
     // The main window, so a sketch started from a session's own window can come to the front.
     val mainWindow = remember { mutableStateOf<java.awt.Window?>(null) }
     val conceptState = remember {
-        ConceptState(settings, object : ConceptHost {
-            override fun showConcepts() = appState.showConcepts()
-            override fun showConcept() = appState.showConcept()
-            override fun leaveConcepts() = appState.leaveConcepts()
-            override fun boardsFor(conceptId: String) = boardHolder.state.boardsFor(conceptId)
-            override fun setLinked(conceptId: String, board: File, linked: Boolean) {
-                boardHolder.state.setLinked(conceptId, board, linked)
-            }
-            override fun unlinkEverywhere(conceptId: String) = boardHolder.state.unlinkEverywhere(conceptId)
-            override fun openSketch(file: File) {
-                sketchHolder.state.open(file)
-                appState.showSketch(from = Screen.Concept)
-            }
-        })
+        ConceptState(
+            settings,
+            object : ConceptHost {
+                override fun showConcepts() = appState.showConcepts()
+                override fun showConcept() = appState.showConcept()
+                override fun leaveConcepts() = appState.leaveConcepts()
+                override fun boardsFor(conceptId: String) = boardHolder.state.boardsFor(conceptId)
+                override fun setLinked(conceptId: String, board: File, linked: Boolean) {
+                    boardHolder.state.setLinked(conceptId, board, linked)
+                }
+                override fun unlinkEverywhere(conceptId: String) = boardHolder.state.unlinkEverywhere(conceptId)
+                override fun openSketch(file: File) {
+                    sketchHolder.state.open(file)
+                    appState.showSketch(from = Screen.Concept)
+                }
+            },
+        )
     }
     // The board talks to the rest of the app only through this host (its "plugin" boundary).
     val boardState = remember {

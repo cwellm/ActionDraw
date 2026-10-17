@@ -60,9 +60,9 @@ private fun buildIco(entries: List<Pair<Int, ByteArray>>): ByteArray {
     for ((size, png) in entries) {
         out.write(if (size >= 256) 0 else size) // width
         out.write(if (size >= 256) 0 else size) // height
-        out.write(0); out.write(0)              // palette count, reserved
-        short(1); short(32)                     // planes, bit depth
-        int(png.size); int(offset)              // size, offset
+        out.write(0); out.write(0) // palette count, reserved
+        short(1); short(32) // planes, bit depth
+        int(png.size); int(offset) // size, offset
         offset += png.size
     }
     for ((_, png) in entries) out.write(png)

@@ -65,12 +65,15 @@ class SketchCardTest {
     @Test
     fun aSketchedPictureInAConceptCanBeContinuedToo() {
         var fromConcept: File? = null
-        val concepts = ConceptState(Settings(config), object : ConceptHost {
-            override fun showConcepts() = Unit
-            override fun showConcept() = Unit
-            override fun leaveConcepts() = Unit
-            override fun openSketch(file: File) { fromConcept = file }
-        })
+        val concepts = ConceptState(
+            Settings(config),
+            object : ConceptHost {
+                override fun showConcepts() = Unit
+                override fun showConcept() = Unit
+                override fun leaveConcepts() = Unit
+                override fun openSketch(file: File) { fromConcept = file }
+            },
+        )
         concepts.setConceptsHomeDir(conceptsHome)
         concepts.createConcept("Drache")
         val dir = concepts.root!!

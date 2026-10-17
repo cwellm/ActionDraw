@@ -1,7 +1,7 @@
 package de.creaflect.sketch
 
-import org.jetbrains.skia.BlendMode
 import org.jetbrains.skia.Bitmap
+import org.jetbrains.skia.BlendMode
 import org.jetbrains.skia.Canvas
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.ImageInfo
@@ -84,6 +84,7 @@ class SketchSurface(
     private val tiles: Array<Surface> = Array(columns * rows) { i ->
         Surface.makeRaster(ImageInfo.makeN32Premul(tileWidth(i), tileHeight(i)))
     }
+
     /** The picture of each tile the screen was last given, until the tile is drawn on again. */
     private val shown = arrayOfNulls<Image>(columns * rows)
 

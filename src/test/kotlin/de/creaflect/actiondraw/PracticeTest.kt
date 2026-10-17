@@ -179,6 +179,7 @@ class PracticeTest {
         rule.onNodeWithTag("summary-flagged").assertIsDisplayed()
         assertNull(state.pinNotice)
     }
+
     /** A board as the source: its pictures - wherever they are - and its folder for seen and redo. */
     @Test
     fun aBoardCanBeWhatThePracticeRoomDrawsFrom() {

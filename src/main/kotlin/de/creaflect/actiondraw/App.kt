@@ -14,27 +14,27 @@ import androidx.compose.ui.geometry.Offset
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardListScreen
-import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.image.ThumbCache
-import de.creaflect.actiondraw.ui.AtelierTheme
-import de.creaflect.actiondraw.ui.Bloom
-import de.creaflect.actiondraw.ui.BloomLayer
-import de.creaflect.actiondraw.ui.PracticeScreen
-import de.creaflect.actiondraw.ui.PaletteScreen
-import de.creaflect.actiondraw.ui.PaletteWell
-import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.RoomLine
-import de.creaflect.actiondraw.ui.PickerScreen
-import de.creaflect.actiondraw.ui.SessionScreen
-import de.creaflect.actiondraw.ui.SummaryScreen
+import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
+import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.sketch.SketchState
-import de.creaflect.actiondraw.sketch.ui.SketchScreen
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
+import de.creaflect.actiondraw.sketch.ui.SketchScreen
+import de.creaflect.actiondraw.ui.AtelierTheme
+import de.creaflect.actiondraw.ui.Bloom
+import de.creaflect.actiondraw.ui.BloomLayer
+import de.creaflect.actiondraw.ui.PaletteScreen
+import de.creaflect.actiondraw.ui.PaletteWell
+import de.creaflect.actiondraw.ui.PickerScreen
+import de.creaflect.actiondraw.ui.PracticeScreen
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RoomLine
+import de.creaflect.actiondraw.ui.SessionScreen
+import de.creaflect.actiondraw.ui.SummaryScreen
 
 /**
  * Every screen belongs to a [Room] of the palette, except the palette itself, which is home.

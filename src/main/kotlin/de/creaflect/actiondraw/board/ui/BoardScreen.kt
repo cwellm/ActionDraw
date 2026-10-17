@@ -1,41 +1,52 @@
 package de.creaflect.actiondraw.board.ui
 
-import de.creaflect.actiondraw.ui.lampShadow
-import de.creaflect.actiondraw.ui.Lift
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.material.Button
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.Divider
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.OutlinedButton
-import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
+import androidx.compose.material.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,72 +56,57 @@ import androidx.compose.ui.draganddrop.DragAndDropEvent
 import androidx.compose.ui.draganddrop.DragAndDropTarget
 import androidx.compose.ui.draganddrop.DragData
 import androidx.compose.ui.draganddrop.dragData
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageShader
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TileMode
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
-import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardThemes
+import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.board.ContactSheet
+import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.SessionRecipe
-import de.creaflect.actiondraw.image.ThumbCache
-import de.creaflect.actiondraw.ui.SelectChip
-import de.creaflect.actiondraw.ui.formatTime
-import de.creaflect.actiondraw.ui.chooseImages
-import de.creaflect.actiondraw.ui.chooseSaveFile
-import java.io.File
-import java.net.URI
-import androidx.compose.material.Divider
-import androidx.compose.runtime.produceState
-import androidx.compose.ui.platform.testTag
-import de.creaflect.actiondraw.samePathAs
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import androidx.compose.foundation.Image
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import de.creaflect.actiondraw.board.WallpaperFit
 import de.creaflect.actiondraw.image.ImageLoader
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.border
-import androidx.compose.material.TextButton
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.FlowRowScope
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.TextFieldDefaults
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.VisualTransformation
-import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.board.ConceptRef
-import de.creaflect.actiondraw.ui.HomeButton
-import androidx.compose.foundation.layout.size
-import kotlin.math.roundToInt
+import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.samePathAs
 import de.creaflect.actiondraw.ui.Atelier
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.Role
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.TooltipArea
-import de.creaflect.actiondraw.ui.seed
-import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.PigmentDab
 import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.HomeButton
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.PigmentDab
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.chooseImages
+import de.creaflect.actiondraw.ui.chooseSaveFile
+import de.creaflect.actiondraw.ui.formatTime
 import de.creaflect.actiondraw.ui.grainBehind
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.seed
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.net.URI
+import kotlin.math.roundToInt
 
 /**
  * The Idea Board: grouped grid of image and note cards on a cork/papyrus/plain surface.
@@ -164,51 +160,53 @@ fun BoardScreen(
             // The wallpaper sits on the theme's texture and under everything else.
             WallpaperLayer(state)
             Row(Modifier.fillMaxSize()) {
-              if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
-              Column(Modifier.weight(1f).fillMaxHeight()) {
-                if (!hideChrome) Surface(
-                    // A stripe under the chrome: text-weight controls straight on cork or a
-                    // wallpaper were barely there. Slightly translucent so the board shows through.
-                    color = MaterialTheme.colors.surface.copy(alpha = 0.94f),
-                    elevation = 0.dp,
-                    modifier = Modifier.fillMaxWidth().lampShadow(Lift.RESTING).testTag("board-header"),
-                ) { Column {
-                    BoardHeader(state, board.name, board.theme, onHome, onImmersive = {
-                        state.immersive = true
-                        setFullscreen(true)
-                    })
-                    if (state.openedFromBackup) {
-                        Text(
-                            "Board file was unreadable — restored from its backup.",
-                            style = MaterialTheme.typography.caption,
-                            color = MaterialTheme.colors.error,
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                        )
+                if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    if (!hideChrome) Surface(
+                        // A stripe under the chrome: text-weight controls straight on cork or a
+                        // wallpaper were barely there. Slightly translucent so the board shows through.
+                        color = MaterialTheme.colors.surface.copy(alpha = 0.94f),
+                        elevation = 0.dp,
+                        modifier = Modifier.fillMaxWidth().lampShadow(Lift.RESTING).testTag("board-header"),
+                    ) {
+                        Column {
+                            BoardHeader(state, board.name, board.theme, onHome, onImmersive = {
+                                state.immersive = true
+                                setFullscreen(true)
+                            })
+                            if (state.openedFromBackup) {
+                                Text(
+                                    "Board file was unreadable — restored from its backup.",
+                                    style = MaterialTheme.typography.caption,
+                                    color = MaterialTheme.colors.error,
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                )
+                            }
+                            state.importNotice?.let { notice ->
+                                Text(
+                                    "$notice  (click to dismiss)",
+                                    style = MaterialTheme.typography.caption,
+                                    color = MaterialTheme.colors.error,
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                                        .clickable { state.dismissImportNotice() },
+                                )
+                            }
+                            if (state.allTags.isNotEmpty()) FilterBar(state)
+                        }
                     }
-                    state.importNotice?.let { notice ->
-                        Text(
-                            "$notice  (click to dismiss)",
-                            style = MaterialTheme.typography.caption,
-                            color = MaterialTheme.colors.error,
-                            modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 2.dp)
-                                .clickable { state.dismissImportNotice() },
-                        )
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        if (state.layout == BoardLayouts.FREE) {
+                            BoardCanvas(state, thumbs, textured, Modifier.fillMaxSize(), showCorner = !hideChrome)
+                        } else {
+                            BoardGrid(state, thumbs, textured, Modifier.fillMaxSize())
+                            if (!hideChrome) ViewCorner(state, onFit = null, modifier = Modifier.align(Alignment.BottomStart).padding(12.dp))
+                        }
+                        if (!hideChrome) ContentsCorner(state, Modifier.align(Alignment.BottomEnd).padding(12.dp))
                     }
-                    if (state.allTags.isNotEmpty()) FilterBar(state)
-                } }
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                    if (state.layout == BoardLayouts.FREE) {
-                        BoardCanvas(state, thumbs, textured, Modifier.fillMaxSize(), showCorner = !hideChrome)
-                    } else {
-                        BoardGrid(state, thumbs, textured, Modifier.fillMaxSize())
-                        if (!hideChrome) ViewCorner(state, onFit = null, modifier = Modifier.align(Alignment.BottomStart).padding(12.dp))
-                    }
-                    if (!hideChrome) ContentsCorner(state, Modifier.align(Alignment.BottomEnd).padding(12.dp))
+                    // The empty board is just the board: the action bar exists for a selection.
+                    if (!hideChrome && state.selection.isNotEmpty()) BoardActionBar(state)
                 }
-                // The empty board is just the board: the action bar exists for a selection.
-                if (!hideChrome && state.selection.isNotEmpty()) BoardActionBar(state)
-              }
             }
             if (state.viewerOpen) BoardViewer(state, thumbs)
         }

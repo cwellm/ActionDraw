@@ -8,18 +8,18 @@ import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
-import de.creaflect.actiondraw.isInside
-import de.creaflect.actiondraw.samePathAs
+import de.creaflect.actiondraw.board.ui.Markdown
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
+import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.isInside
+import de.creaflect.actiondraw.samePathAs
+import de.creaflect.sketch.SketchDocument
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import de.creaflect.actiondraw.board.ui.Markdown
-import de.creaflect.actiondraw.image.relKey
-import de.creaflect.sketch.SketchDocument
 
 /** Which board dialog is open (rendered by `BoardDialogs`); the dialogs own their text state. */
 sealed class BoardEditor {
@@ -42,6 +42,7 @@ sealed class BoardEditor {
 
     /** How this board wants to be drawn (interval/ramp, auto-advance, view mode, grid). */
     data object EditSession : BoardEditor()
+
     /** [parentId] nests the new group inside an existing top-level group. */
     data class NewGroup(val parentId: String? = null) : BoardEditor()
 
@@ -314,7 +315,6 @@ class BoardState(
         registry.register(name, dir, ownsFolder = underHome)
     }
 
-
     // ---- Derived views ----
 
     val sortedGroups: List<BoardGroup> get() = board?.groups.orEmpty().sortedBy { it.order }
@@ -547,7 +547,6 @@ class BoardState(
                 else "Couldn't remove the board file in ${dir.name}."
             }
 
-
             Deletion.DELETE_FOLDER ->
                 if (dir.deleteRecursively()) "Deleted ${dir.name} and everything in it."
                 else "Couldn't delete ${dir.name} — something in it is in use."
@@ -693,7 +692,6 @@ class BoardState(
         immersive = false
         host.leaveBoard()
     }
-
 
     // ---- Concepts on the board ----
 
@@ -897,10 +895,12 @@ class BoardState(
     fun cycleGroupColor(id: String) {
         if (groupById(id)?.isConcept == true) return // a concept's colour is not the board's to change
         update { b ->
-            b.copy(groups = b.groups.map { g ->
-                if (g.id == id) g.copy(color = GROUP_COLORS[(GROUP_COLORS.indexOf(g.color) + 1) % GROUP_COLORS.size])
-                else g
-            })
+            b.copy(
+                groups = b.groups.map { g ->
+                    if (g.id == id) g.copy(color = GROUP_COLORS[(GROUP_COLORS.indexOf(g.color) + 1) % GROUP_COLORS.size])
+                    else g
+                },
+            )
         }
     }
 
@@ -1000,13 +1000,15 @@ class BoardState(
         val own = withoutBorrowed(ids)
         if (own.isEmpty()) return
         update { b ->
-            b.copy(items = b.items.map { item ->
-                if (item.id !in own || item.groups.isEmpty()) item
-                else {
-                    val parent = b.groups.find { it.id == item.groups.first() }?.parentId
-                    item.withGroups(listOfNotNull(parent))
-                }
-            })
+            b.copy(
+                items = b.items.map { item ->
+                    if (item.id !in own || item.groups.isEmpty()) item
+                    else {
+                        val parent = b.groups.find { it.id == item.groups.first() }?.parentId
+                        item.withGroups(listOfNotNull(parent))
+                    }
+                },
+            )
         }
         pruneEmptyGroups()
     }
@@ -1088,10 +1090,12 @@ class BoardState(
         val removed = before - after
         if (added.isEmpty() && removed.isEmpty()) return
         update { b ->
-            b.copy(items = b.items.map {
-                if (it is ImageItem && it.id in ids) it.copy(tags = (it.tags - removed + added).distinct())
-                else it
-            })
+            b.copy(
+                items = b.items.map {
+                    if (it is ImageItem && it.id in ids) it.copy(tags = (it.tags - removed + added).distinct())
+                    else it
+                },
+            )
         }
         filterTags = filterTags.filter { it in allTags }.toSet() // a removed tag may be gone entirely
     }
@@ -1342,14 +1346,16 @@ class BoardState(
     /** Moves every card of a group together — the group behaves as one object. */
     fun dragGroupBy(groupId: String, dx: Float, dy: Float) = updateTransient { b ->
         val inTree = setOf(groupId) + b.groups.filter { it.parentId == groupId }.map { it.id }
-        b.copy(items = b.items.map { item ->
-            val pos = item.pos
-            if (item.groups.any { it in inTree } && pos != null) {
-                item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
-            } else {
-                item
-            }
-        })
+        b.copy(
+            items = b.items.map { item ->
+                val pos = item.pos
+                if (item.groups.any { it in inTree } && pos != null) {
+                    item.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy))
+                } else {
+                    item
+                }
+            },
+        )
     }
 
     /**
@@ -1462,12 +1468,14 @@ class BoardState(
         val previous = wallpaperFile
         val kept = wallpaper
         update { b ->
-            b.copy(wallpaper = de.creaflect.actiondraw.board.Wallpaper(
-                path = WALLPAPER_DIR + "/" + target.name,
-                fit = kept?.fit ?: WallpaperFit.COVER,
-                dim = kept?.dim ?: 0.35f,
-                blur = kept?.blur ?: 0f,
-            ))
+            b.copy(
+                wallpaper = de.creaflect.actiondraw.board.Wallpaper(
+                    path = WALLPAPER_DIR + "/" + target.name,
+                    fit = kept?.fit ?: WallpaperFit.COVER,
+                    dim = kept?.dim ?: 0.35f,
+                    blur = kept?.blur ?: 0f,
+                ),
+            )
         }
         if (previous != null && !previous.samePathAs(target)) previous.delete()
         return null
@@ -1692,27 +1700,33 @@ class BoardState(
     fun dragBy(id: String, dx: Float, dy: Float) {
         val ids = if (id in selection) selection else setOf(id)
         updateTransient { b ->
-            b.copy(items = b.items.map {
-                val pos = it.pos
-                if (it.id in ids && pos != null) it.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else it
-            })
+            b.copy(
+                items = b.items.map {
+                    val pos = it.pos
+                    if (it.id in ids && pos != null) it.withPos(pos.copy(x = pos.x + dx, y = pos.y + dy)) else it
+                },
+            )
         }
     }
 
     fun resizeBy(id: String, factor: Float) = updateTransient { b ->
-        b.copy(items = b.items.map {
-            val pos = it.pos
-            if (it.id == id && pos != null) {
-                it.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.15f, 8f)))
-            } else it
-        })
+        b.copy(
+            items = b.items.map {
+                val pos = it.pos
+                if (it.id == id && pos != null) {
+                    it.withPos(pos.copy(scale = (pos.scale * factor).coerceIn(0.15f, 8f)))
+                } else it
+            },
+        )
     }
 
     fun rotateBy(id: String, degrees: Float) = updateTransient { b ->
-        b.copy(items = b.items.map {
-            val pos = it.pos
-            if (it.id == id && pos != null) it.withPos(pos.copy(rotation = (pos.rotation + degrees) % 360f)) else it
-        })
+        b.copy(
+            items = b.items.map {
+                val pos = it.pos
+                if (it.id == id && pos != null) it.withPos(pos.copy(rotation = (pos.rotation + degrees) % 360f)) else it
+            },
+        )
     }
 
     /** Arrow keys in freeform: move the selection and persist right away. */
@@ -2175,10 +2189,12 @@ class BoardState(
             val inRow = minOf(unplaced, perRow)
             val startX = originX - (inRow - 1) * gap / 2
             var i = 0
-            return board.copy(items = board.items.map { item ->
-                if (item.pos != null) item
-                else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap, rotation = naturalTilt(item.id))).also { i++ }
-            })
+            return board.copy(
+                items = board.items.map { item ->
+                    if (item.pos != null) item
+                    else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap, rotation = naturalTilt(item.id))).also { i++ }
+                },
+            )
         }
     }
 }

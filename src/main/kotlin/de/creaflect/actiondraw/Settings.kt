@@ -120,8 +120,10 @@ class Settings(private val dir: File = defaultDir()) {
     }.getOrDefault(emptyList())
 
     fun addRecentBoard(dir: File) {
-        val next = (listOf(dir.absoluteFile) +
-            recentBoards().filter { !it.samePathAs(dir) })
+        val next = (
+            listOf(dir.absoluteFile) +
+                recentBoards().filter { !it.samePathAs(dir) }
+            )
             .take(MAX_RECENT_BOARDS)
         val props = read()
         (0 until MAX_RECENT_BOARDS).forEach { props.remove("$KEY_RECENT_BOARD.$it") }

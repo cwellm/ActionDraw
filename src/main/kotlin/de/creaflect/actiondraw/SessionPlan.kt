@@ -41,6 +41,7 @@ object SessionPlans {
         "Long studies",
         listOf(RampStep(300, 3), RampStep(600, 2), RampStep(1200, 1)),
     )
+
     /**
      * Study, then draw without it. A third of each pose to look, two thirds to work from memory —
      * the exercise that matters when the thing you are drawing does not exist to be photographed.

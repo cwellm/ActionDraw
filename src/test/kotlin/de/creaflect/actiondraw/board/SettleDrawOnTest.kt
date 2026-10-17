@@ -1,19 +1,17 @@
 package de.creaflect.actiondraw.board
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import kotlin.test.assertNotNull
-import de.creaflect.actiondraw.ui.Atelier
-import androidx.compose.ui.test.click
-import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.graphics.toPixelMap
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.background
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performMouseInput
@@ -27,6 +25,7 @@ import de.creaflect.actiondraw.board.ui.frameUnion
 import de.creaflect.actiondraw.board.ui.handDrawn
 import de.creaflect.actiondraw.board.ui.partOfOutline
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Lifted
 import de.creaflect.actiondraw.ui.LocalReducedMotion
 import de.creaflect.actiondraw.ui.Motion
@@ -40,6 +39,7 @@ import java.nio.file.Files
 import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -190,6 +190,7 @@ class SettleDrawOnTest {
         assertEquals(whole / 2f, length(partOfOutline(smooth, 0.5f)), 2f)
         assertEquals(whole, length(partOfOutline(smooth, 1f)), 2f)
     }
+
     @Test
     fun theFrameIsBegunWhereThePointerLetGo() {
         // A frame of 300 x 200 from its top left; the pointer let go by the middle of its right side.
