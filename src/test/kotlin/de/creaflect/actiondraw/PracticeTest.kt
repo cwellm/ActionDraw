@@ -201,6 +201,7 @@ class PracticeTest {
             state.start()
             assertEquals(Screen.Session, state.screen)
             assertTrue(state.currentImage in onBoard, "drawing from the board: ${state.currentImage}")
+            assertEquals(2, state.totalCount, "the session holds the concept's picture too, not just the folder's")
 
             val next = AppState(Settings(config))
             assertNull(next.practiceBoard, "until the boards are handed over")

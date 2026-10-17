@@ -117,9 +117,17 @@ class MotionTest {
         }
         assertTrue(edges.max() - edges.min() >= 4, "a cauliflower edge, not a circle: $edges")
 
-        // Just inside the edge, the pigment has gathered.
-        val inner = edges[0] - 6
-        assertTrue(at((c + inner).toInt(), 120).luminance() < at(120, 120).luminance(), "a darker rim")
+        // Just inside the edge, the pigment has gathered. The rim starts six pixels in from where
+        // the shader's edge is and darkens toward it; the edge found above sits a pixel or two
+        // inside that, so two pixels in from it is well within the rim. Averaged over all sixteen
+        // directions against the middle, so the grain (a few per cent) cannot pass for a rim.
+        val rim = edges.indices.map { k ->
+            val a = 2 * Math.PI * k / 16
+            val r = edges[k] - 2
+            at((c + r * cos(a)).toInt(), (c + r * sin(a)).toInt()).luminance()
+        }.average()
+        val middle = (-4..4).flatMap { dx -> (-4..4).map { dy -> at(120 + dx * 3, 120 + dy * 3).luminance() } }.average()
+        assertTrue(rim < middle * 0.9, "a darker rim: $rim against $middle in the middle")
     }
 
     @Test
