@@ -6,6 +6,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
+import de.creaflect.actiondraw.io.AppDirs
 import java.io.File
 
 /**
@@ -19,7 +20,7 @@ object PointerLog {
     val enabled: Boolean = System.getenv("ACTIONDRAW_POINTER_LOG") != null
 
     private val file: File by lazy {
-        File(System.getProperty("user.home"), ".actiondraw/pointer.log").apply { parentFile?.mkdirs() }
+        AppDirs.current.pointerLog.apply { parentFile?.mkdirs() }
     }
 
     fun log(line: String) {

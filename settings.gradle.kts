@@ -7,8 +7,12 @@ include(":sketch-engine")
 // The modules of M10 (ROADMAP), bottom up: what the app is made of, then how it is stored, then
 // the rooms. Each depends only on the ones below it, and Gradle holds it to that.
 include(":core:model")
+include(":core:io")
 
 pluginManagement {
+    // The modules' shared setup: Kotlin on Java 17 and their tests (actiondraw.kotlin-library),
+    // Skia on top for those that draw or decode (actiondraw.skia).
+    includeBuild("build-logic")
     repositories {
         gradlePluginPortal()
         mavenCentral()

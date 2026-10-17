@@ -31,15 +31,14 @@ dependencies {
     implementation(project(":sketch-engine"))
     // Boards, cards, concepts, session plans: the data, with no Compose and no files in it.
     implementation(project(":core:model"))
+    // Files: the app's own folders, safe writes, moving and deleting folders, reading pictures.
+    implementation(project(":core:io"))
     // Pen pressure and tilt come from native input, not from Compose (LEARNINGS L1): on Windows,
     // WM_POINTER + GetPointerPenInfo through JNA — pure Java, no compiler, no build step.
     implementation("net.java.dev.jna:jna:5.14.0")
     implementation("net.java.dev.jna:jna-platform:5.14.0")
     // Reading and writing the sidecar files (.actiondraw_board.json, .actiondraw_concept.json)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    // AVIF decoding: an ImageIO plugin (libavif/libdav1d JNI). Neither the JDK nor the bundled
-    // Skia can read AVIF; ImageDecoder falls back to ImageIO, so this is all that is needed.
-    implementation("io.github.nemanjastokuca:avif-imageio-native-reader:0.1.0")
     testImplementation(kotlin("test"))
     // Drives the real composables in tests: pointer behaviour (what a click actually selects)
     // cannot be checked any other way.

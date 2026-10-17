@@ -1,6 +1,7 @@
 package de.creaflect.actiondraw.board
 
 import de.creaflect.actiondraw.image.Thumbnails
+import de.creaflect.actiondraw.io.Folders
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Font
 import org.jetbrains.skia.FontMgr
@@ -101,5 +102,5 @@ object ContactSheet {
 
     /** Default file name for a sheet of [boardName]. */
     fun suggestedName(boardName: String): String =
-        BoardState.sanitizeName(boardName).ifBlank { "board" } + "-contact-sheet.png"
+        Folders.safeName(boardName).ifBlank { "board" } + "-contact-sheet.png"
 }

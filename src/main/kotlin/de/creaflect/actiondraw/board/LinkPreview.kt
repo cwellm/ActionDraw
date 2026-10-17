@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.io.Folders
 import java.io.File
 import java.net.URI
 import java.net.http.HttpClient
@@ -122,7 +123,7 @@ object LinkPreview {
             ?: return Result.Failed("The preview is not an image ActionDraw reads.")
         return runCatching {
             val dir = File(root, PREVIEW_DIR).apply { mkdirs() }
-            val target = Importer.collisionFree(File(dir, "${BoardState.sanitizeName(name).ifBlank { "link" }}.$extension"))
+            val target = Folders.freeFile(File(dir, "${Folders.safeName(name).ifBlank { "link" }}.$extension"))
             target.writeBytes(image.bytes)
             Result.Saved(PREVIEW_DIR + "/" + target.name)
         }.getOrElse { Result.Failed("Couldn't save the preview from $from.") }

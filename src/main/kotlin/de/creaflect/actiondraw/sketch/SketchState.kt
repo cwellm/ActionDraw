@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
 import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.io.AppDirs
 import de.creaflect.actiondraw.sketch.input.PenSample
 import de.creaflect.actiondraw.sketch.input.PenSource
 import de.creaflect.actiondraw.sketch.input.PenSources
@@ -665,7 +666,7 @@ class SketchState(
         rateHz = if (recentTimes.size >= 2) recentTimes.size * 2 else 0
     }
 
-    fun toggleRecording(target: File = File(System.getProperty("user.home"), ".actiondraw/pen-samples.csv")) {
+    fun toggleRecording(target: File = AppDirs.current.penSamples) {
         if (recording) {
             recording = false
             return

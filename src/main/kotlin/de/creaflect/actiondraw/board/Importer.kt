@@ -2,6 +2,7 @@ package de.creaflect.actiondraw.board
 
 import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.io.Folders
 import java.awt.image.BufferedImage
 import java.io.File
 import java.util.UUID
@@ -63,7 +64,7 @@ object Importer {
     fun importBitmap(root: File, image: BufferedImage, groupId: String?, timestamp: String): ImageItem? =
         runCatching {
             val dir = File(root, IMPORT_DIR).apply { mkdirs() }
-            val target = collisionFree(File(dir, "pasted-$timestamp.png"))
+            val target = Folders.freeFile(File(dir, "pasted-$timestamp.png"))
             check(ImageIO.write(image, "png", target))
             val rel = relKey(root, target)
             ImageItem(
@@ -76,24 +77,10 @@ object Importer {
 
     private fun copyIn(root: File, file: File): File? = runCatching {
         val dir = File(root, IMPORT_DIR).apply { mkdirs() }
-        val target = collisionFree(File(dir, file.name))
+        val target = Folders.freeFile(File(dir, file.name))
         file.copyTo(target)
         target
     }.getOrNull()
-
-    /** `foo.jpg` → `foo (2).jpg` → `foo (3).jpg` … the first name that doesn't exist yet. */
-    fun collisionFree(target: File): File {
-        if (!target.exists()) return target
-        val base = target.nameWithoutExtension
-        val ext = target.extension
-        var n = 2
-        while (true) {
-            val name = if (ext.isEmpty()) "$base ($n)" else "$base ($n).$ext"
-            val candidate = File(target.parentFile, name)
-            if (!candidate.exists()) return candidate
-            n++
-        }
-    }
 
     fun isUnder(root: File, file: File): Boolean = runCatching {
         file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())

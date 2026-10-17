@@ -1,10 +1,9 @@
 package de.creaflect.actiondraw.concept
 
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.io.SafeFile
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /**
  * Reads and writes the concept sidecar the way `BoardStore` does the board's: an atomic save with
@@ -13,8 +12,6 @@ import java.nio.file.StandardCopyOption
  */
 object ConceptStore {
     const val FILE_NAME = ".actiondraw_concept.json"
-    private const val BAK_NAME = "$FILE_NAME.bak"
-    private const val TMP_NAME = "$FILE_NAME.tmp"
 
     /** Where a concept keeps its documents; relative paths in the sidecar start with this. */
     const val DOCS_DIR = "_docs"
@@ -31,24 +28,24 @@ object ConceptStore {
         data object Failed : LoadResult()
     }
 
-    fun exists(root: File): Boolean = File(root, FILE_NAME).isFile
+    private fun sidecar(root: File) = SafeFile(File(root, FILE_NAME))
+
+    fun exists(root: File): Boolean = sidecar(root).exists()
 
     /** The sidecar as written, without validation — for listings that must not touch the folder. */
-    fun peek(root: File): ConceptFile? = parse(File(root, FILE_NAME)) ?: parse(File(root, BAK_NAME))
+    fun peek(root: File): ConceptFile? = sidecar(root).load(::decode)?.value
 
     fun load(root: File): LoadResult {
-        if (!exists(root)) return LoadResult.None
-        parse(File(root, FILE_NAME))?.let { return LoadResult.Loaded(validate(it, root), fromBackup = false) }
-        parse(File(root, BAK_NAME))?.let { return LoadResult.Loaded(validate(it, root), fromBackup = true) }
-        return LoadResult.Failed
+        val sidecar = sidecar(root)
+        if (!sidecar.exists()) return LoadResult.None
+        val loaded = sidecar.load(::decode) ?: return LoadResult.Failed
+        return LoadResult.Loaded(validate(loaded.value, root), loaded.fromBackup)
     }
 
-    private fun parse(file: File): ConceptFile? = runCatching {
-        file.takeIf { it.isFile }
-            ?.readText()
-            ?.removePrefix("﻿")
-            ?.let { json.decodeFromString(ConceptFile.serializer(), it) }
-    }.getOrNull()
+    /** Removes the sidecar and its backup: the folder stops being a concept, its files stay. */
+    fun forget(root: File): Boolean = sidecar(root).delete()
+
+    private fun decode(text: String): ConceptFile = json.decodeFromString(ConceptFile.serializer(), text)
 
     /** Drops pictures and documents whose files are gone; notes and links are never dropped. */
     fun validate(concept: ConceptFile, root: File): ConceptFile = concept.copy(
@@ -56,12 +53,6 @@ object ConceptStore {
         documents = concept.documents.filter { File(root, it).isFile },
     )
 
-    fun save(root: File, concept: ConceptFile): Boolean = runCatching {
-        val main = File(root, FILE_NAME)
-        val tmp = File(root, TMP_NAME)
-        tmp.writeText(json.encodeToString(ConceptFile.serializer(), concept))
-        if (main.isFile) main.copyTo(File(root, BAK_NAME), overwrite = true)
-        Files.move(tmp.toPath(), main.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        true
-    }.getOrDefault(false)
+    fun save(root: File, concept: ConceptFile): Boolean =
+        runCatching { sidecar(root).write(json.encodeToString(ConceptFile.serializer(), concept)) }.getOrDefault(false)
 }

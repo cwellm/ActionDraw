@@ -1053,14 +1053,30 @@ package names stay as they are, so moving a file changes no imports.
 - ✅ Broken on purpose and seen red: a Compose import and a reference to `BoardState` inside the
   model do not compile, and six cards to a row fails `CardLayoutTest`
 
-### ⬜ F11.2 `:core:io` — files
-- ⬜ `AppDirs`: the one place that knows `~/.actiondraw` (eight lookups in five files today)
-- ⬜ Safe writes (temp file, rename, `.bak`) shared by every sidecar, instead of copied into
-  `BoardStore` and `ConceptStore`
-- ⬜ Folders listed, copied, moved and deleted; pictures decoded (Skia, then ImageIO for AVIF);
-  `ContentId`; `samePathAs`, `isInside` and `relKey`
-- ⬜ The shared Gradle setup moves into a `build-logic` convention plugin once three modules
-  look alike
+### ✅ F11.2 `:core:io` — files
+- ✅ `AppDirs`: the one place that knows `~/.actiondraw` and the homes boards, concepts and
+  sketches start out in. The eight lookups of the user's home, in five files, ask it now; a test
+  can stand the whole layout up in a temp folder
+- ✅ `SafeFile`: temp file, rename, `.bak`, and a reader that falls back to the backup and drops
+  a byte-order mark — written once, where `BoardStore` and `ConceptStore` each had a copy. File
+  names and formats are unchanged, so every sidecar on disk reads as before
+- ✅ `Folders`: names Windows accepts, the next free folder or file name, moving a folder whole
+  or not at all, deleting one — each written once, where boards, concepts, the importer and link
+  previews had their own (`sanitizeName` twice, `freeFolder` twice, `collisionFree`, `moveFolder`)
+- ✅ Moved in unchanged: listing and decoding pictures (`ImageScanner`, `ImageDecoder`, with the
+  AVIF reader now a runtime dependency of this module), `ContentId`, `samePathAs`, `isInside`,
+  `relKey`
+- ✅ Now true for every caller: a drive root or the user's home is never deleted, whoever asks
+  (only boards used to check; deleting a concept's folder did not), and a move never reuses a
+  destination that already exists. A board that moved but left its old folder behind now says
+  so — that note used to be overwritten by "Moved …"
+- ✅ `build-logic`: the shared Gradle setup as two convention plugins — `actiondraw.kotlin-library`
+  (Kotlin, Java 17, kotlin.test on JUnit 5) and `actiondraw.skia` (Compose's own Skia, and its
+  native runtime for headless tests) — used by `:sketch-engine`, `:core:model` and `:core:io`
+- ✅ The homes' folder listings stay in the states until the repositories take them (F11.5)
+- ✅ Broken on purpose and seen red, each by its own named test, after a control that changes
+  nothing stayed green: ten guards in `Folders` and `SafeFile`. `ImageScannerTest` moved with
+  the scanner
 
 ### ⬜ F11.3 `:core:network` — HTTP
 - ⬜ The HTTP client behind `LinkPreview.Fetcher`: only a module that depends on this one can go

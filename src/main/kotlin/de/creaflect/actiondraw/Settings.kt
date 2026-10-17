@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.io.AppDirs
 import java.io.File
 import java.util.Properties
 
@@ -10,7 +11,7 @@ import java.util.Properties
  *
  * [dir] is injectable so tests never touch the real user config.
  */
-class Settings(private val dir: File = defaultDir()) {
+class Settings(private val dir: File = AppDirs.current.config) {
     private val file: File get() = File(dir, FILE_NAME)
 
     /** Where installation-level state lives, so the board registry can sit beside this file. */
@@ -71,7 +72,7 @@ class Settings(private val dir: File = defaultDir()) {
     /** Default parent directory for concepts, beside the boards home. Doesn't have to exist yet. */
     fun conceptsHome(): File = runCatching {
         read().getProperty(KEY_CONCEPTS_HOME)?.takeIf { it.isNotBlank() }?.let(::File)
-    }.getOrNull() ?: File(System.getProperty("user.home") ?: ".", "ActionDraw Concepts")
+    }.getOrNull() ?: AppDirs.current.defaultConceptsHome
 
     fun setConceptsHome(dir: File) {
         val props = read()
@@ -82,7 +83,7 @@ class Settings(private val dir: File = defaultDir()) {
     /** Default folder for saved sketches, beside the boards and concepts homes. */
     fun sketchesHome(): File = runCatching {
         read().getProperty(KEY_SKETCHES_HOME)?.takeIf { it.isNotBlank() }?.let(::File)
-    }.getOrNull() ?: File(System.getProperty("user.home") ?: ".", "ActionDraw Sketches")
+    }.getOrNull() ?: AppDirs.current.defaultSketchesHome
 
     fun setSketchesHome(dir: File) {
         val props = read()
@@ -102,7 +103,7 @@ class Settings(private val dir: File = defaultDir()) {
     /** Default parent directory for newly created boards. Doesn't have to exist yet. */
     fun boardsHome(): File = runCatching {
         read().getProperty(KEY_BOARDS_HOME)?.takeIf { it.isNotBlank() }?.let(::File)
-    }.getOrNull() ?: File(System.getProperty("user.home") ?: ".", "ActionDraw Boards")
+    }.getOrNull() ?: AppDirs.current.defaultBoardsHome
 
     fun setBoardsHome(dir: File) {
         val props = read()
@@ -194,8 +195,5 @@ class Settings(private val dir: File = defaultDir()) {
         private const val KEY_LEAD_PRESETS = "leadPresets"
         private const val KEY_RECENT_BOARD = "recentBoard"
         private const val MAX_RECENT_BOARDS = 5
-
-        private fun defaultDir(): File =
-            File(System.getProperty("user.home") ?: ".", ".actiondraw")
     }
 }

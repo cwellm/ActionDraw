@@ -2,10 +2,9 @@ package de.creaflect.actiondraw.board
 
 import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.io.SafeFile
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 
 /**
  * Loads and saves the board sidecar. Writes are atomic (tmp file + rename) and keep a `.bak` of
@@ -14,8 +13,6 @@ import java.nio.file.StandardCopyOption
  */
 object BoardStore {
     const val FILE_NAME = ".actiondraw_board.json"
-    private const val BAK_NAME = "$FILE_NAME.bak"
-    private const val TMP_NAME = "$FILE_NAME.tmp"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -33,25 +30,24 @@ object BoardStore {
         data object Failed : LoadResult()
     }
 
-    fun exists(root: File): Boolean = File(root, FILE_NAME).isFile
+    private fun sidecar(root: File) = SafeFile(File(root, FILE_NAME))
+
+    fun exists(root: File): Boolean = sidecar(root).exists()
 
     /** Cheap look at a board (name etc.) without validation — for board lists. */
-    fun peek(root: File): BoardFile? = parse(File(root, FILE_NAME)) ?: parse(File(root, BAK_NAME))
+    fun peek(root: File): BoardFile? = sidecar(root).load(::decode)?.value
 
     fun load(root: File): LoadResult {
-        if (!exists(root)) return LoadResult.None
-        parse(File(root, FILE_NAME))?.let { return LoadResult.Loaded(validate(it, root), fromBackup = false) }
-        parse(File(root, BAK_NAME))?.let { return LoadResult.Loaded(validate(it, root), fromBackup = true) }
-        return LoadResult.Failed
+        val sidecar = sidecar(root)
+        if (!sidecar.exists()) return LoadResult.None
+        val loaded = sidecar.load(::decode) ?: return LoadResult.Failed
+        return LoadResult.Loaded(validate(loaded.value, root), loaded.fromBackup)
     }
 
-    private fun parse(file: File): BoardFile? = runCatching {
-        file.takeIf { it.isFile }
-            ?.readText()
-            // Editors on Windows like to add a byte-order mark; the JSON parser chokes on it.
-            ?.removePrefix("﻿")
-            ?.let { json.decodeFromString(BoardFile.serializer(), it) }
-    }.getOrNull()
+    /** Removes the sidecar and its backup: the folder stops being a board, its files stay. */
+    fun forget(root: File): Boolean = sidecar(root).delete()
+
+    private fun decode(text: String): BoardFile = json.decodeFromString(BoardFile.serializer(), text)
 
     /**
      * Reconciles the board with what is on disk. A card whose file is gone is not dropped
@@ -116,12 +112,6 @@ object BoardStore {
     private fun ImageItem.withContentId(root: File): ImageItem =
         if (contentId != null) this else copy(contentId = ContentId.of(File(root, path)))
 
-    fun save(root: File, board: BoardFile): Boolean = runCatching {
-        val main = File(root, FILE_NAME)
-        val tmp = File(root, TMP_NAME)
-        tmp.writeText(json.encodeToString(BoardFile.serializer(), board))
-        if (main.isFile) main.copyTo(File(root, BAK_NAME), overwrite = true)
-        Files.move(tmp.toPath(), main.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        true
-    }.getOrDefault(false)
+    fun save(root: File, board: BoardFile): Boolean =
+        runCatching { sidecar(root).write(json.encodeToString(BoardFile.serializer(), board)) }.getOrDefault(false)
 }

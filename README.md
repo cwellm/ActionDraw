@@ -513,8 +513,8 @@ libavif/libdav1d as prebuilt JNI binaries, ~7 MB, x86-64 Windows/macOS/Linux).
 Decoding runs through `ImageDecoder`: Skia first, ImageIO as a fallback. Formats that need a
 plugin are only advertised when a reader is actually installed, so a board never shows a card
 whose picture cannot be drawn — drop in a HEIC reader and `.heic` files start working with no code
-change. Remove the AVIF line from [build.gradle.kts](build.gradle.kts) and `.avif` files simply
-stop being offered; nothing else breaks.
+change. Remove the AVIF line from [core/io/build.gradle.kts](core/io/build.gradle.kts) and
+`.avif` files simply stop being offered; nothing else breaks.
 
 An import that leaves something out (unreadable format, or a picture already on the board) says so
 on the board instead of silently ignoring the drop.
@@ -525,8 +525,12 @@ M10 in the [roadmap](ROADMAP.md).
 
 - `core/model` — boards and their cards, concepts, session plans: plain serializable data and
   the pure rules on it, with no Compose and no file access
+- `core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
+  moving and deleting folders, names Windows accepts, listing and decoding pictures
 - `sketch-engine` — the drawing engine: pen samples in, pixels out
 - the root project — the app: the rooms, their state and screens, storage, and the start-up
+- `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library` and
+  `actiondraw.skia`
 
 ## Requirements
 - JDK 17 (a `JAVA_HOME` pointing at a JDK 17 install) — only for running from source and

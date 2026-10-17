@@ -17,6 +17,7 @@ import de.creaflect.actiondraw.board.ui.Markdown
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.sketch.SketchDocument
@@ -546,14 +547,13 @@ class BoardState(
 
         val message = when (mode) {
             Deletion.FORGET -> {
-                val removed = File(dir, BoardStore.FILE_NAME).delete()
-                File(dir, BoardStore.FILE_NAME + ".bak").delete()
+                val removed = BoardStore.forget(dir)
                 if (removed) "Board removed. The pictures are still in ${dir.name}."
                 else "Couldn't remove the board file in ${dir.name}."
             }
 
             Deletion.DELETE_FOLDER ->
-                if (dir.deleteRecursively()) "Deleted ${dir.name} and everything in it."
+                if (Folders.deleteTree(dir)) "Deleted ${dir.name} and everything in it."
                 else "Couldn't delete ${dir.name} — something in it is in use."
         }
 
@@ -570,9 +570,7 @@ class BoardState(
     /** Guards the destructive path against paths nobody means to erase. */
     private fun safeToDeleteFolder(dir: File): Boolean {
         val target = runCatching { dir.canonicalFile }.getOrNull() ?: return false
-        if (target.parentFile == null) return false // a drive root
-        val home = runCatching { File(System.getProperty("user.home")).canonicalFile }.getOrNull()
-        if (target == home) return false
+        if (Folders.isProtected(target)) return false // a drive root, or the user's home
         val boardsHome = runCatching { settings.boardsHome().canonicalFile }.getOrNull()
         if (target == boardsHome) return false
         // Only a folder ActionDraw actually knows as a board may be removed wholesale.
@@ -597,7 +595,7 @@ class BoardState(
             openBoard(known.dir)
             return null
         }
-        val wanted = File(parent, sanitizeName(trimmed))
+        val wanted = File(parent, Folders.safeName(trimmed))
         if (BoardStore.exists(wanted)) { // a board here the registry has not met yet
             openBoard(wanted)
             return null
@@ -605,7 +603,7 @@ class BoardState(
         // A board's folder is where its files go, not what the board *is*. So a leftover folder
         // keeps the name it has and the new board gets one beside it, still called [trimmed] --
         // deleting a board must never make its name unusable.
-        val dir = if (wanted.exists() && !wanted.listFiles().isNullOrEmpty()) freeFolder(wanted) else wanted
+        val dir = if (wanted.exists() && !wanted.listFiles().isNullOrEmpty()) Folders.freeFolder(wanted) else wanted
         if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
         // Creating a board inside another board is making a sub-board of it; that is nesting,
         // not a decision about where new top-level boards should go.
@@ -624,17 +622,6 @@ class BoardState(
         openFailed = false
         afterOpen(dir)
         return null
-    }
-
-    /** `Test` -> `Test (2)`. Unlike file naming this never splits a dot off as an extension. */
-    private fun freeFolder(wanted: File): File {
-        if (!wanted.exists()) return wanted
-        var n = 2
-        while (true) {
-            val candidate = File(wanted.parentFile, wanted.name + " (" + n + ")")
-            if (!candidate.exists()) return candidate
-            n++
-        }
     }
 
     fun openBoard(dir: File) {
@@ -1468,7 +1455,7 @@ class BoardState(
         val dir = root ?: return "No board open."
         if (!picture.isFile) return "That file is not there."
         val folder = File(dir, WALLPAPER_DIR).apply { mkdirs() }
-        val target = Importer.collisionFree(File(folder, picture.name))
+        val target = Folders.freeFile(File(folder, picture.name))
         runCatching { picture.copyTo(target) }.onFailure { return "Couldn't copy ${picture.name}." }
         val previous = wallpaperFile
         val kept = wallpaper
@@ -2078,14 +2065,20 @@ class BoardState(
         if (!target.isDirectory && !target.mkdirs()) return "Couldn't open ${target.name}."
         if (dir.parentFile?.samePathAs(target) == true) return "$name is already there."
 
-        val destination = freeFolder(File(target, dir.name))
+        val destination = Folders.freeFolder(File(target, dir.name))
         // The open board may be the one moving, or may live inside it; either way it has to come
         // out at the other end rather than pointing at a folder that is no longer there.
         val openInside = root?.let { it.samePathAs(dir) || it.isInside(dir) } == true
         val openSuffix = if (openInside) root!!.absolutePath.substring(dir.absolutePath.length) else ""
 
-        val failure = moveFolder(dir, destination)
-        if (failure != null) return failure.also { importNotice = it }
+        val oldLeft = when (Folders.move(dir, destination)) {
+            Folders.Move.MOVED -> false
+            // It moved; the original just could not be cleared away. Say so, rather than call a
+            // move that worked a failure.
+            Folders.Move.MOVED_OLD_LEFT -> true
+            Folders.Move.INTO_ITSELF -> return "Couldn't move ${dir.name} into itself.".also { importNotice = it }
+            Folders.Move.FAILED -> return "Couldn't move ${dir.name}.".also { importNotice = it }
+        }
 
         registry.repath(dir, destination)
         settings.removeRecentBoard(dir)
@@ -2094,29 +2087,8 @@ class BoardState(
         if (openInside) root = File(destination.absolutePath + openSuffix)
         boardsHomeTick++
         val where = if (into == null) "the boards home" else (entryFor(target)?.name ?: target.name)
-        return "Moved $name to $where.".also { importNotice = it }
-    }
-
-    /**
-     * Rename where the filesystem allows it, copy-then-delete where it does not (another drive).
-     * A copy that fails part-way is cleaned up, so the board is never left in two halves: either
-     * it moved, or nothing happened to it.
-     */
-    private fun moveFolder(from: File, to: File): String? {
-        // Never copy a folder into its own subtree, whatever the caller believed.
-        if (to.samePathAs(from) || to.isInside(from)) return "Couldn't move ${from.name} into itself."
-        if (from.renameTo(to)) return null
-        val copied = runCatching { from.copyRecursively(to, overwrite = false) }.isSuccess
-        if (!copied) {
-            to.deleteRecursively()
-            return "Couldn't move ${from.name}."
-        }
-        if (!from.deleteRecursively()) {
-            // It moved; the original just could not be cleared away. Say so, rather than call a
-            // move that worked a failure.
-            importNotice = "Moved ${from.name}, but its old folder could not be removed."
-        }
-        return null
+        val left = if (oldLeft) " Its old folder could not be removed." else ""
+        return "Moved $name to $where.$left".also { importNotice = it }
     }
 
     /**
@@ -2155,9 +2127,5 @@ class BoardState(
             val named = GROUP_COLORS.filterNotNull()
             return named[index % named.size]
         }
-
-        /** Windows-safe folder name for a new board. */
-        fun sanitizeName(name: String): String =
-            name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
     }
 }

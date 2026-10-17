@@ -62,6 +62,7 @@ import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.Palette
 import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.board.WallpaperFit
+import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.actiondraw.ui.IntervalSelector
 import de.creaflect.actiondraw.ui.Lift
@@ -659,7 +660,7 @@ private fun NewBoardDialog(state: BoardState, under: File?) {
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                File(location, BoardState.sanitizeName(name.ifBlank { "…" })).path,
+                File(location, Folders.safeName(name.ifBlank { "…" })).path,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
                 modifier = Modifier.weight(1f),

@@ -2,6 +2,7 @@ package de.creaflect.actiondraw.image
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import de.creaflect.actiondraw.io.AppDirs
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Image
 import java.io.File
@@ -15,7 +16,7 @@ import java.security.MessageDigest
  *
  * [dir] is injectable so tests never touch the real user cache.
  */
-class ThumbCache(private val dir: File = defaultDir()) {
+class ThumbCache(private val dir: File = AppDirs.current.thumbnails) {
     fun load(file: File, maxSize: Int = 192): ImageBitmap? {
         val cached = File(dir, cacheName(file, maxSize))
         runCatching {
@@ -34,10 +35,5 @@ class ThumbCache(private val dir: File = defaultDir()) {
         val id = "${file.absolutePath}|${file.length()}|${file.lastModified()}|$maxSize"
         val digest = MessageDigest.getInstance("SHA-1").digest(id.toByteArray())
         return digest.joinToString("") { "%02x".format(it) } + ".png"
-    }
-
-    companion object {
-        private fun defaultDir(): File =
-            File(File(System.getProperty("user.home") ?: ".", ".actiondraw"), "thumbs")
     }
 }

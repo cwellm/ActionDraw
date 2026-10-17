@@ -18,6 +18,7 @@ import de.creaflect.actiondraw.board.Importer
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.sketch.SketchDocument
 import java.io.File
@@ -131,7 +132,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return "Give the concept a name."
         val home = conceptsHome().apply { mkdirs() }
-        val dir = freeFolder(File(home, sanitizeName(trimmed)))
+        val dir = Folders.freeFolder(File(home, Folders.safeName(trimmed)))
         if (!dir.mkdirs()) return "Couldn't create:\n$dir"
         val created = ConceptFile(id = Importer.newId(), name = trimmed, kind = kind.trim())
         if (!ConceptStore.save(dir, created)) return "Couldn't write the concept file in:\n$dir"
@@ -229,10 +230,9 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
             selection = emptySet()
         }
         val message = if (alsoFolder) {
-            if (dir.deleteRecursively()) "Deleted ${dir.name} and everything in it." else "Couldn't delete ${dir.name}."
+            if (Folders.deleteTree(dir)) "Deleted ${dir.name} and everything in it." else "Couldn't delete ${dir.name}."
         } else {
-            File(dir, ConceptStore.FILE_NAME).delete()
-            File(dir, ConceptStore.FILE_NAME + ".bak").delete()
+            ConceptStore.forget(dir)
             "Concept removed. The files are still in ${dir.name}."
         }
         registry.forget(dir)
@@ -441,7 +441,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         } else {
             val docs = File(dir, ConceptStore.DOCS_DIR).apply { mkdirs() }
             val title = NoteItem("", text).title
-            Importer.collisionFree(File(docs, sanitizeName(title).ifBlank { "document" } + ".md"))
+            Folders.freeFile(File(docs, Folders.safeName(title).ifBlank { "document" } + ".md"))
         }
         runCatching { target.writeText(text) }.onFailure { return null }
         val rel = target.relativeTo(dir).path.replace(File.separatorChar, '/')
@@ -478,20 +478,5 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val next = transform(concept ?: return)
         concept = next
         ConceptStore.save(dir, next)
-    }
-
-    private fun freeFolder(wanted: File): File {
-        if (!wanted.exists()) return wanted
-        var n = 2
-        while (true) {
-            val candidate = File(wanted.parentFile, wanted.name + " (" + n + ")")
-            if (!candidate.exists()) return candidate
-            n++
-        }
-    }
-
-    companion object {
-        fun sanitizeName(name: String): String =
-            name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
     }
 }
