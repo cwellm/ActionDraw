@@ -616,7 +616,7 @@ the answers taken to its open questions). A thing that lives once and is linked 
 
 ---
 
-## 🔄 M8 — The atelier: the design realised
+## ✅ M8 — The atelier: the design realised
 
 The design recap of 2026-10-05: [CONCEPT.md](CONCEPT.md) and its design canvas. A graphite table,
 real paper, one lamp, six pigments sprinkled rather than poured, a porcelain palette as the home
@@ -834,7 +834,7 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
   the tape off each corner, the side chrome stepping back with the header. Five guards broken
   on purpose and seen red
 
-### 🔄 F9.9 Wrap-up
+### ✅ F9.9 Wrap-up
 - ✅ `RoomScreenshotTest`: fourteen screens through the whole app shell at the window's starting
   size — the palette (and with a well chosen), the Practice room, a running pose, the glass in
   hand and set down, the summary, a board free and in a cork grid, the board list, a concept,
@@ -850,8 +850,9 @@ it does — every load-bearing rule from M1–M7 holds (CONCEPT.md, *What stays 
 - ✅ The concept page's cards in the same language: pictures as prints (chosen, ringed in
   viridian), notes as slips and sheets, links as index cards; *Continue sketch* carries
   madder's dab
-- ⬜ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
-  between the hand and the page
+- ✅ A hands-on round with the XPPen: does the table feel like a table, and does anything stand
+  between the hand and the page — tried by hand on 2026-10-17: the pen draws and the dial's zoom
+  works, as it should
 
 
 ### ✅ F9.10 The design, to the letter
