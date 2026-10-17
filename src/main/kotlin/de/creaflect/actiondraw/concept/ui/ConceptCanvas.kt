@@ -24,7 +24,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.IntSize
 import de.creaflect.actiondraw.board.BoardItem
-import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.CardLayout
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
@@ -87,7 +87,7 @@ fun ConceptCanvas(state: ConceptState, thumbs: ThumbCache, modifier: Modifier = 
 private fun ConceptCanvasItem(state: ConceptState, thumbs: ThumbCache, item: BoardItem, viewSize: IntSize) {
     val pos = item.pos ?: return
     val zoom = state.zoom
-    val wPx = BoardState.BASE_SIZE * pos.scale * zoom
+    val wPx = CardLayout.BASE_SIZE * pos.scale * zoom
     val hPx = wPx / state.aspectOf(item)
     val cx = (pos.x - state.camX) * zoom + viewSize.width / 2f
     val cy = (pos.y - state.camY) * zoom + viewSize.height / 2f

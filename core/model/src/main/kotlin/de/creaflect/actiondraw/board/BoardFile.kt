@@ -91,7 +91,7 @@ data class BoardGroup(
     val collapsed: Boolean = false,
     /**
      * The group this one sits inside, or null at the top level. Exactly one level is allowed —
-     * a subgroup cannot hold subgroups — and [BoardStore.validate] flattens anything deeper.
+     * a subgroup cannot hold subgroups — and `BoardStore.validate` flattens anything deeper.
      */
     val parentId: String? = null,
     /**

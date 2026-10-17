@@ -90,8 +90,8 @@ class NoteKindsTest {
         state.saveNote(null, "# Doc\nbody")
         val link = state.board!!.items.filterIsInstance<LinkItem>().single()
         val note = state.board!!.items.filterIsInstance<NoteItem>().single()
-        assertEquals(BoardState.STRIP_ASPECT, state.aspectOf(link))
-        assertEquals(BoardState.STRIP_ASPECT, state.aspectOf(note))
+        assertEquals(CardLayout.STRIP_ASPECT, state.aspectOf(link))
+        assertEquals(CardLayout.STRIP_ASPECT, state.aspectOf(note))
         assertEquals(1.5f, state.aspectOf(ImageItem("i", "p.jpg", aspect = 1.5f)))
     }
 
@@ -108,7 +108,7 @@ class NoteKindsTest {
         state.clearSelection(); ids.take(2).forEach { state.clickItem(it, ctrl = true, shift = false) }
         val group = state.groupSelection("Flügel")!!
         state.clearSelection(); state.clickItem(ids[1], ctrl = false, shift = false)
-        state.nudgeSelection(BoardState.BASE_SIZE * 2.5f, 0f) // apart: the frame bands the gap
+        state.nudgeSelection(CardLayout.BASE_SIZE * 2.5f, 0f) // apart: the frame bands the gap
         state.commitLayout()
         state.clearSelection()
         return Triple(state, ids, group)

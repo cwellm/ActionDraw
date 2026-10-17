@@ -62,7 +62,7 @@ class FrameClickTest {
         state.clearSelection(); state.clickItem(ids[2], ctrl = false, shift = false)
         val first = state.item(ids[0])!!.pos!!
         val third = state.item(ids[2])!!.pos!!
-        state.nudgeSelection(first.x - third.x, BoardState.BASE_SIZE * 1.2f) // close enough that the padded boxes touch
+        state.nudgeSelection(first.x - third.x, CardLayout.BASE_SIZE * 1.2f) // close enough that the padded boxes touch
         state.commitLayout()
         state.selectAll()
         val group = state.groupSelection("Ecke")!!
@@ -117,7 +117,7 @@ class FrameClickTest {
         state.setLayout(BoardLayouts.FREE)
         val ids = state.board!!.items.map { it.id }
         state.clearSelection(); state.clickItem(ids[1], ctrl = false, shift = false)
-        state.nudgeSelection(BoardState.BASE_SIZE * 2.5f, BoardState.BASE_SIZE * 0.4f) // a clear gap, slightly askew
+        state.nudgeSelection(CardLayout.BASE_SIZE * 2.5f, CardLayout.BASE_SIZE * 0.4f) // a clear gap, slightly askew
         state.commitLayout()
         state.selectAll()
         val group = state.groupSelection("Paar")!!

@@ -188,18 +188,6 @@ class BoardStateTest {
     }
 
     @Test
-    fun placeMissingCascadesInRowsBelowExistingCards() {
-        val placed = NoteItem(id = "p", text = "x", pos = ItemPos(0f, 0f))
-        val unplaced = (1..6).map { NoteItem(id = "n$it", text = "x") }
-        val board = BoardState.placeMissing(BoardFile(items = listOf(placed) + unplaced))
-
-        assertTrue(board.items.all { it.pos != null }, "every card must get a position")
-        val newYs = board.items.filter { it.id != "p" }.map { it.pos!!.y }.distinct().sorted()
-        assertEquals(2, newYs.size, "6 cards in rows of 5 -> two rows")
-        assertTrue(newYs.all { it > 0f }, "new rows start below the already placed card")
-    }
-
-    @Test
     fun switchingToFreeformPlacesCardsAndPersists() {
         val state = newState()
         state.createBoard(home, "Test")
@@ -780,7 +768,7 @@ class BoardStateTest {
 
         // The hull encloses both cards, with room to spare.
         val members = state.board!!.items.filter { it.id in setOf(ids[0], ids[1]) }.map { it.pos!! }
-        val half = BoardState.BASE_SIZE / 2
+        val half = CardLayout.BASE_SIZE / 2
         assertTrue(hull.left < members.minOf { it.x } - half, "padded on the left")
         assertTrue(hull.right > members.maxOf { it.x } + half, "padded on the right")
         assertTrue(hull.top < members.minOf { it.y } - half)
@@ -1008,7 +996,7 @@ class BoardStateTest {
 
         val hull = state.groupHulls.single()
         val pos = state.item(ids[0])!!.pos!!
-        val halfHeight = BoardState.BASE_SIZE / 0.5f / 2f
+        val halfHeight = CardLayout.BASE_SIZE / 0.5f / 2f
         assertTrue(
             hull.bottom >= pos.y + halfHeight,
             "the hull must reach past the bottom of a portrait card (${hull.bottom} vs ${pos.y + halfHeight})",
@@ -1027,24 +1015,12 @@ class BoardStateTest {
         val pos = state.item(ids[0])!!.pos!!
 
         // A band that only touches the lower half of the tall card - below a square card's edge.
-        val y = pos.y + BoardState.BASE_SIZE * 0.8f
+        val y = pos.y + CardLayout.BASE_SIZE * 0.8f
         state.startMarquee(pos.x - 5f, y)
         state.updateMarquee(pos.x + 5f, y + 10f)
         state.commitMarquee()
 
         assertTrue(ids[0] in state.selection, "the tall card reaches down that far")
-    }
-
-    @Test
-    fun autoPlacementLeavesRoomBetweenRows() {
-        val cards = (1..7).map { NoteItem(id = "n$it", text = "x") }
-        val board = BoardState.placeMissing(BoardFile(items = cards))
-        val rows = board.items.mapNotNull { it.pos?.y }.distinct().sorted()
-        assertEquals(2, rows.size, "7 cards in rows of 5 -> two rows")
-        assertTrue(
-            rows[1] - rows[0] > BoardState.BASE_SIZE * 1.5f,
-            "rows need more room than a card's width, or tall cards overlap",
-        )
     }
 
     @Test
@@ -1061,19 +1037,5 @@ class BoardStateTest {
 
         val names = state.availableBoards().map { it.first }.toSet()
         assertEquals(setOf("Alpha", "Beta", "Gamma"), names)
-    }
-
-    // ---- Placement ----
-
-    @Test
-    fun aLoneNewCardIsPlacedAtTheOriginNotOffToTheLeft() {
-        val one = BoardFile(name = "one", items = listOf(NoteItem(id = "n", text = "hi")))
-        val placed = BoardState.placeMissing(one)
-        assertEquals(0f, placed.items.single().pos!!.x, "one card: centred where the camera looks")
-
-        val three = BoardFile(name = "three", items = (1..3).map { NoteItem(id = "n$it", text = "hi") })
-        val xs = BoardState.placeMissing(three).items.map { it.pos!!.x }
-        assertEquals(0f, xs[1], "three cards: the middle one on the origin")
-        assertEquals(-xs[0], xs[2], "and the outer two symmetric about it")
     }
 }

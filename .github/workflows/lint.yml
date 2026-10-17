@@ -39,6 +39,5 @@ jobs:
         with:
           name: lint-reports
           path: |
-            build/reports/ktlint
-            sketch-engine/build/reports/ktlint
+            **/build/reports/ktlint
           retention-days: 14

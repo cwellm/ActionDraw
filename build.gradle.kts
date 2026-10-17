@@ -29,11 +29,13 @@ dependencies {
     implementation(compose.desktop.currentOs)
     // The drawing engine (Live Sketch), a library of its own: docs/Pencil-Engine-Architecture.md.
     implementation(project(":sketch-engine"))
+    // Boards, cards, concepts, session plans: the data, with no Compose and no files in it.
+    implementation(project(":core:model"))
     // Pen pressure and tilt come from native input, not from Compose (LEARNINGS L1): on Windows,
     // WM_POINTER + GetPointerPenInfo through JNA — pure Java, no compiler, no build step.
     implementation("net.java.dev.jna:jna:5.14.0")
     implementation("net.java.dev.jna:jna-platform:5.14.0")
-    // Idea-Board sidecar files (.actiondraw_board.json)
+    // Reading and writing the sidecar files (.actiondraw_board.json, .actiondraw_concept.json)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     // AVIF decoding: an ImageIO plugin (libavif/libdav1d JNI). Neither the JDK nor the bundled
     // Skia can read AVIF; ImageDecoder falls back to ImageIO, so this is all that is needed.

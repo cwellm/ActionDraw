@@ -4,6 +4,10 @@ rootProject.name = "ActionDraw"
 // headless (docs/Pencil-Engine-Architecture.md). The app depends on it; nothing depends on the app.
 include(":sketch-engine")
 
+// The modules of M10 (ROADMAP), bottom up: what the app is made of, then how it is stored, then
+// the rooms. Each depends only on the ones below it, and Gradle holds it to that.
+include(":core:model")
+
 pluginManagement {
     repositories {
         gradlePluginPortal()

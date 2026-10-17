@@ -1010,6 +1010,94 @@ one*, *How the rooms hand things over*) and the design canvas.
 
 ---
 
+## 🔄 M10 — Architecture: modules and layers
+
+Asked 2026-10-17, on `dev/architecture-improvements`: the data layer and the UI were not clearly
+apart. The four state holders (`BoardState`, `ConceptState`, `SketchState`, `AppState`) mixed
+Compose state, the rules and file access, and some screens read the stores themselves. The app is
+split into Gradle modules so that the build holds the boundaries rather than a convention: a module
+can use only what it depends on. Built bottom up, each step committed with the full suite green;
+package names stay as they are, so moving a file changes no imports.
+
+```
+:app ──> :feature:practice · :feature:board · :feature:concept · :feature:sketch
+:feature:* ──> :design-system · :core:data · :core:model · :core:platform
+:core:data ──> :core:io · :core:network · :core:model · :sketch-engine
+:design-system ──> :sketch-engine
+:core:io · :core:network · :core:platform · :core:model ──> nothing of ours
+```
+
+- **Rooms never depend on each other.** What one room needs of another is an interface it
+  defines (`BoardHost`, `ConceptSource`, `SketchHost`, `PinTargets`), connected in `:app`.
+- **Only the rooms hold Compose state**; the core modules hand out plain values and `suspend`
+  functions.
+- **The files stay the source of truth** — a board is a folder plus a sidecar. No database; an
+  index (search across boards, pictures by content) could later sit under `:core:data` without
+  the rooms noticing.
+- **No `:core:domain`**: the rooms rarely combine repositories, so use cases would mostly
+  forward calls. Rules more than one room uses live in `:core:model`, beside the data.
+
+### ✅ F11.1 `:core:model` — what the app is made of
+- ✅ Moved unchanged: `BoardFile` and everything on a board (groups, cards, camera, wallpaper,
+  session recipe, note kinds, layouts, surfaces), `ConceptLink` (borrowed cards: pure functions
+  over a board), `ConceptFile`, and the session vocabulary (`SessionPlan`, `RampStep`,
+  `SessionSetup`, `ViewMode`, `GridMode`)
+- ✅ `ConceptRef`, `ConceptSnapshot` and `BoardLink` out of the `ConceptSource` seam into
+  `ConceptRefs.kt`; the seam itself stays with the board until F11.7, and `PinTargets` stays in
+  the app — a seam, not data
+- ✅ `CardLayout`: the card size, the strip and palette aspects, the natural tilt and
+  `placeMissing`, out of `BoardState`'s companion. Concepts used them and needed `BoardState` for
+  nothing else, so `ConceptState` no longer imports it
+- ✅ Depends on kotlinx-serialization only. `SessionPlanTest` and the three placement tests
+  (now `CardLayoutTest`) run in the module, without Compose
+- ✅ Broken on purpose and seen red: a Compose import and a reference to `BoardState` inside the
+  model do not compile, and six cards to a row fails `CardLayoutTest`
+
+### ⬜ F11.2 `:core:io` — files
+- ⬜ `AppDirs`: the one place that knows `~/.actiondraw` (eight lookups in five files today)
+- ⬜ Safe writes (temp file, rename, `.bak`) shared by every sidecar, instead of copied into
+  `BoardStore` and `ConceptStore`
+- ⬜ Folders listed, copied, moved and deleted; pictures decoded (Skia, then ImageIO for AVIF);
+  `ContentId`; `samePathAs`, `isInside` and `relKey`
+- ⬜ The shared Gradle setup moves into a `build-logic` convention plugin once three modules
+  look alike
+
+### ⬜ F11.3 `:core:network` — HTTP
+- ⬜ The HTTP client behind `LinkPreview.Fetcher`: only a module that depends on this one can go
+  online
+
+### ⬜ F11.4 `:core:platform` — the operating system
+- ⬜ Behind interfaces: the pen (`PenSource`, `WindowsPointerSource`), the system's
+  reduced-motion setting (in `Motion.kt` today), the clipboard, file and folder dialogs
+  (`Choosers.kt`), and opening the browser (spelled out twice today)
+- ⬜ The only module that knows it runs on Windows
+
+### ⬜ F11.5 `:core:data` — repositories
+- ⬜ Boards, concepts, sketches, settings, practice history (seen and redo), the two
+  registries, pictures and the thumbnail cache, link previews: interfaces with file-backed
+  implementations, working off the UI thread
+- ⬜ The states take repositories in their constructors, and no screen reads a store again
+  (`ConceptScreens`, `BoardListScreen` and four `ImageLoader` calls today)
+- ⬜ Saving leaves the UI thread: today every board edit writes the whole sidecar from
+  `BoardState.update()`
+
+### ⬜ F11.6 `:design-system`
+- ⬜ Atelier tokens, pigments, fonts, Materials, Motion, the room chrome, `Markdown` and the
+  board surfaces (`Themes`)
+- ⬜ First the Practice room's screens leave `ui/`, since they import `AppState`
+
+### ⬜ F11.7 `:feature:*` — the four rooms
+- ⬜ `practice`, `board`, `concept` and `sketch`, each with its state, its screens and its tests;
+  each seam defined by the room that needs it
+- ⬜ What the board takes from Practice moves to the app (`MenuExtras` takes an `AppState` for
+  the settings sheet)
+
+### ⬜ F11.8 `:app` — the assembly
+- ⬜ `Main`, `App`, navigation, building and wiring everything; the tests that cross rooms
+  (`RoomScreenshotTest`) live here
+
+---
+
 ## 🔄 M+ — Practice backlog (independent of the board)
 
 ### ✅ F+.1 Continuous colour temperature

@@ -205,9 +205,9 @@ class BoardDressTest {
     fun cardsAreLaidDownALittleAskewAndAlwaysTheSameWay() {
         val (state, _) = board()
         state.board!!.items.forEach { item ->
-            assertEquals(BoardState.naturalTilt(item.id), item.pos!!.rotation, "${item.id} lies as its own tilt says")
+            assertEquals(CardLayout.naturalTilt(item.id), item.pos!!.rotation, "${item.id} lies as its own tilt says")
         }
-        val tilts = (1..40).map { BoardState.naturalTilt("card-$it") }
+        val tilts = (1..40).map { CardLayout.naturalTilt("card-$it") }
         assertTrue(tilts.all { it in -1.81f..1.81f }, "a degree or two at most: $tilts")
         assertTrue(tilts.toSet().size > 3, "and not all the same")
     }

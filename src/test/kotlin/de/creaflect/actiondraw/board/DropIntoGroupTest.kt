@@ -89,7 +89,7 @@ class DropIntoGroupTest {
     fun thePointBetweenTwoSeparatedCardsIsStillTheGroups() {
         val (state, ids) = boardWithAGroup()
         state.clearSelection(); state.clickItem(ids[1], ctrl = false, shift = false)
-        state.nudgeSelection(BoardState.BASE_SIZE * 2.5f, 0f) // pull it away: two pieces, one band
+        state.nudgeSelection(CardLayout.BASE_SIZE * 2.5f, 0f) // pull it away: two pieces, one band
         state.commitLayout()
         val a = state.item(ids[0])!!.pos!!
         val b = state.item(ids[1])!!.pos!!
@@ -149,7 +149,7 @@ class DropIntoGroupTest {
     fun aCardLetGoOnEmptyBoardStaysLoose() {
         val (state, ids) = boardWithAGroup()
         state.clearSelection(); state.clickItem(ids[3], ctrl = false, shift = false)
-        state.nudgeSelection(0f, BoardState.BASE_SIZE * 6f) // well away from everything
+        state.nudgeSelection(0f, CardLayout.BASE_SIZE * 6f) // well away from everything
         assertNull(state.dropIntoGroupAt(ids[3]))
         assertTrue(state.item(ids[3])!!.groups.isEmpty())
     }

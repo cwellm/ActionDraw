@@ -59,6 +59,7 @@ import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardGroup
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.CardLayout
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteColors
@@ -303,7 +304,7 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
     val ink = Themes.noteInk
     if (item.kind == NoteKind.PALETTE) {
-        PaletteCard(state, item, Modifier.fillMaxWidth().aspectRatio(BoardState.PALETTE_ASPECT))
+        PaletteCard(state, item, Modifier.fillMaxWidth().aspectRatio(CardLayout.PALETTE_ASPECT))
     } else if (item.kind == NoteKind.POSTIT) {
         // A post-it: a yellow slip on any surface, the text as typed, in a written hand.
         Box(

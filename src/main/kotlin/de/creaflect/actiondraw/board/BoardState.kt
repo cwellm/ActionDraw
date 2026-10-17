@@ -8,6 +8,11 @@ import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.board.CardLayout.BASE_SIZE
+import de.creaflect.actiondraw.board.CardLayout.PALETTE_ASPECT
+import de.creaflect.actiondraw.board.CardLayout.STRIP_ASPECT
+import de.creaflect.actiondraw.board.CardLayout.naturalTilt
+import de.creaflect.actiondraw.board.CardLayout.placeMissing
 import de.creaflect.actiondraw.board.ui.Markdown
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
@@ -2134,19 +2139,6 @@ class BoardState(
     }
 
     companion object {
-        /** Width over height of a link or document-note strip on the canvas. */
-        const val STRIP_ASPECT = 3.4f
-
-        /** A palette card: a strip of swatches over its lettered caption. */
-        const val PALETTE_ASPECT = 2.2f
-
-        /**
-         * The small tilt a card is put down with, as by a hand: a degree or two either way, the
-         * same for the same card. It is the card's stored rotation, so the drawn card stays the
-         * clicked card, and the rotate handle takes it from there.
-         */
-        fun naturalTilt(id: String): Float = ((id.hashCode() and 0x7fffffff) % 7 - 3) * 0.6f
-
         /** Where a board keeps the copy of its background picture. */
         const val WALLPAPER_DIR = "_wallpaper"
 
@@ -2164,37 +2156,8 @@ class BoardState(
             return named[index % named.size]
         }
 
-        /** Base edge length of a freeform card at scale 1, in board units. */
-        const val BASE_SIZE = 220f
-
         /** Windows-safe folder name for a new board. */
         fun sanitizeName(name: String): String =
             name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
-
-        /**
-         * Gives every card without a position one, cascading in rows of five around
-         * ([originX], [originY]) — below everything already placed. Pure, so it's testable.
-         */
-        fun placeMissing(board: BoardFile, originX: Float = 0f, originY: Float = 0f): BoardFile {
-            val unplaced = board.items.count { it.pos == null }
-            if (unplaced == 0) return board
-            // Rows are spaced more generously than columns: a portrait card is far taller than
-            // it is wide, and cascading them at one card's height made them overlap.
-            val gap = BASE_SIZE * 1.3f
-            val rowGap = BASE_SIZE * 1.9f
-            val perRow = 5
-            val startY = (board.items.mapNotNull { it.pos }.maxOfOrNull { it.y + BASE_SIZE } ?: originY)
-            // Centre the row over the cards that will actually be in it: centring a full row of
-            // five put a lone new note two cards' widths off the left of the screen.
-            val inRow = minOf(unplaced, perRow)
-            val startX = originX - (inRow - 1) * gap / 2
-            var i = 0
-            return board.copy(
-                items = board.items.map { item ->
-                    if (item.pos != null) item
-                    else item.withPos(ItemPos(startX + (i % perRow) * gap, startY + (i / perRow) * rowGap, rotation = naturalTilt(item.id))).also { i++ }
-                },
-            )
-        }
     }
 }

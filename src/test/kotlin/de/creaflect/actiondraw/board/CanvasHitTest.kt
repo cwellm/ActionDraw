@@ -138,19 +138,19 @@ class CanvasHitTest {
         // Oben: two cards, drawn a little in from the top-left corner.
         val (ox, oy) = state.toBoard(Offset(200f, 160f))
         state.place(a1, ox, oy)
-        state.place(a2, ox + BoardState.BASE_SIZE * 0.9f, oy)
+        state.place(a2, ox + CardLayout.BASE_SIZE * 0.9f, oy)
         // Breit: three cards in a wide row, drawn around the centre and lower.
         val (bx, by) = state.toBoard(Offset(canvas.width / 2f, canvas.height * 0.75f))
-        state.place(b1, bx - BoardState.BASE_SIZE * 1.4f, by)
+        state.place(b1, bx - CardLayout.BASE_SIZE * 1.4f, by)
         state.place(b2, bx, by)
-        state.place(b3, bx + BoardState.BASE_SIZE * 1.4f, by)
+        state.place(b3, bx + CardLayout.BASE_SIZE * 1.4f, by)
         val oben = state.group("Oben", a1, a2)
         state.group("Breit", b1, b2, b3)
         rule.waitForIdle()
 
         // A point in Oben's frame just under its second card: on the frame, not on a card.
         val second = state.item(a2)!!.pos!!
-        val onFrame = state.toScreen(second.x, second.y + BoardState.BASE_SIZE / 2f + 8f)
+        val onFrame = state.toScreen(second.x, second.y + CardLayout.BASE_SIZE / 2f + 8f)
         val (fx, fy) = state.toBoard(onFrame)
         assertEquals(oben, state.groupAt(fx, fy)?.id, "the press point is on Oben's frame")
         val cam = state.camX to state.camY
@@ -179,7 +179,7 @@ class CanvasHitTest {
         show(state)
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
         val (cx, cy) = state.toBoard(Offset(canvas.width / 2f, canvas.height / 2f))
-        val step = BoardState.BASE_SIZE * 1.35f
+        val step = CardLayout.BASE_SIZE * 1.35f
         // The L: a corner card, one to its right, one below it. The notch is bottom-right.
         state.place(l1, cx - step / 2, cy - step / 2)
         state.place(l2, cx + step / 2, cy - step / 2)
@@ -194,7 +194,7 @@ class CanvasHitTest {
         val card = state.item(u)!!.pos!!
         // Just under Unten's card: on Unten's frame, inside the L's bounding box, off the L's shape.
         val fx = card.x
-        val fy = card.y + BoardState.BASE_SIZE / 2f + 8f
+        val fy = card.y + CardLayout.BASE_SIZE / 2f + 8f
         assertTrue(fx < lHull.right && fy < lHull.bottom, "the point is inside the L's bounding box")
         assertEquals(unten, state.groupAt(fx, fy)?.id, "and on Unten's frame, not the L's")
         val onFrame = state.toScreen(fx, fy)
@@ -220,7 +220,7 @@ class CanvasHitTest {
         val (cx, cy) = state.toBoard(Offset(canvas.width / 2f, canvas.height / 2f))
         state.place(a, cx - 150f, cy)
         state.place(b, cx + 150f, cy)
-        state.place(loose, cx, cy + BoardState.BASE_SIZE * 2f)
+        state.place(loose, cx, cy + CardLayout.BASE_SIZE * 2f)
         val group = state.group("Paar", a, b)
         rule.waitForIdle()
         val label = rule.onNodeWithTag("group-label-$group").fetchSemanticsNode().boundsInRoot
@@ -307,7 +307,7 @@ class CanvasHitTest {
         // 3. One's frame, just under its top card.
         val topNow = pos(ids[0])
         val fx = topNow.x
-        val fy = topNow.y + BoardState.BASE_SIZE / state.aspectOf(state.item(ids[0])!!) / 2f + 8f
+        val fy = topNow.y + CardLayout.BASE_SIZE / state.aspectOf(state.item(ids[0])!!) / 2f + 8f
         assertEquals(one, state.groupAt(fx, fy)?.id, "the point is on One's frame")
         drag(state.toScreen(fx, fy), Offset(-40f, 30f))
         assertEquals(camBefore, cam(), "dragging the frame did not pan")
@@ -334,7 +334,7 @@ class CanvasHitTest {
         val (cx, cy) = state.toBoard(Offset(canvasBounds.width / 2f, canvasBounds.height / 2f))
         state.place(a, cx - 150f, cy)
         state.place(b, cx + 150f, cy)
-        state.place(loose, cx, cy + BoardState.BASE_SIZE * 2f)
+        state.place(loose, cx, cy + CardLayout.BASE_SIZE * 2f)
         val group = state.group("Paar", a, b)
         rule.waitForIdle()
         val label = rule.onNodeWithTag("group-label-$group").fetchSemanticsNode().boundsInRoot

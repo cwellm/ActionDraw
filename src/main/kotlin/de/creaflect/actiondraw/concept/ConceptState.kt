@@ -8,8 +8,8 @@ import de.creaflect.actiondraw.board.BoardFile
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardLink
-import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.Camera
+import de.creaflect.actiondraw.board.CardLayout
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.board.ConceptSnapshot
 import de.creaflect.actiondraw.board.ConceptSource
@@ -294,14 +294,14 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     private fun placeMissingIfFree() {
         if (layout != BoardLayouts.FREE) return
         if (items.none { it.pos == null }) return
-        update { c -> c.copy(items = BoardState.placeMissing(BoardFile(items = c.items), camX, camY).items) }
+        update { c -> c.copy(items = CardLayout.placeMissing(BoardFile(items = c.items), camX, camY).items) }
     }
 
     /** Width over height of a card on the canvas: the board's rule, so the two look alike. */
     fun aspectOf(item: BoardItem): Float = when (item) {
         is ImageItem -> (item.aspect ?: 1f).coerceIn(0.2f, 5f)
-        is LinkItem -> BoardState.STRIP_ASPECT
-        is NoteItem -> if (item.kind == NoteKind.POSTIT) item.estimatedAspect() else BoardState.STRIP_ASPECT
+        is LinkItem -> CardLayout.STRIP_ASPECT
+        is NoteItem -> if (item.kind == NoteKind.POSTIT) item.estimatedAspect() else CardLayout.STRIP_ASPECT
     }
 
     /** A picture's shape once decoded, kept so the layout is stable from then on. */

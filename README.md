@@ -519,6 +519,15 @@ stop being offered; nothing else breaks.
 An import that leaves something out (unreadable format, or a picture already on the board) says so
 on the board instead of silently ignoring the drop.
 
+## How the code is laid out
+Gradle modules, each depending only on the ones below it. The plan, and what is still to move, is
+M10 in the [roadmap](ROADMAP.md).
+
+- `core/model` — boards and their cards, concepts, session plans: plain serializable data and
+  the pure rules on it, with no Compose and no file access
+- `sketch-engine` — the drawing engine: pen samples in, pixels out
+- the root project — the app: the rooms, their state and screens, storage, and the start-up
+
 ## Requirements
 - JDK 17 (a `JAVA_HOME` pointing at a JDK 17 install) — only for running from source and
   building. The native installers below bundle their own Java runtime.
@@ -542,9 +551,9 @@ misbehaves on one machine only. Unset, it costs nothing.
 Two GitHub Actions run on every pull request and on `main`, and `main` only takes a pull request
 whose checks have passed:
 
-- **Tests** (`.github/workflows/tests.yml`) — every test of the app and the sketch engine, on
-  Windows, where the app's fonts and pen are measured; the reports and the room screenshots are
-  kept as the run's artifacts.
+- **Tests** (`.github/workflows/tests.yml`) — every module's tests, on Windows, where the app's
+  fonts and pen are measured; the reports and the room screenshots are kept as the run's
+  artifacts.
 - **Lint** (`.github/workflows/lint.yml`) — ktlint over every Kotlin file, with the rules in
   `.editorconfig`: the IntelliJ IDEA style, hygiene on (imports, indentation, spacing, naming),
   wrapping left to the code.

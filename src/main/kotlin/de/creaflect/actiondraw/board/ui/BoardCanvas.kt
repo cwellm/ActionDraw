@@ -82,6 +82,7 @@ import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardThemes
+import de.creaflect.actiondraw.board.CardLayout
 import de.creaflect.actiondraw.board.FrameShape
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
@@ -291,7 +292,7 @@ private fun CanvasItem(
     val pos = item.pos ?: return
     val zoom = state.zoom
     val aspect = state.aspectOf(item)
-    val wPx = BoardState.BASE_SIZE * pos.scale * zoom
+    val wPx = CardLayout.BASE_SIZE * pos.scale * zoom
     val hPx = wPx / aspect
     val cx = (pos.x - state.camX) * zoom + viewSize.width / 2f
     val cy = (pos.y - state.camY) * zoom + viewSize.height / 2f
@@ -952,7 +953,7 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
             // Pinned a little askew, as by hand; a layer turns hits with what it draws.
             .graphicsLayer {
                 alpha = shown
-                rotationZ = BoardState.naturalTilt(hull.group.id) * 1.5f
+                rotationZ = CardLayout.naturalTilt(hull.group.id) * 1.5f
             }
             .lampShadow(Lift.RESTING, RoundedCornerShape(2.dp))
             .onSizeChanged { size = it }

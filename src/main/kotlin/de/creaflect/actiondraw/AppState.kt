@@ -12,12 +12,6 @@ import de.creaflect.actiondraw.ui.systemPrefersReducedMotion
 import java.io.File
 import kotlin.random.Random
 
-/** Mutually-exclusive ways of viewing the reference image (value / colour / structure studies). */
-enum class ViewMode { NONE, GRAYSCALE, SQUINT, SEPIA, POSTERIZE, PIXELATE, EDGE, SILHOUETTE, NOTAN }
-
-/** Proportion-overlay variants drawn over the image. */
-enum class GridMode { OFF, THIRDS, PHI, DIAGONAL }
-
 /**
  * Single hoisted state holder for the whole app. Plain class backed by Compose state so the UI
  * recomposes on change; all mutations happen through the action methods below.
