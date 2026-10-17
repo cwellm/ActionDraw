@@ -33,6 +33,8 @@ dependencies {
     implementation(project(":core:model"))
     // Files: the app's own folders, safe writes, moving and deleting folders, reading pictures.
     implementation(project(":core:io"))
+    // The one way online: HTTP for link previews, http and https only.
+    implementation(project(":core:network"))
     // Pen pressure and tilt come from native input, not from Compose (LEARNINGS L1): on Windows,
     // WM_POINTER + GetPointerPenInfo through JNA — pure Java, no compiler, no build step.
     implementation("net.java.dev.jna:jna:5.14.0")

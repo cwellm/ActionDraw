@@ -502,7 +502,8 @@ a normal file in your board folder and the board works offline again. *Remove pr
 back off the card.
 
 Nothing else in the app makes a network request — no updates, no telemetry, no fonts or icons
-loaded from anywhere.
+loaded from anywhere. In the code, only the `core/network` module can make one, and it refuses
+any address that is not `http` or `https` before anything is sent.
 
 ## Image formats
 
@@ -527,6 +528,7 @@ M10 in the [roadmap](ROADMAP.md).
   the pure rules on it, with no Compose and no file access
 - `core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
   moving and deleting folders, names Windows accepts, listing and decoding pictures
+- `core/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
 - `sketch-engine` — the drawing engine: pen samples in, pixels out
 - the root project — the app: the rooms, their state and screens, storage, and the start-up
 - `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library` and

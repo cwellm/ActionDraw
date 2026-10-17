@@ -19,6 +19,8 @@ import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.isInside
+import de.creaflect.actiondraw.network.Fetcher
+import de.creaflect.actiondraw.network.Http
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.sketch.SketchDocument
 import java.awt.Desktop
@@ -1132,10 +1134,10 @@ class BoardState(
      * the one place the app makes a network request, and only ever because the user asked for it
      * on a particular card. Blocking — call from a background dispatcher.
      */
-    fun fetchLinkPreview(itemId: String, fetcher: LinkPreview.Fetcher = LinkPreview.http): String {
+    fun fetchLinkPreview(itemId: String, fetcher: Fetcher = Http): String {
         val dir = root ?: return "No board open."
         val link = item(itemId) as? LinkItem ?: return "That card is not a link."
-        val label = link.title.ifBlank { LinkPreview.normalize(link.url)?.let { URI(it).host } ?: "link" }
+        val label = link.title.ifBlank { Http.normalize(link.url)?.let { URI(it).host } ?: "link" }
         return when (val result = LinkPreview.fetchInto(dir, link.url, label, fetcher)) {
             is LinkPreview.Result.Saved -> {
                 updateItem<LinkItem>(itemId) { it.copy(preview = result.path) }
