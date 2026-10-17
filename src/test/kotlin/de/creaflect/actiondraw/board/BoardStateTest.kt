@@ -7,6 +7,7 @@ import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
+import de.creaflect.actiondraw.network.Fetched
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -604,13 +605,13 @@ class BoardStateTest {
         val id = state.board!!.items.filterIsInstance<LinkItem>().single().id
 
         // A stubbed fetcher: nothing in the suite ever opens a socket.
-        val page = LinkPreview.Fetched(
+        val page = Fetched(
             "text/html",
             """<meta property="og:image" content="https://cdn.example.com/w.png">""".toByteArray(),
             "https://example.com/wings",
         )
         state.fetchLinkPreview(id) { url ->
-            if (url.endsWith(".png")) LinkPreview.Fetched("image/png", byteArrayOf(1, 2, 3), url) else page
+            if (url.endsWith(".png")) Fetched("image/png", byteArrayOf(1, 2, 3), url) else page
         }
 
         val preview = (state.item(id) as LinkItem).preview

@@ -8,6 +8,7 @@ include(":sketch-engine")
 // the rooms. Each depends only on the ones below it, and Gradle holds it to that.
 include(":core:model")
 include(":core:io")
+include(":core:network")
 
 pluginManagement {
     // The modules' shared setup: Kotlin on Java 17 and their tests (actiondraw.kotlin-library),
