@@ -1,67 +1,22 @@
 package de.creaflect.actiondraw.ui
 
 import de.creaflect.actiondraw.image.ImageScanner
+import de.creaflect.actiondraw.platform.FileDialogs
 import java.io.File
-import javax.swing.JFileChooser
-import javax.swing.UIManager
-import javax.swing.filechooser.FileNameExtensionFilter
 
-/** Swing folder dialog, starting from [start] when given. Returns null when cancelled. */
-fun chooseFolder(start: File?, title: String = "Select image folder"): File? {
-    systemLookAndFeel()
-    val chooser = JFileChooser().apply {
-        fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
-        dialogTitle = title
-        start?.takeIf { it.isDirectory }?.let { currentDirectory = it }
-    }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
-}
+// The dialogs the rooms ask for, in the app's own terms: which pictures it reads, what a sketch
+// is called. The dialogs themselves are the platform's (`FileDialogs`).
 
-/** Multi-select image dialog (board imports). Empty when cancelled. */
-fun chooseImages(start: File?): List<File> {
-    systemLookAndFeel()
-    val chooser = JFileChooser().apply {
-        fileSelectionMode = JFileChooser.FILES_ONLY
-        isMultiSelectionEnabled = true
-        dialogTitle = "Import images"
-        fileFilter = FileNameExtensionFilter("Images", *ImageScanner.IMAGE_EXTENSIONS.toTypedArray())
-        start?.takeIf { it.isDirectory }?.let { currentDirectory = it }
-    }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
-        chooser.selectedFiles.toList()
-    } else {
-        emptyList()
-    }
-}
+/** A folder, starting from [start] when given. Null when cancelled. */
+fun chooseFolder(start: File?, title: String = "Select image folder"): File? = FileDialogs.chooseFolder(start, title)
 
-private fun systemLookAndFeel() {
-    runCatching { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()) }
-}
+/** Pictures the app can draw (board imports). Empty when cancelled. */
+fun chooseImages(start: File?): List<File> =
+    FileDialogs.chooseFiles(start, "Import images", "Images", ImageScanner.IMAGE_EXTENSIONS)
 
-/** Open dialog for a sketch document (`*.sketch.json`). Null when cancelled. */
-fun chooseSketchFile(start: File?): File? {
-    systemLookAndFeel()
-    val chooser = JFileChooser().apply {
-        fileSelectionMode = JFileChooser.FILES_ONLY
-        dialogTitle = "Open sketch"
-        fileFilter = object : javax.swing.filechooser.FileFilter() {
-            override fun accept(f: File) = f.isDirectory || f.name.endsWith(".sketch.json")
-            override fun getDescription() = "Sketches (*.sketch.json)"
-        }
-        start?.takeIf { it.isDirectory }?.let { currentDirectory = it }
-    }
-    return if (chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
-}
+/** A sketch document (`*.sketch.json`). Null when cancelled. */
+fun chooseSketchFile(start: File?): File? =
+    FileDialogs.chooseFile(start, "Open sketch", "Sketches (*.sketch.json)") { it.name.endsWith(".sketch.json") }
 
-/** Save dialog for an export; appends the suggested extension when the user drops it. */
-fun chooseSaveFile(suggested: String, start: File?): File? {
-    systemLookAndFeel()
-    val chooser = JFileChooser().apply {
-        dialogTitle = "Save as"
-        selectedFile = File(start ?: File("."), suggested)
-    }
-    if (chooser.showSaveDialog(null) != JFileChooser.APPROVE_OPTION) return null
-    val chosen = chooser.selectedFile
-    val ext = suggested.substringAfterLast('.', "")
-    return if (ext.isNotEmpty() && !chosen.name.contains('.')) File(chosen.path + "." + ext) else chosen
-}
+/** Where to save an export; the suggested extension is added when the person drops it. */
+fun chooseSaveFile(suggested: String, start: File?): File? = FileDialogs.chooseSaveFile(suggested, start)

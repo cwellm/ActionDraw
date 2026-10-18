@@ -34,10 +34,6 @@ import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.sun.jna.Native
-import com.sun.jna.ptr.IntByReference
-import com.sun.jna.win32.StdCallLibrary
-import com.sun.jna.win32.W32APIOptions
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import kotlin.math.hypot
@@ -99,27 +95,6 @@ fun leanFor(dx: Float): Float = (dx * Motion.LEAN_PER_PX).coerceIn(-Motion.MAX_L
 
 /** Whether to keep movement to cross-fades: ActionDraw's own setting, or the system's when unset. */
 val LocalReducedMotion = compositionLocalOf { false }
-
-/**
- * Windows' *Show animations in Windows* (`SPI_GETCLIENTAREAANIMATION`): off means the person
- * asked for less movement. Anywhere else, or if it cannot be read, movement is on.
- */
-fun systemPrefersReducedMotion(): Boolean = runCatching {
-    if (!System.getProperty("os.name").orEmpty().startsWith("Windows")) return false
-    val on = IntByReference(1)
-    User32Spi.INSTANCE.SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, on, 0) && on.value == 0
-}.getOrDefault(false)
-
-private const val SPI_GETCLIENTAREAANIMATION = 0x1042
-
-@Suppress("FunctionName")
-private interface User32Spi : StdCallLibrary {
-    fun SystemParametersInfoW(uiAction: Int, uiParam: Int, pvParam: IntByReference, fWinIni: Int): Boolean
-
-    companion object {
-        val INSTANCE: User32Spi by lazy { Native.load("user32", User32Spi::class.java, W32APIOptions.DEFAULT_OPTIONS) }
-    }
-}
 
 // ---------------- Recede ----------------
 

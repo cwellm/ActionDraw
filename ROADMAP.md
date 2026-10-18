@@ -1091,11 +1091,23 @@ package names stay as they are, so moving a file changes no imports.
   that records what would have been sent, so no test opens a socket. Broken on purpose and
   seen red
 
-### ⬜ F11.4 `:core:platform` — the operating system
-- ⬜ Behind interfaces: the pen (`PenSource`, `WindowsPointerSource`), the system's
-  reduced-motion setting (in `Motion.kt` today), the clipboard, file and folder dialogs
-  (`Choosers.kt`), and opening the browser (spelled out twice today)
-- ⬜ The only module that knows it runs on Windows
+### ✅ F11.4 `:core:platform` — the operating system
+- ✅ The pen moved in unchanged (`PenSample`, `PenSource`, `WindowsPointerSource` with its
+  winuser.h structures), and JNA with it: the app no longer depends on JNA itself. This is the
+  only module that knows it runs on Windows
+- ✅ `SystemClipboard`, an interface, with `AwtClipboard` the machine's, out of `BoardClipboard`.
+  The board is given one in its constructor, so a test pastes and copies without touching the
+  clipboard of the machine it runs on
+- ✅ `Browser` (`DesktopBrowser`): one way to open an address, where the board and the concept
+  page each spelled it out
+- ✅ `FileDialogs`: Swing's folder, file and save dialogs. `Choosers.kt` stays in the app as the
+  rooms' own terms over them — which pictures it reads, what a sketch is called
+- ✅ `SystemPreferences`: Windows' *Show animations* setting, out of `Motion.kt`
+- ✅ Interfaces where something already takes another one (the clipboard, the browser, the
+  pen); plain objects where nothing does yet (the dialogs, the preferences)
+- ✅ `PlatformTest` (4), and a `BoardStateTest` case for the clipboard the board was given. Five
+  guards broken on purpose and seen red, each by its named test, after a control that changes
+  nothing stayed green. The pen moved unchanged; only a hand on the XPPen can say it still works
 
 ### ⬜ F11.5 `:core:data` — repositories
 - ⬜ Boards, concepts, sketches, settings, practice history (seen and redo), the two

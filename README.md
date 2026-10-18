@@ -529,6 +529,8 @@ M10 in the [roadmap](ROADMAP.md).
 - `core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
   moving and deleting folders, names Windows accepts, listing and decoding pictures
 - `core/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
+- `core/platform` — the operating system: the pen's own input (Windows Ink, through JNA), the
+  clipboard, the file dialogs, the browser, the system's animation setting
 - `sketch-engine` — the drawing engine: pen samples in, pixels out
 - the root project — the app: the rooms, their state and screens, storage, and the start-up
 - `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library` and

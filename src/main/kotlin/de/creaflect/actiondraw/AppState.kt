@@ -7,8 +7,8 @@ import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.platform.SystemPreferences
 import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.systemPrefersReducedMotion
 import java.io.File
 import kotlin.random.Random
 
@@ -37,7 +37,7 @@ class AppState(private val settings: Settings = Settings()) {
     }
 
     /** Movement kept to short cross-fades: the setting once made, until then the system's preference. */
-    var reducedMotion by mutableStateOf(settings.reducedMotion() ?: systemPrefersReducedMotion())
+    var reducedMotion by mutableStateOf(settings.reducedMotion() ?: SystemPreferences.prefersReducedMotion())
         private set
 
     fun setReducedMotionPreference(on: Boolean) {
