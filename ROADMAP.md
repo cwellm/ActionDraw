@@ -1078,9 +1078,18 @@ package names stay as they are, so moving a file changes no imports.
   nothing stayed green: ten guards in `Folders` and `SafeFile`. `ImageScannerTest` moved with
   the scanner
 
-### ⬜ F11.3 `:core:network` — HTTP
-- ⬜ The HTTP client behind `LinkPreview.Fetcher`: only a module that depends on this one can go
-  online
+### ✅ F11.3 `:core:network` — HTTP
+- ✅ `Http`: the JDK's HTTP client, the http/https rule, the 8 MB cap and the timeouts, out of
+  `LinkPreview`, with `Fetcher` and `Fetched`. Only a module that depends on `:core:network` can
+  go online — the app today, and from F11.5 only `:core:data`
+- ✅ The client refuses any other scheme itself, before anything is sent. A page's preview
+  picture is an address the page chose; until now only the JDK's own refusal of `file:` stood
+  between such an address and the disk
+- ✅ What stays in `LinkPreview` until F11.5: reading a page for its `og:image` and keeping the
+  picture in the board folder
+- ✅ `HttpTest`: the address tests from `LinkPreviewTest`, and the scheme check through a seam
+  that records what would have been sent, so no test opens a socket. Broken on purpose and
+  seen red
 
 ### ⬜ F11.4 `:core:platform` — the operating system
 - ⬜ Behind interfaces: the pen (`PenSource`, `WindowsPointerSource`), the system's

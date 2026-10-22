@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.network.Fetched
+import de.creaflect.actiondraw.network.Fetcher
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -22,21 +24,12 @@ class LinkPreviewTest {
     }
 
     private fun html(body: String) =
-        LinkPreview.Fetched("text/html; charset=utf-8", body.toByteArray(), "https://example.com/page")
+        Fetched("text/html; charset=utf-8", body.toByteArray(), "https://example.com/page")
 
     private fun png(url: String = "https://example.com/p.png") =
-        LinkPreview.Fetched("image/png", byteArrayOf(1, 2, 3, 4), url)
+        Fetched("image/png", byteArrayOf(1, 2, 3, 4), url)
 
     // ---- What may be contacted at all ----
-
-    @Test
-    fun onlyHttpAddressesAreEverContacted() {
-        assertEquals("https://example.com/x", LinkPreview.normalize("https://example.com/x"))
-        assertEquals("http://example.com", LinkPreview.normalize("http://example.com"))
-        assertEquals("https://example.com", LinkPreview.normalize("example.com"), "a bare host means https")
-        assertNull(LinkPreview.normalize("file:///C:/secrets.txt"), "no local files")
-        assertNull(LinkPreview.normalize("ftp://example.com/x"))
-    }
 
     // ---- Finding the picture a page advertises ----
 
@@ -76,11 +69,11 @@ class LinkPreviewTest {
     @Test
     fun aPageIsFetchedThenItsPicture() {
         val asked = mutableListOf<String>()
-        val fetcher = LinkPreview.Fetcher { url ->
+        val fetcher = Fetcher { url ->
             asked += url
             when {
                 url.endsWith("/page") -> html("""<meta property="og:image" content="https://cdn.example.com/c.jpg">""")
-                else -> LinkPreview.Fetched("image/jpeg", byteArrayOf(9), url)
+                else -> Fetched("image/jpeg", byteArrayOf(9), url)
             }
         }
 
@@ -100,7 +93,7 @@ class LinkPreviewTest {
 
     @Test
     fun somethingThatIsNeitherPageNorPictureIsRefused() {
-        val pdf = LinkPreview.Fetched("application/pdf", byteArrayOf(1), "https://example.com/x.pdf")
+        val pdf = Fetched("application/pdf", byteArrayOf(1), "https://example.com/x.pdf")
         val result = LinkPreview.fetchInto(root, "https://example.com/x.pdf", "doc") { pdf }
         assertIs<LinkPreview.Result.Failed>(result)
     }

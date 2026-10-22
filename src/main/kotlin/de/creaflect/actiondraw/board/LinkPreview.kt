@@ -1,12 +1,10 @@
 package de.creaflect.actiondraw.board
 
 import de.creaflect.actiondraw.io.Folders
+import de.creaflect.actiondraw.network.Fetcher
+import de.creaflect.actiondraw.network.Http
 import java.io.File
 import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
-import java.time.Duration
 
 /**
  * Fetches the picture a link shows in a browser preview — the app's only feature that goes online,
@@ -14,57 +12,13 @@ import java.time.Duration
  * is loaded to display, and the downloaded image is written into the board folder so the board
  * keeps working offline afterwards.
  *
- * The request is deliberately plain: a GET with a self-identifying user agent, no cookies, no
- * referrer, a size cap and short timeouts. Note that fetching does tell the site you opened the
- * link — that is the privacy cost of a preview, and why it is never automatic.
+ * The request itself is `:core:network`'s [Http]: http and https only, a size cap, short timeouts.
+ * What is left here is reading a page for its preview picture and keeping the picture. Note that
+ * fetching does tell the site you opened the link — that is the privacy cost of a preview, and why
+ * it is never automatic.
  */
 object LinkPreview {
-    /** Refuses anything larger; a preview is a thumbnail, not a download manager. */
-    const val MAX_BYTES = 8L * 1024 * 1024
-
-    private const val USER_AGENT = "ActionDraw/1.0 (+link preview; desktop app)"
     const val PREVIEW_DIR = "_previews"
-
-    /** One HTTP answer, reduced to what a preview needs. */
-    data class Fetched(val contentType: String, val bytes: ByteArray, val url: String)
-
-    /** Swappable so tests can exercise the logic without a network. */
-    fun interface Fetcher {
-        fun get(url: String): Fetched?
-    }
-
-    /** The real thing: JDK HttpClient, redirects followed, everything else left at defaults. */
-    val http: Fetcher = Fetcher { url ->
-        runCatching {
-            val client = HttpClient.newBuilder()
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(Duration.ofSeconds(10))
-                .build()
-            val request = HttpRequest.newBuilder(URI(url))
-                .timeout(Duration.ofSeconds(20))
-                .header("User-Agent", USER_AGENT)
-                .header("Accept", "text/html,image/*;q=0.9,*/*;q=0.5")
-                .GET()
-                .build()
-            val response = client.send(request, HttpResponse.BodyHandlers.ofByteArray())
-            if (response.statusCode() !in 200..299) return@runCatching null
-            val body = response.body() ?: return@runCatching null
-            if (body.size > MAX_BYTES) return@runCatching null
-            Fetched(
-                contentType = response.headers().firstValue("content-type").orElse("").lowercase(),
-                bytes = body,
-                url = response.uri().toString(),
-            )
-        }.getOrNull()
-    }
-
-    /** Only http(s) is ever contacted — no file://, no other scheme sneaking in through a card. */
-    fun normalize(url: String): String? {
-        val candidate = if (url.contains("://")) url else "https://$url"
-        val scheme = candidate.substringBefore("://").lowercase()
-        if (scheme != "http" && scheme != "https") return null
-        return runCatching { URI(candidate).toString() }.getOrNull()
-    }
 
     /**
      * The image a page advertises for sharing: OpenGraph first, then Twitter's variant. Returned
@@ -103,8 +57,8 @@ object LinkPreview {
      * Fetches [url]'s preview image and writes it into `<root>/_previews/`. The link itself may be
      * an image, in which case it is used directly. Blocking — call off the UI thread.
      */
-    fun fetchInto(root: File, url: String, name: String, fetcher: Fetcher = http): Result {
-        val address = normalize(url) ?: return Result.Failed("Only http and https links can be previewed.")
+    fun fetchInto(root: File, url: String, name: String, fetcher: Fetcher = Http): Result {
+        val address = Http.normalize(url) ?: return Result.Failed("Only http and https links can be previewed.")
         val first = fetcher.get(address) ?: return Result.Failed("Couldn't reach that address.")
 
         val (image, from) = when {
