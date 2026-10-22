@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.isInside
 import java.io.File
@@ -23,6 +23,9 @@ class MoveBoardTest {
     private val home: File = Files.createTempDirectory("move-home").toFile()
     private val config: File = Files.createTempDirectory("move-cfg").toFile()
 
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
+
     private val host = object : BoardHost {
         override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
         override fun showBoard() = Unit
@@ -31,7 +34,7 @@ class MoveBoardTest {
         override fun currentSetup() = SessionSetup(null, 120, true, ViewMode.NONE, GridMode.OFF)
     }
 
-    private fun newState() = BoardState(Settings(config), host).also { it.setBoardsHomeDir(home) }
+    private fun newState() = BoardState(FileLib(config), host).also { it.setBoardsHomeDir(home) }
 
     @AfterTest
     fun cleanup() {
@@ -57,7 +60,7 @@ class MoveBoardTest {
         val (state, moving, destination) = twoBoards()
         assertNull(state.boardTree().first { it.name == "Flügel" }.parent, "starts at the top level")
 
-        state.moveBoard(moving, destination)
+        assertEquals("Moved Flügel to Drachenbuch.", state.moveBoard(moving, destination), "and says where it went")
 
         val tree = newState().boardTree()
         assertEquals(listOf("Drachenbuch" to 0, "Flügel" to 1), tree.map { it.name to it.depth })
@@ -74,7 +77,7 @@ class MoveBoardTest {
 
         val now = File(destination, "Flügel")
         assertTrue(File(now, "wing.jpg").isFile, "the picture travelled")
-        assertTrue(BoardStore.exists(now), "and the board file with it")
+        assertTrue(files.boards.isBoard(now), "and the board file with it")
         val reopened = newState()
         reopened.openBoard(now)
         assertEquals(1, reopened.board!!.items.size, "the board still knows its card")
@@ -86,7 +89,7 @@ class MoveBoardTest {
         state.moveBoard(moving, destination)
         val nested = File(destination, "Flügel")
 
-        state.moveBoard(nested, null)
+        assertEquals("Moved Flügel to the boards home.", state.moveBoard(nested, null))
 
         val tree = newState().boardTree()
         assertEquals(listOf(0, 0), tree.map { it.depth }, "both stand on their own again")
@@ -110,7 +113,7 @@ class MoveBoardTest {
             "the whole subtree came along",
         )
         val movedInner = File(File(destination, "Flügel"), "Membran")
-        assertTrue(BoardStore.exists(movedInner))
+        assertTrue(files.boards.isBoard(movedInner))
         assertEquals("Membran", fresh.entryFor(movedInner)?.name, "its record followed the folder")
         assertNull(fresh.entryFor(inner), "and no longer points where it used to be")
     }
@@ -126,7 +129,7 @@ class MoveBoardTest {
         assertEquals("Flügel", state.board!!.name, "still open, and still itself")
         // And it can still be written to where it now lives.
         state.setTheme(BoardThemes.ALL.last())
-        assertEquals(BoardThemes.ALL.last(), BoardStore.peek(state.root!!)?.theme)
+        assertEquals(BoardThemes.ALL.last(), files.boards.peek(state.root!!)?.theme)
     }
 
     @Test
@@ -153,7 +156,7 @@ class MoveBoardTest {
         val (state, moving, _) = twoBoards()
         val message = state.moveBoard(moving, moving)
         assertTrue(message.contains("itself"), message)
-        assertTrue(BoardStore.exists(moving), "and nothing happened to it")
+        assertTrue(files.boards.isBoard(moving), "and nothing happened to it")
     }
 
     @Test
@@ -165,8 +168,8 @@ class MoveBoardTest {
         val message = state.moveBoard(moving, inner)
 
         assertTrue(message.contains("sub-board"), message)
-        assertTrue(BoardStore.exists(moving))
-        assertTrue(BoardStore.exists(inner), "the inner board is untouched too")
+        assertTrue(files.boards.isBoard(moving))
+        assertTrue(files.boards.isBoard(inner), "the inner board is untouched too")
     }
 
     @Test

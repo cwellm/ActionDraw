@@ -25,7 +25,6 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.sketch.SketchHost
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Optic
@@ -68,12 +67,12 @@ class RoomScreenshotTest {
     /** The app's states wired as `main` wires them, on folders of their own. */
     private inner class World {
         val config = File(root, "config").apply { mkdirs() }
-        val settings = Settings(config)
-        val app = AppState(settings)
+        val lib = FileLib(config)
+        val app = AppState(lib)
         lateinit var boards: BoardState
         lateinit var sketch: SketchState
         val concepts = ConceptState(
-            settings,
+            lib,
             object : ConceptHost {
                 override fun showConcepts() = app.showConcepts()
                 override fun showConcept() = app.showConcept()
@@ -83,7 +82,7 @@ class RoomScreenshotTest {
 
         init {
             boards = BoardState(
-                settings,
+                lib,
                 object : BoardHost {
                     override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = app.startBoardSession(root, images, setup)
                     override fun showBoard() = app.showBoard()
@@ -99,7 +98,7 @@ class RoomScreenshotTest {
             )
             boards.setBoardsHomeDir(File(root, "boards").apply { mkdirs() })
             sketch = SketchState(
-                settings,
+                lib,
                 object : SketchHost {
                     override fun boards() = boards.availableBoards()
                     override fun addToBoard(dir: File, pictures: List<File>) = boards.pinTo(dir, pictures)
@@ -111,7 +110,7 @@ class RoomScreenshotTest {
             ).also { it.setSketchesHomeDir(File(root, "sketches")) }
         }
 
-        val thumbs = ThumbCache(config)
+        val thumbs = lib.pictures
         val pinTargets = PinTargets(boards = { boards.availableBoards() }, pin = boards::pinTo)
 
         fun show(test: ComposeUiTest) = test.setContent {

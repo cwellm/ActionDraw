@@ -21,7 +21,7 @@ class SessionKeysTest {
         settingsDir.deleteRecursively()
     }
 
-    private fun state() = AppState(Settings(settingsDir))
+    private fun state() = AppState(FileLib(settingsDir))
 
     private fun press(
         key: Key,

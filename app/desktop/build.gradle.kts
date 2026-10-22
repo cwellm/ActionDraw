@@ -17,22 +17,21 @@ dependencies {
     implementation(compose.desktop.currentOs)
     // The drawing engine (Live Sketch), a library of its own: docs/Pencil-Engine-Architecture.md.
     implementation(project(":lib:sketch-engine"))
-    // How boards, concepts and the registries are stored: the sidecars' format.
-    // The API: boards, cards, concepts, the session's vocabulary, and the host contracts.
+    // The API: boards, cards, concepts, the session's vocabulary, the contracts for getting and
+    // keeping them (Lib), and the host contracts the desktop fills.
     implementation(project(":lib:domain"))
-    implementation(project(":lib:core:model"))
-    // Files: the app's own folders, safe writes, moving and deleting folders, reading pictures.
-    implementation(project(":lib:core:io"))
+    // The domain over the files — the one way to the disk and the network. The core's io and the
+    // network are its own: they are not on this classpath, so nothing here can reach a file or
+    // go online except through the lib.
+    implementation(project(":lib:data"))
     // The lib's run: its scope and dispatcher, the writes it must not lose, closing cleanly.
     implementation(project(":lib:core:lifecycle"))
-    // The one way online: HTTP for link previews, http and https only.
-    implementation(project(":lib:network"))
     // The pen's own input: Windows Ink, through JNA.
     implementation(project(":device:pen"))
     // Windows' animation setting (SystemPreferences) is read through JNA too.
     implementation("net.java.dev.jna:jna:5.14.0")
     implementation("net.java.dev.jna:jna-platform:5.14.0")
-    // Reading and writing the sidecar files (.actiondraw_board.json, .actiondraw_concept.json)
+    // The Tune panel's leads, kept as JSON among the preferences.
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation(kotlin("test"))
     // Drives the real composables in tests: pointer behaviour (what a click actually selects)

@@ -6,9 +6,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import de.creaflect.actiondraw.AppState
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.MenuExtras
 import org.junit.After
@@ -39,9 +39,9 @@ class MenuExtrasTest {
 
     @Test
     fun settingsOpenFromTheMenuAndChangeThePreference() {
-        val settings = Settings(config)
-        val boards = BoardState(settings, host)
-        rule.setContent { MenuExtras(AppState(settings), boards) }
+        val lib = FileLib(config)
+        val boards = BoardState(lib, host)
+        rule.setContent { MenuExtras(AppState(lib), boards) }
         rule.waitForIdle()
 
         rule.onNodeWithTag("menu-settings").performClick()
@@ -50,13 +50,13 @@ class MenuExtrasTest {
         rule.waitForIdle()
 
         assertTrue(boards.snapping, "the checkbox is the preference")
-        assertTrue(BoardState(Settings(config), host).snapping, "and it is remembered")
+        assertTrue(BoardState(FileLib(config), host).snapping, "and it is remembered")
     }
 
     @Test
     fun hotkeysOpenFromTheMenu() {
-        val settings = Settings(config)
-        rule.setContent { MenuExtras(AppState(settings), BoardState(settings, host)) }
+        val lib = FileLib(config)
+        rule.setContent { MenuExtras(AppState(lib), BoardState(lib, host)) }
         rule.waitForIdle()
 
         rule.onNodeWithTag("menu-hotkeys").performClick()

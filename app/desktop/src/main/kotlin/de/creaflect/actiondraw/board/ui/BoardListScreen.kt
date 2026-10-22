@@ -42,9 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
-import de.creaflect.actiondraw.board.BoardStore
 import de.creaflect.actiondraw.board.ImageItem
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.Lift
@@ -73,12 +73,12 @@ private data class BoardSummary(
  * with a cover picture and its counts. Clicking one opens it.
  */
 @Composable
-fun BoardListScreen(state: BoardState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
+fun BoardListScreen(state: BoardState, thumbs: Pictures, onHome: (() -> Unit)? = null) {
     val boards by produceState(initialValue = emptyList<BoardSummary>(), state.boardsHomeTick, state.recent) {
         value = withContext(Dispatchers.IO) {
             // Tree order, so a sub-board sits right after the board it belongs to.
             state.boardTree().map { node ->
-                val file = BoardStore.peek(node.dir)
+                val file = state.peek(node.dir)
                 val images = file?.items.orEmpty().filterIsInstance<ImageItem>()
                 BoardSummary(
                     name = node.name,
@@ -177,13 +177,13 @@ fun BoardListScreen(state: BoardState, thumbs: ThumbCache, onHome: (() -> Unit)?
 @Composable
 private fun BoardTile(
     board: BoardSummary,
-    thumbs: ThumbCache,
+    thumbs: Pictures,
     onOpen: () -> Unit,
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, board.cover) {
-        value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 320) } }
+        value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 320) } }
     }
     // A board on the shelf: its cover as a print standing on a plank, its name lettered under it.
     // Not clipped, so the plank can reach into the gaps and a row of boards reads as one shelf.

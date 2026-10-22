@@ -527,17 +527,23 @@ is [docs/Architecture.md](docs/Architecture.md); the steps are M10 in the [roadm
 In three groups — `lib` for what an application builds on, `device` for the hardware it talks to,
 `app` for the applications on top:
 
-- `lib/core/model` — boards and their cards, concepts, session plans: plain serializable data and
-  the pure rules on it, with no Compose and no file access
+- `lib/domain` — the API: boards and their cards, concepts, the session's vocabulary and the
+  rules on them; `Lib`, through which everything is got and kept; and what the lib needs from its
+  host (clipboard, file dialogs, browser, pen)
+- `lib/data` — `FileLib`, the domain over the files: boards' and concepts' folders and their
+  sidecars, the registries, settings, thumbnails, practice history, link previews — writing off
+  the UI thread, and the only module that reaches the files or the network
+- `lib/core/model` — how things are stored: the sidecars' and registries' format, field for
+  field what the files on disk hold
 - `lib/core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
-  moving and deleting folders, names Windows accepts, listing and decoding pictures
+  moving and deleting folders, listing and decoding pictures
 - `lib/core/lifecycle` — the lib's run: its scope and dispatcher, the writes it must not lose, the
   memory it holds while running, closing down cleanly
 - `lib/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
 - `lib/sketch-engine` — the drawing engine: pen samples in, pixels out
-- `device/pen` — the pen's own input: Windows Ink, through JNA
-- `app/desktop` — the app: the rooms, their state and screens, storage, the desktop's clipboard,
-  dialogs and browser, and the start-up
+- `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
+- `app/desktop` — the app: the rooms, their state and screens, the desktop's clipboard, dialogs
+  and browser, and the start-up
 - `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library` and
   `actiondraw.skia`
 

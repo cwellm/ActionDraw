@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import java.io.File
 import java.nio.file.Files
@@ -21,6 +21,9 @@ class SubBoardTest {
     private val home: File = Files.createTempDirectory("sub-home").toFile()
     private val config: File = Files.createTempDirectory("sub-cfg").toFile()
 
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
+
     private val host = object : BoardHost {
         override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
         override fun showBoard() = Unit
@@ -29,7 +32,7 @@ class SubBoardTest {
         override fun currentSetup() = SessionSetup(null, 120, true, ViewMode.NONE, GridMode.OFF)
     }
 
-    private fun newState() = BoardState(Settings(config), host).also { it.setBoardsHomeDir(home) }
+    private fun newState() = BoardState(FileLib(config), host).also { it.setBoardsHomeDir(home) }
 
     @AfterTest
     fun cleanup() {
@@ -113,7 +116,7 @@ class SubBoardTest {
         val (state, parent, child) = nested()
         assertEquals(1, state.subBoardCount(parent))
 
-        state.deleteBoard(parent, BoardState.Deletion.DELETE_FOLDER)
+        state.deleteBoard(parent, Deletion.DELETE_FOLDER)
 
         assertFalse(child.exists(), "the nested folder went with its parent")
         val fresh = newState()
@@ -125,10 +128,10 @@ class SubBoardTest {
     fun removingOnlyTheBoardFileLeavesTheSubBoardAlone() {
         val (state, parent, child) = nested()
 
-        state.deleteBoard(parent, BoardState.Deletion.FORGET)
+        state.deleteBoard(parent, Deletion.FORGET)
 
         assertTrue(child.isDirectory, "the sub-board's folder is untouched")
-        assertTrue(BoardStore.exists(child), "and it is still a board")
+        assertTrue(files.boards.isBoard(child), "and it is still a board")
         val fresh = newState()
         assertEquals(listOf("Flügel"), fresh.boardTree().map { it.name })
         assertEquals(0, fresh.boardTree().single().depth, "now a root, its parent being gone")

@@ -13,9 +13,9 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
@@ -24,7 +24,6 @@ import de.creaflect.actiondraw.board.ui.Themes
 import de.creaflect.actiondraw.board.ui.notePaper
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.paperTooth
@@ -63,7 +62,7 @@ class BoardDressTest {
 
     /** A print and a sketch (a picture with its `.sketch.json` beside it), laid out free. */
     private fun board(): Pair<BoardState, List<String>> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Dress")
         val root = state.root!!
         val files = listOf("print.jpg", "sketch.png").map { File(root, it).apply { createNewFile() } }
@@ -81,7 +80,7 @@ class BoardDressTest {
         rule.setContent {
             AtelierTheme {
                 Box(Modifier.fillMaxSize().background(Atelier.Ground)) {
-                    BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+                    BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
                 }
             }
         }
@@ -166,7 +165,7 @@ class BoardDressTest {
     fun aBorrowedCardWearsItsConceptsTab() {
         val conceptsHome = Files.createTempDirectory("dress-concepts").toFile()
         val concepts = ConceptState(
-            Settings(config),
+            FileLib(config),
             object : ConceptHost {
                 override fun showConcepts() = Unit
                 override fun showConcept() = Unit
@@ -175,7 +174,7 @@ class BoardDressTest {
         ).also { it.setConceptsHomeDir(conceptsHome) }
         concepts.createConcept("Drache", "creature")
         concepts.addPictures(listOf(File(conceptsHome, "wing.jpg").apply { createNewFile() }))
-        val state = BoardState(Settings(config), host, concepts = concepts)
+        val state = BoardState(FileLib(config), host, concepts = concepts)
         state.createBoard(home, "Dress")
         state.importExternal(listOf(File(state.root!!, "own.jpg").apply { createNewFile() }))
         assertTrue(state.linkConcept(concepts.concept!!.id))

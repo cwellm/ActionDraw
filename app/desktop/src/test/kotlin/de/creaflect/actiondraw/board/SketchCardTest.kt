@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.cardMenuItems
 import de.creaflect.actiondraw.concept.ConceptHost
@@ -43,7 +43,7 @@ class SketchCardTest {
 
     @Test
     fun aSketchedPictureOnABoardCanBeContinuedAPhotoCannot() {
-        val state = BoardState(Settings(config), boardHost)
+        val state = BoardState(FileLib(config), boardHost)
         state.createBoard(home, "Buch")
         val root = state.root!!
         val png = File(root, "Sketch 1.png").apply { createNewFile() }
@@ -66,7 +66,7 @@ class SketchCardTest {
     fun aSketchedPictureInAConceptCanBeContinuedToo() {
         var fromConcept: File? = null
         val concepts = ConceptState(
-            Settings(config),
+            FileLib(config),
             object : ConceptHost {
                 override fun showConcepts() = Unit
                 override fun showConcept() = Unit

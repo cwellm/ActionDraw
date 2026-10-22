@@ -45,7 +45,7 @@ class SessionChromeTest {
             image.createGraphics().apply { paint = java.awt.Color(200, 160 - i * 20, 120); fillRect(0, 0, 40, 30); dispose() }
             ImageIO.write(image, "png", File(pictures, "pose$i.png"))
         }
-        val state = AppState(Settings(config)).also { it.selectFolder(pictures) }
+        val state = AppState(FileLib(config)).also { it.selectFolder(pictures) }
         state.start()
         rule.mainClock.autoAdvance = false // a running pose ticks for ever
         rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }

@@ -55,7 +55,7 @@ class PracticeTest {
             image.createGraphics().apply { paint = java.awt.Color.ORANGE; fillRect(0, 0, 16, 16); dispose() }
             ImageIO.write(image, "png", File(pictures, "pose$i.png"))
         }
-        return AppState(Settings(config)).also { it.selectFolder(pictures) }
+        return AppState(FileLib(config)).also { it.selectFolder(pictures) }
     }
 
     @Test
@@ -69,7 +69,7 @@ class PracticeTest {
 
     @Test
     fun choosingAnExerciseSetsWhatMakesItThatExercise() {
-        val state = AppState(Settings(config))
+        val state = AppState(FileLib(config))
         state.chooseExercise(Exercise.LENS)
         assertEquals(ViewMode.NOTAN, state.viewMode)
         assertEquals(Exercise.LENS, state.exercise)
@@ -203,13 +203,13 @@ class PracticeTest {
             assertTrue(state.currentImage in onBoard, "drawing from the board: ${state.currentImage}")
             assertEquals(2, state.totalCount, "the session holds the concept's picture too, not just the folder's")
 
-            val next = AppState(Settings(config))
+            val next = AppState(FileLib(config))
             assertNull(next.practiceBoard, "until the boards are handed over")
             next.practiceBoards = boards
             assertEquals("Buch" to boardDir, next.practiceBoard, "remembered for the next start")
             next.selectFolder(pictures)
             assertNull(next.practiceBoard, "a folder chosen is a folder again")
-            assertNull(Settings(config).practiceBoard())
+            assertNull(FileLib(config).preferences.practiceBoard())
         } finally {
             boardDir.deleteRecursively()
             elsewhere.deleteRecursively()

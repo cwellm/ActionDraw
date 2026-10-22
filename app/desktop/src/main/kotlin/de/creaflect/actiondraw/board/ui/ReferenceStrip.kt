@@ -46,8 +46,9 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
-import de.creaflect.actiondraw.image.ImageLoader
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.bitmap
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Atelier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,7 +61,7 @@ import kotlinx.coroutines.withContext
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun ReferenceStrip(state: BoardState, thumbs: ThumbCache) {
+fun ReferenceStrip(state: BoardState, thumbs: Pictures) {
     val ids = state.stripIds
     val index = state.stripIndex
     val count = ids.size
@@ -146,7 +147,7 @@ fun ReferenceStrip(state: BoardState, thumbs: ThumbCache) {
                     val item = state.item(id) as? ImageItem
                     val file = item?.let(state::fileOf)
                     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-                        value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 128) } }
+                        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 128) } }
                     }
                     Box(
                         Modifier
@@ -198,7 +199,7 @@ fun ReferenceStrip(state: BoardState, thumbs: ThumbCache) {
 @Composable
 private fun StripSlide(
     state: BoardState,
-    thumbs: ThumbCache,
+    thumbs: Pictures,
     item: ImageItem,
     current: Boolean,
     modifier: Modifier,
@@ -207,7 +208,7 @@ private fun StripSlide(
     val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file, current) {
         value = file?.let { f ->
             withContext(Dispatchers.IO) {
-                if (current) runCatching { ImageLoader.load(f) }.getOrNull() else thumbs.load(f, maxSize = 480)
+                if (current) thumbs.bitmap(f) else thumbs.thumbnailBitmap(f, maxSize = 480)
             }
         }
     }

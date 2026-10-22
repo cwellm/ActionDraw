@@ -55,8 +55,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
-import de.creaflect.actiondraw.image.ImageLoader
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.bitmap
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -72,7 +73,7 @@ import kotlinx.coroutines.withContext
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun BoardViewer(state: BoardState, thumbs: ThumbCache) {
+fun BoardViewer(state: BoardState, thumbs: Pictures) {
     val index = state.viewerIndex
     val count = state.viewerIds.size
     val zoom = state.viewerZoom
@@ -232,7 +233,7 @@ fun BoardViewer(state: BoardState, thumbs: ThumbCache) {
 @Composable
 private fun Slide(
     state: BoardState,
-    thumbs: ThumbCache,
+    thumbs: Pictures,
     item: ImageItem,
     current: Boolean,
     onFitted: (Size) -> Unit,
@@ -244,7 +245,7 @@ private fun Slide(
     val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file, current) {
         value = file?.let { f ->
             withContext(Dispatchers.IO) {
-                if (current) runCatching { ImageLoader.load(f) }.getOrNull() else thumbs.load(f, maxSize = 900)
+                if (current) thumbs.bitmap(f) else thumbs.thumbnailBitmap(f, maxSize = 900)
             }
         }
     }
@@ -293,7 +294,7 @@ private fun Caption(state: BoardState, item: ImageItem) {
 
 /** Thumbnails of everything in the carousel; click one to jump straight to it. */
 @Composable
-private fun Filmstrip(state: BoardState, thumbs: ThumbCache) {
+private fun Filmstrip(state: BoardState, thumbs: Pictures) {
     val listState = rememberLazyListState()
     LaunchedEffect(state.viewerIndex) {
         runCatching { listState.animateScrollToItem(state.viewerIndex) }
@@ -308,7 +309,7 @@ private fun Filmstrip(state: BoardState, thumbs: ThumbCache) {
             val item = state.viewerItemAt(i)
             val file = item?.let(state::fileOf)
             val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-                value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 128) } }
+                value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 128) } }
             }
             val selected = i == state.viewerIndex
             Box(

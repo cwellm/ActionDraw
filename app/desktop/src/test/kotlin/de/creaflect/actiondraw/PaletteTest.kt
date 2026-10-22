@@ -57,10 +57,10 @@ class PaletteTest {
 
     /** The app's states wired to each other as Main wires them, without the windows. */
     private inner class Shell {
-        val settings = Settings(config)
-        val app = AppState(settings)
+        val lib = FileLib(config)
+        val app = AppState(lib)
         val boards = BoardState(
-            settings,
+            lib,
             object : BoardHost {
                 override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
                 override fun showBoard() = app.showBoard()
@@ -70,7 +70,7 @@ class PaletteTest {
             },
         )
         val concepts = ConceptState(
-            settings,
+            lib,
             object : ConceptHost {
                 override fun showConcepts() = app.showConcepts()
                 override fun showConcept() = app.showConcept()
@@ -88,7 +88,7 @@ class PaletteTest {
         assertEquals(Room.PRACTICE, shell.app.paletteRoom)
 
         shell.app.selectRoom(Room.SKETCH)
-        assertEquals(Room.SKETCH, AppState(Settings(config)).paletteRoom, "the next start remembers the well")
+        assertEquals(Room.SKETCH, AppState(FileLib(config)).paletteRoom, "the next start remembers the well")
     }
 
     @Test

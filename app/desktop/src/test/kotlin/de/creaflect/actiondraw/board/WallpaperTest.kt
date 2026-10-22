@@ -3,12 +3,12 @@ package de.creaflect.actiondraw.board
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.LoadResult
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -33,6 +33,9 @@ class WallpaperTest {
     private val home: File = Files.createTempDirectory("wall-home").toFile()
     private val elsewhere: File = Files.createTempDirectory("wall-else").toFile()
     private val config: File = Files.createTempDirectory("wall-cfg").toFile()
+
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
     private val host = object : BoardHost {
         override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
         override fun showBoard() = Unit
@@ -54,7 +57,10 @@ class WallpaperTest {
         return File(elsewhere, name).also { ImageIO.write(image, "png", it) }
     }
 
-    private fun board(): BoardState = BoardState(Settings(config), host).also { it.createBoard(home, "Wall") }
+    /** Where a board keeps the copy of its wallpaper — the folder the person sees beside the pictures. */
+    private val wallpaperDir = "_wallpaper"
+
+    private fun board(): BoardState = BoardState(FileLib(config), host).also { it.createBoard(home, "Wall") }
 
     // ---- The copy ----
 
@@ -66,7 +72,7 @@ class WallpaperTest {
         assertNull(state.setWallpaper(picture))
 
         val paper = state.wallpaper!!
-        assertEquals("${BoardState.WALLPAPER_DIR}/cork.png", paper.path, "relative, so it moves with the board")
+        assertEquals("$wallpaperDir/cork.png", paper.path, "relative, so it moves with the board")
         assertTrue(File(state.root!!, paper.path).isFile, "and really copied")
         assertTrue(picture.isFile, "the original is untouched")
         assertEquals(WallpaperFit.COVER, paper.fit)
@@ -81,8 +87,8 @@ class WallpaperTest {
         state.setWallpaper(png("second.png"))
 
         assertFalse(first.exists(), "the old copy is cleared away")
-        assertEquals("${BoardState.WALLPAPER_DIR}/second.png", state.wallpaper!!.path)
-        assertEquals(1, File(state.root!!, BoardState.WALLPAPER_DIR).listFiles()!!.size)
+        assertEquals("$wallpaperDir/second.png", state.wallpaper!!.path)
+        assertEquals(1, File(state.root!!, wallpaperDir).listFiles()!!.size)
     }
 
     @Test
@@ -117,7 +123,7 @@ class WallpaperTest {
         state.setWallpaper(png("keep.png"))
         state.setWallpaperLook(dim = 0.5f)
 
-        val reopened = BoardState(Settings(config), host).also { it.openBoard(state.root!!) }
+        val reopened = BoardState(FileLib(config), host).also { it.openBoard(state.root!!) }
 
         assertEquals(0.5f, reopened.wallpaper!!.dim)
         assertTrue(reopened.wallpaperFile!!.isFile)
@@ -155,8 +161,8 @@ class WallpaperTest {
         onBoard.delete() // the card's own file goes missing
 
         // Recovery by content id must not point the lost card at the wallpaper's copy.
-        val recovered = BoardStore.validate(state.board!!, state.root!!)
-        assertTrue(recovered.items.none { it is ImageItem && it.path.startsWith(BoardState.WALLPAPER_DIR) })
+        val recovered = (files.boards.load(state.root!!) as LoadResult.Loaded<Board>).value
+        assertTrue(recovered.items.none { it is ImageItem && it.path.startsWith(wallpaperDir) })
     }
 
     // ---- On screen ----
@@ -164,7 +170,7 @@ class WallpaperTest {
     @Test
     fun theWallpaperIsDrawnWhenSetAndGoneWhenRemoved() {
         val state = board()
-        rule.setContent { BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {}) }
+        rule.setContent { BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {}) }
         rule.waitForIdle()
         rule.onNodeWithTag("wallpaper").assertDoesNotExist()
 

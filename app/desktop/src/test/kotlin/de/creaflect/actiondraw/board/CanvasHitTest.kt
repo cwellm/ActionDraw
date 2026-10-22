@@ -7,14 +7,13 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performMouseInput
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -53,7 +52,7 @@ class CanvasHitTest {
     }
 
     private fun board(): BoardState {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Hit")
         state.setLayout(BoardLayouts.FREE)
         return state
@@ -84,7 +83,7 @@ class CanvasHitTest {
 
     private fun show(state: BoardState) {
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
         }
         rule.waitForIdle()
     }
@@ -325,7 +324,7 @@ class CanvasHitTest {
         val state = board()
         val (a, b, loose) = state.addCards("a.jpg", "b.jpg", "loose.jpg")
         rule.setContent {
-            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
             BoardDialogs(state)
         }
         rule.waitForIdle()

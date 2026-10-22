@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import java.io.File
 import java.nio.file.Files
@@ -24,6 +24,9 @@ class BoardRegistryTest {
     private val elsewhere: File = Files.createTempDirectory("registry-else").toFile()
     private val config: File = Files.createTempDirectory("registry-cfg").toFile()
 
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
+
     private val host = object : BoardHost {
         override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
         override fun showBoard() = Unit
@@ -38,7 +41,7 @@ class BoardRegistryTest {
      * test would scan (and adopt) whatever boards actually live there.
      */
     private fun newState(boardsHome: File = home) =
-        BoardState(Settings(config), host).also { it.setBoardsHomeDir(boardsHome) }
+        BoardState(FileLib(config), host).also { it.setBoardsHomeDir(boardsHome) }
 
     @AfterTest
     fun cleanup() {
@@ -99,7 +102,7 @@ class BoardRegistryTest {
         val dir = state.root!!
         assertNotNull(state.entryFor(dir))
 
-        state.deleteBoard(dir, BoardState.Deletion.DELETE_FOLDER)
+        state.deleteBoard(dir, Deletion.DELETE_FOLDER)
 
         assertFalse(dir.exists(), "the recorded folder is the one that went")
         assertNull(newState().entryFor(dir), "and the record went with it")
@@ -111,11 +114,12 @@ class BoardRegistryTest {
         val state = newState()
         state.createBoard(home, "Drachen")
         val first = state.root!!
+        state.createBoard(home, "Wyvern")
 
         state.createBoard(home, "Drachen")
 
-        assertEquals(first.absolutePath, state.root!!.absolutePath, "the existing board, not a second one")
-        assertEquals(1, state.availableBoards().size)
+        assertEquals(first.absolutePath, state.root!!.absolutePath, "the existing board is opened, not a second one made")
+        assertEquals(2, state.availableBoards().size)
     }
 
     @Test
@@ -164,7 +168,7 @@ class BoardRegistryTest {
     fun boardsFromBeforeTheRegistryAreAdoptedOnFirstListing() {
         // A board folder written straight to disk, as an older version would have left it.
         val old = File(home, "Legacy").apply { mkdirs() }
-        BoardStore.save(old, Board(name = "Legacy"))
+        files.boards.saveNow(old, Board(name = "Legacy"))
 
         val state = newState()
         assertNull(state.entryFor(old), "unknown to begin with")

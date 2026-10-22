@@ -26,7 +26,7 @@ class MemoryPoseTest {
     /** A memory leg (10 s, 4 s of study) followed by an ordinary one, over three pictures. */
     private fun session(plan: SessionPlan): AppState {
         listOf("a.jpg", "b.jpg", "c.jpg").forEach { File(dir, it).createNewFile() }
-        val state = AppState(Settings(config))
+        val state = AppState(FileLib(config))
         state.selectFolder(dir)
         state.rampPlan = plan
         state.start()

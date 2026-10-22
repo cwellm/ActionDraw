@@ -20,7 +20,7 @@ import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
@@ -54,7 +54,7 @@ fun App(
     boardState: BoardState,
     conceptState: ConceptState,
     sketchState: SketchState,
-    thumbs: ThumbCache,
+    thumbs: Pictures,
     pinTargets: PinTargets,
     isFullscreen: Boolean,
     onToggleFullscreen: () -> Unit,

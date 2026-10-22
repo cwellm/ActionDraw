@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import java.io.File
 import java.nio.file.Files
@@ -35,7 +35,7 @@ class RemarksTest {
         config.deleteRecursively()
     }
 
-    private fun newState() = BoardState(Settings(config), host)
+    private fun newState() = BoardState(FileLib(config), host)
 
     /** Flügel (two cards) holding Membran (one card), one loose card. */
     private fun tree(): Triple<BoardState, List<String>, Pair<String, String>> {

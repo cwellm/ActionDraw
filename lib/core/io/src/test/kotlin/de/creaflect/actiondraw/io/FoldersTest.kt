@@ -17,12 +17,6 @@ class FoldersTest {
     }
 
     @Test
-    fun safeNamesHaveNothingWindowsRefuses() {
-        assertEquals("a_b_c_d", Folders.safeName("a/b\\c:d"))
-        assertEquals("Drachen", Folders.safeName("  Drachen.. "))
-    }
-
-    @Test
     fun aTakenFolderNameGetsANumberAndKeepsItsDots() {
         File(tmp, "v1.2").mkdirs()
         File(tmp, "v1.2 (2)").mkdirs()

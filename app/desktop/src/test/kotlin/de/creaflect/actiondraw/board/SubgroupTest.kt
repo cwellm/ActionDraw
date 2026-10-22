@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import java.io.File
 import java.nio.file.Files
@@ -20,6 +20,9 @@ import kotlin.test.assertTrue
 class SubgroupTest {
     private val home: File = Files.createTempDirectory("subgroup-home").toFile()
     private val config: File = Files.createTempDirectory("subgroup-cfg").toFile()
+
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
     private var started: List<File> = emptyList()
 
     private val host = object : BoardHost {
@@ -41,7 +44,7 @@ class SubgroupTest {
      * with one card; one loose card in the Inbox.
      */
     private fun tree(): Tree {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Drachen")
         val root = state.root!!
         val files = listOf("a.jpg", "b.jpg", "c.jpg", "d.jpg", "e.jpg").map { File(root, it).apply { createNewFile() } }
@@ -100,7 +103,7 @@ class SubgroupTest {
         val b = BoardGroup(id = "b", name = "B", parentId = "a")
         val c = BoardGroup(id = "c", name = "C", parentId = "b") // two deep
         val orphan = BoardGroup(id = "o", name = "O", parentId = "gone")
-        val fixed = BoardStore.oneLevelDeep(listOf(a, b, c, orphan))
+        val fixed = oneLevelDeep(listOf(a, b, c, orphan))
         assertEquals(mapOf("a" to null, "b" to "a", "c" to null, "o" to null), fixed.associate { it.id to it.parentId })
     }
 
@@ -220,9 +223,9 @@ class SubgroupTest {
             groups = t.state.board!!.groups.map { if (it.id == t.heads) it.copy(source = "concept:y") else it } + ghostGroup,
             items = t.state.board!!.items + ghostCard,
         )
-        BoardStore.save(t.state.root!!, odd)
+        files.boards.saveNow(t.state.root!!, odd)
 
-        val reopened = BoardState(Settings(config), host).also { it.openBoard(t.state.root!!) }
+        val reopened = BoardState(FileLib(config), host).also { it.openBoard(t.state.root!!) }
 
         assertNull(reopened.groupById("concept:x"), "no link, no group")
         assertNull(reopened.item("ghost"), "and its borrowed card went with it")

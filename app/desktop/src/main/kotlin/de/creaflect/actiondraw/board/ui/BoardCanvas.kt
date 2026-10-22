@@ -88,7 +88,8 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.Lift
@@ -120,7 +121,7 @@ import kotlin.math.sin
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifier: Modifier, showCorner: Boolean = true) {
+fun BoardCanvas(state: BoardState, thumbs: Pictures, textured: Boolean, modifier: Modifier, showCorner: Boolean = true) {
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     var shiftHeld by remember { mutableStateOf(false) }
 
@@ -284,7 +285,7 @@ fun BoardCanvas(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifi
 @Composable
 private fun CanvasItem(
     state: BoardState,
-    thumbs: ThumbCache,
+    thumbs: Pictures,
     item: BoardItem,
     textured: Boolean,
     viewSize: IntSize,
@@ -471,10 +472,10 @@ private fun CanvasItem(
 }
 
 @Composable
-private fun CanvasImage(state: BoardState, thumbs: ThumbCache, item: ImageItem, textured: Boolean) {
+private fun CanvasImage(state: BoardState, thumbs: Pictures, item: ImageItem, textured: Boolean) {
     val file = state.fileOf(item)
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 384) } }
+        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 384) } }
     }
     // Remember the aspect once, so the card keeps its shape on every future open.
     LaunchedEffect(thumb) {

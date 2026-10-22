@@ -5,8 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
-import de.creaflect.actiondraw.Settings
-import de.creaflect.actiondraw.io.AppDirs
+import de.creaflect.actiondraw.Diagnostics
+import de.creaflect.actiondraw.Lib
+import de.creaflect.actiondraw.safeFileName
 import de.creaflect.actiondraw.sketch.input.PenSample
 import de.creaflect.actiondraw.sketch.input.PenSource
 import de.creaflect.actiondraw.sketch.input.PenSources
@@ -54,7 +55,7 @@ sealed class SketchEditor {
  * Only replacing it (a new sketch, opening another) or closing the app asks about unsaved strokes.
  */
 class SketchState(
-    private val settings: Settings,
+    private val lib: Lib,
     private val host: SketchHost,
     private val timestamp: () -> String = { LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm")) },
 ) {
@@ -104,16 +105,16 @@ class SketchState(
         private set
 
     /** Leads tuned and named, from the settings. */
-    var presets by mutableStateOf(LeadPresets.parse(settings.leadPresetsJson()))
+    var presets by mutableStateOf(LeadPresets.parse(lib.preferences.leadPresetsJson()))
         private set
 
     /** A tilted pen shades with the side of the lead; off, every mark is drawn upright. */
-    var tiltShading by mutableStateOf(settings.tiltShading())
+    var tiltShading by mutableStateOf(lib.preferences.tiltShading())
         private set
 
     fun shadeWithTilt(on: Boolean) {
         tiltShading = on
-        settings.setTiltShading(on)
+        lib.preferences.setTiltShading(on)
     }
 
     /**
@@ -177,7 +178,6 @@ class SketchState(
 
     private var source: PenSource? = null
     private val recentTimes = ArrayDeque<Long>()
-    private var recordFile: File? = null
 
     // State, not plain fields: whether a stroke is live is what makes the chrome step back.
     private var penDrawing by mutableStateOf(false)
@@ -218,18 +218,12 @@ class SketchState(
         if (session == null) newSketch(lastSize, lastPaper)
     }
 
-    fun sketchesHome(): File = settings.sketchesHome()
+    fun sketchesHome(): File = lib.preferences.sketchesHome()
 
-    fun setSketchesHomeDir(dir: File) = settings.setSketchesHome(dir)
+    fun setSketchesHomeDir(dir: File) = lib.preferences.setSketchesHome(dir)
 
     /** Sketches saved or opened lately, anywhere, and those in the sketches home; newest first. */
-    fun recentSketches(): List<File> {
-        val inHome = sketchesHome().listFiles().orEmpty().filter { it.isFile && it.name.endsWith(SketchDocument.FILE_SUFFIX) }
-        return (settings.recentSketches() + inHome)
-            .filter { it.isFile }
-            .distinctBy { runCatching { it.canonicalPath }.getOrDefault(it.absolutePath) }
-            .sortedByDescending { it.lastModified() }
-    }
+    fun recentSketches(): List<File> = lib.sketches.recent()
 
     fun newSketch(size: PageSize = lastSize, paper: Int = lastPaper, tooth: Paper = lastTooth) = guardUnsaved {
         session?.close()
@@ -249,7 +243,7 @@ class SketchState(
 
     /** Opens a `.sketch.json`: the page and every stroke, drawn again; undo goes on from there. */
     fun open(target: File): Boolean {
-        val document = runCatching { SketchDocument.fromJson(target.readText()) }.getOrNull() ?: run {
+        val document = lib.sketches.read(target)?.let { runCatching { SketchDocument.fromJson(it) }.getOrNull() } ?: run {
             notice = "Couldn't read ${target.name}."
             return false
         }
@@ -262,7 +256,7 @@ class SketchState(
             pageName = "${document.width} × ${document.height} px · ${document.dpi} dpi"
             penDrawing = false
             mouseDrawing = false
-            settings.addRecentSketch(target)
+            lib.sketches.opened(target)
             version++
             tick++
             fit()
@@ -358,7 +352,7 @@ class SketchState(
         if (trimmed.isEmpty()) return "A preset needs a name."
         val preset = LeadPreset(trimmed, brush.lead.name, Pencils.of(brush.lead))
         presets = presets.filter { it.name != trimmed } + preset
-        settings.setLeadPresetsJson(LeadPresets.encode(presets))
+        lib.preferences.setLeadPresetsJson(LeadPresets.encode(presets))
         activePreset = trimmed
         return null
     }
@@ -373,7 +367,7 @@ class SketchState(
 
     fun deletePreset(name: String) {
         presets = presets.filter { it.name != name }
-        settings.setLeadPresetsJson(LeadPresets.encode(presets))
+        lib.preferences.setLeadPresetsJson(LeadPresets.encode(presets))
         if (activePreset == name) activePreset = null
     }
 
@@ -541,11 +535,11 @@ class SketchState(
      * on. A name some other sketch already has there is refused rather than overwritten.
      */
     fun saveAs(name: String, dir: File = sketchesHome()): String? {
-        val clean = sanitize(name)
+        val clean = safeFileName(name)
         if (clean.isEmpty()) return "Give the sketch a name."
         val json = File(dir, clean + SketchDocument.FILE_SUFFIX)
         val own = file?.let { sameFile(it, json) } == true
-        if (!own && (json.exists() || File(dir, "$clean.png").exists())) {
+        if (!own && lib.sketches.isTaken(dir, clean)) {
             return "There is already a “$clean” in that folder — pick another name."
         }
         return writeTo(dir, clean)
@@ -583,14 +577,10 @@ class SketchState(
     private fun writeTo(dir: File, name: String): String? {
         val s = session ?: return "Nothing to save."
         return runCatching {
-            dir.mkdirs()
-            File(dir, "$name.png").writeBytes(s.exportPng())
-            val json = File(dir, name + SketchDocument.FILE_SUFFIX)
-            json.writeText(s.document().toJson())
+            val json = lib.sketches.write(dir, name, s.exportPng(), s.document().toJson()).getOrThrow()
             s.markSaved()
             file = json
             title = name
-            settings.addRecentSketch(json)
             notice = "Saved $name to ${dir.name}."
             version++
             null
@@ -598,11 +588,10 @@ class SketchState(
     }
 
     private fun uniqueName(dir: File, wanted: String): String {
-        val base = sanitize(wanted).ifEmpty { "Sketch" }
-        fun taken(name: String) = File(dir, "$name.png").exists() || File(dir, name + SketchDocument.FILE_SUFFIX).exists()
-        if (!taken(base)) return base
+        val base = safeFileName(wanted).ifEmpty { "Sketch" }
+        if (!lib.sketches.isTaken(dir, base)) return base
         var n = 2
-        while (taken("$base ($n)")) n++
+        while (lib.sketches.isTaken(dir, "$base ($n)")) n++
         return "$base ($n)"
     }
 
@@ -666,26 +655,24 @@ class SketchState(
         rateHz = if (recentTimes.size >= 2) recentTimes.size * 2 else 0
     }
 
-    fun toggleRecording(target: File = AppDirs.current.penSamples) {
+    fun toggleRecording() {
         if (recording) {
             recording = false
             return
         }
-        runCatching {
-            target.parentFile?.mkdirs()
-            if (!target.exists()) target.writeText("timeNanos,x,y,pressure,tiltX,tiltY,rotation,contact,barrel,eraser,pointerType\n")
-            recordFile = target
-            recordedTo = target
+        val log = Diagnostics.Log.PEN_SAMPLES
+        if (lib.diagnostics.begin(log, "timeNanos,x,y,pressure,tiltX,tiltY,rotation,contact,barrel,eraser,pointerType\n")) {
+            recordedTo = lib.diagnostics.fileOf(log)
             recording = true
         }
     }
 
     private fun record(s: PenSample) {
         if (!recording) return
-        val f = recordFile ?: return
-        runCatching {
-            f.appendText("${s.timeNanos},${s.x},${s.y},${s.pressure},${s.tiltX},${s.tiltY},${s.rotation},${s.contact},${s.barrel},${s.eraser},${s.pointerType}\n")
-        }
+        lib.diagnostics.append(
+            Diagnostics.Log.PEN_SAMPLES,
+            "${s.timeNanos},${s.x},${s.y},${s.pressure},${s.tiltX},${s.tiltY},${s.rotation},${s.contact},${s.barrel},${s.eraser},${s.pointerType}\n",
+        )
     }
 
     companion object {
@@ -709,8 +696,6 @@ class SketchState(
 
         /** How long after a pen sample mouse input still counts as that pen: hover to touch. */
         const val PEN_GRACE_NANOS = 300_000_000L
-
-        fun sanitize(name: String): String = name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
 
         /** A zoom factor for one step of the wheel or the dial. */
         fun wheelZoom(delta: Float): Float = if (delta < 0) 1.15f else 1 / 1.15f

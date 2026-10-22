@@ -3,9 +3,7 @@ package de.creaflect.actiondraw
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import de.creaflect.actiondraw.image.ImageScanner
-import de.creaflect.actiondraw.image.RedoStore
-import de.creaflect.actiondraw.image.SeenStore
+import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.platform.SystemPreferences
 import de.creaflect.actiondraw.ui.Room
@@ -16,33 +14,36 @@ import kotlin.random.Random
  * Single hoisted state holder for the whole app. Plain class backed by Compose state so the UI
  * recomposes on change; all mutations happen through the action methods below.
  *
- * [settings] persists app-level preferences (the last opened folder); inject a different one in
- * tests so they never touch the real user config.
+ * [lib] is where the pictures, what has been drawn of them, and the preferences (the last opened
+ * folder) come from; a test hands in one over a temp folder, so it never touches the real user's.
  */
-class AppState(private val settings: Settings = Settings()) {
+class AppState(private val lib: Lib) {
+    /** Where the room's pictures come from, decoded for the session. */
+    val pictures: Pictures get() = lib.pictures
+
     /** The app opens on the palette, its home; every room is entered from there. */
     var screen by mutableStateOf(Screen.Palette)
         private set
 
     /** The well selected on the palette, kept from one run to the next. */
     var paletteRoom by mutableStateOf(
-        settings.lastRoom()?.let { name -> Room.entries.firstOrNull { it.name == name } } ?: Room.PRACTICE,
+        lib.preferences.lastRoom()?.let { name -> Room.entries.firstOrNull { it.name == name } } ?: Room.PRACTICE,
     )
         private set
 
     fun selectRoom(room: Room) {
         if (room == paletteRoom) return
         paletteRoom = room
-        settings.setLastRoom(room.name)
+        lib.preferences.setLastRoom(room.name)
     }
 
     /** Movement kept to short cross-fades: the setting once made, until then the system's preference. */
-    var reducedMotion by mutableStateOf(settings.reducedMotion() ?: SystemPreferences.prefersReducedMotion())
+    var reducedMotion by mutableStateOf(lib.preferences.reducedMotion() ?: SystemPreferences.prefersReducedMotion())
         private set
 
     fun setReducedMotionPreference(on: Boolean) {
         reducedMotion = on
-        settings.setReducedMotion(on)
+        lib.preferences.setReducedMotion(on)
     }
 
     /** Home: back to the palette. */
@@ -77,10 +78,10 @@ class AppState(private val settings: Settings = Settings()) {
     var index by mutableStateOf(0)
         private set
 
-    /** Names of images already shown for this folder (persisted in [SeenStore]). */
+    /** Names of images already shown for this folder (kept in the folder: `lib.practice`). */
     private var seen: MutableSet<String> = mutableSetOf()
 
-    /** Names the user flagged to "redo" — resurfaced first next session (persisted in [RedoStore]). */
+    /** Names the user flagged to "redo" — resurfaced first next session (kept in the folder: `lib.practice`). */
     private var redo: MutableSet<String> = mutableSetOf()
 
     /** Bumped whenever the redo set changes so [isCurrentRedo] recomposes. */
@@ -290,7 +291,7 @@ class AppState(private val settings: Settings = Settings()) {
     // Reopen the folder from the previous run. Declared after the state above so those properties
     // are initialised before this runs.
     init {
-        settings.lastFolder()?.let { loadFolder(it) }
+        lib.preferences.lastFolder()?.let { loadFolder(it) }
     }
 
     // ---- A board as the source (F9.10) ----
@@ -313,7 +314,7 @@ class AppState(private val settings: Settings = Settings()) {
     var practiceBoards: PracticeBoards? = null
         set(value) {
             field = value
-            val remembered = settings.practiceBoard() ?: return
+            val remembered = lib.preferences.practiceBoard() ?: return
             if (practiceBoard != null || value == null) return
             value.boards().firstOrNull { it.second.absolutePath == remembered.absolutePath }?.let { (name, dir) -> loadBoard(name, dir) }
         }
@@ -322,7 +323,7 @@ class AppState(private val settings: Settings = Settings()) {
     fun selectBoard(name: String, dir: File) {
         if (practiceBoards == null) return
         loadBoard(name, dir)
-        settings.setPracticeBoard(dir)
+        lib.preferences.setPracticeBoard(dir)
     }
 
     private fun loadBoard(name: String, dir: File) {
@@ -331,8 +332,8 @@ class AppState(private val settings: Settings = Settings()) {
         folder = dir
         allImages = pictures
         selection = null
-        seen = SeenStore.read(dir).toMutableSet()
-        redo = RedoStore.read(dir).toMutableSet()
+        seen = lib.practice.seen(dir).toMutableSet()
+        redo = lib.practice.redo(dir).toMutableSet()
     }
 
     // ---- Menu ----
@@ -340,20 +341,20 @@ class AppState(private val settings: Settings = Settings()) {
     /** Called when the user picks a folder; also remembered for the next start. */
     fun selectFolder(dir: File) {
         loadFolder(dir)
-        settings.setLastFolder(dir)
+        lib.preferences.setLastFolder(dir)
         if (practiceBoard != null) {
             practiceBoard = null
-            settings.setPracticeBoard(null)
+            lib.preferences.setPracticeBoard(null)
         }
     }
 
     /** Loads the image list and the saved seen/redo sets for [dir]. */
     private fun loadFolder(dir: File) {
         folder = dir
-        allImages = ImageScanner.scan(dir)
+        allImages = lib.pictures.scan(dir)
         selection = null
-        seen = SeenStore.read(dir).toMutableSet()
-        redo = RedoStore.read(dir).toMutableSet()
+        seen = lib.practice.seen(dir).toMutableSet()
+        redo = lib.practice.redo(dir).toMutableSet()
     }
 
     // ---- Picker ----
@@ -396,9 +397,9 @@ class AppState(private val settings: Settings = Settings()) {
         val dir = folder ?: return
         sessionOrigin = Screen.Menu
         // Re-read in case the folder - or the board - changed since it was chosen.
-        allImages = practiceBoard?.let { practiceBoards?.pictures(it.second) } ?: ImageScanner.scan(dir)
-        seen = SeenStore.read(dir).toMutableSet()
-        redo = RedoStore.read(dir).toMutableSet()
+        allImages = practiceBoard?.let { practiceBoards?.pictures(it.second) } ?: lib.pictures.scan(dir)
+        seen = lib.practice.seen(dir).toMutableSet()
+        redo = lib.practice.redo(dir).toMutableSet()
         beginSession()
         screen = Screen.Session
     }
@@ -419,8 +420,8 @@ class AppState(private val settings: Settings = Settings()) {
         folder = root // deliberately not persisted: the remembered practice folder stays untouched
         allImages = images
         selection = null
-        seen = SeenStore.read(root).toMutableSet()
-        redo = RedoStore.read(root).toMutableSet()
+        seen = lib.practice.seen(root).toMutableSet()
+        redo = lib.practice.redo(root).toMutableSet()
         beginSession()
         boardWindowScreen = Screen.Session
     }
@@ -485,7 +486,7 @@ class AppState(private val settings: Settings = Settings()) {
     private fun startFreshCycle(cand: List<File>): List<File> {
         if (cand.isNotEmpty()) {
             seen.removeAll(cand.mapTo(mutableSetOf(), ::key))
-            folder?.let { SeenStore.write(it, seen) }
+            folder?.let { lib.practice.setSeen(it, seen) }
         }
         return cand.shuffled()
     }
@@ -602,8 +603,8 @@ class AppState(private val settings: Settings = Settings()) {
             folder = dir
             allImages = images
             selection = sel
-            seen = dir?.let { SeenStore.read(it).toMutableSet() } ?: mutableSetOf()
-            redo = dir?.let { RedoStore.read(it).toMutableSet() } ?: mutableSetOf()
+            seen = dir?.let { lib.practice.seen(it).toMutableSet() } ?: mutableSetOf()
+            redo = dir?.let { lib.practice.redo(it).toMutableSet() } ?: mutableSetOf()
         }
         practiceSnapshot = null
         boardSession = null
@@ -615,7 +616,7 @@ class AppState(private val settings: Settings = Settings()) {
         val dir = folder ?: return
         val k = currentImage?.let(::key) ?: return
         if (!redo.add(k)) redo.remove(k)
-        RedoStore.write(dir, redo)
+        lib.practice.setRedo(dir, redo)
         redoTick++
     }
 
@@ -633,12 +634,12 @@ class AppState(private val settings: Settings = Settings()) {
     private fun markCurrentSeen() {
         val dir = folder ?: return
         val k = currentImage?.let(::key) ?: return
-        if (seen.add(k)) SeenStore.write(dir, seen)
+        if (seen.add(k)) lib.practice.setSeen(dir, seen)
         // Drawing an image that came into the session flagged counts as having redone it -> clear
         // the flag. One flagged during this session is for the next: clearing it as the pose ended
         // meant every R was lost the moment you moved on.
         if (k in flaggedAtStart && redo.remove(k)) {
-            RedoStore.write(dir, redo)
+            lib.practice.setRedo(dir, redo)
             redoTick++
         }
     }

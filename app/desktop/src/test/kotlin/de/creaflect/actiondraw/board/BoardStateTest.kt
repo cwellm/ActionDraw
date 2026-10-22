@@ -1,13 +1,11 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.Lib
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
-import de.creaflect.actiondraw.image.RedoStore
-import de.creaflect.actiondraw.image.SeenStore
-import de.creaflect.actiondraw.network.Fetched
 import de.creaflect.actiondraw.platform.SystemClipboard
 import java.awt.image.BufferedImage
 import java.io.ByteArrayOutputStream
@@ -27,6 +25,9 @@ class BoardStateTest {
     private val home: File = Files.createTempDirectory("actiondraw-boards-home").toFile()
     private val outside: File = Files.createTempDirectory("actiondraw-outside").toFile()
     private val settingsDir: File = Files.createTempDirectory("actiondraw-config").toFile()
+
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(settingsDir)
 
     private class FakeHost : BoardHost {
         var shown = 0
@@ -60,7 +61,7 @@ class BoardStateTest {
 
     private val host = FakeHost()
 
-    private fun newState() = BoardState(Settings(settingsDir), host, timestamp = { "20260830-120000" })
+    private fun newState() = BoardState(FileLib(settingsDir), host, timestamp = { "20260830-120000" })
 
     @AfterTest
     fun cleanup() {
@@ -74,7 +75,7 @@ class BoardStateTest {
         val state = newState()
         assertNull(state.createBoard(home, "Drachen: Buch"))
         val dir = File(home, "Drachen_ Buch")
-        assertTrue(BoardStore.exists(dir))
+        assertTrue(files.boards.isBoard(dir))
         assertEquals("Drachen: Buch", state.board?.name)
         assertEquals(1, host.shown)
         assertTrue(state.recent.any { it.absolutePath == dir.absolutePath })
@@ -109,8 +110,8 @@ class BoardStateTest {
         state.importExternal(listOf(inner, outer))
 
         val paths = state.board!!.items.filterIsInstance<ImageItem>().map { it.path }.toSet()
-        assertEquals(setOf("pics/a.jpg", "${Importer.IMPORT_DIR}/b.jpg"), paths)
-        assertTrue(File(root, "${Importer.IMPORT_DIR}/b.jpg").isFile)
+        assertEquals(setOf("pics/a.jpg", "_imported/b.jpg"), paths)
+        assertTrue(File(root, "_imported/b.jpg").isFile)
         assertEquals(2, state.selection.size, "imports become the selection")
     }
 
@@ -451,8 +452,8 @@ class BoardStateTest {
         val root = state.root!!
         assertTrue(state.smartSections.isEmpty(), "a board without history has no smart sections")
 
-        SeenStore.write(root, setOf("a.jpg"))
-        RedoStore.write(root, setOf("b.jpg"))
+        files.practice.setSeen(root, setOf("a.jpg"))
+        files.practice.setRedo(root, setOf("b.jpg"))
         state.refreshPractice()
 
         val byPath = state.board!!.items.filterIsInstance<ImageItem>().associateBy { it.path }
@@ -502,7 +503,7 @@ class BoardStateTest {
         val state = newState()
         boardWithThreeImages(state)
         // What an older build wrote: no temperature field at all, and a view mode that is gone.
-        val file = File(state.root!!, BoardStore.FILE_NAME)
+        val file = File(state.root!!, ".actiondraw_board.json")
         file.writeText(
             file.readText().replace(
                 "\"items\"",
@@ -552,9 +553,9 @@ class BoardStateTest {
         val message = state.pinTo(target, listOf(loose))
 
         assertTrue(message.startsWith("Pinned 1"), "got: $message")
-        assertTrue(File(target, "${Importer.IMPORT_DIR}/pinned.jpg").isFile)
-        val stored = BoardStore.peek(target)!!
-        assertEquals(listOf("${Importer.IMPORT_DIR}/pinned.jpg"), stored.items.filterIsInstance<ImageItem>().map { it.path })
+        assertTrue(File(target, "_imported/pinned.jpg").isFile)
+        val stored = files.boards.peek(target)!!
+        assertEquals(listOf("_imported/pinned.jpg"), stored.items.filterIsInstance<ImageItem>().map { it.path })
         assertNull(state.board, "pinning must not open the target board")
     }
 
@@ -569,7 +570,7 @@ class BoardStateTest {
         val second = state.pinTo(target, listOf(loose))
         // The copy lands under a fresh name, so this is a second card rather than a duplicate.
         assertTrue(second.startsWith("Pinned 1"), "got: $second")
-        assertEquals(2, BoardStore.peek(target)!!.items.size)
+        assertEquals(2, files.boards.peek(target)!!.items.size)
     }
 
     @Test
@@ -601,27 +602,38 @@ class BoardStateTest {
         assertEquals(creature.groups, state.sortedGroups.map { it.name })
     }
 
+    /**
+     * A board whose link previews come from [previews] instead of the web: nothing in the suite
+     * ever opens a socket. What fetching itself does is lib:data's, and tested there.
+     */
+    private fun fetchingState(previews: LinkPreviews): BoardState {
+        val lib = object : Lib by FileLib(settingsDir) {
+            override val previews = previews
+        }
+        return BoardState(lib, host, timestamp = { "20260830-120000" })
+    }
+
     @Test
     fun aFetchedPreviewLandsOnTheCardAndSurvivesAReopen() {
-        val state = newState()
+        val asked = mutableListOf<String>()
+        val state = fetchingState { dir, url, title ->
+            asked += "$url|$title"
+            File(dir, "_previews").mkdirs()
+            File(dir, "_previews/$title.png").writeBytes(byteArrayOf(1, 2, 3))
+            PreviewResult.Saved("_previews/$title.png")
+        }
         state.createBoard(home, "Test")
         state.saveLink(null, "https://example.com/wings", "Bat wings")
         val id = state.board!!.items.filterIsInstance<LinkItem>().single().id
 
-        // A stubbed fetcher: nothing in the suite ever opens a socket.
-        val page = Fetched(
-            "text/html",
-            """<meta property="og:image" content="https://cdn.example.com/w.png">""".toByteArray(),
-            "https://example.com/wings",
-        )
-        state.fetchLinkPreview(id) { url ->
-            if (url.endsWith(".png")) Fetched("image/png", byteArrayOf(1, 2, 3), url) else page
-        }
+        state.fetchLinkPreview(id)
 
+        assertEquals(listOf("https://example.com/wings|Bat wings"), asked, "the card's own address and title")
         val preview = (state.item(id) as LinkItem).preview
         assertNotNull(preview, "the card now points at a picture")
-        assertTrue(preview.startsWith(LinkPreview.PREVIEW_DIR), "which lives inside the board folder")
+        assertEquals("_previews/Bat wings.png", preview, "where the lib saved it")
         assertTrue(File(state.root!!, preview).isFile)
+        assertEquals("Preview fetched for Bat wings.", state.importNotice)
 
         val reopened = newState()
         reopened.openBoard(state.root!!)
@@ -635,15 +647,15 @@ class BoardStateTest {
 
     @Test
     fun aFailedFetchLeavesTheCardAloneAndSaysWhy() {
-        val state = newState()
+        val state = fetchingState { _, url, _ -> PreviewResult.Failed(PreviewFailure.UNREACHABLE, url) }
         state.createBoard(home, "Test")
         state.saveLink(null, "https://example.com/wings", "Bat wings")
         val id = state.board!!.items.filterIsInstance<LinkItem>().single().id
 
-        state.fetchLinkPreview(id) { null }
+        state.fetchLinkPreview(id)
 
         assertNull((state.item(id) as LinkItem).preview, "no half-attached preview")
-        assertNotNull(state.importNotice, "and the board says so rather than failing silently")
+        assertEquals("Couldn't reach that address.", state.importNotice, "and the board says so rather than failing silently")
     }
 
     @Test
@@ -1060,7 +1072,7 @@ class BoardStateTest {
                 ByteArrayOutputStream().also { ImageIO.write(BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray(),
             )
         }
-        val state = BoardState(Settings(settingsDir), host, timestamp = { "20260830-120000" }, clipboard = clipboard)
+        val state = BoardState(FileLib(settingsDir), host, timestamp = { "20260830-120000" }, clipboard = clipboard)
         state.createBoard(home, "Clip")
 
         state.importPasted()

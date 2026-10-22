@@ -5,12 +5,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
@@ -38,7 +37,7 @@ class CanvasSelectionTest {
             override fun leaveBoard() = Unit
             override fun currentSetup() = SessionSetup(null, 120, true, ViewMode.NONE, GridMode.OFF)
         }
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Canvas")
         val root = state.root!!
         val files = listOf("a.jpg", "b.jpg").map { File(root, it).apply { createNewFile() } }
@@ -53,7 +52,7 @@ class CanvasSelectionTest {
         val state = boardWithTwoCards()
         val first = state.board!!.items.first().id
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
         }
 
         rule.onNodeWithTag("card-$first").performClick()
@@ -67,7 +66,7 @@ class CanvasSelectionTest {
         val state = boardWithTwoCards()
         val (first, second) = state.board!!.items.map { it.id }
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
         }
 
         rule.onNodeWithTag("card-$first").performClick()

@@ -3,12 +3,11 @@ package de.creaflect.actiondraw.board
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -43,7 +42,7 @@ class BoardSwitcherTest {
 
     /** Drachenbuch with Flügel inside it, opened on Drachenbuch. */
     private fun nestedBoards(): Triple<BoardState, File, File> {
-        val state = BoardState(Settings(config), host).also { it.setBoardsHomeDir(home) }
+        val state = BoardState(FileLib(config), host).also { it.setBoardsHomeDir(home) }
         state.createBoard(home, "Drachenbuch")
         val parent = state.root!!
         state.createBoard(parent, "Flügel")
@@ -55,7 +54,7 @@ class BoardSwitcherTest {
 
     private fun show(state: BoardState) {
         rule.setContent {
-            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
         }
         rule.waitForIdle()
     }

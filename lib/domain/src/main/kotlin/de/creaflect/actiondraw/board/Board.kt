@@ -81,7 +81,7 @@ data class BoardGroup(
     val collapsed: Boolean = false,
     /**
      * The group this one sits inside, or null at the top level. Exactly one level is allowed —
-     * a subgroup cannot hold subgroups — and `BoardStore.validate` flattens anything deeper.
+     * a subgroup cannot hold subgroups — and [oneLevelDeep] flattens anything deeper.
      */
     val parentId: String? = null,
     /**
@@ -96,6 +96,24 @@ data class BoardGroup(
 
     /** A linked concept's group: not the board's to rename, recolour, nest or dissolve. */
     val isConcept: Boolean get() = conceptId != null
+}
+
+/**
+ * [groups] with the tree kept one level deep. A subgroup's parent must exist and must itself be
+ * top-level; a parent that is missing or that is a subgroup itself is dropped, lifting the group to
+ * the top rather than losing it — an edited file, or a future version, never makes cards
+ * unreachable.
+ */
+fun oneLevelDeep(groups: List<BoardGroup>): List<BoardGroup> {
+    val byId = groups.associateBy { it.id }
+    return groups.map { g ->
+        val parent = g.parentId?.let { byId[it] }
+        if (g.parentId != null && (parent == null || parent.parentId != null || parent.id == g.id)) {
+            g.copy(parentId = null)
+        } else {
+            g
+        }
+    }
 }
 
 /**
@@ -196,6 +214,9 @@ fun NoteItem.paletteColours(): List<Int> =
         word.trim().removePrefix("#").takeIf { it.length == 6 }?.toIntOrNull(16)
     }
 
+/** A colour as a palette note writes it, `#rrggbb`: for showing its value or copying it into a paint program. */
+fun paletteHex(colour: Int): String = "#%06x".format(colour and 0xFFFFFF)
+
 /** What a palette note says it is: its first line. */
 fun NoteItem.paletteCaption(): String = text.lines().firstOrNull().orEmpty()
 
@@ -211,7 +232,7 @@ data class LinkItem(
     override val pos: ItemPos? = null,
     /**
      * Path (relative to the board) of a preview picture fetched from the page, or null while the
-     * card is just an address. Fetching is always an explicit act — see [LinkPreview].
+     * card is just an address. Fetching is always an explicit act — see [LinkPreviews].
      */
     val preview: String? = null,
 ) : BoardItem()

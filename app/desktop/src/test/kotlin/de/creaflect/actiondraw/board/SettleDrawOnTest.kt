@@ -15,16 +15,15 @@ import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performMouseInput
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.WOBBLE_AMPLITUDE
 import de.creaflect.actiondraw.board.ui.frameUnion
 import de.creaflect.actiondraw.board.ui.handDrawn
 import de.creaflect.actiondraw.board.ui.partOfOutline
-import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Lifted
 import de.creaflect.actiondraw.ui.LocalReducedMotion
@@ -70,7 +69,7 @@ class SettleDrawOnTest {
     }
 
     private fun freeBoard(): Pair<BoardState, List<String>> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Settle")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg", "c.jpg").map { File(root, it).apply { createNewFile() } })
@@ -90,7 +89,7 @@ class SettleDrawOnTest {
     @Test
     fun aDraggedCardLiftsAndLandsAndStillGoesExactlyWhereThePointerTookIt() {
         val (state, ids) = freeBoard()
-        rule.setContent { BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize()) }
+        rule.setContent { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
         state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())
@@ -126,7 +125,7 @@ class SettleDrawOnTest {
     fun aNewGroupsFrameIsDrawnOnceAndThenSimplyThere() {
         val (state, ids) = freeBoard()
         rule.mainClock.autoAdvance = false
-        rule.setContent { BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize()) }
+        rule.setContent { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) }
         rule.waitForIdle()
         ids.take(2).forEach { state.clickItem(it, ctrl = true, shift = false) }
         val group = state.groupSelection("Wings")!!
@@ -145,7 +144,7 @@ class SettleDrawOnTest {
         rule.mainClock.autoAdvance = false
         rule.setContent {
             CompositionLocalProvider(LocalReducedMotion provides true) {
-                BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
             }
         }
         rule.waitForIdle()
@@ -213,7 +212,7 @@ class SettleDrawOnTest {
     @Test
     fun theCanvasNotesWhereThePointerLetGo() {
         val (state, ids) = freeBoard()
-        rule.setContent { BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize()) }
+        rule.setContent { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
         state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())
@@ -232,7 +231,7 @@ class SettleDrawOnTest {
         val (state, ids) = freeBoard()
         rule.setContent {
             Box(Modifier.fillMaxSize().background(Atelier.Ground)) {
-                BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
             }
         }
         rule.waitForIdle()

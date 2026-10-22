@@ -75,8 +75,8 @@ import de.creaflect.actiondraw.concept.ConceptEditor
 import de.creaflect.actiondraw.concept.ConceptEntry
 import de.creaflect.actiondraw.concept.ConceptKinds
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.concept.ConceptStore
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.platform.DesktopBrowser
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierType
@@ -115,11 +115,11 @@ private data class ConceptSummary(
 
 /** Every concept, grouped by kind, each with a cover and its counts. */
 @Composable
-fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
+fun ConceptListScreen(state: ConceptState, thumbs: Pictures, onHome: (() -> Unit)? = null) {
     val concepts by produceState(initialValue = emptyList<ConceptSummary>(), state.listTick) {
         value = withContext(Dispatchers.IO) {
             state.availableConcepts().map { entry ->
-                val file = ConceptStore.peek(entry.dir)
+                val file = state.peek(entry.dir)
                 val images = file?.items.orEmpty().filterIsInstance<ImageItem>()
                 ConceptSummary(
                     entry = entry,
@@ -210,9 +210,9 @@ fun ConceptListScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Un
 }
 
 @Composable
-private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () -> Unit, onDelete: () -> Unit) {
+private fun ConceptTile(summary: ConceptSummary, thumbs: Pictures, onOpen: () -> Unit, onDelete: () -> Unit) {
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, summary.cover) {
-        value = summary.cover?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 400) } }
+        value = summary.cover?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 400) } }
     }
     // A folio: a kraft folder with a viridian tab naming its kind, the cover as a print inside.
     Column(
@@ -281,7 +281,7 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: ThumbCache, onOpen: () 
 
 /** A concept opened: its pictures, notes and links in a grid, its documents rendered beside. */
 @Composable
-fun ConceptScreen(state: ConceptState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
+fun ConceptScreen(state: ConceptState, thumbs: Pictures, onHome: (() -> Unit)? = null) {
     val concept = state.concept ?: return
     Column(Modifier.fillMaxSize()) {
         Surface(color = MaterialTheme.colors.surface.copy(alpha = 0.94f), elevation = 0.dp, modifier = Modifier.fillMaxWidth().lampShadow(Lift.RESTING).testTag("concept-header")) {
@@ -407,7 +407,7 @@ private fun AddMenu(state: ConceptState) {
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(onClick = {
                 open = false
-                chooseImages(state.root).takeIf { it.isNotEmpty() }?.let { state.addPictures(it) }
+                chooseImages(state.root, state.pictureExtensions).takeIf { it.isNotEmpty() }?.let { state.addPictures(it) }
             }) { Text("Add pictures…") }
             DropdownMenuItem(onClick = { open = false; state.openEditor(ConceptEditor.EditNote(null)) }) { Text("New note") }
             DropdownMenuItem(onClick = { open = false; state.openEditor(ConceptEditor.EditLink(null)) }) { Text("New link") }
@@ -419,10 +419,10 @@ private fun AddMenu(state: ConceptState) {
 }
 
 @Composable
-internal fun PictureCard(state: ConceptState, thumbs: ThumbCache, item: ImageItem, modifier: Modifier = Modifier.aspectRatio(1f)) {
+internal fun PictureCard(state: ConceptState, thumbs: Pictures, item: ImageItem, modifier: Modifier = Modifier.aspectRatio(1f)) {
     val file = state.fileOf(item)
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
+        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it) } }
     }
     // Once the picture is decoded its shape is known, and the free layout sizes the card by it.
     LaunchedEffect(thumb) { thumb?.let { state.rememberAspect(item.id, it.width.toFloat() / it.height) } }
@@ -679,7 +679,7 @@ fun ConceptDialogs(state: ConceptState) {
             var alsoFolder by remember(editor) { mutableStateOf(true) }
             val linked by produceState(emptyList<String>(), editor) {
                 value = withContext(Dispatchers.IO) {
-                    ConceptStore.peek(editor.dir)?.id?.let { id -> state.boardsFor(id).filter { it.linked }.map { it.name } }.orEmpty()
+                    state.peek(editor.dir)?.id?.let { id -> state.boardsFor(id).filter { it.linked }.map { it.name } }.orEmpty()
                 }
             }
             Scrim(onDismiss = state::closeEditor) {

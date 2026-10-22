@@ -1,13 +1,12 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.LoadResult
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.concept.ConceptStore
-import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.isInside
 import java.io.File
@@ -29,6 +28,9 @@ class ConceptLinkTest {
     private val conceptsHome: File = Files.createTempDirectory("link-concepts").toFile()
     private val elsewhere: File = Files.createTempDirectory("link-else").toFile()
     private val config: File = Files.createTempDirectory("link-cfg").toFile()
+
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
     private var started: List<File> = emptyList()
     private var shownConcept: String? = null
 
@@ -53,7 +55,7 @@ class ConceptLinkTest {
         override fun showConcept(id: String) { shownConcept = id }
     }
 
-    private val concepts: ConceptState = ConceptState(Settings(config), conceptHost).also { it.setConceptsHomeDir(conceptsHome) }
+    private val concepts: ConceptState = ConceptState(FileLib(config), conceptHost).also { it.setConceptsHomeDir(conceptsHome) }
 
     @AfterTest
     fun cleanup() {
@@ -68,7 +70,7 @@ class ConceptLinkTest {
         concepts.saveLink(null, "https://example.com/dragons", "Dragons")
         val id = concepts.concept!!.id
 
-        boards = BoardState(Settings(config), boardHost, concepts = concepts)
+        boards = BoardState(FileLib(config), boardHost, concepts = concepts)
         boards.setBoardsHomeDir(home)
         boards.createBoard(home, "Buch")
         boards.importExternal(listOf(File(boards.root!!, "own.jpg").apply { createNewFile() }))
@@ -119,7 +121,7 @@ class ConceptLinkTest {
         assertEquals(BoardState.Practice.UNSEEN, board.practiceOf(picture))
 
         // A session started from this board records the concept's file relative to the board.
-        SeenStore.write(board.root!!, setOf(relKey(board.root!!, board.fileOf(picture)!!)))
+        files.practice.setSeen(board.root!!, setOf(relKey(board.root!!, board.fileOf(picture)!!)))
         board.refreshPractice()
 
         assertEquals(BoardState.Practice.SEEN, board.practiceOf(picture))
@@ -158,7 +160,7 @@ class ConceptLinkTest {
         assertTrue(board.linkedConcepts.isEmpty())
         assertTrue(board.board!!.items.none(board::isBorrowed), "the borrowed cards went with it")
         assertEquals(1, board.board!!.items.size, "the board's own card stays")
-        assertEquals(3, ConceptStore.peek(concepts.root!!)!!.items.size, "the concept is untouched")
+        assertEquals(3, files.concepts.peek(concepts.root!!)!!.items.size, "the concept is untouched")
 
         board.linkConcept(id)
         board.ungroup(ConceptLink.groupId(id))
@@ -259,11 +261,11 @@ class ConceptLinkTest {
         board.setLayout(BoardLayouts.FREE)
         val own = board.board!!.items.filterIsInstance<ImageItem>().first { !board.isBorrowed(it) }
         val place = assertNotNull(own.pos)
-        val before = ConceptStore.peek(concepts.root!!)!!.items.filterIsInstance<ImageItem>().size
+        val before = files.concepts.peek(concepts.root!!)!!.items.filterIsInstance<ImageItem>().size
 
         board.moveToGroup(setOf(own.id), ConceptLink.groupId(id))
 
-        val inConcept = ConceptStore.peek(concepts.root!!)!!.items.filterIsInstance<ImageItem>()
+        val inConcept = files.concepts.peek(concepts.root!!)!!.items.filterIsInstance<ImageItem>()
         assertEquals(before + 1, inConcept.size, "the concept has it now")
         assertTrue(File(concepts.root!!, inConcept.last().path).isFile, "copied into the concept's folder")
         assertNull(board.item(own.id), "the board's own copy made way")
@@ -281,16 +283,16 @@ class ConceptLinkTest {
         val b = board.root!!
 
         assertTrue(board.setLinked(id, a, linked = true))
-        val stored = assertNotNull(BoardStore.peek(a))
+        val stored = assertNotNull(files.boards.peek(a))
         assertEquals(listOf(id), stored.concepts)
         assertEquals(3, stored.items.count { ConceptLink.isBorrowed(it) })
         assertTrue(stored.groups.any { it.conceptId == id })
         assertEquals(listOf("Buch" to true, "Zweites" to false), board.boardsFor(id).map { it.name to it.linked })
 
         assertEquals(listOf("Buch"), board.unlinkEverywhere(id))
-        assertTrue(BoardStore.peek(a)!!.concepts.isEmpty())
-        assertTrue(BoardStore.peek(a)!!.items.none { ConceptLink.isBorrowed(it) })
-        assertTrue(BoardStore.peek(b)!!.concepts.isEmpty())
+        assertTrue(files.boards.peek(a)!!.concepts.isEmpty())
+        assertTrue(files.boards.peek(a)!!.items.none { ConceptLink.isBorrowed(it) })
+        assertTrue(files.boards.peek(b)!!.concepts.isEmpty())
     }
 
     @Test
@@ -327,7 +329,8 @@ class ConceptLinkTest {
         val lost = ImageItem(id = "l", path = "gone.jpg")
         val board = Board(name = "Loose", items = listOf(borrowed, lost))
 
-        val checked = BoardStore.validate(board, root)
+        files.boards.saveNow(root, board)
+        val checked = (files.boards.load(root) as LoadResult.Loaded<Board>).value
 
         assertEquals(listOf("b"), checked.items.map { it.id }, "the borrowed card stays, the lost one goes")
     }

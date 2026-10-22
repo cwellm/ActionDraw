@@ -67,7 +67,8 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.CrossRoomButton
@@ -88,7 +89,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun BoardCard(
     state: BoardState,
-    thumbs: ThumbCache,
+    thumbs: Pictures,
     item: BoardItem,
     textured: Boolean,
     groupId: String?,
@@ -242,10 +243,10 @@ internal fun selectionBorder(state: BoardState, id: String): Color = when {
 }
 
 @Composable
-private fun ImageCard(state: BoardState, thumbs: ThumbCache, item: ImageItem, textured: Boolean) {
+private fun ImageCard(state: BoardState, thumbs: Pictures, item: ImageItem, textured: Boolean) {
     val file = state.fileOf(item)
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
+        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it) } }
     }
     // A print: the picture on paper, its caption written under it — on any board surface.
     val shape = RoundedCornerShape(2.dp)
@@ -357,11 +358,11 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
 
 /** A link card: its title, underlined, and a tap opens it. The preview picture, if fetched, sits beside. */
 @Composable
-private fun LinkCard(state: BoardState, thumbs: ThumbCache, item: LinkItem, textured: Boolean) {
+private fun LinkCard(state: BoardState, thumbs: Pictures, item: LinkItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
     val preview = state.previewFileOf(item)
     val previewThumb: ImageBitmap? by produceState<ImageBitmap?>(null, preview) {
-        value = preview?.let { withContext(Dispatchers.IO) { thumbs.load(it) } }
+        value = preview?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it) } }
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,

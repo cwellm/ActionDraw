@@ -29,7 +29,7 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
 
 /**
  * The concept's cards placed freely, as a board's Free layout places them: drag a card to move
@@ -38,7 +38,7 @@ import de.creaflect.actiondraw.image.ThumbCache
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun ConceptCanvas(state: ConceptState, thumbs: ThumbCache, modifier: Modifier = Modifier) {
+fun ConceptCanvas(state: ConceptState, thumbs: Pictures, modifier: Modifier = Modifier) {
     var viewSize by remember { mutableStateOf(IntSize.Zero) }
     Box(
         modifier
@@ -84,7 +84,7 @@ fun ConceptCanvas(state: ConceptState, thumbs: ThumbCache, modifier: Modifier = 
 }
 
 @Composable
-private fun ConceptCanvasItem(state: ConceptState, thumbs: ThumbCache, item: BoardItem, viewSize: IntSize) {
+private fun ConceptCanvasItem(state: ConceptState, thumbs: Pictures, item: BoardItem, viewSize: IntSize) {
     val pos = item.pos ?: return
     val zoom = state.zoom
     val wPx = CardLayout.BASE_SIZE * pos.scale * zoom

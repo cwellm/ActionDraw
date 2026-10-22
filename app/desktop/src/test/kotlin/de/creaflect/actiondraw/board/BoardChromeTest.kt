@@ -10,13 +10,12 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -55,14 +54,14 @@ class BoardChromeTest {
     }
 
     private fun shownBoard(): Pair<BoardState, List<String>> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Chrome")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg").map { File(root, it).apply { createNewFile() } })
         state.clearSelection()
         // The dialogs float above every screen in the app shell, so the test composes them too.
         rule.setContent {
-            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
             BoardDialogs(state)
         }
         rule.waitForIdle()
@@ -176,7 +175,7 @@ class BoardChromeTest {
         rule.waitForIdle()
 
         assertTrue(state.snapping)
-        assertTrue(BoardState(Settings(config), host).snapping, "and it is remembered")
+        assertTrue(BoardState(FileLib(config), host).snapping, "and it is remembered")
     }
 
     @Test

@@ -77,7 +77,7 @@ import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.PinTargets
 import de.creaflect.actiondraw.ViewMode
-import de.creaflect.actiondraw.image.ImageLoader
+import de.creaflect.actiondraw.image.bitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -113,7 +113,7 @@ fun SessionScreen(
     val current = state.currentImage
     val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, current) {
         value = current?.let { f ->
-            withContext(Dispatchers.IO) { runCatching { ImageLoader.load(f) }.getOrNull() }
+            withContext(Dispatchers.IO) { state.pictures.bitmap(f) }
         }
     }
     val receded = remember { mutableStateOf(false) }

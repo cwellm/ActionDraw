@@ -7,12 +7,11 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performMouseInput
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -52,7 +51,7 @@ class FrameClickTest {
      * corner is under the right card.
      */
     private fun lShapedGroup(): Pair<BoardState, String> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "L")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg", "c.jpg").map { File(root, it).apply { createNewFile() } })
@@ -68,7 +67,7 @@ class FrameClickTest {
         val group = state.groupSelection("Ecke")!!
         state.clearSelection()
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
@@ -110,7 +109,7 @@ class FrameClickTest {
 
     /** Two cards in one group, pulled well apart. */
     private fun separatedPair(): Pair<BoardState, String> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Apart")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg").map { File(root, it).apply { createNewFile() } })
@@ -123,7 +122,7 @@ class FrameClickTest {
         val group = state.groupSelection("Paar")!!
         state.clearSelection()
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size

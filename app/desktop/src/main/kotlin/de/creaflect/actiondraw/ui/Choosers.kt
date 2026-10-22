@@ -1,6 +1,5 @@
 package de.creaflect.actiondraw.ui
 
-import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.platform.SwingFileDialogs
 import java.io.File
 
@@ -10,9 +9,9 @@ import java.io.File
 /** A folder, starting from [start] when given. Null when cancelled. */
 fun chooseFolder(start: File?, title: String = "Select image folder"): File? = SwingFileDialogs.chooseFolder(start, title)
 
-/** Pictures the app can draw (board imports). Empty when cancelled. */
-fun chooseImages(start: File?): List<File> =
-    SwingFileDialogs.chooseFiles(start, "Import images", "Images", ImageScanner.IMAGE_EXTENSIONS)
+/** Pictures the app can draw — those with one of [extensions] (board imports). Empty when cancelled. */
+fun chooseImages(start: File?, extensions: Set<String>): List<File> =
+    SwingFileDialogs.chooseFiles(start, "Import images", "Images", extensions)
 
 /** A sketch document (`*.sketch.json`). Null when cancelled. */
 fun chooseSketchFile(start: File?): File? =

@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import java.io.File
 import java.nio.file.Files
@@ -22,6 +22,9 @@ class DeleteBoardTest {
     private val home: File = Files.createTempDirectory("delete-home").toFile()
     private val config: File = Files.createTempDirectory("delete-cfg").toFile()
 
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
+
     private val host = object : BoardHost {
         override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
         override fun showBoard() = Unit
@@ -37,7 +40,7 @@ class DeleteBoardTest {
     }
 
     private fun boardWithAPicture(name: String = "Doomed"): Pair<BoardState, File> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, name)
         val root = state.root!!
         val picture = File(root, "a.jpg").apply { writeText("pretend picture") }
@@ -49,9 +52,9 @@ class DeleteBoardTest {
     fun forgettingABoardKeepsEveryPicture() {
         val (state, root) = boardWithAPicture()
 
-        val message = state.deleteBoard(root, BoardState.Deletion.FORGET)
+        val message = state.deleteBoard(root, Deletion.FORGET)
 
-        assertFalse(BoardStore.exists(root), "the board file is gone")
+        assertFalse(files.boards.isBoard(root), "the board file is gone")
         assertTrue(root.isDirectory, "but the folder stays")
         assertTrue(File(root, "a.jpg").isFile, "and so does the picture")
         assertTrue(message.contains("still in"), "the message says the pictures are safe: $message")
@@ -62,7 +65,7 @@ class DeleteBoardTest {
     fun deletingTheFolderRemovesEverything() {
         val (state, root) = boardWithAPicture()
 
-        state.deleteBoard(root, BoardState.Deletion.DELETE_FOLDER)
+        state.deleteBoard(root, Deletion.DELETE_FOLDER)
 
         assertFalse(root.exists(), "the folder and its pictures are gone")
     }
@@ -72,7 +75,7 @@ class DeleteBoardTest {
         val (state, root) = boardWithAPicture()
         assertTrue(state.isOpen)
 
-        state.deleteBoard(root, BoardState.Deletion.FORGET)
+        state.deleteBoard(root, Deletion.FORGET)
 
         assertNull(state.board, "the board on screen cannot outlive its file")
         assertTrue(state.selection.isEmpty())
@@ -80,11 +83,11 @@ class DeleteBoardTest {
 
     @Test
     fun aFolderThatIsNotABoardIsNeverErased() {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         val ordinary = File(home, "just my pictures").apply { mkdirs() }
         File(ordinary, "holiday.jpg").writeText("not ActionDraw's to delete")
 
-        val message = state.deleteBoard(ordinary, BoardState.Deletion.DELETE_FOLDER)
+        val message = state.deleteBoard(ordinary, Deletion.DELETE_FOLDER)
 
         assertTrue(ordinary.isDirectory, "an ordinary folder must survive")
         assertTrue(File(ordinary, "holiday.jpg").isFile)
@@ -95,9 +98,9 @@ class DeleteBoardTest {
     fun theBoardsHomeItselfIsNeverErased() {
         val (state, _) = boardWithAPicture()
         // Make the home look like a board, so only the guard stands between it and deletion.
-        BoardStore.save(home, Board(name = "Home"))
+        files.boards.saveNow(home, Board(name = "Home"))
 
-        val message = state.deleteBoard(home, BoardState.Deletion.DELETE_FOLDER)
+        val message = state.deleteBoard(home, Deletion.DELETE_FOLDER)
 
         assertTrue(home.isDirectory, "the folder holding every board must survive")
         assertTrue(message.startsWith("Refusing"))
@@ -107,7 +110,7 @@ class DeleteBoardTest {
     fun deletingAVanishedBoardSaysSoInsteadOfFailing() {
         val (state, root) = boardWithAPicture()
         root.deleteRecursively()
-        assertEquals("That folder is gone already.", state.deleteBoard(root, BoardState.Deletion.FORGET))
+        assertEquals("That folder is gone already.", state.deleteBoard(root, Deletion.FORGET))
     }
 
     // ---- Reported 2026-09-05: a deleted board's folder blocked its own name ----
@@ -115,7 +118,7 @@ class DeleteBoardTest {
     @Test
     fun aDeletedBoardsNameCanBeUsedAgain() {
         val (state, root) = boardWithAPicture("Test")
-        state.deleteBoard(root, BoardState.Deletion.FORGET)
+        state.deleteBoard(root, Deletion.FORGET)
 
         val error = state.createBoard(home, "Test")
 

@@ -4,12 +4,11 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performMouseInput
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardViewer
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -45,7 +44,7 @@ class ViewerWheelTest {
     }
 
     private fun viewerOverTwoPictures(): BoardState {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Wheel")
         state.importExternal(listOf("a.jpg", "b.jpg").map { File(state.root!!, it).apply { createNewFile() } })
         state.selectAll()
@@ -56,7 +55,7 @@ class ViewerWheelTest {
     @Test
     fun wheelUpOverTheViewerZoomsIn() {
         val state = viewerOverTwoPictures()
-        rule.setContent { BoardViewer(state, ThumbCache()) }
+        rule.setContent { BoardViewer(state, FileLib(config).pictures) }
 
         rule.onNodeWithTag("viewer").performMouseInput {
             moveTo(center)
@@ -71,7 +70,7 @@ class ViewerWheelTest {
     @Test
     fun wheelDownAtFittedSizeStaysFitted() {
         val state = viewerOverTwoPictures()
-        rule.setContent { BoardViewer(state, ThumbCache()) }
+        rule.setContent { BoardViewer(state, FileLib(config).pictures) }
 
         rule.onNodeWithTag("viewer").performMouseInput {
             moveTo(center)

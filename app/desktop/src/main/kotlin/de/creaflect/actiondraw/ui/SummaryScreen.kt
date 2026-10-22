@@ -42,7 +42,8 @@ import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.PinTargets
 import de.creaflect.actiondraw.Screen
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -53,7 +54,7 @@ import java.io.File
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: ThumbCache? = null) {
+fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Pictures? = null) {
     val fromBoard = state.sessionOrigin == Screen.Board
     Box(Modifier.fillMaxSize().grain().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(
@@ -138,9 +139,9 @@ fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Thumb
 
 /** A flagged picture as a small print, ringed in pencil and marked "again". */
 @Composable
-private fun FlaggedPrint(file: File, thumbs: ThumbCache?, tilt: Float) {
+private fun FlaggedPrint(file: File, thumbs: Pictures?, tilt: Float) {
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file, thumbs) {
-        value = thumbs?.let { t -> withContext(Dispatchers.IO) { t.load(file) } }
+        value = thumbs?.let { t -> withContext(Dispatchers.IO) { t.thumbnailBitmap(file) } }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.graphicsLayer { rotationZ = tilt }) {
         Box(

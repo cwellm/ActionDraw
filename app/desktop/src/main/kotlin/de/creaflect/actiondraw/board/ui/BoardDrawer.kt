@@ -40,7 +40,8 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.lampShadow
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +53,7 @@ import kotlinx.coroutines.withContext
  * and managed; clicking a row selects it and brings the camera to it.
  */
 @Composable
-fun BoardDrawer(state: BoardState, thumbs: ThumbCache) {
+fun BoardDrawer(state: BoardState, thumbs: Pictures) {
     Surface(
         color = MaterialTheme.colors.surface,
         elevation = 0.dp,
@@ -179,7 +180,7 @@ private fun DrawerAction(label: String, onClick: () -> Unit) {
 
 /** One card in the drawer: a thumbnail (or a glyph) and its name. */
 @Composable
-private fun DrawerItemRow(state: BoardState, thumbs: ThumbCache, item: BoardItem, indented: Boolean, deeper: Boolean = false) {
+private fun DrawerItemRow(state: BoardState, thumbs: Pictures, item: BoardItem, indented: Boolean, deeper: Boolean = false) {
     val selected = item.id in state.selection
     val label = when (item) {
         is ImageItem -> item.caption ?: state.fileOf(item)?.name ?: item.path
@@ -206,7 +207,7 @@ private fun DrawerItemRow(state: BoardState, thumbs: ThumbCache, item: BoardItem
                 is ImageItem -> {
                     val file = state.fileOf(item)
                     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-                        value = file?.let { withContext(Dispatchers.IO) { thumbs.load(it, maxSize = 64) } }
+                        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 64) } }
                     }
                     thumb?.let {
                         Image(

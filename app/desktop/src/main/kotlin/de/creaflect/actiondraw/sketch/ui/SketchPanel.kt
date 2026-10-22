@@ -50,7 +50,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Lift
@@ -68,7 +69,7 @@ import kotlin.math.roundToInt
  * came along.
  */
 @Composable
-internal fun PaperPanel(state: SketchState, thumbs: ThumbCache, largeReference: Boolean, onEnlarge: () -> Unit, modifier: Modifier = Modifier) {
+internal fun PaperPanel(state: SketchState, thumbs: Pictures, largeReference: Boolean, onEnlarge: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier
             .width(232.dp)
@@ -152,9 +153,9 @@ private fun ShadeChip(name: String, argb: Int, chosen: Boolean, onClick: () -> U
 
 /** The reference from a session, kept beside the page: larger over the page on a click, or put away. */
 @Composable
-private fun ReferenceCard(state: SketchState, file: File, thumbs: ThumbCache, large: Boolean, onEnlarge: () -> Unit) {
+private fun ReferenceCard(state: SketchState, file: File, thumbs: Pictures, large: Boolean, onEnlarge: () -> Unit) {
     val bitmap by produceState<ImageBitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { thumbs.load(file, maxSize = 900) }
+        value = withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 900) }
     }
     Surface(color = Atelier.Board, shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -207,9 +208,9 @@ private fun ReferenceCard(state: SketchState, file: File, thumbs: ThumbCache, la
 
 /** The reference large, over the page's top right corner; a click puts it back beside the page. */
 @Composable
-internal fun LargeReference(file: File, thumbs: ThumbCache, onClose: () -> Unit, modifier: Modifier = Modifier) {
+internal fun LargeReference(file: File, thumbs: Pictures, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val bitmap by produceState<ImageBitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { thumbs.load(file, maxSize = 900) }
+        value = withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 900) }
     }
     val bmp = bitmap ?: return
     Surface(elevation = 0.dp, shape = RoundedCornerShape(4.dp), color = Atelier.Paper, modifier = modifier.padding(12.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(4.dp))) {

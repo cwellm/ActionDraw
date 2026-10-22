@@ -6,26 +6,24 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerInput
-import de.creaflect.actiondraw.io.AppDirs
-import java.io.File
+import de.creaflect.actiondraw.Diagnostics
 
 /**
  * A diagnostic, off unless the environment variable `ACTIONDRAW_POINTER_LOG` is set: every
  * pointer event that reaches the canvas, and every decision a canvas gesture takes, is appended
- * to `~/.actiondraw/pointer.log`. It exists because a drag that every test moves correctly still
+ * to the lib's pointer log, `~/.actiondraw/pointer.log`. It exists because a drag that every test moves correctly still
  * panned on one machine — the events a real mouse or pen delivers are the only thing the tests
  * cannot inject, and this shows them as they arrive.
  */
 object PointerLog {
     val enabled: Boolean = System.getenv("ACTIONDRAW_POINTER_LOG") != null
 
-    private val file: File by lazy {
-        AppDirs.current.pointerLog.apply { parentFile?.mkdirs() }
-    }
+    /** Where the lines go: the app's lib, handed over when it starts. */
+    @Volatile var diagnostics: Diagnostics? = null
 
     fun log(line: String) {
         if (!enabled) return
-        runCatching { file.appendText("${System.currentTimeMillis() % 1_000_000} $line\n") }
+        diagnostics?.append(Diagnostics.Log.POINTER, "${System.currentTimeMillis() % 1_000_000} $line\n")
     }
 
     fun describe(event: PointerEvent, pass: PointerEventPass): String {

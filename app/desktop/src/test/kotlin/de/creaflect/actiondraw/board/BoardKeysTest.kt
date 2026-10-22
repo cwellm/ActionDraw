@@ -1,9 +1,9 @@
 package de.creaflect.actiondraw.board
 
 import androidx.compose.ui.input.key.Key
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.handleBoardShortcut
 import java.io.File
@@ -38,7 +38,7 @@ class BoardKeysTest {
     private val board: BoardState by lazy { boardWithTwoCards() }
 
     private fun boardWithTwoCards(): BoardState {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Keys")
         val files = listOf("a.jpg", "b.jpg").map { File(state.root!!, it).apply { createNewFile() } }
         state.importExternal(files)

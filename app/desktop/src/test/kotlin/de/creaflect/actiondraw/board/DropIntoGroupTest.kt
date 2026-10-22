@@ -10,15 +10,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import de.creaflect.actiondraw.AppState
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.board.ui.MenuExtras
-import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.paletteWells
 import de.creaflect.actiondraw.ui.PaletteScreen
 import org.junit.After
@@ -58,7 +57,7 @@ class DropIntoGroupTest {
 
     /** Four cards laid out freely; the first two grouped, the rest loose. */
     private fun boardWithAGroup(): Pair<BoardState, List<String>> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Drop")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg", "c.jpg", "d.jpg").map { File(root, it).apply { createNewFile() } })
@@ -160,7 +159,7 @@ class DropIntoGroupTest {
     fun draggingACardOntoAFrameFilesItThere() {
         val (state, ids) = boardWithAGroup()
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
@@ -189,9 +188,9 @@ class DropIntoGroupTest {
     @Test
     fun theStartMenuShowsSettingsAndHotkeys() {
         // The start menu is the palette now; Settings and Hotkeys sit in its corner.
-        val settings = Settings(config)
-        val app = AppState(settings)
-        val boards = BoardState(settings, host)
+        val lib = FileLib(config)
+        val app = AppState(lib)
+        val boards = BoardState(lib, host)
         val wells = paletteWells(lastBoard = null, sketchOpen = false)
         rule.setContent {
             PaletteScreen(wells, app.paletteRoom, app::selectRoom, onOpen = {}, corner = { MenuExtras(app, boards) })
@@ -205,7 +204,7 @@ class DropIntoGroupTest {
     fun theBoardsOverflowOpensSettings() {
         val (state, _) = boardWithAGroup()
         rule.setContent {
-            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
             BoardDialogs(state)
         }
         rule.waitForIdle()
@@ -222,7 +221,7 @@ class DropIntoGroupTest {
     fun theBoardsHotkeysShowOnlyTheBoards() {
         val (state, _) = boardWithAGroup()
         rule.setContent {
-            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
             BoardDialogs(state)
         }
         rule.waitForIdle()
@@ -238,7 +237,7 @@ class DropIntoGroupTest {
     fun settingsAndHotkeysComeFirstInTheOverflowAndTheSurfaceIsChosenInTheHeader() {
         val (state, _) = boardWithAGroup()
         rule.setContent {
-            BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {})
+            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
             BoardDialogs(state)
         }
         rule.waitForIdle()

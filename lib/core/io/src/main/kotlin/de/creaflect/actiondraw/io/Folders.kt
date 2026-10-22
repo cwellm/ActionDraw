@@ -5,9 +5,9 @@ import de.creaflect.actiondraw.samePathAs
 import java.io.File
 
 /**
- * Folders and the names in them: what Windows accepts, the next name that is still free, and
- * moving or deleting a whole folder without leaving it in halves. Boards and concepts are folders,
- * so this is what their lifecycle stands on.
+ * Folders and the names in them: the next name that is still free, and moving or deleting a
+ * whole folder without leaving it in halves. Boards and concepts are folders, so this is what
+ * their lifecycle stands on. (What a name may hold is the domain's rule, `safeFileName`.)
  */
 object Folders {
     /** How [move] went. */
@@ -24,9 +24,6 @@ object Folders {
         /** Refused: the destination is the folder itself or lies inside it. */
         INTO_ITSELF,
     }
-
-    /** A name Windows accepts for a file or folder: its forbidden characters become `_`. */
-    fun safeName(name: String): String = name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')
 
     /** `Test` → `Test (2)` → `Test (3)` …: the first folder name free beside [wanted]. Never splits off a dot. */
     fun freeFolder(wanted: File): File {

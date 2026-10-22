@@ -71,7 +71,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Atelier
@@ -106,7 +107,7 @@ import androidx.compose.ui.geometry.Rect as ComposeRect
  * pans. While a stroke goes on, everything round the page steps back.
  */
 @Composable
-fun SketchScreen(state: SketchState, thumbs: ThumbCache, onHome: (() -> Unit)? = null) {
+fun SketchScreen(state: SketchState, thumbs: Pictures, onHome: (() -> Unit)? = null) {
     DisposableEffect(state) {
         onDispose { state.mouseUp() }
     }
@@ -425,11 +426,11 @@ private fun RowScope.Knob(label: String, value: Float, range: ClosedFloatingPoin
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Page(state: SketchState, thumbs: ThumbCache) {
+private fun Page(state: SketchState, thumbs: Pictures) {
     // The session's reference, as an image the page can draw under or over its strokes.
     val reference by produceState<org.jetbrains.skia.Image?>(null, state.reference) {
         value = state.reference?.let { file ->
-            withContext(Dispatchers.IO) { thumbs.load(file, maxSize = 1600) }?.let { org.jetbrains.skia.Image.makeFromBitmap(it.asSkiaBitmap()) }
+            withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 1600) }?.let { org.jetbrains.skia.Image.makeFromBitmap(it.asSkiaBitmap()) }
         }
     }
     Box(

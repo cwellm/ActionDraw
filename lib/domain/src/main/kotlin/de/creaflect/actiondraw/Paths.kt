@@ -18,3 +18,10 @@ fun File.isInside(folder: File): Boolean {
     val prefix = folder.absolutePath.trimEnd(File.separatorChar) + File.separatorChar
     return absolutePath.startsWith(prefix, ignoreCase = true)
 }
+
+/**
+ * A name Windows accepts for a file or a folder: its forbidden characters become `_`, and the
+ * spaces and dots it would trim away are gone already. A board called "Wings: study" lives in
+ * `Wings_ study`.
+ */
+fun safeFileName(name: String): String = name.replace(Regex("[\\\\/:*?\"<>|]"), "_").trim().trimEnd('.')

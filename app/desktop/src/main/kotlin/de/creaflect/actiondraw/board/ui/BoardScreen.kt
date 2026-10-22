@@ -79,16 +79,16 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
+import de.creaflect.actiondraw.board.BoardNode
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardThemes
 import de.creaflect.actiondraw.board.ConceptRef
-import de.creaflect.actiondraw.board.ContactSheet
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.board.WallpaperFit
-import de.creaflect.actiondraw.image.ImageLoader
-import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.image.bitmap
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.CrossRoomButton
@@ -116,7 +116,7 @@ import kotlin.math.roundToInt
 @Composable
 fun BoardScreen(
     state: BoardState,
-    thumbs: ThumbCache,
+    thumbs: Pictures,
     isFullscreen: Boolean,
     setFullscreen: (Boolean) -> Unit,
     onHome: (() -> Unit)? = null,
@@ -158,7 +158,7 @@ fun BoardScreen(
                 .dragAndDropTarget(shouldStartDragAndDrop = { true }, target = dropTarget),
         ) {
             // The wallpaper sits on the theme's texture and under everything else.
-            WallpaperLayer(state)
+            WallpaperLayer(state, thumbs)
             Row(Modifier.fillMaxSize()) {
                 if (state.drawerOpen && !hideChrome) BoardDrawer(state, thumbs)
                 Column(Modifier.weight(1f).fillMaxHeight()) {
@@ -428,7 +428,7 @@ private fun AddMenu(state: BoardState) {
             Divider()
             DropdownMenuItem(onClick = {
                 open = false
-                chooseImages(state.root).takeIf { it.isNotEmpty() }?.let { state.importExternal(it) }
+                chooseImages(state.root, state.pictureExtensions).takeIf { it.isNotEmpty() }?.let { state.importExternal(it) }
             }) { Text("Import pictures…") }
             DropdownMenuItem(onClick = { open = false; state.importPasted() }) { Text("Paste") }
         }
@@ -463,7 +463,7 @@ private fun MoreMenu(state: BoardState, onImmersive: () -> Unit) {
                 open = false
                 val items = state.sheetItems
                 chooseSaveFile(
-                    suggested = ContactSheet.suggestedName(state.board?.name ?: "board"),
+                    suggested = BoardState.contactSheetName(state.board?.name ?: "board"),
                     start = state.root,
                 )?.let { state.exportContactSheet(items, it) }
             }) { Text("Contact sheet…") }
@@ -486,11 +486,11 @@ private fun MoreMenu(state: BoardState, onImmersive: () -> Unit) {
  * so the drift never shows an edge.
  */
 @Composable
-private fun WallpaperLayer(state: BoardState) {
+private fun WallpaperLayer(state: BoardState, thumbs: Pictures) {
     val paper = state.wallpaper ?: return
     val file = state.wallpaperFile ?: return
     val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { runCatching { ImageLoader.load(file) }.getOrNull() }
+        value = withContext(Dispatchers.IO) { thumbs.bitmap(file) }
     }
     val bmp = bitmap ?: return
     val free = state.layout == BoardLayouts.FREE
@@ -537,7 +537,7 @@ private fun WallpaperLayer(state: BoardState) {
 @Composable
 private fun BoardSwitcher(state: BoardState) {
     var open by remember { mutableStateOf(false) }
-    val tree by produceState(emptyList<BoardState.BoardNode>(), open, state.boardsHomeTick, state.root) {
+    val tree by produceState(emptyList<BoardNode>(), open, state.boardsHomeTick, state.root) {
         if (open) value = withContext(Dispatchers.IO) { state.boardTree() }
     }
     Box {
@@ -654,7 +654,7 @@ private fun FlatChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun BoardGrid(state: BoardState, thumbs: ThumbCache, textured: Boolean, modifier: Modifier) {
+private fun BoardGrid(state: BoardState, thumbs: Pictures, textured: Boolean, modifier: Modifier) {
     val empty = state.board?.items.orEmpty().isEmpty()
     val gridState = rememberLazyGridState()
     val reorder = remember(state, gridState) { GridReorder(gridState, state) }

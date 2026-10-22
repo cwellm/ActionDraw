@@ -38,7 +38,7 @@ class MemoryVeilTest {
             image.createGraphics().apply { paint = Color.ORANGE; fillRect(0, 0, 16, 16); dispose() }
             ImageIO.write(image, "png", File(dir, "pose$i.png"))
         }
-        val state = AppState(Settings(config))
+        val state = AppState(FileLib(config))
         state.selectFolder(dir)
         state.rampPlan = SessionPlan("Memory", listOf(RampStep(20, 2, studySeconds = 5)))
         state.start()

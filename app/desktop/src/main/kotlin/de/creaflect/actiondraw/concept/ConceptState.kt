@@ -3,7 +3,8 @@ package de.creaflect.actiondraw.concept
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.Lib
+import de.creaflect.actiondraw.LoadResult
 import de.creaflect.actiondraw.board.Board
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
@@ -14,11 +15,9 @@ import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.board.ConceptSnapshot
 import de.creaflect.actiondraw.board.ConceptSource
 import de.creaflect.actiondraw.board.ImageItem
-import de.creaflect.actiondraw.board.Importer
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.newId
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.sketch.SketchDocument
@@ -68,8 +67,8 @@ sealed class ConceptEditor {
  * no layout, no groups, no session recipe. Linking onto boards is the board's business
  * (`BoardState`), by id.
  */
-class ConceptState(private val settings: Settings, private val host: ConceptHost) : ConceptSource {
-    private val registry = ConceptRegistry(settings.configDir)
+class ConceptState(private val lib: Lib, private val host: ConceptHost) : ConceptSource {
+    private val concepts get() = lib.concepts
 
     var root by mutableStateOf<File?>(null)
         private set
@@ -99,45 +98,39 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
 
     // ---- Home and listing ----
 
-    fun conceptsHome(): File = settings.conceptsHome()
+    fun conceptsHome(): File = lib.preferences.conceptsHome()
 
     fun setConceptsHomeDir(dir: File) {
-        settings.setConceptsHome(dir)
+        lib.preferences.setConceptsHome(dir)
         listTick++
     }
 
-    fun entryFor(dir: File): ConceptEntry? = registry.entryFor(dir)
-    fun entryById(id: String): ConceptEntry? = registry.byId(id)
+    fun entryFor(dir: File): ConceptEntry? = concepts.entryFor(dir)
+    fun entryById(id: String): ConceptEntry? = concepts.byId(id)
 
     /**
-     * Every concept the registry knows, plus any concept folder under the home not recorded yet
-     * (adopted as found), by kind then name.
+     * Every concept recorded, plus any concept folder under the home not recorded yet (recorded
+     * as found), by kind then name.
      */
-    fun availableConcepts(): List<ConceptEntry> {
-        registry.prune()
-        val known = registry.entries().filter { ConceptStore.exists(it.dir) }.toMutableList()
-        conceptsHome().listFiles().orEmpty()
-            .filter { it.isDirectory && ConceptStore.exists(it) && known.none { k -> k.isAt(it) } }
-            .forEach { dir ->
-                val file = ConceptStore.peek(dir) ?: return@forEach
-                val id = file.id.ifBlank { newId() }
-                if (file.id.isBlank()) ConceptStore.save(dir, file.copy(id = id))
-                known += registry.register(id, file.name.ifBlank { dir.name }, file.kind, dir)
-            }
-        return known.sortedWith(compareBy({ it.kind.lowercase() }, { it.name.lowercase() }))
-    }
+    fun availableConcepts(): List<ConceptEntry> = concepts.available()
+
+    /** The concept in [dir] as its file holds it, for the list: nothing is checked or changed. */
+    fun peek(dir: File): Concept? = concepts.peek(dir)
+
+    /** The picture formats this build reads: what a file chooser offers. */
+    val pictureExtensions: Set<String> get() = lib.pictures.extensions
 
     // ---- Lifecycle ----
 
     fun createConcept(name: String, kind: String = ""): String? {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return "Give the concept a name."
-        val home = conceptsHome().apply { mkdirs() }
-        val dir = Folders.freeFolder(File(home, Folders.safeName(trimmed)))
-        if (!dir.mkdirs()) return "Couldn't create:\n$dir"
         val created = Concept(id = newId(), name = trimmed, kind = kind.trim())
-        if (!ConceptStore.save(dir, created)) return "Couldn't write the concept file in:\n$dir"
-        registry.register(created.id, created.name, created.kind, dir)
+        val dir = when (val made = concepts.create(created)) {
+            is ConceptCreation.CouldNotCreate -> return "Couldn't create:\n${made.dir}"
+            is ConceptCreation.CouldNotWrite -> return "Couldn't write the concept file in:\n${made.dir}"
+            is ConceptCreation.Created -> made.dir
+        }
         root = dir
         concept = created
         openFailed = false
@@ -146,15 +139,15 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     }
 
     fun openConcept(dir: File) {
-        when (val result = ConceptStore.load(dir)) {
-            ConceptStore.LoadResult.None -> return
-            is ConceptStore.LoadResult.Loaded -> {
+        when (val result = concepts.load(dir)) {
+            LoadResult.None -> return
+            is LoadResult.Loaded -> {
                 root = dir
-                concept = result.concept
+                concept = result.value
                 openFailed = false
-                registry.register(result.concept.id, result.concept.name, result.concept.kind, dir)
+                concepts.register(dir, result.value)
             }
-            ConceptStore.LoadResult.Failed -> {
+            LoadResult.Failed -> {
                 openFailed = true
                 return
             }
@@ -163,8 +156,8 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     }
 
     fun openById(id: String): Boolean {
-        val entry = registry.byId(id) ?: return false
-        if (!ConceptStore.exists(entry.dir)) return false
+        val entry = concepts.byId(id) ?: return false
+        if (!concepts.isConcept(entry.dir)) return false
         openConcept(entry.dir)
         return true
     }
@@ -204,13 +197,13 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         update { it.copy(name = trimmed) }
-        root?.let { dir -> concept?.let { registry.register(it.id, it.name, it.kind, dir) } }
+        root?.let { dir -> concept?.let { concepts.register(dir, it) } }
         listTick++
     }
 
     fun setKind(kind: String) {
         update { it.copy(kind = kind.trim()) }
-        root?.let { dir -> concept?.let { registry.register(it.id, it.name, it.kind, dir) } }
+        root?.let { dir -> concept?.let { concepts.register(dir, it) } }
         listTick++
     }
 
@@ -222,21 +215,20 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
      * is false) and the record with it.
      */
     fun deleteConcept(dir: File, alsoFolder: Boolean): String {
-        if (!ConceptStore.exists(dir)) return "${dir.name} is not a concept."
+        if (!concepts.isConcept(dir)) return "${dir.name} is not a concept."
         // Off every board first: a board must not be left pointing at a concept that is gone.
-        val unlinked = ConceptStore.peek(dir)?.id?.let { host.unlinkEverywhere(it) }.orEmpty()
+        val unlinked = concepts.peek(dir)?.id?.let { host.unlinkEverywhere(it) }.orEmpty()
         if (root?.samePathAs(dir) == true) {
             root = null
             concept = null
             selection = emptySet()
         }
-        val message = if (alsoFolder) {
-            if (Folders.deleteTree(dir)) "Deleted ${dir.name} and everything in it." else "Couldn't delete ${dir.name}."
-        } else {
-            ConceptStore.forget(dir)
-            "Concept removed. The files are still in ${dir.name}."
+        val deleted = concepts.delete(dir, alsoFolder)
+        val message = when {
+            !alsoFolder -> "Concept removed. The files are still in ${dir.name}."
+            deleted -> "Deleted ${dir.name} and everything in it."
+            else -> "Couldn't delete ${dir.name}."
         }
-        registry.forget(dir)
         listTick++
         val full = if (unlinked.isEmpty()) message else "$message Unlinked from ${unlinked.joinToString()}."
         notice = full
@@ -260,20 +252,20 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val open = concept
         val dir = root
         if (open != null && dir != null && open.id == id) return ConceptSnapshot(id, open.name, dir, open.items)
-        val entry = registry.byId(id) ?: return null
-        val file = (ConceptStore.load(entry.dir) as? ConceptStore.LoadResult.Loaded)?.concept ?: return null
+        val entry = concepts.byId(id) ?: return null
+        val file = (concepts.load(entry.dir) as? LoadResult.Loaded<Concept>)?.value ?: return null
         return ConceptSnapshot(id, file.name, entry.dir, file.items)
     }
 
     override fun addToConcept(id: String, pictures: List<File>, others: List<BoardItem>): List<BoardItem>? {
         val openHere = concept?.id == id && root != null
-        val dir = (if (openHere) root else registry.byId(id)?.dir) ?: return null
-        val current = (if (openHere) concept else (ConceptStore.load(dir) as? ConceptStore.LoadResult.Loaded)?.concept) ?: return null
+        val dir = (if (openHere) root else concepts.byId(id)?.dir) ?: return null
+        val current = (if (openHere) concept else (concepts.load(dir) as? LoadResult.Loaded<Concept>)?.value) ?: return null
         val existing = current.items.filterIsInstance<ImageItem>().map { it.path }.toSet()
-        val outcome = Importer.importFiles(dir, pictures, groupId = null, existingPaths = existing)
+        val outcome = lib.pictures.importInto(dir, pictures, groupId = null, existingPaths = existing)
         val added = outcome.items + others.map { it.withGroups(emptyList()) }
         val next = current.copy(items = current.items + added)
-        if (!ConceptStore.save(dir, next)) return null
+        if (!concepts.saveNow(dir, next)) return null
         if (openHere) {
             concept = next
             placeMissingIfFree()
@@ -355,7 +347,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
 
     fun commitLayout() {
         val dir = root ?: return
-        ConceptStore.save(dir, concept ?: return)
+        concepts.save(dir, concept ?: return)
     }
 
     // ---- Cards ----
@@ -377,7 +369,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     fun addPictures(files: List<File>) {
         val dir = root ?: return
         val existing = items.filterIsInstance<ImageItem>().map { it.path }.toSet()
-        val outcome = Importer.importFiles(dir, files, groupId = null, existingPaths = existing)
+        val outcome = lib.pictures.importInto(dir, files, groupId = null, existingPaths = existing)
         if (outcome.items.isNotEmpty()) update { it.copy(items = it.items + outcome.items) }
         placeMissingIfFree()
         notice = when {
@@ -428,8 +420,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     // ---- Documents ----
 
     /** A document's text, or null if its file is gone. */
-    fun readDocument(path: String): String? =
-        root?.let { File(it, path) }?.takeIf { it.isFile }?.let { runCatching { it.readText() }.getOrNull() }
+    fun readDocument(path: String): String? = root?.let { concepts.readDocument(it, path) }
 
     /**
      * Writes a document. A new one ([path] null) is named from its first heading or line and
@@ -437,22 +428,14 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
      */
     fun saveDocument(path: String?, text: String): String? {
         val dir = root ?: return null
-        val target = if (path != null) {
-            File(dir, path)
-        } else {
-            val docs = File(dir, ConceptStore.DOCS_DIR).apply { mkdirs() }
-            val title = NoteItem("", text).title
-            Folders.freeFile(File(docs, Folders.safeName(title).ifBlank { "document" } + ".md"))
-        }
-        runCatching { target.writeText(text) }.onFailure { return null }
-        val rel = target.relativeTo(dir).path.replace(File.separatorChar, '/')
+        val rel = concepts.writeDocument(dir, path, NoteItem("", text).title, text) ?: return null
         if (path == null) update { it.copy(documents = it.documents + rel) }
         return rel
     }
 
     fun deleteDocument(path: String) {
         val dir = root ?: return
-        File(dir, path).delete()
+        concepts.deleteDocument(dir, path)
         update { it.copy(documents = it.documents - path) }
     }
 
@@ -478,6 +461,6 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val dir = root ?: return
         val next = transform(concept ?: return)
         concept = next
-        ConceptStore.save(dir, next)
+        concepts.save(dir, next)
     }
 }

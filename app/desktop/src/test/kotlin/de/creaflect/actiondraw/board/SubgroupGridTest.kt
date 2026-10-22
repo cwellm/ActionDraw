@@ -4,12 +4,11 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -44,7 +43,7 @@ class SubgroupGridTest {
 
     /** Flügel (two cards) holding Membran (one card), shown in grid mode. */
     private fun shownTree(): Triple<BoardState, String, String> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Drachen")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg", "c.jpg").map { File(root, it).apply { createNewFile() } })
@@ -54,7 +53,7 @@ class SubgroupGridTest {
         state.clearSelection(); state.clickItem(ids[2], ctrl = false, shift = false)
         val membrane = state.groupSelection("Membran", parentId = wings)!!
         state.clearSelection()
-        rule.setContent { BoardScreen(state, ThumbCache(config), isFullscreen = false, setFullscreen = {}) }
+        rule.setContent { BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {}) }
         rule.waitForIdle()
         return Triple(state, wings, membrane)
     }

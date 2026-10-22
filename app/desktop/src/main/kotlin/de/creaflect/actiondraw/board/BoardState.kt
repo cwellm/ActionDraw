@@ -4,9 +4,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.Lib
+import de.creaflect.actiondraw.LoadResult
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.CardLayout.BASE_SIZE
 import de.creaflect.actiondraw.board.CardLayout.PALETTE_ASPECT
@@ -14,21 +15,17 @@ import de.creaflect.actiondraw.board.CardLayout.STRIP_ASPECT
 import de.creaflect.actiondraw.board.CardLayout.naturalTilt
 import de.creaflect.actiondraw.board.CardLayout.placeMissing
 import de.creaflect.actiondraw.board.ui.Markdown
-import de.creaflect.actiondraw.image.RedoStore
-import de.creaflect.actiondraw.image.SeenStore
+import de.creaflect.actiondraw.image.SheetCell
 import de.creaflect.actiondraw.image.relKey
-import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.isInside
-import de.creaflect.actiondraw.network.Fetcher
-import de.creaflect.actiondraw.network.Http
 import de.creaflect.actiondraw.newId
 import de.creaflect.actiondraw.platform.AwtClipboard
 import de.creaflect.actiondraw.platform.DesktopBrowser
 import de.creaflect.actiondraw.platform.SystemClipboard
+import de.creaflect.actiondraw.safeFileName
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.sketch.SketchDocument
 import java.io.File
-import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -97,11 +94,12 @@ sealed class BoardEditor {
 
 /**
  * Hoisted state + actions for the Idea Board (mirrors [de.creaflect.actiondraw.AppState]'s style).
- * Every mutation is written straight to the sidecar via [BoardStore] — there is no separate save
- * step. Talks to the rest of the app only through [BoardHost].
+ * Every mutation is handed to the lib's [Boards][de.creaflect.actiondraw.board.Boards] as it happens
+ * — there is no separate save step. Talks to the rest of the app only through [BoardHost].
  */
 class BoardState(
-    private val settings: Settings = Settings(),
+    /** Where boards, pictures and preferences come from and go to. */
+    private val lib: Lib,
     private val host: BoardHost,
     private val timestamp: () -> String = {
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
@@ -124,7 +122,7 @@ class BoardState(
     var openFailed by mutableStateOf(false)
         private set
 
-    var recent by mutableStateOf(settings.recentBoards())
+    var recent by mutableStateOf(lib.preferences.recentBoards())
         private set
 
     /** Selected item ids — what Draw/Copy/Move/Delete operate on. */
@@ -222,111 +220,50 @@ class BoardState(
     val theme: String get() = board?.theme ?: BoardThemes.CORK
     val layout: String get() = board?.layout ?: BoardLayouts.GRID
 
-    /** Board -> folder, so a board is not merely "whatever sits under the boards home". */
-    private val registry = BoardRegistry(settings.configDir)
+    private val boards get() = lib.boards
 
-    fun boardsHome(): File = settings.boardsHome()
+    /** The board in [dir] as its file holds it, for a list: nothing is checked or changed. */
+    fun peek(dir: File): Board? = boards.peek(dir)
 
-    /** The registry's record for a folder, if it has one. */
-    fun entryFor(dir: File): BoardEntry? = registry.entryFor(dir)
+    /** The picture formats this build reads: what a file chooser offers. */
+    val pictureExtensions: Set<String> get() = lib.pictures.extensions
+
+    fun boardsHome(): File = lib.preferences.boardsHome()
+
+    /** What is recorded for a board's folder, if anything is. */
+    fun entryFor(dir: File): BoardEntry? = boards.entryFor(dir)
 
     /** Bumped when the boards home changes so open board lists recompute. */
     var boardsHomeTick by mutableStateOf(0)
         private set
 
     fun setBoardsHomeDir(dir: File) {
-        settings.setBoardsHome(dir)
+        lib.preferences.setBoardsHome(dir)
         boardsHomeTick++
     }
 
-    /**
-     * Boards for the picker: everything the registry knows, wherever it lives, plus any board
-     * folder found under the boards home or in the recent list that is not recorded yet — those
-     * are adopted into the registry as they are found, which is also how boards from before the
-     * registry existed arrive in it.
-     *
-     * Because the registry holds absolute paths, pointing the boards home somewhere else adds a
-     * place to look; it does not take the existing boards away.
-     */
     /** The board opened last, by name, if it is still a board: what the palette offers to open. */
-    fun lastBoard(): Pair<String, File>? {
-        val dir = settings.recentBoards().firstOrNull { BoardStore.exists(it) } ?: return null
-        return (BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name) to dir
-    }
-
-    fun availableBoards(): List<Pair<String, File>> {
-        registry.prune()
-        val dirs = LinkedHashMap<String, File>()
-        registry.entries()
-            .filter { BoardStore.exists(it.dir) }
-            .forEach { dirs.putIfAbsent(it.path.lowercase(), it.dir) }
-
-        val found = settings.recentBoards() +
-            settings.boardsHome().listFiles().orEmpty().sortedBy { it.name.lowercase() }
-        found.filter { it.isDirectory && BoardStore.exists(it) }.forEach { dir ->
-            if (dirs.putIfAbsent(dir.absolutePath.lowercase(), dir.absoluteFile) == null) adopt(dir)
-        }
-
-        return dirs.values.map { dir ->
-            (BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name) to dir
-        }
-    }
-
-    /** One board in the tree of boards, with how deep it sits and whose child it is. */
-    data class BoardNode(val name: String, val dir: File, val depth: Int, val parent: String?)
+    fun lastBoard(): Pair<String, File>? = boards.last()?.let { it.name to it.dir }
 
     /**
-     * Every board, depth first, so sub-boards follow the board they belong to. A board whose
-     * parent is registered but no longer readable is treated as a root rather than vanishing
-     * with it.
+     * Boards for the picker: every board recorded, wherever it lives, and any board folder found
+     * under the boards home or among the recent ones — recorded as it is found.
      */
-    fun boardTree(): List<BoardNode> {
-        val all = availableBoards()
-        val known = all.map { it.second.absolutePath.lowercase() }.toSet()
-        fun parentPathOf(dir: File): String? =
-            registry.parentOf(dir)?.path?.lowercase()?.takeIf { it in known }
+    fun availableBoards(): List<Pair<String, File>> = boards.available().map { it.name to it.dir }
 
-        val out = mutableListOf<BoardNode>()
-        fun walk(under: String?, depth: Int, parentName: String?) {
-            all.filter { parentPathOf(it.second) == under }
-                .sortedBy { it.first.lowercase() }
-                .forEach { (name, dir) ->
-                    out += BoardNode(name, dir, depth, parentName)
-                    walk(dir.absolutePath.lowercase(), depth + 1, name)
-                }
-        }
-        walk(null, 0, null)
-        return out
-    }
+    /** Every board, depth first, so sub-boards follow the board they belong to. */
+    fun boardTree(): List<BoardNode> = boards.tree()
 
     /** The board the open one sits inside, if it is a sub-board. */
     val parentBoard: BoardEntry?
-        get() = root?.let { registry.parentOf(it) }?.takeIf { BoardStore.exists(it.dir) }
+        get() = root?.let { boards.parentOf(it) }
 
     /** Boards directly inside the open one. */
     val subBoards: List<BoardEntry>
-        get() {
-            val dir = root ?: return emptyList()
-            return registry.descendantsOf(dir)
-                .filter { registry.parentOf(it.dir)?.isAt(dir) == true && BoardStore.exists(it.dir) }
-                .sortedBy { it.name.lowercase() }
-        }
+        get() = root?.let { boards.childrenOf(it) }.orEmpty()
 
     /** How many boards would go with [dir] if its folder were deleted. */
-    fun subBoardCount(dir: File): Int = registry.descendantsOf(dir).count { BoardStore.exists(it.dir) }
-
-    /**
-     * Records a board folder nobody told us about. A direct child of the boards home is one the
-     * app almost certainly created (that is where *New board…* puts them), so it counts as the
-     * board's own; anything else was already the user's before ActionDraw saw it.
-     */
-    private fun adopt(dir: File) {
-        val name = BoardStore.peek(dir)?.name?.takeIf { it.isNotBlank() } ?: dir.name
-        val underHome = runCatching {
-            dir.canonicalFile.parentFile == settings.boardsHome().canonicalFile
-        }.getOrDefault(false)
-        registry.register(name, dir, ownsFolder = underHome)
-    }
+    fun subBoardCount(dir: File): Int = boards.countInside(dir)
 
     // ---- Derived views ----
 
@@ -370,8 +307,8 @@ class BoardState(
     /** Re-reads the seen/redo stores — call after a session started from this board ends. */
     fun refreshPractice() {
         val dir = root ?: return
-        seen = SeenStore.read(dir)
-        redo = RedoStore.read(dir)
+        seen = lib.practice.seen(dir)
+        redo = lib.practice.redo(dir)
         practiceTick++
     }
 
@@ -525,9 +462,6 @@ class BoardState(
 
     // ---- Lifecycle ----
 
-    /** How far a deletion goes. The board file is ActionDraw's; the pictures are the user's. */
-    enum class Deletion { FORGET, DELETE_FOLDER }
-
     /**
      * Deletes the board at [dir].
      *
@@ -538,50 +472,29 @@ class BoardState(
      * home, the boards home itself). Returns a line to show the user.
      */
     fun deleteBoard(dir: File, mode: Deletion): String {
-        if (!dir.isDirectory) return "That folder is gone already."
-        if (mode == Deletion.DELETE_FOLDER && !safeToDeleteFolder(dir)) {
-            return "Refusing to delete ${dir.name} — that is not a board folder."
+        val open = root?.samePathAs(dir) == true
+        val outcome = boards.delete(dir, mode)
+        val message = when (outcome) {
+            BoardDeletion.GONE_ALREADY -> return "That folder is gone already."
+            BoardDeletion.REFUSED -> return "Refusing to delete ${dir.name} — that is not a board folder."
+            BoardDeletion.FORGOTTEN -> "Board removed. The pictures are still in ${dir.name}."
+            BoardDeletion.NOT_FORGOTTEN -> "Couldn't remove the board file in ${dir.name}."
+            BoardDeletion.DELETED -> "Deleted ${dir.name} and everything in it."
+            BoardDeletion.NOT_DELETED -> "Couldn't delete ${dir.name} — something in it is in use."
         }
 
-        // If it is the board on screen, leave it before the file underneath disappears.
-        if (root?.samePathAs(dir) == true) {
+        // If it was the board on screen, leave it: its file is gone underneath it.
+        if (open) {
             root = null
             board = null
             selection = emptySet()
             focusId = null
             closeStrip()
         }
-
-        val message = when (mode) {
-            Deletion.FORGET -> {
-                val removed = BoardStore.forget(dir)
-                if (removed) "Board removed. The pictures are still in ${dir.name}."
-                else "Couldn't remove the board file in ${dir.name}."
-            }
-
-            Deletion.DELETE_FOLDER ->
-                if (Folders.deleteTree(dir)) "Deleted ${dir.name} and everything in it."
-                else "Couldn't delete ${dir.name} — something in it is in use."
-        }
-
-        // A deleted folder takes any board nested inside it, so their records go too.
-        if (mode == Deletion.DELETE_FOLDER) registry.descendantsOf(dir).forEach { registry.forget(it.dir) }
-        registry.forget(dir)
-        settings.removeRecentBoard(dir)
-        recent = settings.recentBoards()
+        recent = lib.preferences.recentBoards()
         boardsHomeTick++ // the board list is keyed on this
         importNotice = message
         return message
-    }
-
-    /** Guards the destructive path against paths nobody means to erase. */
-    private fun safeToDeleteFolder(dir: File): Boolean {
-        val target = runCatching { dir.canonicalFile }.getOrNull() ?: return false
-        if (Folders.isProtected(target)) return false // a drive root, or the user's home
-        val boardsHome = runCatching { settings.boardsHome().canonicalFile }.getOrNull()
-        if (target == boardsHome) return false
-        // Only a folder ActionDraw actually knows as a board may be removed wholesale.
-        return BoardStore.exists(target)
     }
 
     /**
@@ -591,38 +504,23 @@ class BoardState(
     fun createBoard(parent: File, name: String, template: BoardTemplate = BoardTemplate.ALL.first()): String? {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return "Give the board a name."
-        // "Do I already have a board called this?" is a question for the registry: the board's
-        // name and its folder's name are no longer the same thing.
-        val known = registry.entries().firstOrNull {
-            it.name.equals(trimmed, ignoreCase = true) &&
-                it.dir.parentFile?.samePathAs(parent) == true &&
-                BoardStore.exists(it.dir)
-        }
-        if (known != null) { // already a board -> just open it
-            openBoard(known.dir)
-            return null
-        }
-        val wanted = File(parent, Folders.safeName(trimmed))
-        if (BoardStore.exists(wanted)) { // a board here the registry has not met yet
-            openBoard(wanted)
-            return null
-        }
-        // A board's folder is where its files go, not what the board *is*. So a leftover folder
-        // keeps the name it has and the new board gets one beside it, still called [trimmed] --
-        // deleting a board must never make its name unusable.
-        val dir = if (wanted.exists() && !wanted.listFiles().isNullOrEmpty()) Folders.freeFolder(wanted) else wanted
-        if (!dir.isDirectory && !dir.mkdirs()) return "Couldn't create:\n$dir"
-        // Creating a board inside another board is making a sub-board of it; that is nesting,
-        // not a decision about where new top-level boards should go.
-        if (registry.parentOf(dir) == null) settings.setBoardsHome(parent)
         val created = Board(
             name = trimmed,
             groups = template.groups.mapIndexed { i, groupName ->
                 BoardGroup(id = newId(), name = groupName, order = i + 1)
             },
         )
-        if (!BoardStore.save(dir, created)) return "Couldn't write the board file in:\n$dir"
-        registry.register(trimmed, dir, ownsFolder = true)
+        val dir = when (val made = boards.create(parent, created)) {
+            // Already a board by that name there: just open it.
+            is BoardCreation.Existing -> {
+                openBoard(made.dir)
+                return null
+            }
+
+            is BoardCreation.CouldNotCreate -> return "Couldn't create:\n${made.dir}"
+            is BoardCreation.CouldNotWrite -> return "Couldn't write the board file in:\n${made.dir}"
+            is BoardCreation.Created -> made.dir
+        }
         root = dir
         board = created
         openedFromBackup = false
@@ -632,25 +530,25 @@ class BoardState(
     }
 
     fun openBoard(dir: File) {
-        when (val result = BoardStore.load(dir)) {
-            BoardStore.LoadResult.None -> {
+        when (val result = boards.load(dir)) {
+            LoadResult.None -> {
                 // A folder without a sidecar becomes an (empty) board named after it.
                 val fresh = Board(name = dir.name)
-                BoardStore.save(dir, fresh)
+                boards.save(dir, fresh)
                 root = dir
                 board = fresh
                 openedFromBackup = false
                 openFailed = false
             }
 
-            is BoardStore.LoadResult.Loaded -> {
+            is LoadResult.Loaded -> {
                 root = dir
-                board = result.board.let { if (it.name.isBlank()) it.copy(name = dir.name) else it }
+                board = result.value.let { if (it.name.isBlank()) it.copy(name = dir.name) else it }
                 openedFromBackup = result.fromBackup
                 openFailed = false
             }
 
-            BoardStore.LoadResult.Failed -> {
+            LoadResult.Failed -> {
                 openFailed = true
                 return
             }
@@ -674,9 +572,8 @@ class BoardState(
         syncConcepts()
         if (layout == BoardLayouts.FREE) update { placeMissing(it) }
         refreshPractice()
-        settings.addRecentBoard(dir)
-        recent = settings.recentBoards()
-        if (registry.entryFor(dir) == null) adopt(dir)
+        boards.opened(dir)
+        recent = lib.preferences.recentBoards()
         host.showBoard()
     }
 
@@ -800,7 +697,7 @@ class BoardState(
     /** Every board, with whether it links [conceptId]: the open one from memory, the rest from disk. */
     fun boardsFor(conceptId: String): List<BoardLink> =
         availableBoards().map { (name, dir) ->
-            val file = if (root?.samePathAs(dir) == true) board else BoardStore.peek(dir)
+            val file = if (root?.samePathAs(dir) == true) board else boards.peek(dir)
             BoardLink(name, dir, conceptId in file?.concepts.orEmpty())
         }
 
@@ -810,7 +707,7 @@ class BoardState(
             if (linked) linkConcept(conceptId) else unlinkConcept(conceptId)
             return true
         }
-        val current = (BoardStore.load(dir) as? BoardStore.LoadResult.Loaded)?.board ?: return false
+        val current = (boards.load(dir) as? LoadResult.Loaded<Board>)?.value ?: return false
         val next = if (linked) {
             if (conceptId in current.concepts) return true
             ConceptLink.reconcile(current.copy(concepts = current.concepts + conceptId), concepts::snapshot)
@@ -823,7 +720,7 @@ class BoardState(
                 items = current.items.filterNot { gid in it.groups },
             )
         }
-        return BoardStore.save(dir, next)
+        return boards.saveNow(dir, next)
     }
 
     /** Takes [conceptId] off every board that links it; returns their names. */
@@ -848,7 +745,7 @@ class BoardState(
         val dir = root ?: return
         val next = transform(board ?: return)
         board = next
-        BoardStore.save(dir, next)
+        boards.save(dir, next)
     }
 
     /** Rewrites the one item of type [T] with this [id]; everything else on the board is untouched. */
@@ -1139,18 +1036,28 @@ class BoardState(
      * the one place the app makes a network request, and only ever because the user asked for it
      * on a particular card. Blocking — call from a background dispatcher.
      */
-    fun fetchLinkPreview(itemId: String, fetcher: Fetcher = Http): String {
+    fun fetchLinkPreview(itemId: String): String {
         val dir = root ?: return "No board open."
         val link = item(itemId) as? LinkItem ?: return "That card is not a link."
-        val label = link.title.ifBlank { Http.normalize(link.url)?.let { URI(it).host } ?: "link" }
-        return when (val result = LinkPreview.fetchInto(dir, link.url, label, fetcher)) {
-            is LinkPreview.Result.Saved -> {
+        return when (val result = lib.previews.fetch(dir, link.url, link.title)) {
+            is PreviewResult.Saved -> {
                 updateItem<LinkItem>(itemId) { it.copy(preview = result.path) }
                 "Preview fetched for ${link.title.ifBlank { link.url }}.".also { importNotice = it }
             }
 
-            is LinkPreview.Result.Failed -> result.reason.also { importNotice = it }
+            is PreviewResult.Failed -> describe(result).also { importNotice = it }
         }
+    }
+
+    /** Why a link has no preview, in words. */
+    private fun describe(failed: PreviewResult.Failed): String = when (failed.why) {
+        PreviewFailure.NOT_WEB -> "Only http and https links can be previewed."
+        PreviewFailure.UNREACHABLE -> "Couldn't reach that address."
+        PreviewFailure.NO_PICTURE -> "That page offers no preview picture."
+        PreviewFailure.PICTURE_UNREACHABLE -> "Couldn't fetch the preview picture."
+        PreviewFailure.NEITHER_PAGE_NOR_PICTURE -> "That address is neither a page nor a picture."
+        PreviewFailure.NOT_READABLE -> "The preview is not an image ActionDraw reads."
+        PreviewFailure.NOT_SAVED -> "Couldn't save the preview from ${failed.url}."
     }
 
     /** Drops a fetched preview (the file stays in `_previews/` until the folder is tidied). */
@@ -1180,7 +1087,7 @@ class BoardState(
     fun pinPalette(picture: ImageItem, colours: List<Int>) {
         if (colours.isEmpty() || board == null) return
         val name = picture.caption ?: File(picture.path).nameWithoutExtension
-        val text = "colours of $name" + "\n" + colours.joinToString(" ") { Palette.hex(it) }
+        val text = "colours of $name" + "\n" + colours.joinToString(" ") { paletteHex(it) }
         val near = picture.pos?.let { it.copy(x = it.x + BASE_SIZE * 0.6f, y = it.y + BASE_SIZE * 0.55f, scale = 1f) }
         val card = NoteItem(
             id = newId(),
@@ -1200,7 +1107,7 @@ class BoardState(
      * without opening it: what the Practice room draws from a board.
      */
     fun picturesOf(dir: File): List<File> {
-        val file = BoardStore.peek(dir) ?: return emptyList()
+        val file = boards.peek(dir) ?: return emptyList()
         return file.items.filterIsInstance<ImageItem>().mapNotNull { item ->
             val borrowed = ConceptLink.splitBorrowed(item.path)
             if (borrowed == null) File(dir, item.path) else concepts.snapshot(borrowed.first)?.root?.let { File(it, borrowed.second) }
@@ -1210,7 +1117,7 @@ class BoardState(
     fun palettesOf(ids: Set<String>): List<Pair<ImageItem, List<Int>>> =
         displayItems.filterIsInstance<ImageItem>()
             .filter { it.id in ids }
-            .mapNotNull { item -> fileOf(item)?.let { item to Palette.of(it) } }
+            .mapNotNull { item -> fileOf(item)?.let { item to lib.pictures.palette(it) } }
             .filter { it.second.isNotEmpty() }
 
     /**
@@ -1220,7 +1127,8 @@ class BoardState(
     fun exportContactSheet(items: List<BoardItem>, target: File): String {
         val dir = root ?: return "No board open."
         val name = board?.name ?: dir.name
-        val ok = ContactSheet.write(dir, items, name, target, resolve = ::fileOf)
+        val pictures = items.filterIsInstance<ImageItem>().map { SheetCell(fileOf(it), it.caption ?: File(it.path).name) }
+        val ok = lib.pictures.contactSheet(name, pictures, target)
         importNotice = if (ok) "Contact sheet written to ${target.name}." else "Nothing to put on a sheet."
         return importNotice!!
     }
@@ -1436,7 +1344,7 @@ class BoardState(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return
         update { it.copy(name = trimmed) }
-        root?.let { dir -> registry.register(trimmed, dir, ownsFolder = entryFor(dir)?.ownsFolder ?: false) }
+        root?.let { dir -> boards.rename(dir, trimmed) }
         boardsHomeTick++
     }
 
@@ -1457,30 +1365,29 @@ class BoardState(
     fun setWallpaper(picture: File): String? {
         val dir = root ?: return "No board open."
         if (!picture.isFile) return "That file is not there."
-        val folder = File(dir, WALLPAPER_DIR).apply { mkdirs() }
-        val target = Folders.freeFile(File(folder, picture.name))
-        runCatching { picture.copyTo(target) }.onFailure { return "Couldn't copy ${picture.name}." }
-        val previous = wallpaperFile
+        val copy = boards.copyWallpaper(dir, picture) ?: return "Couldn't copy ${picture.name}."
+        val previous = wallpaper?.path?.takeIf { wallpaperFile != null }
         val kept = wallpaper
         update { b ->
             b.copy(
                 wallpaper = de.creaflect.actiondraw.board.Wallpaper(
-                    path = WALLPAPER_DIR + "/" + target.name,
+                    path = copy,
                     fit = kept?.fit ?: WallpaperFit.COVER,
                     dim = kept?.dim ?: 0.35f,
                     blur = kept?.blur ?: 0f,
                 ),
             )
         }
-        if (previous != null && !previous.samePathAs(target)) previous.delete()
+        if (previous != null && !previous.equals(copy, ignoreCase = true)) boards.deleteWallpaper(dir, previous)
         return null
     }
 
     /** Removes the background and its copy; the theme's texture shows again. */
     fun clearWallpaper() {
-        val file = wallpaperFile
+        val dir = root ?: return
+        val previous = wallpaper?.path?.takeIf { wallpaperFile != null }
         update { it.copy(wallpaper = null) }
-        file?.delete()
+        previous?.let { boards.deleteWallpaper(dir, it) }
     }
 
     fun setWallpaperLook(fit: String = wallpaper?.fit ?: WallpaperFit.COVER, dim: Float = wallpaper?.dim ?: 0.35f, blur: Float = wallpaper?.blur ?: 0f) =
@@ -1528,12 +1435,12 @@ class BoardState(
     // ---- Freeform: snapping and marquee selection ----
 
     /** Align dragged cards to their neighbours' centres — a preference, off unless switched on. */
-    var snapping by mutableStateOf(settings.snapByDefault())
+    var snapping by mutableStateOf(lib.preferences.snapByDefault())
         private set
 
     fun setSnappingPreference(on: Boolean) {
         snapping = on
-        settings.setSnapByDefault(on)
+        lib.preferences.setSnapByDefault(on)
     }
 
     /** Guides to draw while dragging (board-space x / y of the lines that matched). */
@@ -1688,7 +1595,7 @@ class BoardState(
 
     fun commitLayout() {
         val dir = root ?: return
-        BoardStore.save(dir, board ?: return)
+        boards.save(dir, board ?: return)
     }
 
     /** Moves [id] (or the whole selection, if it is part of it) by a board-space delta. */
@@ -1905,7 +1812,7 @@ class BoardState(
     fun importExternal(files: List<File>, groupId: String? = null) {
         val dir = root ?: return
         val existing = board?.items.orEmpty().filterIsInstance<ImageItem>().map { it.path }.toSet()
-        val outcome = Importer.importFiles(dir, files, groupId, existing)
+        val outcome = lib.pictures.importInto(dir, files, groupId, existing)
         importNotice = describeImport(outcome)
         val items = outcome.items
         if (items.isEmpty()) return
@@ -1916,7 +1823,7 @@ class BoardState(
     }
 
     /** A one-line report of what an import did — shown on the board, `null` when all went in. */
-    private fun describeImport(outcome: Importer.Outcome): String? {
+    private fun describeImport(outcome: ImportOutcome): String? {
         val parts = mutableListOf<String>()
         if (outcome.unsupported.isNotEmpty()) {
             val kinds = outcome.unsupported.map { it.extension.lowercase().ifEmpty { "?" } }
@@ -1939,7 +1846,7 @@ class BoardState(
             is SystemClipboard.Pasted.Files -> importExternal(pasted.files)
 
             is SystemClipboard.Pasted.Bitmap -> {
-                val item = Importer.importBitmap(dir, pasted.png, null, timestamp()) ?: return
+                val item = lib.pictures.importPng(dir, pasted.png, null, timestamp()) ?: return
                 importNotice = null
                 update { it.copy(items = it.items + item) }
                 if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
@@ -2028,19 +1935,19 @@ class BoardState(
      * board's folder and a card is appended. Returns a line to show the user.
      */
     fun pinTo(dir: File, files: List<File>): String {
-        val target = when (val loaded = BoardStore.load(dir)) {
-            is BoardStore.LoadResult.Loaded -> loaded.board
-            BoardStore.LoadResult.None -> Board(name = dir.name)
-            BoardStore.LoadResult.Failed -> return "Couldn't read the board in ${dir.name}."
+        val target = when (val loaded = boards.load(dir)) {
+            is LoadResult.Loaded -> loaded.value
+            LoadResult.None -> Board(name = dir.name)
+            LoadResult.Failed -> return "Couldn't read the board in ${dir.name}."
         }
         val existing = target.items.filterIsInstance<ImageItem>().map { it.path }.toSet()
-        val outcome = Importer.importFiles(dir, files, null, existing)
+        val outcome = lib.pictures.importInto(dir, files, null, existing)
         if (outcome.items.isEmpty()) {
             return if (outcome.duplicates > 0) "Already on ${target.name}." else "Nothing to pin."
         }
         var next = target.copy(items = target.items + outcome.items)
         if (next.layout == BoardLayouts.FREE) next = placeMissing(next)
-        if (!BoardStore.save(dir, next)) return "Couldn't write the board in ${dir.name}."
+        if (!boards.saveNow(dir, next)) return "Couldn't write the board in ${dir.name}."
         // Pinning into the board that is currently open must show up straight away.
         if (root?.samePathAs(dir) == true) board = next
         return "Pinned ${outcome.items.size} to ${next.name}."
@@ -2055,42 +1962,30 @@ class BoardState(
      * Returns what happened, for the board to report.
      */
     fun moveBoard(dir: File, into: File?): String {
-        if (!BoardStore.exists(dir)) return "${dir.name} is not a board."
         val name = entryFor(dir)?.name ?: dir.name
-        val target = (into ?: settings.boardsHome()).absoluteFile
-        // Compared canonically: a junction or symlink pointing back into the board would slip
-        // past a plain string test, and moving a folder into itself copies it into itself until
-        // the filesystem gives out. This guard is the only thing between that and the board.
-        val realDir = runCatching { dir.canonicalFile }.getOrDefault(dir.absoluteFile)
-        val realTarget = runCatching { target.canonicalFile }.getOrDefault(target)
-        if (realTarget.samePathAs(realDir)) return "A board cannot be moved into itself."
-        if (realTarget.isInside(realDir)) return "A board cannot be moved into one of its own sub-boards."
-        if (!target.isDirectory && !target.mkdirs()) return "Couldn't open ${target.name}."
-        if (dir.parentFile?.samePathAs(target) == true) return "$name is already there."
-
-        val destination = Folders.freeFolder(File(target, dir.name))
         // The open board may be the one moving, or may live inside it; either way it has to come
         // out at the other end rather than pointing at a folder that is no longer there.
         val openInside = root?.let { it.samePathAs(dir) || it.isInside(dir) } == true
         val openSuffix = if (openInside) root!!.absolutePath.substring(dir.absolutePath.length) else ""
 
-        val oldLeft = when (Folders.move(dir, destination)) {
-            Folders.Move.MOVED -> false
-            // It moved; the original just could not be cleared away. Say so, rather than call a
-            // move that worked a failure.
-            Folders.Move.MOVED_OLD_LEFT -> true
-            Folders.Move.INTO_ITSELF -> return "Couldn't move ${dir.name} into itself.".also { importNotice = it }
-            Folders.Move.FAILED -> return "Couldn't move ${dir.name}.".also { importNotice = it }
+        val moved = when (val outcome = boards.move(dir, into)) {
+            BoardMove.NotABoard -> return "${dir.name} is not a board."
+            BoardMove.IntoItself -> return "A board cannot be moved into itself."
+            BoardMove.IntoItsOwnSubBoard -> return "A board cannot be moved into one of its own sub-boards."
+            is BoardMove.CannotOpen -> return "Couldn't open ${outcome.target.name}."
+            BoardMove.AlreadyThere -> return "$name is already there."
+            BoardMove.RefusedIntoItself -> return "Couldn't move ${dir.name} into itself.".also { importNotice = it }
+            BoardMove.Failed -> return "Couldn't move ${dir.name}.".also { importNotice = it }
+            is BoardMove.Moved -> outcome
         }
 
-        registry.repath(dir, destination)
-        settings.removeRecentBoard(dir)
-        settings.addRecentBoard(destination)
-        recent = settings.recentBoards()
-        if (openInside) root = File(destination.absolutePath + openSuffix)
+        recent = lib.preferences.recentBoards()
+        if (openInside) root = File(moved.to.absolutePath + openSuffix)
         boardsHomeTick++
-        val where = if (into == null) "the boards home" else (entryFor(target)?.name ?: target.name)
-        val left = if (oldLeft) " Its old folder could not be removed." else ""
+        val where = into?.absoluteFile?.let { target -> entryFor(target)?.name ?: target.name } ?: "the boards home"
+        // It moved even when the original could not be cleared away: say so, rather than call a
+        // move that worked a failure.
+        val left = if (moved.oldLeft) " Its old folder could not be removed." else ""
         return "Moved $name to $where.$left".also { importNotice = it }
     }
 
@@ -2114,8 +2009,8 @@ class BoardState(
     }
 
     companion object {
-        /** Where a board keeps the copy of its background picture. */
-        const val WALLPAPER_DIR = "_wallpaper"
+        /** What a contact sheet of the board called [boardName] is saved as, unless another name is chosen. */
+        fun contactSheetName(boardName: String): String = safeFileName(boardName).ifBlank { "board" } + "-contact-sheet.png"
 
         /** One wheel tick or key press: enough to feel, few enough to steer. */
         const val VIEWER_ZOOM_STEP = 1.2f

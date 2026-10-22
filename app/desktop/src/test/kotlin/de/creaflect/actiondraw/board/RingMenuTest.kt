@@ -15,14 +15,13 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.rightClick
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.ui.AtelierTheme
 import org.junit.After
 import org.junit.Rule
@@ -57,7 +56,7 @@ class RingMenuTest {
         override fun sketchOver(picture: File) { sketchedOver = picture }
     }
     private val concepts = ConceptState(
-        Settings(config),
+        FileLib(config),
         object : ConceptHost {
             override fun showConcepts() = Unit
             override fun showConcept() = Unit
@@ -73,13 +72,13 @@ class RingMenuTest {
     /** A free board of two pictures, and a concept that is not linked to it yet. */
     private fun board(): Pair<BoardState, List<String>> {
         concepts.createConcept("Drache", "creature")
-        val state = BoardState(Settings(config), host, concepts = concepts)
+        val state = BoardState(FileLib(config), host, concepts = concepts)
         state.createBoard(home, "Ring")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg").map { File(root, it).apply { createNewFile() } })
         state.setLayout(BoardLayouts.FREE)
         state.clearSelection()
-        rule.setContent { AtelierTheme { BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize()) } }
+        rule.setContent { AtelierTheme { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) } }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
         state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())

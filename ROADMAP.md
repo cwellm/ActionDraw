@@ -1173,13 +1173,41 @@ device   pen
   first round let through — the sparse-sidecar test is what catches them), a pasted picture
   losing its pixels; and the domain reaching for `io` or for the stored format does not compile
 
-### ⬜ F11.8 `:lib:data` — the domain, implemented
-- ⬜ Repositories over the files for boards, concepts, sketches, settings, practice history (seen
-  and redo), the two registries, pictures and their thumbnails, link previews, contact sheets and
-  palettes — mapping what is stored to the domain's types
-- ⬜ Saving leaves the UI thread, through `lifecycle`: today every board edit writes the whole
-  sidecar from `BoardState.update()`
-- ⬜ `io` and `network` become `data`'s own: nothing above can reach the files or the network
+### ✅ F11.8 `:lib:data` — the domain, implemented
+- ✅ `Lib`, in the domain: everything there is to get and keep, through one object — its
+  `boards`, `concepts`, `pictures`, `practice` history (seen and redo), `sketches`, link `previews`,
+  `preferences` and `diagnostics`. Each is a contract in the domain's terms that answers in types
+  (`BoardCreation`, `BoardDeletion`, `BoardMove`, `PreviewResult`, `LoadResult` …), leaving the
+  words to the room that shows them
+- ✅ `FileLib`, in `lib:data`: the contracts over the files. The stores, the registries, the
+  settings, the importer, link previews, the contact sheet, the palette and the thumbnail cache
+  moved in and are `internal` now; what lived inside the four states moved with them — listing and
+  adopting boards, making, deleting and moving them, the wallpaper's copy, a concept's documents,
+  saving sketches, the pen's and the pointer's logs
+- ✅ Saving leaves the UI thread: a board's or a concept's file is handed to the lib's run and
+  written there, the newest of a folder winning. A read waits for its folder's write, deleting or
+  moving a folder waits for every write still on its way, and closing the app waits for them all.
+  A write that fails is reported, not swallowed. A test's lib writes at once
+- ✅ `io`, `network` and `model` are `lib:data`'s own: the app depends on the domain, the data and
+  the run, so a screen reaching for a file, the network or the stored format does not compile
+- ✅ Pictures come as Skia images; the screens make bitmaps of them (`thumbnailBitmap`, `bitmap`).
+  `safeFileName`, `paletteHex` and `oneLevelDeep` are the domain's pure rules now, written once
+- ✅ Safer than before: a wallpaper or document path that leads out of its board or concept is
+  refused, and a lib in a test's folder still never erases the person's home
+- ✅ What F11.7 left undone in the docs, done: the model and the domain described as they are,
+  the device rule, the module list
+- ✅ Broken on purpose and seen red after a no-op control stayed green: a save made on the
+  caller's thread, a read not waiting for its write, a delete and a move overtaking writes still
+  on their way, a failed write swallowed, a wallpaper and a document path leading out of their
+  folder, thumbnails and settings kept outside the lib's home, a preview fetched without the
+  card's title or named after nothing; in the rooms, a failed preview worded wrong, the open board
+  left on screen when deleted or behind when moved, an existing board not opened, a moved board
+  reported in the wrong place, the old wallpaper copy kept, a concept's folder deleted when only
+  its file should go, a document misnamed, a sketch overwriting another, practice history read
+  from the wrong folder. Three survived the first round — the move's guard passed by luck of
+  timing, and two messages were never checked — and are caught now that the tests are sharper.
+  The app reaching `io`, the network, the stored format or a store, the domain reaching `data` or
+  `io`, the data reaching Compose: none of it compiles
 
 ### ⬜ F11.9 `:lib:design` — the contract and the atelier
 - ⬜ `design:contract`: tokens (colours, type, lifts, motion), materials and room chrome as

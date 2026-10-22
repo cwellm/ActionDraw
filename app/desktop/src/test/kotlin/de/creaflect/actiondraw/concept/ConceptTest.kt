@@ -12,7 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
-import de.creaflect.actiondraw.Settings
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ImageItem
@@ -22,7 +22,6 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -45,6 +44,9 @@ class ConceptTest {
     private val home: File = Files.createTempDirectory("concept-home").toFile()
     private val elsewhere: File = Files.createTempDirectory("concept-else").toFile()
     private val config: File = Files.createTempDirectory("concept-cfg").toFile()
+
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(config)
     private var shown = 0
     private var listed = 0
     private var left = 0
@@ -61,7 +63,7 @@ class ConceptTest {
         config.deleteRecursively()
     }
 
-    private fun newState() = ConceptState(Settings(config), host).also { it.setConceptsHomeDir(home) }
+    private fun newState() = ConceptState(FileLib(config), host).also { it.setConceptsHomeDir(home) }
 
     // ---- A concept as a folder ----
 
@@ -72,7 +74,7 @@ class ConceptTest {
 
         val dir = state.root!!
         assertTrue(dir.isDirectory && dir.parentFile.absolutePath == home.absolutePath, "in the concepts home")
-        assertTrue(ConceptStore.exists(dir))
+        assertTrue(files.concepts.isConcept(dir))
         val entry = state.entryFor(dir)!!
         assertEquals("Drache", entry.name)
         assertEquals("creature", entry.kind)
@@ -83,13 +85,13 @@ class ConceptTest {
     @Test
     fun aConceptFolderFoundUnderTheHomeIsAdopted() {
         val dir = File(home, "Legacy").apply { mkdirs() }
-        ConceptStore.save(dir, Concept(name = "Legacy", kind = "prop")) // no id yet, as a hand-written file might be
+        files.concepts.saveNow(dir, Concept(name = "Legacy", kind = "prop")) // no id yet, as a hand-written file might be
 
         val listed = newState().availableConcepts()
 
         assertEquals(listOf("Legacy"), listed.map { it.name })
         assertTrue(listed.single().id.isNotBlank(), "given an id on adoption")
-        assertEquals(listed.single().id, ConceptStore.peek(dir)!!.id, "and the id written back into the file")
+        assertEquals(listed.single().id, files.concepts.peek(dir)!!.id, "and the id written back into the file")
     }
 
     @Test
@@ -109,21 +111,7 @@ class ConceptTest {
         state.setKind("creature")
         val entry = state.entryFor(state.root!!)!!
         assertEquals("Feuerdrache" to "creature", entry.name to entry.kind)
-        assertEquals("Feuerdrache", ConceptStore.peek(state.root!!)!!.name)
-    }
-
-    @Test
-    fun aConceptIsFoundByIdAfterItsFolderMovedHomes() {
-        val state = newState()
-        state.createConcept("Drache")
-        val id = state.concept!!.id
-        val moved = File(elsewhere, "Drache")
-        state.root!!.renameTo(moved)
-        ConceptRegistry(config).repath(state.root!!, moved)
-
-        val fresh = newState()
-        assertTrue(fresh.openById(id), "the registry knows where it went")
-        assertEquals(moved.absolutePath, fresh.root!!.absolutePath)
+        assertEquals("Feuerdrache", files.concepts.peek(state.root!!)!!.name)
     }
 
     @Test
@@ -134,7 +122,7 @@ class ConceptTest {
         File(keep, "sketch.png").writeText("picture")
         state.deleteConcept(keep, alsoFolder = false)
         assertTrue(File(keep, "sketch.png").isFile, "the files stay")
-        assertFalse(ConceptStore.exists(keep), "the concept is gone")
+        assertFalse(files.concepts.isConcept(keep), "the concept is gone")
         assertNull(state.entryFor(keep))
 
         state.createConcept("Gone")
@@ -147,7 +135,7 @@ class ConceptTest {
     @Test
     fun aCorruptSidecarWithNoBackupIsReportedNotCrashed() {
         val dir = File(home, "Broken").apply { mkdirs() }
-        File(dir, ConceptStore.FILE_NAME).writeText("{ not json")
+        File(dir, ".actiondraw_concept.json").writeText("{ not json")
         val state = newState()
         state.openConcept(dir)
         assertTrue(state.openFailed)
@@ -197,7 +185,7 @@ class ConceptTest {
 
         val path = state.saveDocument(null, "# Anatomy\n\nSix limbs: four legs and two wings.")!!
 
-        assertEquals("${ConceptStore.DOCS_DIR}/Anatomy.md", path, "named from its heading")
+        assertEquals("_docs/Anatomy.md", path, "named from its heading")
         assertEquals(listOf(path), state.concept!!.documents)
         assertTrue(File(state.root!!, path).readText().startsWith("# Anatomy"))
         assertEquals("Anatomy", state.documentTitle(path))
@@ -244,12 +232,12 @@ class ConceptTest {
         state.saveDocument(null, "# Anatomy\n\nSix limbs.")
         state.closeConcept()
 
-        rule.setContent { ConceptListScreen(state, ThumbCache(config)) }
+        rule.setContent { ConceptListScreen(state, FileLib(config).pictures) }
         rule.waitForIdle()
         rule.onNodeWithTag("concept-Drache").assertIsDisplayed()
 
         state.openConcept(state.availableConcepts().single().dir)
-        rule.setContent { ConceptScreen(state, ThumbCache(config)) }
+        rule.setContent { ConceptScreen(state, FileLib(config).pictures) }
         rule.waitForIdle()
         rule.onNodeWithTag("document-Anatomy.md", useUnmergedTree = true).assertIsDisplayed()
         assertNotNull(state.concept)
@@ -269,7 +257,7 @@ class ConceptTest {
             override fun boardsFor(conceptId: String) = listOf(BoardLink("Buch", buch, true), BoardLink("Zweites", zweites, false))
             override fun setLinked(conceptId: String, board: File, linked: Boolean) { toggled += board.name to linked }
         }
-        val state = ConceptState(Settings(config), boardsHost).also { it.setConceptsHomeDir(home) }
+        val state = ConceptState(FileLib(config), boardsHost).also { it.setConceptsHomeDir(home) }
         state.createConcept("Drache")
 
         state.openEditor(ConceptEditor.DeleteConcept(state.root!!, "Drache"))
@@ -326,7 +314,7 @@ class ConceptTest {
         state.rememberAspect(id, 1.5f)
 
         assertEquals(1.5f, state.aspectOf(state.item(id)!!))
-        assertEquals(1.5f, (ConceptStore.peek(state.root!!)!!.items.single() as ImageItem).aspect, "and written down")
+        assertEquals(1.5f, (files.concepts.peek(state.root!!)!!.items.single() as ImageItem).aspect, "and written down")
     }
 
     @Test
@@ -337,7 +325,7 @@ class ConceptTest {
         state.setLayout(BoardLayouts.FREE)
         val id = state.items.single().id
 
-        rule.setContent { ConceptScreen(state, ThumbCache(config)) }
+        rule.setContent { ConceptScreen(state, FileLib(config).pictures) }
         rule.waitForIdle()
         rule.onNodeWithTag("concept-canvas").assertExists()
         rule.onNodeWithTag("concept-card-$id", useUnmergedTree = true).assertExists()

@@ -9,13 +9,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -51,7 +50,7 @@ class NoteKindsTest {
         config.deleteRecursively()
     }
 
-    private fun board(): BoardState = BoardState(Settings(config), host).also { it.createBoard(home, "Kinds") }
+    private fun board(): BoardState = BoardState(FileLib(config), host).also { it.createBoard(home, "Kinds") }
 
     // ---- What a document note shows ----
 
@@ -158,7 +157,7 @@ class NoteKindsTest {
 
     private fun shown(state: BoardState) {
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
             BoardDialogs(state)
         }
         rule.waitForIdle()

@@ -29,8 +29,8 @@ flowchart TB
       contract[":lib:design:contract<br/>tokens · materials · chrome"]
     end
     subgraph BARE["bare lib"]
-      data[":lib:data<br/>repositories over the files"]
-      domain[":lib:domain<br/>the API: types · contracts"]
+      data[":lib:data<br/>FileLib: the domain over the files"]
+      domain[":lib:domain<br/>the API: types · Lib · contracts"]
       network[":lib:network<br/>HTTP, http and https only"]
       engine[":lib:sketch-engine<br/>pen samples to pixels"]
       subgraph CORE["core"]
@@ -43,6 +43,7 @@ flowchart TB
   desktop --> features
   desktop --> atelier
   desktop --> pen
+  pen --> domain
   features --> contract
   features --> domain
   features --> data
@@ -60,8 +61,8 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 
 ## The layers
 
-- **`model`** — how things are stored: the sidecar formats (`BoardFile`, `ConceptFile`, …) and
-  the pure rules on them. Not what callers see.
+- **`model`** — how things are stored: the sidecars' and the registries' formats (`BoardJson`,
+  `ConceptJson`, …), field for field what the files on disk hold. Only `data` sees it.
 - **`io`** — files: the app's own folders, writing a file whole or not at all, moving and deleting
   folders, names Windows accepts, listing and decoding pictures.
 - **`lifecycle`** — the lib's run: loading it, the scopes and dispatchers its async work runs in,
@@ -69,11 +70,16 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
   cleanly — whatever is still to be written is written before the app goes.
 - **`network`** — the one way online: a GET for http and https only, with a size cap.
 - **`domain`** — the API: the types and contracts callers work with, abstracted from the model —
-  just what an application needs. It also says, as contracts, what the lib needs from its host:
-  the clipboard, choosing files, opening a link, the pen's input. It depends on nothing of ours.
-- **`data`** — the implementation of the domain's contracts over `core` and `network`: the
-  repositories over the files, mapping what is stored to what callers see, working off the UI
-  thread through `lifecycle`.
+  just what an application needs. Everything there is to get and keep comes through `Lib`: its
+  `boards`, `concepts`, `pictures`, `practice` history, `sketches`, link `previews`, `preferences`
+  and `diagnostics`, each answering in types of its own (`BoardMove`, `PreviewResult`, …) and
+  leaving the words to the room that shows them. It also says, as contracts, what the lib needs
+  from its host: the clipboard, choosing files, opening a link, the pen's input. It depends on
+  nothing of ours; a picture comes as a Skia image, what Compose Desktop and the engine draw with.
+- **`data`** — `FileLib`, the implementation of `Lib` over `core` and `network`: the
+  repositories over the files, mapping what is stored to what callers see. What is written often
+  — a board's file after every edit — goes through `lifecycle`'s writes, off the UI thread; a read
+  waits for its folder's write, deleting or moving a folder waits for every write on its way.
 - **`sketch-engine`** — the drawing engine, a library of its own.
 - **`design:contract`** — the design system's contract: tokens (colours, type, lifts, motion),
   materials and room chrome as interfaces, read through the theme the way Material's
@@ -98,16 +104,18 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
    `implementation`, so they are on nobody else's classpath: no screen can read a file or go
    online by itself.
 5. **`sketch-engine` depends on nothing of ours** and could be published without the rest.
-6. **Nothing in the lib depends on a feature, and no feature on another.** What one room needs of
+6. **A `device` module depends on the domain alone**, whose host contract it fills; the app wires
+   it in.
+7. **Nothing in the lib depends on a feature, and no feature on another.** What one room needs of
    another is a contract, in the domain or in the room's own domain layer, connected by the app.
-7. **Features use the design contract, never `atelier` itself**, so another design system
+8. **Features use the design contract, never `atelier` itself**, so another design system
    restyles them.
-8. **Compose lives in the UI kit and the app**; the OS (Swing, AWT, JNA) only in the app and
+9. **Compose lives in the UI kit and the app**; the OS (Swing, AWT, JNA) only in the app and
    `device`.
-9. **The files stay the truth.** A board is a folder plus a sidecar; there is no database. An
-   index (search across boards, pictures by content) could later sit inside `data` without anyone
-   above noticing.
-10. **Package names stay when files move**, so a move changes no imports.
+10. **The files stay the truth.** A board is a folder plus a sidecar; there is no database. An
+    index (search across boards, pictures by content) could later sit inside `data` without anyone
+    above noticing.
+11. **Package names stay when files move**, so a move changes no imports.
 
 ## What goes where
 
@@ -117,8 +125,8 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 | `:lib:core:io` | `:core:io` (F11.2) |
 | `:lib:core:lifecycle` | new; today each state picks its own `Dispatchers.IO`, and nothing is flushed on close |
 | `:lib:network` | `:core:network` (F11.3) |
-| `:lib:domain` | new: types for boards, cards, concepts, sketches, practice; the contracts for them; the host contracts, today `SystemClipboard`, `Browser`, `FileDialogs` and `PenSource` |
-| `:lib:data` | `BoardStore`, `ConceptStore`, the registries, `Settings`, `SeenStore`, `RedoStore`, `ThumbCache`, `Importer`, `LinkPreview`, `ContactSheet`, `Palette`, and the storage inside `BoardState`, `ConceptState`, `SketchState`, `AppState` |
+| `:lib:domain` | the types of `:core:model` (F11.7: `Board`, `Concept`, …); `Lib` and its contracts — `Boards`, `Concepts`, `Pictures`, `PracticeHistory`, `Sketches`, `LinkPreviews`, `Preferences`, `Diagnostics` (F11.8); the host contracts `SystemClipboard`, `Browser`, `FileDialogs`, `HostPreferences` and `PenSource` |
+| `:lib:data` | `FileLib`, over `BoardStore`, `ConceptStore`, the registries, `Settings`, `SeenStore`, `RedoStore`, `ThumbCache`, `Importer`, `LinkPreview`, `ContactSheet`, `Palette` — and the storage that was inside `BoardState`, `ConceptState`, `SketchState`, `AppState` (F11.8) |
 | `:lib:sketch-engine` | `:sketch-engine` |
 | `:lib:design:contract` | new: what `ui/Atelier`, `Materials`, `Motion` and the room chrome offer, as a contract |
 | `:lib:design:atelier` | `ui/Atelier.kt`, `Materials.kt`, `Motion.kt`, `RoomChrome.kt`, `Components.kt`, the fonts |
@@ -131,18 +139,25 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 
 ## Where it stands
 
-After F11.5 the modules sit in their three groups; what each holds has not changed yet:
+After F11.8 the app reaches the disk and the network only through `Lib`; the core and the network
+are `lib:data`'s own, and the stored format is no longer on the app's classpath:
 
 ```mermaid
 flowchart TB
-  desktop[":app:desktop<br/>rooms · states · screens · stores<br/>clipboard · dialogs · browser"]
-  desktop --> model[":lib:core:model"]
-  desktop --> io[":lib:core:io"]
-  desktop --> network[":lib:network"]
+  desktop[":app:desktop<br/>rooms · states · screens<br/>clipboard · dialogs · browser"]
+  desktop --> data[":lib:data<br/>FileLib"]
+  desktop --> domain[":lib:domain"]
+  desktop --> lifecycle[":lib:core:lifecycle"]
   desktop --> engine[":lib:sketch-engine"]
   desktop --> pen[":device:pen"]
+  data --> domain
+  data --> model[":lib:core:model"]
+  data --> io[":lib:core:io"]
+  data --> network[":lib:network"]
+  data --> lifecycle
+  data --> engine
+  pen --> domain
 ```
 
-The rest comes in this order: the three
-groups (F11.5), `lifecycle` (F11.6), `domain` (F11.7), `data` (F11.8), the design system (F11.9),
-the features (F11.10) and the desktop on top (F11.11).
+The rest comes in this order: the design system (F11.9), the features (F11.10) and the desktop on
+top (F11.11).

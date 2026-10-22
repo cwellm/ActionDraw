@@ -1,7 +1,5 @@
 package de.creaflect.actiondraw
 
-import de.creaflect.actiondraw.image.RedoStore
-import de.creaflect.actiondraw.image.SeenStore
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -17,7 +15,10 @@ class AppStateTest {
     /** Isolated config dir, so tests never read or clobber the real ~/.actiondraw. */
     private val settingsDir: File = Files.createTempDirectory("actiondraw-config").toFile()
 
-    private fun newState() = AppState(Settings(settingsDir))
+    /** What the files say, read the way the app reads them. */
+    private val files = FileLib(settingsDir)
+
+    private fun newState() = AppState(FileLib(settingsDir))
 
     private fun makeImages(vararg names: String) {
         names.forEach { File(dir, it).createNewFile() }
@@ -102,7 +103,7 @@ class AppStateTest {
     fun freshCycleForgetsOnlyTheSelectedImagesSeenState() {
         makeImages("a.jpg", "b.jpg", "c.jpg")
         // b was seen in some earlier session and is NOT part of the selection.
-        SeenStore.write(dir, setOf("b.jpg"))
+        files.practice.setSeen(dir, setOf("b.jpg"))
 
         val state = newState()
         state.selectFolder(dir)
@@ -114,7 +115,7 @@ class AppStateTest {
         state.next()
         state.next()
 
-        val seen = SeenStore.read(dir)
+        val seen = files.practice.seen(dir)
         assertTrue("b.jpg" in seen, "unselected image must keep its seen state")
         assertTrue("a.jpg" !in seen && "c.jpg" !in seen, "selected images were reset for the new cycle")
         assertEquals(setOf("a.jpg", "c.jpg"), state.pool.map { it.name }.toSet())
@@ -139,7 +140,7 @@ class AppStateTest {
             assertEquals(setOf("w1.jpg", "w2.jpg"), state.pool.map { it.name }.toSet())
 
             state.next() // marks the first pose seen -> key must be the relative path
-            val seen = SeenStore.read(boardRoot)
+            val seen = files.practice.seen(boardRoot)
             assertTrue(seen.isNotEmpty() && seen.all { it.startsWith("wings/") }, "expected relative keys, got $seen")
 
             state.stop()
@@ -170,7 +171,7 @@ class AppStateTest {
 
     @Test
     fun aLastFolderThatNoLongerExistsIsIgnored() {
-        Settings(settingsDir).setLastFolder(File(dir, "deleted-since-last-run"))
+        files.preferences.setLastFolder(File(dir, "deleted-since-last-run"))
 
         val restarted = newState()
         assertNull(restarted.folder)
@@ -192,7 +193,7 @@ class AppStateTest {
         val second = state.currentImage!!
         state.stop()
         assertEquals(setOf(flagged, second), state.sessionFlaggedFiles.toSet(), "flagged for another go, not for nothing")
-        assertEquals(setOf(flagged.name, second.name), RedoStore.read(dir), "and kept on disk")
+        assertEquals(setOf(flagged.name, second.name), files.practice.redo(dir), "and kept on disk")
     }
 
     @Test
@@ -208,6 +209,6 @@ class AppStateTest {
         state.start()
         assertEquals(flagged, state.currentImage, "a flagged picture comes first")
         state.next()
-        assertTrue(RedoStore.read(dir).isEmpty(), "redrawn: the flag has done its job")
+        assertTrue(files.practice.redo(dir).isEmpty(), "redrawn: the flag has done its job")
     }
 }

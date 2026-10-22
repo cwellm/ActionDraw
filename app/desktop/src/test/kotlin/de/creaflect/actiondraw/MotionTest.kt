@@ -132,12 +132,12 @@ class MotionTest {
 
     @Test
     fun reducedMotionIsWhatWasChosenOnceItIsChosen() {
-        val settings = Settings(config)
-        settings.setReducedMotion(true)
-        assertTrue(AppState(settings).reducedMotion)
-        val app = AppState(settings)
+        val lib = FileLib(config)
+        lib.preferences.setReducedMotion(true)
+        assertTrue(AppState(lib).reducedMotion)
+        val app = AppState(lib)
         app.setReducedMotionPreference(false)
-        assertEquals(false, AppState(Settings(config)).reducedMotion, "and it is remembered")
+        assertEquals(false, AppState(FileLib(config)).reducedMotion, "and it is remembered")
     }
 
     @Test
@@ -147,7 +147,7 @@ class MotionTest {
             image.createGraphics().apply { paint = java.awt.Color.ORANGE; fillRect(0, 0, 16, 16); dispose() }
             ImageIO.write(image, "png", File(pictures, "pose$i.png"))
         }
-        val state = AppState(Settings(config))
+        val state = AppState(FileLib(config))
         state.selectFolder(pictures)
         state.start()
         // A running pose ticks every second for ever: the clock moves only when this test says so,

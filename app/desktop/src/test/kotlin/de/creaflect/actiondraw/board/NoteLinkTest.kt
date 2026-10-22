@@ -8,13 +8,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performMouseInput
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.Settings
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
-import de.creaflect.actiondraw.image.ThumbCache
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -51,7 +50,7 @@ class NoteLinkTest {
 
     /** A free-mode board with one note whose whole first line is a link. */
     private fun boardWithALinkNote(): Pair<BoardState, MutableList<String>> {
-        val state = BoardState(Settings(config), host)
+        val state = BoardState(FileLib(config), host)
         state.createBoard(home, "Notes")
         // The note first, then the layout: switching to Free is what places the cards.
         state.saveNote(null, "[wing references](https://example.com/wings)\nmore text below")
@@ -68,7 +67,7 @@ class NoteLinkTest {
      */
     private fun showAndLocate(state: BoardState, noteId: String): androidx.compose.ui.geometry.Rect {
         rule.setContent {
-            BoardCanvas(state, ThumbCache(config), textured = false, modifier = Modifier.fillMaxSize())
+            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
             BoardDialogs(state)
         }
         rule.waitForIdle()

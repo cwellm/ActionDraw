@@ -52,17 +52,19 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.BoardEditor
+import de.creaflect.actiondraw.board.BoardNode
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.BoardTemplate
+import de.creaflect.actiondraw.board.Deletion
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteColors
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.board.Palette
 import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.board.WallpaperFit
-import de.creaflect.actiondraw.io.Folders
+import de.creaflect.actiondraw.board.paletteHex
+import de.creaflect.actiondraw.safeFileName
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.actiondraw.ui.IntervalSelector
 import de.creaflect.actiondraw.ui.Lift
@@ -394,7 +396,7 @@ private fun WallpaperDialog(state: BoardState) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
-                chooseImages(state.root).firstOrNull()?.let { error = state.setWallpaper(it) }
+                chooseImages(state.root, state.pictureExtensions).firstOrNull()?.let { error = state.setWallpaper(it) }
             }) { Text(if (paper == null) "Choose picture…" else "Change picture…") }
             if (paper != null) {
                 OutlinedButton(onClick = { state.clearWallpaper() }) { Text("Remove") }
@@ -426,7 +428,7 @@ private fun WallpaperDialog(state: BoardState) {
  */
 @Composable
 private fun MoveBoardDialog(state: BoardState, dir: File, name: String) {
-    val targets by produceState(emptyList<BoardState.BoardNode>(), dir) {
+    val targets by produceState(emptyList<BoardNode>(), dir) {
         value = withContext(Dispatchers.IO) { state.moveTargets(dir) }
     }
     val home = state.boardsHome()
@@ -566,7 +568,7 @@ private fun PaletteDialog(state: BoardState, ids: Set<String>) {
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(Color(0xFF000000L.toInt() or color)),
                         )
-                        Text(Palette.hex(color), style = MaterialTheme.typography.caption)
+                        Text(paletteHex(color), style = MaterialTheme.typography.caption)
                     }
                 }
             }
@@ -621,7 +623,7 @@ private fun DeleteBoardDialog(state: BoardState, editor: BoardEditor.DeleteBoard
             onOk = {
                 state.deleteBoard(
                     editor.dir,
-                    if (alsoFolder) BoardState.Deletion.DELETE_FOLDER else BoardState.Deletion.FORGET,
+                    if (alsoFolder) Deletion.DELETE_FOLDER else Deletion.FORGET,
                 )
                 state.closeEditor()
             },
@@ -660,7 +662,7 @@ private fun NewBoardDialog(state: BoardState, under: File?) {
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
-                File(location, Folders.safeName(name.ifBlank { "…" })).path,
+                File(location, safeFileName(name.ifBlank { "…" })).path,
                 style = MaterialTheme.typography.caption,
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
                 modifier = Modifier.weight(1f),

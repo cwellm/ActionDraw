@@ -22,11 +22,11 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.ui.PointerLog
 import de.creaflect.actiondraw.board.ui.ReferenceStrip
 import de.creaflect.actiondraw.board.ui.handleBoardKey
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.image.ThumbCache
 import de.creaflect.actiondraw.lifecycle.LibRun
 import de.creaflect.actiondraw.sketch.SketchHost
 import de.creaflect.actiondraw.sketch.SketchState
@@ -40,11 +40,18 @@ import java.io.File
 fun main() = application {
     // The lib's run: the scope and the dispatcher its work goes to, and the writes it must not
     // lose. Closed when the app goes — by its window, or by the JVM shutting down under it.
-    val run = remember { LibRun().also { Runtime.getRuntime().addShutdownHook(Thread { it.close() }) } }
+    val run = remember {
+        LibRun().also { run ->
+            Runtime.getRuntime().addShutdownHook(Thread { run.close() })
+            // A write that failed is not lost silently: there is no one to tell but the console.
+            run.writes.onError = { System.err.println("ActionDraw: a write failed: ${it.message}") }
+        }
+    }
+    // The bare lib over the person's files — the only way the app reaches the disk or the network.
+    val lib: Lib = remember { FileLib(run).also { PointerLog.diagnostics = it.diagnostics } }
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
     val windowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
-    val settings = remember { Settings() }
-    val appState = remember { AppState(settings) }
+    val appState = remember { AppState(lib) }
     // Boards and concepts need each other — a concept is linked onto boards, a board reads its
     // concepts — but each only through its host, and the holder lets them be built in turn.
     val boardHolder = remember { BoardStateHolder() }
@@ -54,7 +61,7 @@ fun main() = application {
     val mainWindow = remember { mutableStateOf<java.awt.Window?>(null) }
     val conceptState = remember {
         ConceptState(
-            settings,
+            lib,
             object : ConceptHost {
                 override fun showConcepts() = appState.showConcepts()
                 override fun showConcept() = appState.showConcept()
@@ -74,7 +81,7 @@ fun main() = application {
     // The board talks to the rest of the app only through this host (its "plugin" boundary).
     val boardState = remember {
         BoardState(
-            settings,
+            lib,
             object : BoardHost {
                 override fun startSession(root: File, images: List<File>, setup: SessionSetup?) =
                     appState.startBoardSession(root, images, setup)
@@ -104,11 +111,10 @@ fun main() = application {
     val pinTargets = remember {
         PinTargets(boards = { boardState.availableBoards() }, pin = boardState::pinTo)
     }
-    val thumbs = remember { ThumbCache() }
     // Live Sketch saves into boards and concepts through this seam, and never reaches past it.
     val sketchState = remember {
         SketchState(
-            settings,
+            lib,
             object : SketchHost {
                 override fun boards() = boardState.availableBoards()
                 override fun addToBoard(dir: File, pictures: List<File>) = boardState.pinTo(dir, pictures)
@@ -152,7 +158,7 @@ fun main() = application {
             boardState,
             conceptState,
             sketchState,
-            thumbs,
+            lib.pictures,
             pinTargets,
             isFullscreen = isFullscreen,
             onToggleFullscreen = { toggleFullscreen(windowState) },
@@ -173,7 +179,7 @@ fun main() = application {
             alwaysOnTop = true,
         ) {
             AtelierTheme(reducedMotion = appState.reducedMotion) {
-                Surface { ReferenceStrip(boardState, thumbs) }
+                Surface { ReferenceStrip(boardState, lib.pictures) }
             }
         }
     }
@@ -192,7 +198,7 @@ fun main() = application {
             AtelierTheme(reducedMotion = appState.reducedMotion) {
                 Surface {
                     when (boardWindow) {
-                        Screen.Summary -> SummaryScreen(appState, pinTargets, thumbs)
+                        Screen.Summary -> SummaryScreen(appState, pinTargets, lib.pictures)
                         else -> SessionScreen(
                             appState,
                             onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
