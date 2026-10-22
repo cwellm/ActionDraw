@@ -21,6 +21,8 @@ dependencies {
     implementation(project(":lib:core:model"))
     // Files: the app's own folders, safe writes, moving and deleting folders, reading pictures.
     implementation(project(":lib:core:io"))
+    // The lib's run: its scope and dispatcher, the writes it must not lose, closing cleanly.
+    implementation(project(":lib:core:lifecycle"))
     // The one way online: HTTP for link previews, http and https only.
     implementation(project(":lib:network"))
     // The pen's own input: Windows Ink, through JNA.

@@ -531,6 +531,8 @@ In three groups — `lib` for what an application builds on, `device` for the ha
   the pure rules on it, with no Compose and no file access
 - `lib/core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
   moving and deleting folders, names Windows accepts, listing and decoding pictures
+- `lib/core/lifecycle` — the lib's run: its scope and dispatcher, the writes it must not lose, the
+  memory it holds while running, closing down cleanly
 - `lib/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
 - `lib/sketch-engine` — the drawing engine: pen samples in, pixels out
 - `device/pen` — the pen's own input: Windows Ink, through JNA

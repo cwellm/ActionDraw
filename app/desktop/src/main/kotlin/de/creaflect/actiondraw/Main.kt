@@ -27,6 +27,7 @@ import de.creaflect.actiondraw.board.ui.handleBoardKey
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.lifecycle.LibRun
 import de.creaflect.actiondraw.sketch.SketchHost
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.sketch.handleSketchChar
@@ -37,6 +38,9 @@ import de.creaflect.actiondraw.ui.SummaryScreen
 import java.io.File
 
 fun main() = application {
+    // The lib's run: the scope and the dispatcher its work goes to, and the writes it must not
+    // lose. Closed when the app goes — by its window, or by the JVM shutting down under it.
+    val run = remember { LibRun().also { Runtime.getRuntime().addShutdownHook(Thread { it.close() }) } }
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
     val windowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
     val settings = remember { Settings() }
@@ -116,6 +120,8 @@ fun main() = application {
         ).also { sketchHolder.state = it }
     }
     val isFullscreen = windowState.placement == WindowPlacement.Fullscreen
+    // Everything above is built: the lib is loaded.
+    LaunchedEffect(run) { run.loaded() }
 
     // A session started from a board changes its seen/redo state; refresh the badges when the
     // session window closes.
@@ -125,7 +131,12 @@ fun main() = application {
 
     Window(
         // Closing with unsaved strokes asks first; everything else is saved as it happens.
-        onCloseRequest = { sketchState.guardUnsaved { exitApplication() } },
+        onCloseRequest = {
+            sketchState.guardUnsaved {
+                run.close()
+                exitApplication()
+            }
+        },
         title = "ActionDraw",
         state = windowState,
         onKeyEvent = { handleKey(it, appState, boardState, conceptState, sketchState, windowState) },

@@ -1131,11 +1131,22 @@ device   pen
   docs and the PKGBUILD follow the new paths (installers land in
   `app/desktop/build/compose/binaries/main/`)
 
-### ⬜ F11.6 `:lib:core:lifecycle` — the lib's run
-- ⬜ Loading the lib, and the scopes and dispatchers its async work runs in, handed to whoever
-  needs them instead of each state choosing its own `Dispatchers.IO`
-- ⬜ The memory it holds while running — caches, what is open — owned there and given back
-- ⬜ Closing down cleanly: whatever is still to be written is written before the app goes
+### ✅ F11.6 `:lib:core:lifecycle` — the lib's run
+- ✅ `LibRun`: the run's phase (loading, running, closing, closed), the scope its long-running
+  work lives in and the dispatcher for disk and network work, handed to whoever needs them;
+  `LibRun.inline()` for tests and tools that want no threads of the lib's own
+- ✅ `Writes`: the writes that must reach the disk, off the caller's thread. The newest of a key
+  wins, so a burst of edits costs one write; they run one at a time, in the order they came;
+  `awaitKey` before one is read back, `flush` for all; a write that throws is reported and the
+  others go on
+- ✅ `MemoryCache`: memory the lib holds while running, the least recently used out first, given
+  back on `trim` and when the run closes
+- ✅ Closing down cleanly: the app makes the run at start and closes it when its window goes (the
+  JVM's shutdown as a backstop). Pending writes are waited for, and a write handed over after
+  closing happens at once rather than being lost
+- ✅ The states and screens take it up with `lib:data` (F11.8), when saving leaves the UI thread
+- ✅ `LibRunTest` (10). Seven guards broken on purpose and seen red, each by its named test, after
+  a control that changes nothing stayed green
 
 ### ⬜ F11.7 `:lib:domain` — the API
 - ⬜ The types callers work with — boards, cards, concepts, sketches, practice — abstracted from

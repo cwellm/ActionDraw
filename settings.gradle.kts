@@ -7,6 +7,7 @@ rootProject.name = "ActionDraw"
 // drawing engine (a library of its own).
 include(":lib:core:model")
 include(":lib:core:io")
+include(":lib:core:lifecycle")
 include(":lib:network")
 include(":lib:sketch-engine")
 
