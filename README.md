@@ -521,8 +521,8 @@ An import that leaves something out (unreadable format, or a picture already on 
 on the board instead of silently ignoring the drop.
 
 ## How the code is laid out
-Gradle modules, each depending only on the ones below it. The plan, and what is still to move, is
-M10 in the [roadmap](ROADMAP.md).
+Gradle modules, each depending only on the ones below it. Where this is going, with a diagram,
+is [docs/Architecture.md](docs/Architecture.md); the steps are M10 in the [roadmap](ROADMAP.md).
 
 - `core/model` — boards and their cards, concepts, session plans: plain serializable data and
   the pure rules on it, with no Compose and no file access
