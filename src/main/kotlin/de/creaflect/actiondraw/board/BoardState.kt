@@ -21,9 +21,11 @@ import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.network.Fetcher
 import de.creaflect.actiondraw.network.Http
+import de.creaflect.actiondraw.platform.AwtClipboard
+import de.creaflect.actiondraw.platform.DesktopBrowser
+import de.creaflect.actiondraw.platform.SystemClipboard
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.sketch.SketchDocument
-import java.awt.Desktop
 import java.io.File
 import java.net.URI
 import java.time.LocalDateTime
@@ -105,6 +107,8 @@ class BoardState(
     },
     /** Where linked concepts are read from; a board without concepts uses [ConceptSource.None]. */
     private val concepts: ConceptSource = ConceptSource.None,
+    /** The machine's clipboard; a test hands in its own. */
+    private val clipboard: SystemClipboard = AwtClipboard,
 ) {
     var root by mutableStateOf<File?>(null)
         private set
@@ -1162,11 +1166,7 @@ class BoardState(
      * How a url leaves the app: the system browser. Replaceable so a test can see that a link
      * inside a note was followed without a browser window opening on the build machine.
      */
-    var linkOpener: (String) -> Unit = { url ->
-        runCatching {
-            Desktop.getDesktop().browse(URI(if (url.contains("://")) url else "https://$url"))
-        }
-    }
+    var linkOpener: (String) -> Unit = { url -> DesktopBrowser.open(url) }
 
     /** Opens any address — a link card's, or a `[text](url)` inside a note. */
     fun openUrl(url: String) = linkOpener(url)
@@ -1934,10 +1934,10 @@ class BoardState(
 
     fun importPasted() {
         val dir = root ?: return
-        when (val pasted = BoardClipboard.paste()) {
-            is BoardClipboard.Pasted.Files -> importExternal(pasted.files)
+        when (val pasted = clipboard.paste()) {
+            is SystemClipboard.Pasted.Files -> importExternal(pasted.files)
 
-            is BoardClipboard.Pasted.Bitmap -> {
+            is SystemClipboard.Pasted.Bitmap -> {
                 val item = Importer.importBitmap(dir, pasted.image, null, timestamp()) ?: return
                 importNotice = null
                 update { it.copy(items = it.items + item) }
@@ -1954,11 +1954,11 @@ class BoardState(
     fun copySelection() {
         val files = selectedImageFiles
         if (files.isNotEmpty()) {
-            BoardClipboard.copyFiles(files)
+            clipboard.copyFiles(files)
             return
         }
         val notes = selectedItems.filterIsInstance<NoteItem>()
-        if (notes.isNotEmpty()) BoardClipboard.copyText(notes.joinToString("\n\n") { it.text })
+        if (notes.isNotEmpty()) clipboard.copyText(notes.joinToString("\n\n") { it.text })
     }
 
     fun drawSelection() = draw(selectedImageFiles)

@@ -9,6 +9,7 @@ include(":sketch-engine")
 include(":core:model")
 include(":core:io")
 include(":core:network")
+include(":core:platform")
 
 pluginManagement {
     // The modules' shared setup: Kotlin on Java 17 and their tests (actiondraw.kotlin-library),

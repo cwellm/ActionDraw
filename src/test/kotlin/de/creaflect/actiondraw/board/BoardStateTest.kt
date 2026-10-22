@@ -8,6 +8,8 @@ import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.image.RedoStore
 import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.network.Fetched
+import de.creaflect.actiondraw.platform.SystemClipboard
+import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -1038,5 +1040,31 @@ class BoardStateTest {
 
         val names = state.availableBoards().map { it.first }.toSet()
         assertEquals(setOf("Alpha", "Beta", "Gamma"), names)
+    }
+
+    @Test
+    fun pasteAndCopyGoThroughTheClipboardTheBoardWasGiven() {
+        val copied = mutableListOf<String>()
+        val clipboard = object : SystemClipboard {
+            override fun copyFiles(files: List<File>) {
+                copied += files.map { it.name }
+            }
+
+            override fun copyText(text: String) {
+                copied += text
+            }
+
+            override fun paste() = SystemClipboard.Pasted.Bitmap(BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB))
+        }
+        val state = BoardState(Settings(settingsDir), host, timestamp = { "20260830-120000" }, clipboard = clipboard)
+        state.createBoard(home, "Clip")
+
+        state.importPasted()
+        val card = state.board!!.items.single() as ImageItem
+        assertEquals("_imported/pasted-20260830-120000.png", card.path, "the picture on the clipboard, kept in the board")
+        assertEquals(setOf(card.id), state.selection)
+
+        state.copySelection()
+        assertEquals(listOf("pasted-20260830-120000.png"), copied, "and the selected card goes back out as its file")
     }
 }

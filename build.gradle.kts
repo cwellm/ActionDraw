@@ -35,10 +35,8 @@ dependencies {
     implementation(project(":core:io"))
     // The one way online: HTTP for link previews, http and https only.
     implementation(project(":core:network"))
-    // Pen pressure and tilt come from native input, not from Compose (LEARNINGS L1): on Windows,
-    // WM_POINTER + GetPointerPenInfo through JNA — pure Java, no compiler, no build step.
-    implementation("net.java.dev.jna:jna:5.14.0")
-    implementation("net.java.dev.jna:jna-platform:5.14.0")
+    // The operating system: the pen (WM_POINTER through JNA), clipboard, dialogs, browser.
+    implementation(project(":core:platform"))
     // Reading and writing the sidecar files (.actiondraw_board.json, .actiondraw_concept.json)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation(kotlin("test"))

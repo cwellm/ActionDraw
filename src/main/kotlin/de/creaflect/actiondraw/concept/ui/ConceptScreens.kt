@@ -77,6 +77,7 @@ import de.creaflect.actiondraw.concept.ConceptKinds
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ConceptStore
 import de.creaflect.actiondraw.image.ThumbCache
+import de.creaflect.actiondraw.platform.DesktopBrowser
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.CrossRoomButton
@@ -99,9 +100,7 @@ import de.creaflect.actiondraw.ui.seed
 import de.creaflect.sketch.Paper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.awt.Desktop
 import java.io.File
-import java.net.URI
 
 // ---------------- The list ----------------
 
@@ -540,7 +539,7 @@ private fun DocumentPanel(state: ConceptState, path: String) {
 }
 
 private fun browse(url: String) {
-    runCatching { Desktop.getDesktop().browse(URI(if (url.contains("://")) url else "https://$url")) }
+    DesktopBrowser.open(url)
 }
 
 // ---------------- Dialogs ----------------
