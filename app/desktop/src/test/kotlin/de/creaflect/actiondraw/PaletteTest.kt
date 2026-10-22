@@ -22,6 +22,8 @@ import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
+import de.creaflect.actiondraw.practice.PracticePage
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.PALETTE_ORDER
 import de.creaflect.actiondraw.ui.PaletteScreen
@@ -59,6 +61,7 @@ class PaletteTest {
     private inner class Shell {
         val lib = FileLib(config)
         val app = AppState(lib)
+        val practice = PracticeState(lib)
         val boards = BoardState(
             lib,
             object : BoardHost {
@@ -66,7 +69,7 @@ class PaletteTest {
                 override fun showBoard() = app.showBoard()
                 override fun showBoardList() = app.showBoardList()
                 override fun leaveBoard() = app.leaveBoard()
-                override fun currentSetup() = app.currentSetup()
+                override fun currentSetup() = practice.currentSetup()
             },
         )
         val concepts = ConceptState(
@@ -97,7 +100,8 @@ class PaletteTest {
         val app = shell.app
 
         shell.open(Room.PRACTICE)
-        assertEquals(Screen.Menu, app.screen, "Practice opens the session setup")
+        assertEquals(Screen.Practice, app.screen)
+        assertEquals(PracticePage.Menu, shell.practice.page, "Practice opens the session setup")
         app.showPalette()
 
         shell.open(Room.SKETCH)
@@ -137,17 +141,17 @@ class PaletteTest {
         val app = shell.app
 
         app.showPractice()
-        assertTrue(escapeToPalette(app.screen, app, shell.boards))
+        assertTrue(escapeToPalette(app, shell.practice, shell.boards))
         assertEquals(Screen.Palette, app.screen, "Practice")
 
         shell.boards.openBoardList()
-        assertTrue(escapeToPalette(app.screen, app, shell.boards))
+        assertTrue(escapeToPalette(app, shell.practice, shell.boards))
         assertEquals(Screen.Palette, app.screen, "the board list")
 
         // A board's own Esc closes it (handleBoardKey) — and closing a board leads home.
         shell.boards.createBoard(home, "Wings")
         assertEquals(Screen.Board, app.screen)
-        assertFalse(escapeToPalette(app.screen, app, shell.boards), "a board keeps its own Esc")
+        assertFalse(escapeToPalette(app, shell.practice, shell.boards), "a board keeps its own Esc")
         shell.boards.closeBoard()
         assertEquals(Screen.Palette, app.screen, "a board")
 
@@ -169,9 +173,9 @@ class PaletteTest {
         app.sketchHome()
         assertEquals(Screen.Palette, app.screen)
 
-        app.showSketch(from = Screen.Session)
+        app.showSketch(from = Screen.Practice)
         app.sketchHome()
-        assertEquals(Screen.Session, app.screen, "a sketch made from a pose returns to the pose")
+        assertEquals(Screen.Practice, app.screen, "a sketch made from a pose returns to the pose")
     }
 
     @Test

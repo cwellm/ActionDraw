@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
@@ -73,11 +74,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.PinTargets
 import de.creaflect.actiondraw.ViewMode
-import de.creaflect.actiondraw.image.bitmap
+import de.creaflect.actiondraw.practice.PracticeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -95,7 +95,7 @@ private val LowTimeColor = Color(0xFFEF5350)
  */
 @Composable
 fun SessionScreen(
-    state: AppState,
+    state: PracticeState,
     onToggleFullscreen: () -> Unit,
     isFullscreen: Boolean,
     pinTargets: PinTargets? = null,
@@ -113,7 +113,7 @@ fun SessionScreen(
     val current = state.currentImage
     val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, current) {
         value = current?.let { f ->
-            withContext(Dispatchers.IO) { state.pictures.bitmap(f) }
+            withContext(Dispatchers.IO) { runCatching { state.pictures.decode(f)?.toComposeImageBitmap() }.getOrNull() }
         }
     }
     val receded = remember { mutableStateOf(false) }
@@ -213,7 +213,7 @@ fun SessionScreen(
  * keys work all the while.
  */
 @Composable
-private fun SessionRecede(state: AppState, watch: PointerWatch, receded: MutableState<Boolean>) {
+private fun SessionRecede(state: PracticeState, watch: PointerWatch, receded: MutableState<Boolean>) {
     val paused = state.isPaused
     LaunchedEffect(paused) {
         if (paused) {
@@ -258,7 +258,7 @@ private fun ViewMode.hasSettings(): Boolean =
     this == ViewMode.POSTERIZE || this == ViewMode.PIXELATE || this == ViewMode.SILHOUETTE || this == ViewMode.NOTAN
 
 /** Whether there is anything to set: a lens with settings chosen, blur or shards on, the glass in hand. */
-private fun SessionSettings.isOn(state: AppState): Boolean = when (this) {
+private fun SessionSettings.isOn(state: PracticeState): Boolean = when (this) {
     SessionSettings.LENS -> state.viewMode.hasSettings()
     SessionSettings.LIGHT -> true
     SessionSettings.BLUR -> state.blur
@@ -268,7 +268,7 @@ private fun SessionSettings.isOn(state: AppState): Boolean = when (this) {
 
 /** Choosing a lens with settings, or turning blur, shards or the glass on - by click or key - opens its settings. */
 @Composable
-private fun OpenSettingsWithTheirControls(state: AppState, settings: MutableState<SessionSettings?>) {
+private fun OpenSettingsWithTheirControls(state: PracticeState, settings: MutableState<SessionSettings?>) {
     fun follow(target: SessionSettings, on: Boolean) {
         if (on) settings.value = target else if (settings.value == target) settings.value = null
     }
@@ -280,7 +280,7 @@ private fun OpenSettingsWithTheirControls(state: AppState, settings: MutableStat
 
 /** Top left: Stop, and what is running - its plan and where the pictures come from - and two quiet switches. */
 @Composable
-private fun TopRow(state: AppState, onToggleFullscreen: () -> Unit) {
+private fun TopRow(state: PracticeState, onToggleFullscreen: () -> Unit) {
     Column(Modifier.padding(start = 20.dp, top = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
@@ -313,7 +313,7 @@ private fun Modifier.overPicture(): Modifier =
     clip(RoundedCornerShape(5.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 2.dp)
 
 /** The plan running and where its pictures come from: "Classic gesture · Drachenbuch". */
-internal fun sessionCaption(state: AppState): String =
+internal fun sessionCaption(state: PracticeState): String =
     listOfNotNull(state.rampPlan?.name ?: (formatTime(state.intervalSeconds) + " each"), state.folder?.name).joinToString(" · ")
 
 /** A switch said in words, its key beside it: lit when on. */
@@ -340,7 +340,7 @@ private fun QuietSwitch(label: String, key: String, on: Boolean, tag: String, on
  * sketch from it, pin it to a board. The last two lead into other rooms and carry their dabs.
  */
 @Composable
-private fun SideButtons(state: AppState, pinTargets: PinTargets?, onSketch: ((File) -> Unit)?) {
+private fun SideButtons(state: PracticeState, pinTargets: PinTargets?, onSketch: ((File) -> Unit)?) {
     val current = state.currentImage
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -361,7 +361,7 @@ private fun SideButtons(state: AppState, pinTargets: PinTargets?, onSketch: ((Fi
  * about boards; [PinTargets] supplies both the list and the action.
  */
 @Composable
-private fun PinButton(state: AppState, pinTargets: PinTargets) {
+private fun PinButton(state: PracticeState, pinTargets: PinTargets) {
     var open by remember { mutableStateOf(false) }
     val current = state.currentImage
     Box {
@@ -442,7 +442,7 @@ private fun RoundButton(
 
 /** Paused: said once, plainly, with the time per picture to set (fixed time only - a ramp's poses are its own). */
 @Composable
-private fun PausePanel(state: AppState, modifier: Modifier) {
+private fun PausePanel(state: PracticeState, modifier: Modifier) {
     val shape = RoundedCornerShape(10.dp)
     Surface(color = Design.colors.raised, shape = shape, modifier = modifier.lampShadow(Lift.LIFTED, shape).testTag("session-paused")) {
         Column(
@@ -463,7 +463,7 @@ private fun PausePanel(state: AppState, modifier: Modifier) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Tray(
-    state: AppState,
+    state: PracticeState,
     bitmap: ImageBitmap?,
     settings: MutableState<SessionSettings?>,
     onAnchor: (SessionSettings, Float) -> Unit,
@@ -488,7 +488,7 @@ private fun Tray(
 
 /** The settings of one thing, above the tray: a title, a way to put them away, and what can be set. */
 @Composable
-private fun SettingsPopover(state: AppState, target: SessionSettings, onClose: () -> Unit) {
+private fun SettingsPopover(state: PracticeState, target: SessionSettings, onClose: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
     val title = when (target) {
         SessionSettings.LENS -> LENSES.firstOrNull { it.first == state.viewMode }?.second ?: "Lens"
@@ -550,7 +550,7 @@ private fun SettingsPopover(state: AppState, target: SessionSettings, onClose: (
  * poses as ticks, and what a memory pose is doing. While the controls are back it waits, faint.
  */
 @Composable
-private fun Enso(state: AppState, dimmed: Boolean, modifier: Modifier) {
+private fun Enso(state: PracticeState, dimmed: Boolean, modifier: Modifier) {
     val reduced = LocalReducedMotion.current
     // The brush moves on with each second of the pose: a timer, not an animation to sit through.
     val sweep = ensoSweep(state.elapsedSeconds, state.currentIntervalSeconds)
@@ -633,7 +633,7 @@ private fun lensColorFilter(mode: ViewMode): ColorFilter? = when (mode) {
 
 /** The render effect a lens applies, with the session's own settings for it. */
 @Composable
-private fun rememberLensEffect(mode: ViewMode, state: AppState): RenderEffect? = when (mode) {
+private fun rememberLensEffect(mode: ViewMode, state: PracticeState): RenderEffect? = when (mode) {
     ViewMode.EDGE -> remember { edgeRenderEffect() }
     ViewMode.SILHOUETTE -> remember(state.silhouetteThreshold) { silhouetteRenderEffect(state.silhouetteThreshold) }
     ViewMode.POSTERIZE -> remember(state.posterizeLevels) { posterizeRenderEffect(state.posterizeLevels) }
@@ -659,7 +659,7 @@ private fun LastFocus(glass: GlassState, current: File?, lastFocus: MutableState
  * there and back over [Motion.GLASS_MS] — and the whole picture waits in the corner.
  */
 @Composable
-private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, modifier: Modifier) {
+private fun ImageArea(state: PracticeState, bitmap: ImageBitmap?, current: File?, modifier: Modifier) {
     val glass = state.glass
     val pointer = remember { GlassPointer() }
     val focused by remember(current) { derivedStateOf { glass.focusOn(current) != null } }
@@ -761,7 +761,7 @@ private fun ProportionOverlay(bitmap: ImageBitmap, mode: GridMode, modifier: Mod
  * its own lens, so you see what it will do before choosing it; the chosen one rises.
  */
 @Composable
-private fun LensTray(state: AppState, bitmap: ImageBitmap?, onChosenAgain: () -> Unit, onAnchor: (Float) -> Unit) {
+private fun LensTray(state: PracticeState, bitmap: ImageBitmap?, onChosenAgain: () -> Unit, onAnchor: (Float) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom, modifier = Modifier.testTag("lens-tray")) {
         LENSES.forEachIndexed { i, (mode, name) ->
             LensSlide(state, mode, name, key = i + 1, bitmap = bitmap, onChosenAgain = onChosenAgain, onAnchor = onAnchor)
@@ -770,7 +770,7 @@ private fun LensTray(state: AppState, bitmap: ImageBitmap?, onChosenAgain: () ->
 }
 
 @Composable
-private fun LensSlide(state: AppState, mode: ViewMode, name: String, key: Int, bitmap: ImageBitmap?, onChosenAgain: () -> Unit, onAnchor: (Float) -> Unit) {
+private fun LensSlide(state: PracticeState, mode: ViewMode, name: String, key: Int, bitmap: ImageBitmap?, onChosenAgain: () -> Unit, onAnchor: (Float) -> Unit) {
     val chosen = state.viewMode == mode
     val rise by animateFloatAsState(if (chosen) 1f else 0f, tween(if (LocalReducedMotion.current) Motion.REDUCED_MS else 200))
     val glow = Room.PRACTICE.pigment.glow
@@ -814,7 +814,7 @@ private fun LensSlide(state: AppState, mode: ViewMode, name: String, key: Int, b
 
 /** The settings of the chosen lens, where it has any. */
 @Composable
-private fun LensParameters(state: AppState) {
+private fun LensParameters(state: PracticeState) {
     when (state.viewMode) {
         ViewMode.POSTERIZE -> ParamSlider(label = "Bands: ${state.posterizeLevels}", value = state.posterizeLevels.toFloat(), range = 2f..8f, steps = 5) { state.posterizeLevels = it.roundToInt() }
         ViewMode.PIXELATE -> ParamSlider(label = "Block: ${state.pixelateBlock} px", value = state.pixelateBlock.toFloat(), range = 4f..48f, steps = 10) { state.pixelateBlock = it.roundToInt() }
@@ -835,7 +835,7 @@ private fun LensParameters(state: AppState) {
 
 /** The adjustments as round knobs, each with its key: they stack on any lens. */
 @Composable
-private fun Knobs(state: AppState, settings: MutableState<SessionSettings?>, onAnchor: (SessionSettings, Float) -> Unit) {
+private fun Knobs(state: PracticeState, settings: MutableState<SessionSettings?>, onAnchor: (SessionSettings, Float) -> Unit) {
     fun anchor(target: SessionSettings) = Modifier.onGloballyPositioned { onAnchor(target, it.boundsInRoot().center.x) }
     Row(horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
         // The light is not on or off: the knob opens its setting, and glows while it is not neutral.
@@ -919,7 +919,7 @@ private fun MemoryVeil() {
 }
 
 /** Which beat of a memory pose is running, or null when there is nothing to say. */
-private fun poseNote(state: AppState): String? = when {
+private fun poseNote(state: PracticeState): String? = when {
     state.comparing -> "Compare — Next ▶ when you are done"
     state.referenceHidden -> "Drawing from memory — H peeks"
     state.isMemoryPose -> "Study — hides in ${state.studyRemainingSeconds}s"
@@ -928,7 +928,7 @@ private fun poseNote(state: AppState): String? = when {
 }
 
 /** Remaining time, or — in manual mode past the interval — the overtime as "+m:ss". */
-private fun timerText(state: AppState): String =
+private fun timerText(state: PracticeState): String =
     if (state.overtimeSeconds > 0) "+" + formatTime(state.overtimeSeconds)
     else formatTime(state.remainingSeconds)
 

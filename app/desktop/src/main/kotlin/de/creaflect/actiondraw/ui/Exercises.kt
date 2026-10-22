@@ -1,9 +1,9 @@
 package de.creaflect.actiondraw.ui
 
-import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.SessionPlan
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.practice.PracticeState
 import kotlin.math.ln
 
 /**
@@ -30,10 +30,10 @@ fun exerciseOf(plan: SessionPlan?, viewMode: ViewMode): Exercise = when {
     else -> Exercise.ACTION
 }
 
-val AppState.exercise: Exercise get() = exerciseOf(rampPlan, viewMode)
+val PracticeState.exercise: Exercise get() = exerciseOf(rampPlan, viewMode)
 
 /** Choosing an exercise sets what makes the session that exercise, and leaves the rest alone. */
-fun AppState.chooseExercise(exercise: Exercise) {
+fun PracticeState.chooseExercise(exercise: Exercise) {
     if (!exercise.available) return
     when (exercise) {
         Exercise.ACTION -> {

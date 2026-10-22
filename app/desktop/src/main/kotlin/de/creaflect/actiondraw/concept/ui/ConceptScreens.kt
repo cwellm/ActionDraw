@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -69,27 +70,24 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.board.ui.Markdown
-import de.creaflect.actiondraw.board.ui.Themes
 import de.creaflect.actiondraw.concept.ConceptEditor
 import de.creaflect.actiondraw.concept.ConceptEntry
 import de.creaflect.actiondraw.concept.ConceptKinds
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
-import de.creaflect.actiondraw.platform.DesktopBrowser
+import de.creaflect.actiondraw.platform.chooseImages
 import de.creaflect.actiondraw.ui.CrossRoomButton
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.HomeButton
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Markdown
+import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.PigmentDab
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.Tooth
-import de.creaflect.actiondraw.ui.chooseFolder
-import de.creaflect.actiondraw.ui.chooseImages
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
 import de.creaflect.actiondraw.ui.lampShadow
@@ -160,7 +158,7 @@ fun ConceptListScreen(state: ConceptState, thumbs: Pictures, onHome: (() -> Unit
                 modifier = Modifier.weight(1f),
             )
             OutlinedButton(onClick = {
-                chooseFolder(state.conceptsHome().takeIf { it.isDirectory }, "Concepts home")?.let { state.setConceptsHomeDir(it) }
+                state.dialogs.chooseFolder(state.conceptsHome().takeIf { it.isDirectory }, "Concepts home")?.let { state.setConceptsHomeDir(it) }
             }) { Text("Change home…") }
             Button(onClick = { state.openEditor(ConceptEditor.NewConcept) }, modifier = Modifier.testTag("new-concept")) {
                 Text("New concept…")
@@ -211,7 +209,7 @@ fun ConceptListScreen(state: ConceptState, thumbs: Pictures, onHome: (() -> Unit
 @Composable
 private fun ConceptTile(summary: ConceptSummary, thumbs: Pictures, onOpen: () -> Unit, onDelete: () -> Unit) {
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, summary.cover) {
-        value = summary.cover?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 400) } }
+        value = summary.cover?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it, maxSize = 400)?.toComposeImageBitmap() } }
     }
     // A folio: a kraft folder with a viridian tab naming its kind, the cover as a print inside.
     Column(
@@ -406,7 +404,7 @@ private fun AddMenu(state: ConceptState) {
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(onClick = {
                 open = false
-                chooseImages(state.root, state.pictureExtensions).takeIf { it.isNotEmpty() }?.let { state.addPictures(it) }
+                state.dialogs.chooseImages(state.root, state.pictureExtensions).takeIf { it.isNotEmpty() }?.let { state.addPictures(it) }
             }) { Text("Add pictures…") }
             DropdownMenuItem(onClick = { open = false; state.openEditor(ConceptEditor.EditNote(null)) }) { Text("New note") }
             DropdownMenuItem(onClick = { open = false; state.openEditor(ConceptEditor.EditLink(null)) }) { Text("New link") }
@@ -421,7 +419,7 @@ private fun AddMenu(state: ConceptState) {
 internal fun PictureCard(state: ConceptState, thumbs: Pictures, item: ImageItem, modifier: Modifier = Modifier.aspectRatio(1f)) {
     val file = state.fileOf(item)
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it) } }
+        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it)?.toComposeImageBitmap() } }
     }
     // Once the picture is decoded its shape is known, and the free layout sizes the card by it.
     LaunchedEffect(thumb) { thumb?.let { state.rememberAspect(item.id, it.width.toFloat() / it.height) } }
@@ -475,16 +473,16 @@ internal fun NoteCard(state: ConceptState, item: NoteItem, modifier: Modifier = 
         modifier
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Themes.parseColor(item.color) ?: if (postit) Themes.noteBacking else Design.colors.paper)
+            .background(Notes.parseColor(item.color) ?: if (postit) Notes.backing else Design.colors.paper)
             .paperTooth()
             .then(if (postit) Modifier else Modifier.ruled(first = 10.dp, spacing = 9.dp))
             .clickable { state.openEditor(ConceptEditor.EditNote(item.id)) }
             .padding(10.dp),
     ) {
         if (postit) {
-            Text(item.text, style = Design.hand.copy(fontSize = 20.sp, lineHeight = 22.sp), color = Themes.noteInk)
+            Text(item.text, style = Design.hand.copy(fontSize = 20.sp, lineHeight = 22.sp), color = Notes.ink)
         } else {
-            Markdown.Rendered(item.text, style = MaterialTheme.typography.body2, color = Themes.noteInk, onLink = ::browse)
+            Markdown.Rendered(item.text, style = MaterialTheme.typography.body2, color = Notes.ink, onLink = state::openUrl)
         }
     }
 }
@@ -501,7 +499,7 @@ internal fun LinkCard(state: ConceptState, item: LinkItem, modifier: Modifier = 
             .background(Design.colors.paper)
             .paperTooth()
             .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
-            .clickable { browse(item.url) }
+            .clickable { state.openUrl(item.url) }
             .padding(10.dp),
     ) {
         val materials = Design.materials
@@ -534,12 +532,8 @@ private fun DocumentPanel(state: ConceptState, path: String) {
             Text(state.documentTitle(path), style = MaterialTheme.typography.subtitle2, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             TextButton(onClick = { state.openEditor(ConceptEditor.EditDocument(path)) }) { Text("Edit…") }
         }
-        Markdown.Rendered(text, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface, onLink = ::browse)
+        Markdown.Rendered(text, style = MaterialTheme.typography.body2, color = MaterialTheme.colors.onSurface, onLink = state::openUrl)
     }
-}
-
-private fun browse(url: String) {
-    DesktopBrowser.open(url)
 }
 
 // ---------------- Dialogs ----------------

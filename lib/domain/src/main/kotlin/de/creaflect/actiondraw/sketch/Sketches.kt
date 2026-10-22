@@ -17,6 +17,12 @@ interface Sketches {
     /** Notes that the document [file] was opened, so it is among the recent ones. */
     fun opened(file: File)
 
+    /**
+     * The sketch [picture] was saved from, when Live Sketch saved it: `name.sketch.json` beside
+     * `name.png`. Null for a picture that is not a sketch's.
+     */
+    fun documentOf(picture: File): File?
+
     /** Whether a sketch called [name] is in [dir] already, as a picture or as a document. */
     fun isTaken(dir: File, name: String): Boolean
 

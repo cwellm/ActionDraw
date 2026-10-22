@@ -25,6 +25,7 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.sketch.SketchHost
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Optic
@@ -70,6 +71,7 @@ class RoomScreenshotTest {
         val config = File(root, "config").apply { mkdirs() }
         val lib = FileLib(config)
         val app = AppState(lib)
+        val practice = PracticeState(lib)
         lateinit var boards: BoardState
         lateinit var sketch: SketchState
         val concepts = ConceptState(
@@ -85,11 +87,11 @@ class RoomScreenshotTest {
             boards = BoardState(
                 lib,
                 object : BoardHost {
-                    override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = app.startBoardSession(root, images, setup)
+                    override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = practice.startBoardSession(root, images, setup)
                     override fun showBoard() = app.showBoard()
                     override fun showBoardList() = app.showBoardList()
                     override fun leaveBoard() = app.leaveBoard()
-                    override fun currentSetup(): SessionSetup = app.currentSetup()
+                    override fun currentSetup(): SessionSetup = practice.currentSetup()
                     override fun showConcept(id: String) {
                         concepts.openById(id)
                     }
@@ -116,7 +118,7 @@ class RoomScreenshotTest {
 
         fun show(test: ComposeUiTest) = test.setContent {
             ProvideAtelier {
-                App(app, boards, concepts, sketch, thumbs, pinTargets, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+                App(app, practice, boards, concepts, sketch, thumbs, pinTargets, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
             }
         }
     }
@@ -179,16 +181,16 @@ class RoomScreenshotTest {
         val world = World()
         val pictures = File(root, "pictures")
         repeat(3) { picture(File(pictures, "pose$it.png")) }
-        world.app.selectFolder(pictures)
+        world.practice.selectFolder(pictures)
         world.app.showPractice()
         world.show(this)
         mainClock.advanceTimeBy(500)
         shoot("03-practice", Room.PRACTICE)
-        world.app.start()
+        world.practice.start()
         mainClock.autoAdvance = false // a running pose ticks for ever
         mainClock.advanceTimeBy(1500)
         shoot("04-session", null)
-        world.app.glass.choose(Optic.CONVEX)
+        world.practice.glass.choose(Optic.CONVEX)
         val reference = onNodeWithTag("reference")
         val size = reference.fetchSemanticsNode().size
         reference.performMouseInput { moveTo(Offset(size.width * 0.5f, size.height * 0.35f)) }
@@ -198,7 +200,7 @@ class RoomScreenshotTest {
         repeat(5) { mainClock.advanceTimeByFrame() }
         mainClock.advanceTimeBy(1000)
         shoot("06-session-glass-down", null)
-        world.app.stop()
+        world.practice.stop()
         mainClock.advanceTimeBy(500)
         shoot("07-summary", Room.PRACTICE)
     }

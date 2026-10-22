@@ -1,16 +1,14 @@
-package de.creaflect.actiondraw.board
+package de.creaflect.actiondraw
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
-import de.creaflect.actiondraw.AppState
-import de.creaflect.actiondraw.FileLib
-import de.creaflect.actiondraw.GridMode
-import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.ViewMode
-import de.creaflect.actiondraw.board.ui.MenuExtras
+import de.creaflect.actiondraw.board.BoardHost
+import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.practice.PracticeState
+import de.creaflect.actiondraw.ui.PaletteScreen
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
@@ -39,10 +37,27 @@ class MenuExtrasTest {
     }
 
     @Test
+    fun theStartMenuShowsSettingsAndHotkeys() {
+        // The start menu is the palette now; Settings and Hotkeys sit in its corner.
+        val lib = FileLib(config)
+        val app = AppState(lib)
+        val boards = BoardState(lib, host)
+        val wells = paletteWells(lastBoard = null, sketchOpen = false)
+        rule.setContent {
+            ProvideAtelier {
+                PaletteScreen(wells, app.paletteRoom, app::selectRoom, onOpen = {}, corner = { MenuExtras(app, PracticeState(lib), boards) })
+            }
+        }
+        rule.waitForIdle()
+        rule.onNodeWithTag("menu-settings").assertIsDisplayed()
+        rule.onNodeWithTag("menu-hotkeys").assertIsDisplayed()
+    }
+
+    @Test
     fun settingsOpenFromTheMenuAndChangeThePreference() {
         val lib = FileLib(config)
         val boards = BoardState(lib, host)
-        rule.setContent { ProvideAtelier { MenuExtras(AppState(lib), boards) } }
+        rule.setContent { ProvideAtelier { MenuExtras(AppState(lib), PracticeState(lib), boards) } }
         rule.waitForIdle()
 
         rule.onNodeWithTag("menu-settings").performClick()
@@ -57,7 +72,7 @@ class MenuExtrasTest {
     @Test
     fun hotkeysOpenFromTheMenu() {
         val lib = FileLib(config)
-        rule.setContent { ProvideAtelier { MenuExtras(AppState(lib), BoardState(lib, host)) } }
+        rule.setContent { ProvideAtelier { MenuExtras(AppState(lib), PracticeState(lib), BoardState(lib, host)) } }
         rule.waitForIdle()
 
         rule.onNodeWithTag("menu-hotkeys").performClick()

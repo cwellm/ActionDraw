@@ -18,6 +18,9 @@ internal class FileSketches(private val settings: Settings) : Sketches {
 
     override fun opened(file: File) = settings.addRecentSketch(file)
 
+    override fun documentOf(picture: File): File? =
+        File(picture.parentFile, picture.nameWithoutExtension + SketchDocument.FILE_SUFFIX).takeIf { it.isFile }
+
     override fun isTaken(dir: File, name: String): Boolean =
         File(dir, "$name.png").exists() || File(dir, name + SketchDocument.FILE_SUFFIX).exists()
 

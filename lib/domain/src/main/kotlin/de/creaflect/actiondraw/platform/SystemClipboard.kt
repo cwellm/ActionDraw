@@ -23,4 +23,11 @@ interface SystemClipboard {
 
     /** What is on the clipboard that the lib can take, or null. */
     fun paste(): Pasted?
+
+    /** No clipboard: nothing to paste, and a copy goes nowhere. Where a host has none, or a test wants none. */
+    object None : SystemClipboard {
+        override fun copyFiles(files: List<File>) = Unit
+        override fun copyText(text: String) = Unit
+        override fun paste(): Pasted? = null
+    }
 }

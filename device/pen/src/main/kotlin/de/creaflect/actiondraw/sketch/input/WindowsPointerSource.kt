@@ -46,6 +46,8 @@ class WindowsPointerSource(private val window: Window) : PenSource {
     /** How many windows carry the hook — the frame and its children; 0 when not started. */
     val hookedWindows: Int get() = previous.size
 
+    override val detail: String? get() = "$hookedWindows windows hooked"
+
     override fun start(onSample: (PenSample) -> Unit): Boolean {
         if (frame != null) return true
         val user32 = runCatching { User32Pointer.INSTANCE }.getOrElse { return false }

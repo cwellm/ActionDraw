@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performMouseInput
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.ChromeAlpha
 import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.actiondraw.ui.ProvideAtelier
@@ -57,7 +58,7 @@ class MotionTest {
             image.createGraphics().apply { paint = java.awt.Color.ORANGE; fillRect(0, 0, 16, 16); dispose() }
             ImageIO.write(image, "png", File(pictures, "pose$i.png"))
         }
-        val state = AppState(FileLib(config))
+        val state = PracticeState(FileLib(config))
         state.selectFolder(pictures)
         state.start()
         // A running pose ticks every second for ever: the clock moves only when this test says so,

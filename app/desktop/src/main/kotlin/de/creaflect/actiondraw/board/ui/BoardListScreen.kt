@@ -35,6 +35,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,12 +45,10 @@ import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
-import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.paperTooth
 import kotlinx.coroutines.Dispatchers
@@ -115,11 +114,11 @@ fun BoardListScreen(state: BoardState, thumbs: Pictures, onHome: (() -> Unit)? =
                 modifier = Modifier.weight(1f),
             )
             OutlinedButton(onClick = {
-                chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Boards home")
+                state.dialogs.chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Boards home")
                     ?.let { state.setBoardsHomeDir(it) }
             }) { Text("Change home…") }
             OutlinedButton(onClick = {
-                chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Open board folder")
+                state.dialogs.chooseFolder(state.boardsHome().takeIf { it.isDirectory }, "Open board folder")
                     ?.let(state::openBoard)
             }) { Text("Explore…") }
             Button(onClick = { state.openEditor(BoardEditor.NewBoard()) }) { Text("New board…") }
@@ -182,7 +181,7 @@ private fun BoardTile(
     onDelete: () -> Unit,
 ) {
     val cover: ImageBitmap? by produceState<ImageBitmap?>(null, board.cover) {
-        value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 320) } }
+        value = board.cover?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it, maxSize = 320)?.toComposeImageBitmap() } }
     }
     // A board on the shelf: its cover as a print standing on a plank, its name lettered under it.
     // Not clipped, so the plank can reach into the gaps and a row of boards reads as one shelf.

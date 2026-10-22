@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
@@ -72,7 +73,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.ChromeEdge
@@ -430,7 +430,7 @@ private fun Page(state: SketchState, thumbs: Pictures) {
     // The session's reference, as an image the page can draw under or over its strokes.
     val reference by produceState<org.jetbrains.skia.Image?>(null, state.reference) {
         value = state.reference?.let { file ->
-            withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 1600) }?.let { org.jetbrains.skia.Image.makeFromBitmap(it.asSkiaBitmap()) }
+            withContext(Dispatchers.IO) { thumbs.thumbnail(file, maxSize = 1600)?.toComposeImageBitmap() }?.let { org.jetbrains.skia.Image.makeFromBitmap(it.asSkiaBitmap()) }
         }
     }
     Box(

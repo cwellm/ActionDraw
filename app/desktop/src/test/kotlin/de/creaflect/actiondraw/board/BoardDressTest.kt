@@ -20,12 +20,12 @@ import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
 import de.creaflect.actiondraw.board.ui.BoardCanvas
-import de.creaflect.actiondraw.board.ui.Themes
 import de.creaflect.actiondraw.board.ui.notePaper
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierTheme
+import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.paperTooth
 import org.junit.After
@@ -140,7 +140,7 @@ class BoardDressTest {
     fun notesAreSlipsAndSheetsOnEverySurface() {
         val postit = NoteItem(id = "a", text = "line of action", kind = NoteKind.POSTIT)
         val sheet = NoteItem(id = "b", text = "# Wings", kind = NoteKind.DOCUMENT)
-        assertEquals(Themes.noteBacking, notePaper(postit, Atelier.colors.paper), "a post-it is a yellow slip")
+        assertEquals(Notes.backing, notePaper(postit, Atelier.colors.paper), "a post-it is a yellow slip")
         assertEquals(Atelier.colors.paper, notePaper(sheet, Atelier.colors.paper), "a document is a sheet of paper")
         assertEquals(Color(0xFFC5E1A5), notePaper(postit.copy(color = "#C5E1A5"), Atelier.colors.paper), "a colour chosen is that paper, whole")
     }

@@ -154,3 +154,26 @@ private fun reorder(state: BoardState, id: String, free: Boolean, raise: Boolean
         else -> state.stepInGroup(id, state.item(id)?.groups?.firstOrNull(), forward = raise)
     }
 }
+
+/** The board's hotkeys, as the hotkey sheets list them. */
+object BoardHotkeys {
+    const val TITLE = "Idea Board"
+    val ROWS: List<Pair<String, String>> = listOf(
+        "Click · Ctrl+click · Shift+click" to "select · toggle · range",
+        "Right click a card" to "the ring: draw · sketch over · collage · to a concept · tag · group · More… for the full menu",
+        "← → ↑ ↓ · Tab · Enter · Esc (ring open)" to "round the ring · take a button · close it",
+        "Ctrl+A · Ctrl+C · Ctrl+V" to "select all · copy · paste",
+        "← → ↑ ↓" to "move focus (grid) · nudge the selection (free)",
+        "Ctrl+↑ / ↓ (+Shift)" to "reorder one step (all the way)",
+        "Space" to "view the selection large",
+        "wheel · + / − · 0" to "zoom the large view · fit",
+        "← → · Home / End" to "flip · first / last, in the large view",
+        "Enter" to "draw the selection",
+        "N · L · G" to "new note · new link · group the selection",
+        "Ctrl+Shift+G · Ctrl+D" to "ungroup · contents drawer",
+        "S · T · P · F2" to "star · tags · palette · caption",
+        "Del" to "remove the card (the file stays)",
+        "F · Esc" to "immersive · leave immersive / close",
+        "Shift+drag" to "rubber-band select (free)",
+    )
+}

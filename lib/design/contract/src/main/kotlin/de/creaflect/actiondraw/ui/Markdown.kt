@@ -1,4 +1,4 @@
-package de.creaflect.actiondraw.board.ui
+package de.creaflect.actiondraw.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row

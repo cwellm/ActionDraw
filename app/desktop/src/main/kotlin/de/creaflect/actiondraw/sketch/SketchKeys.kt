@@ -64,3 +64,18 @@ fun handleSketchChar(char: Char, state: SketchState): Boolean {
         else -> false
     }
 }
+
+/** Live Sketch's hotkeys, as the hotkey sheet lists them. */
+object SketchHotkeys {
+    const val TITLE = "Live Sketch"
+    val ROWS: List<Pair<String, String>> = listOf(
+        "1 – 7" to "H · HB · 4B · 0.5 · charcoal · fineliner · brush",
+        "E" to "the rubber",
+        "[ / ] · Shift+wheel" to "thinner / thicker",
+        "wheel (Ctrl or not) · + / − (any, Ctrl or not) · Ctrl+0" to "zoom about the cursor · zoom · fit the page",
+        "Space+drag · middle drag" to "pan the page",
+        "Ctrl+Z / Ctrl+Y" to "undo / redo",
+        "Ctrl+S · Ctrl+N · Ctrl+O" to "save · new sketch · open a sketch",
+        "Esc" to "close a dialog · back (the sketch stays)",
+    )
+}

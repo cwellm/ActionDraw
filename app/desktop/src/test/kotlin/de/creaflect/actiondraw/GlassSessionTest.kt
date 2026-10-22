@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.rightClick
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.SessionScreen
@@ -49,11 +50,11 @@ class GlassSessionTest {
     }
 
     /** A pose of one 400 × 200 picture, on screen. */
-    private fun pose(): AppState {
+    private fun pose(): PracticeState {
         val image = BufferedImage(400, 200, BufferedImage.TYPE_INT_RGB)
         image.createGraphics().apply { paint = java.awt.Color.ORANGE; fillRect(0, 0, 400, 200); dispose() }
         ImageIO.write(image, "png", File(pictures, "pose.png"))
-        val state = AppState(FileLib(config)).also { it.selectFolder(pictures) }
+        val state = PracticeState(FileLib(config)).also { it.selectFolder(pictures) }
         state.start()
         rule.mainClock.autoAdvance = false // a running pose ticks for ever
         rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }

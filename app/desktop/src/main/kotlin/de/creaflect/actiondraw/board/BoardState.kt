@@ -14,17 +14,16 @@ import de.creaflect.actiondraw.board.CardLayout.PALETTE_ASPECT
 import de.creaflect.actiondraw.board.CardLayout.STRIP_ASPECT
 import de.creaflect.actiondraw.board.CardLayout.naturalTilt
 import de.creaflect.actiondraw.board.CardLayout.placeMissing
-import de.creaflect.actiondraw.board.ui.Markdown
 import de.creaflect.actiondraw.image.SheetCell
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.newId
-import de.creaflect.actiondraw.platform.AwtClipboard
-import de.creaflect.actiondraw.platform.DesktopBrowser
+import de.creaflect.actiondraw.platform.Browser
+import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.SystemClipboard
 import de.creaflect.actiondraw.safeFileName
 import de.creaflect.actiondraw.samePathAs
-import de.creaflect.sketch.SketchDocument
+import de.creaflect.actiondraw.ui.Markdown
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -93,7 +92,7 @@ sealed class BoardEditor {
 }
 
 /**
- * Hoisted state + actions for the Idea Board (mirrors [de.creaflect.actiondraw.AppState]'s style).
+ * Hoisted state + actions for the Idea Board.
  * Every mutation is handed to the lib's [Boards][de.creaflect.actiondraw.board.Boards] as it happens
  * — there is no separate save step. Talks to the rest of the app only through [BoardHost].
  */
@@ -106,8 +105,12 @@ class BoardState(
     },
     /** Where linked concepts are read from; a board without concepts uses [ConceptSource.None]. */
     private val concepts: ConceptSource = ConceptSource.None,
-    /** The machine's clipboard; a test hands in its own. */
-    private val clipboard: SystemClipboard = AwtClipboard,
+    /** The host's clipboard; none unless the host has one, and a test hands in its own. */
+    private val clipboard: SystemClipboard = SystemClipboard.None,
+    /** How an address leaves the app: the host's browser. ActionDraw never loads a page itself. */
+    private val browser: Browser = Browser.None,
+    /** The host's file dialogs, for the board's screens to ask with. */
+    val dialogs: FileDialogs = FileDialogs.None,
 ) {
     var root by mutableStateOf<File?>(null)
         private set
@@ -438,8 +441,7 @@ class BoardState(
      * The sketch a picture came from, when Live Sketch saved it: `name.sketch.json` beside
      * `name.png`. Borrowed pictures work too — their file is in the concept's folder.
      */
-    fun sketchOf(item: ImageItem): File? =
-        fileOf(item)?.let { File(it.parentFile, it.nameWithoutExtension + SketchDocument.FILE_SUFFIX) }?.takeIf { it.isFile }
+    fun sketchOf(item: ImageItem): File? = fileOf(item)?.let { lib.sketches.documentOf(it) }
 
     /** Continues the picture's sketch in Live Sketch. */
     fun openSketch(item: ImageItem) {
@@ -1074,7 +1076,7 @@ class BoardState(
      * How a url leaves the app: the system browser. Replaceable so a test can see that a link
      * inside a note was followed without a browser window opening on the build machine.
      */
-    var linkOpener: (String) -> Unit = { url -> DesktopBrowser.open(url) }
+    var linkOpener: (String) -> Unit = { url -> browser.open(url) }
 
     /** Opens any address — a link card's, or a `[text](url)` inside a note. */
     fun openUrl(url: String) = linkOpener(url)

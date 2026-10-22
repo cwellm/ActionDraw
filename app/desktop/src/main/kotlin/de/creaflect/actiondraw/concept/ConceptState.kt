@@ -19,8 +19,9 @@ import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.newId
+import de.creaflect.actiondraw.platform.Browser
+import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.samePathAs
-import de.creaflect.sketch.SketchDocument
 import java.io.File
 
 /**
@@ -67,7 +68,14 @@ sealed class ConceptEditor {
  * no layout, no groups, no session recipe. Linking onto boards is the board's business
  * (`BoardState`), by id.
  */
-class ConceptState(private val lib: Lib, private val host: ConceptHost) : ConceptSource {
+class ConceptState(
+    private val lib: Lib,
+    private val host: ConceptHost,
+    /** How an address in a document leaves the app: the host's browser. */
+    private val browser: Browser = Browser.None,
+    /** The host's file dialogs, for the concept's screens to ask with. */
+    val dialogs: FileDialogs = FileDialogs.None,
+) : ConceptSource {
     private val concepts get() = lib.concepts
 
     var root by mutableStateOf<File?>(null)
@@ -359,11 +367,15 @@ class ConceptState(private val lib: Lib, private val host: ConceptHost) : Concep
     fun fileOf(item: ImageItem): File? = root?.let { File(it, item.path) }
 
     /** The sketch a picture came from, when Live Sketch saved it: `name.sketch.json` beside `name.png`. */
-    fun sketchOf(item: ImageItem): File? =
-        fileOf(item)?.let { File(it.parentFile, it.nameWithoutExtension + SketchDocument.FILE_SUFFIX) }?.takeIf { it.isFile }
+    fun sketchOf(item: ImageItem): File? = fileOf(item)?.let { lib.sketches.documentOf(it) }
 
     fun openSketch(item: ImageItem) {
         sketchOf(item)?.let(host::openSketch)
+    }
+
+    /** Opens an address — a `[text](url)` inside a document — in the host's browser. */
+    fun openUrl(url: String) {
+        browser.open(url)
     }
 
     fun addPictures(files: List<File>) {

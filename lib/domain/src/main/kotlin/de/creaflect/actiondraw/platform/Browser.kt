@@ -7,4 +7,9 @@ package de.creaflect.actiondraw.platform
 fun interface Browser {
     /** True when the address was handed over. */
     fun open(url: String): Boolean
+
+    companion object {
+        /** No browser: an address goes nowhere. Where a host has none, or a test wants none. */
+        val None = Browser { false }
+    }
 }

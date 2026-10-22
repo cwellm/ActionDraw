@@ -33,17 +33,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.PinTargets
-import de.creaflect.actiondraw.Screen
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
+import de.creaflect.actiondraw.practice.PracticeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -54,8 +53,8 @@ import java.io.File
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Pictures? = null) {
-    val fromBoard = state.sessionOrigin == Screen.Board
+fun SummaryScreen(state: PracticeState, pinTargets: PinTargets? = null, thumbs: Pictures? = null) {
+    val fromBoard = state.sessionFromBoard
     Box(Modifier.fillMaxSize().grain().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -141,7 +140,7 @@ fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Pictu
 @Composable
 private fun FlaggedPrint(file: File, thumbs: Pictures?, tilt: Float) {
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file, thumbs) {
-        value = thumbs?.let { t -> withContext(Dispatchers.IO) { t.thumbnailBitmap(file) } }
+        value = thumbs?.let { t -> withContext(Dispatchers.IO) { t.thumbnail(file)?.toComposeImageBitmap() } }
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.graphicsLayer { rotationZ = tilt }) {
         Box(

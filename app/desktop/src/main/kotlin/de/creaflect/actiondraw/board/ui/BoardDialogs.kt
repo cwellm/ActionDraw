@@ -64,13 +64,15 @@ import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.board.WallpaperFit
 import de.creaflect.actiondraw.board.paletteHex
+import de.creaflect.actiondraw.platform.chooseImages
 import de.creaflect.actiondraw.safeFileName
 import de.creaflect.actiondraw.samePathAs
+import de.creaflect.actiondraw.ui.HotkeysSheet
 import de.creaflect.actiondraw.ui.IntervalSelector
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Markdown
+import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.SelectChip
-import de.creaflect.actiondraw.ui.chooseFolder
-import de.creaflect.actiondraw.ui.chooseImages
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
 import de.creaflect.actiondraw.ui.lampShadow
@@ -128,11 +130,11 @@ fun BoardDialogs(state: BoardState) {
         BoardEditor.Wallpaper -> WallpaperDialog(state)
 
         BoardEditor.Hotkeys -> DialogScrim(onDismiss = state::closeEditor) {
-            HotkeysSheet(sections = Hotkeys.SECTIONS.filter { it.first == Hotkeys.BOARD_TITLE }, onClose = state::closeEditor)
+            HotkeysSheet(sections = listOf(BoardHotkeys.TITLE to BoardHotkeys.ROWS), onClose = state::closeEditor)
         }
 
         BoardEditor.Settings -> DialogScrim(onDismiss = state::closeEditor) {
-            SettingsSheet(app = null, boards = state, onClose = state::closeEditor)
+            BoardSettingsSheet(state, onClose = state::closeEditor)
         }
 
         BoardEditor.RenameBoard -> TextPromptDialog(
@@ -294,7 +296,7 @@ private fun NoteDialog(state: BoardState, itemId: String?, initialKind: String) 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Paper", style = MaterialTheme.typography.caption)
                 NoteColors.ALL.forEach { color ->
-                    val swatch = Themes.parseColor(color) ?: MaterialTheme.colors.surface
+                    val swatch = Notes.parseColor(color) ?: MaterialTheme.colors.surface
                     Box(
                         Modifier
                             .size(22.dp)
@@ -396,7 +398,7 @@ private fun WallpaperDialog(state: BoardState) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
-                chooseImages(state.root, state.pictureExtensions).firstOrNull()?.let { error = state.setWallpaper(it) }
+                state.dialogs.chooseImages(state.root, state.pictureExtensions).firstOrNull()?.let { error = state.setWallpaper(it) }
             }) { Text(if (paper == null) "Choose picture…" else "Change picture…") }
             if (paper != null) {
                 OutlinedButton(onClick = { state.clearWallpaper() }) { Text("Remove") }
@@ -667,7 +669,7 @@ private fun NewBoardDialog(state: BoardState, under: File?) {
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
                 modifier = Modifier.weight(1f),
             )
-            OutlinedButton(onClick = { chooseFolder(location.takeIf { it.isDirectory }, "Board location")?.let { location = it } }) {
+            OutlinedButton(onClick = { state.dialogs.chooseFolder(location.takeIf { it.isDirectory }, "Board location")?.let { location = it } }) {
                 Text("Change…")
             }
         }

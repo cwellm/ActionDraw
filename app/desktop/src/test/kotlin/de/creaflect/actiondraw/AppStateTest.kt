@@ -1,5 +1,7 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.practice.PracticePage
+import de.creaflect.actiondraw.practice.PracticeState
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -8,7 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Behavioural tests for AppState against a real temp folder (empty files pass ImageScanner). */
+/** Behavioural tests for PracticeState against a real temp folder (empty files pass ImageScanner). */
 class AppStateTest {
     private val dir: File = Files.createTempDirectory("actiondraw-state").toFile()
 
@@ -18,7 +20,7 @@ class AppStateTest {
     /** What the files say, read the way the app reads them. */
     private val files = FileLib(settingsDir)
 
-    private fun newState() = AppState(FileLib(settingsDir))
+    private fun newState() = PracticeState(FileLib(settingsDir))
 
     private fun makeImages(vararg names: String) {
         names.forEach { File(dir, it).createNewFile() }
@@ -135,8 +137,8 @@ class AppStateTest {
 
             state.startBoardSession(boardRoot, listOf(w1, w2))
             // Board sessions run in their own window; the main screen is left alone.
-            assertEquals(Screen.Session, state.boardWindowScreen)
-            assertEquals(Screen.Palette, state.screen)
+            assertEquals(PracticePage.Session, state.windowPage)
+            assertEquals(PracticePage.Menu, state.page, "the room in the main window is left as it was")
             assertEquals(setOf("w1.jpg", "w2.jpg"), state.pool.map { it.name }.toSet())
 
             state.next() // marks the first pose seen -> key must be the relative path
@@ -144,15 +146,15 @@ class AppStateTest {
             assertTrue(seen.isNotEmpty() && seen.all { it.startsWith("wings/") }, "expected relative keys, got $seen")
 
             state.stop()
-            assertEquals(Screen.Summary, state.boardWindowScreen)
+            assertEquals(PracticePage.Summary, state.windowPage)
 
             state.start() // "Go again" replays the board pool, not the practice folder
-            assertEquals(Screen.Session, state.boardWindowScreen)
+            assertEquals(PracticePage.Session, state.windowPage)
             assertEquals(setOf("w1.jpg", "w2.jpg"), state.pool.map { it.name }.toSet())
             state.stop()
 
             state.backToMenu() // closes the session window and restores practice state
-            assertEquals(null, state.boardWindowScreen)
+            assertEquals(null, state.windowPage)
             assertEquals(dir.absolutePath, state.folder?.absolutePath, "practice folder restored")
         } finally {
             boardRoot.deleteRecursively()

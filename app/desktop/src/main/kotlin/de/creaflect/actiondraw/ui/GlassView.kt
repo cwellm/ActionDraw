@@ -59,7 +59,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.creaflect.actiondraw.AppState
+import de.creaflect.actiondraw.practice.PracticeState
 import org.jetbrains.skia.FilterTileMode
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
@@ -96,7 +96,7 @@ private const val CLICK_SLOP = 6f
 @Composable
 fun GlassPicture(
     bitmap: ImageBitmap,
-    state: AppState,
+    state: PracticeState,
     picture: File?,
     pointer: GlassPointer,
     progress: Animatable<Float, *>,
@@ -166,7 +166,7 @@ private val MoveCursor = PointerIcon(Cursor(Cursor.MOVE_CURSOR))
  * it and the wheel brings it nearer about the pointer; a right click lifts it off. In the hand, the
  * wheel magnifies and Shift+wheel makes the glass larger. Without the glass, nothing is taken.
  */
-fun Modifier.glassInput(state: AppState, pointer: GlassPointer, picture: File?, iw: Float, ih: Float, focused: Boolean): Modifier =
+fun Modifier.glassInput(state: PracticeState, pointer: GlassPointer, picture: File?, iw: Float, ih: Float, focused: Boolean): Modifier =
     pointerHoverIcon(
         when {
             !state.glass.inHand -> PointerIcon.Default
@@ -271,7 +271,7 @@ fun Modifier.glassInput(state: AppState, pointer: GlassPointer, picture: File?, 
 @Composable
 fun BoxScope.GlassOverlay(
     bitmap: ImageBitmap,
-    state: AppState,
+    state: PracticeState,
     picture: File?,
     pointer: GlassPointer,
     progress: Animatable<Float, *>,
@@ -358,7 +358,7 @@ private fun DrawScope.drawGlass(c: Offset, r: Float, design: DesignSystem) {
  * ringed in pencil: a click on it, like Esc or a right click, lifts the glass off.
  */
 @Composable
-private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, pointer: GlassPointer, modifier: Modifier) {
+private fun WholePicture(bitmap: ImageBitmap, state: PracticeState, picture: File?, pointer: GlassPointer, modifier: Modifier) {
     val glass = state.glass
     val longest = 150.dp
     val aspect = bitmap.width.toFloat() / bitmap.height
@@ -417,7 +417,7 @@ private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, p
  * choosing one takes the glass up. O turns to the next.
  */
 @Composable
-fun OpticChoices(state: AppState) {
+fun OpticChoices(state: PracticeState) {
     val glass = state.glass
     val design = LocalDesign.current
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag("glass-optics")) {

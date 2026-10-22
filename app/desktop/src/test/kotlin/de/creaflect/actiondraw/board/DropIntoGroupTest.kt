@@ -9,7 +9,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
-import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
@@ -17,9 +16,6 @@ import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.board.ui.MenuExtras
-import de.creaflect.actiondraw.paletteWells
-import de.creaflect.actiondraw.ui.PaletteScreen
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
@@ -184,25 +180,6 @@ class DropIntoGroupTest {
         rule.waitForIdle()
 
         assertEquals("Flügel", state.groupById(state.item(ids[3])!!.groups.firstOrNull())?.name, "let go over the frame: filed")
-    }
-
-    // ---- Settings and Hotkeys as menu points ----
-
-    @Test
-    fun theStartMenuShowsSettingsAndHotkeys() {
-        // The start menu is the palette now; Settings and Hotkeys sit in its corner.
-        val lib = FileLib(config)
-        val app = AppState(lib)
-        val boards = BoardState(lib, host)
-        val wells = paletteWells(lastBoard = null, sketchOpen = false)
-        rule.setContent {
-            ProvideAtelier {
-                PaletteScreen(wells, app.paletteRoom, app::selectRoom, onOpen = {}, corner = { MenuExtras(app, boards) })
-            }
-        }
-        rule.waitForIdle()
-        rule.onNodeWithTag("menu-settings").assertIsDisplayed()
-        rule.onNodeWithTag("menu-hotkeys").assertIsDisplayed()
     }
 
     @Test

@@ -7,10 +7,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
 import de.creaflect.actiondraw.Diagnostics
 import de.creaflect.actiondraw.Lib
+import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.safeFileName
 import de.creaflect.actiondraw.sketch.input.PenSample
 import de.creaflect.actiondraw.sketch.input.PenSource
-import de.creaflect.actiondraw.sketch.input.PenSources
 import de.creaflect.sketch.Brush
 import de.creaflect.sketch.InputSample
 import de.creaflect.sketch.Lead
@@ -19,8 +19,6 @@ import de.creaflect.sketch.Paper
 import de.creaflect.sketch.Pencils
 import de.creaflect.sketch.SketchDocument
 import de.creaflect.sketch.SketchSession
-import java.awt.EventQueue
-import java.awt.Window
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -58,6 +56,8 @@ class SketchState(
     private val lib: Lib,
     private val host: SketchHost,
     private val timestamp: () -> String = { LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm")) },
+    /** The host's file dialogs, for Live Sketch's screens to ask with. */
+    val dialogs: FileDialogs = FileDialogs.None,
 ) {
     // ---- The sketch ----
 
@@ -207,9 +207,12 @@ class SketchState(
 
     // ---- Entering, new, open ----
 
-    /** The screen was entered: hook the pen, and have a page to draw on at once. */
-    fun onEnter(window: Window) {
-        attach(window)
+    /**
+     * The screen was entered: listen to [pen] — the host's, hooked to the window and delivering on
+     * the UI thread; null where the host has none — and have a page to draw on at once.
+     */
+    fun onEnter(pen: PenSource?) {
+        attach(pen)
         ensurePage()
     }
 
@@ -620,19 +623,18 @@ class SketchState(
 
     // ---- The pen source ----
 
-    fun attach(window: Window) {
+    /** Listens to [candidate], whose samples arrive on the UI thread; the mouse alone when it is null. */
+    fun attach(candidate: PenSource?) {
         if (source != null) return
-        val candidate = PenSources.forWindow(window)
         if (candidate == null) {
             penStatus = "Mouse only — no native pen route on this platform yet."
             return
         }
-        val started = runCatching { candidate.start { sample -> EventQueue.invokeLater { onPen(sample) } } }.getOrDefault(false)
+        val started = runCatching { candidate.start { sample -> onPen(sample) } }.getOrDefault(false)
         if (started) {
             source = candidate
             sourceName = candidate.name
-            val hooked = (candidate as? de.creaflect.actiondraw.sketch.input.WindowsPointerSource)?.hookedWindows
-            penStatus = "Listening on ${candidate.name}" + (if (hooked != null) ", $hooked windows hooked." else ".")
+            penStatus = "Listening on ${candidate.name}" + (candidate.detail?.let { ", $it." } ?: ".")
         } else {
             penStatus = "${candidate.name} could not hook the window — mouse only."
         }

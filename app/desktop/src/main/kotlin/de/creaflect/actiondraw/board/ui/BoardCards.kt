@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.isPrimaryPressed
@@ -69,10 +70,10 @@ import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.CrossRoomButton
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.lampShadow
@@ -248,7 +249,7 @@ internal fun selectionBorder(state: BoardState, id: String): Color = when {
 private fun ImageCard(state: BoardState, thumbs: Pictures, item: ImageItem, textured: Boolean) {
     val file = state.fileOf(item)
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it) } }
+        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it)?.toComposeImageBitmap() } }
     }
     // A print: the picture on paper, its caption written under it — on any board surface.
     val shape = RoundedCornerShape(2.dp)
@@ -305,7 +306,7 @@ private fun ImageCard(state: BoardState, thumbs: Pictures, item: ImageItem, text
 @Composable
 private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(4.dp)
-    val ink = Themes.noteInk
+    val ink = Notes.ink
     if (item.kind == NoteKind.PALETTE) {
         PaletteCard(state, item, Modifier.fillMaxWidth().aspectRatio(CardLayout.PALETTE_ASPECT))
     } else if (item.kind == NoteKind.POSTIT) {
@@ -364,7 +365,7 @@ private fun LinkCard(state: BoardState, thumbs: Pictures, item: LinkItem, textur
     val shape = RoundedCornerShape(4.dp)
     val preview = state.previewFileOf(item)
     val previewThumb: ImageBitmap? by produceState<ImageBitmap?>(null, preview) {
-        value = preview?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it) } }
+        value = preview?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it)?.toComposeImageBitmap() } }
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -421,10 +422,10 @@ internal fun host(url: String): String =
 /**
  * A note's paper, the same on every surface: the colour chosen for it, else a yellow slip for a
  * post-it and the design's [paper] for a document. (The plain board once drew them dark; on the
- * graphite table they are paper like everything else.) The ink is [Themes.noteInk] on all.
+ * graphite table they are paper like everything else.) The ink is [Notes.ink] on all.
  */
 internal fun notePaper(item: NoteItem, paper: Color): Color =
-    Themes.parseColor(item.color) ?: if (item.kind == NoteKind.POSTIT) Themes.noteBacking else paper
+    Notes.parseColor(item.color) ?: if (item.kind == NoteKind.POSTIT) Notes.backing else paper
 
 /** Section header: collapse toggle, colour dot, name, count and the group's Draw button. */
 @Composable
@@ -546,7 +547,7 @@ internal fun PracticeBadge(practice: BoardState.Practice, modifier: Modifier) {
 /** The colour a section is drawn in — the Inbox has none. */
 @Composable
 private fun accentOf(state: BoardState, group: BoardGroup?): Color? =
-    group?.let { Themes.parseColor(state.accentOfGroup(it)) }
+    group?.let { Notes.parseColor(state.accentOfGroup(it)) }
 
 /**
  * A palette pinned to the board: the colours read off a picture as a strip of swatches on a card

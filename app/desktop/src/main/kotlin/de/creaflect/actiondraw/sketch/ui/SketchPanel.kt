@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -51,7 +52,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
@@ -156,7 +156,7 @@ private fun ShadeChip(name: String, argb: Int, chosen: Boolean, onClick: () -> U
 @Composable
 private fun ReferenceCard(state: SketchState, file: File, thumbs: Pictures, large: Boolean, onEnlarge: () -> Unit) {
     val bitmap by produceState<ImageBitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 900) }
+        value = withContext(Dispatchers.IO) { thumbs.thumbnail(file, maxSize = 900)?.toComposeImageBitmap() }
     }
     Surface(color = Design.colors.board, shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -211,7 +211,7 @@ private fun ReferenceCard(state: SketchState, file: File, thumbs: Pictures, larg
 @Composable
 internal fun LargeReference(file: File, thumbs: Pictures, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val bitmap by produceState<ImageBitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 900) }
+        value = withContext(Dispatchers.IO) { thumbs.thumbnail(file, maxSize = 900)?.toComposeImageBitmap() }
     }
     val bmp = bitmap ?: return
     Surface(elevation = 0.dp, shape = RoundedCornerShape(4.dp), color = Design.colors.paper, modifier = modifier.padding(12.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(4.dp))) {

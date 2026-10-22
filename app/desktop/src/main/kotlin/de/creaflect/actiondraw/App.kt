@@ -15,12 +15,13 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardListScreen
 import de.creaflect.actiondraw.board.ui.BoardScreen
-import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
 import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.practice.PracticePage
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
@@ -29,20 +30,18 @@ import de.creaflect.actiondraw.ui.Bloom
 import de.creaflect.actiondraw.ui.BloomLayer
 import de.creaflect.actiondraw.ui.PaletteScreen
 import de.creaflect.actiondraw.ui.PaletteWell
-import de.creaflect.actiondraw.ui.PickerScreen
-import de.creaflect.actiondraw.ui.PracticeScreen
+import de.creaflect.actiondraw.ui.PracticeRoom
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomLine
-import de.creaflect.actiondraw.ui.SessionScreen
-import de.creaflect.actiondraw.ui.SummaryScreen
 
 /**
- * Every screen belongs to a [Room] of the palette, except the palette itself, which is home.
- * [Menu] is the Practice room's session setup — the start menu before the palette.
+ * Every screen belongs to a [Room] of the palette, except the palette itself, which is home. The
+ * Practice room is one screen here; where in the room it is — the setup, the picker, a session —
+ * is the room's own business ([PracticeState.page]).
  */
 enum class Screen(val room: Room?) {
     Palette(null),
-    Menu(Room.PRACTICE), Picker(Room.PRACTICE), Session(Room.PRACTICE), Summary(Room.PRACTICE),
+    Practice(Room.PRACTICE),
     Board(Room.BOARDS), BoardList(Room.BOARDS),
     Concepts(Room.CONCEPTS), Concept(Room.CONCEPTS),
     Sketch(Room.SKETCH),
@@ -51,6 +50,7 @@ enum class Screen(val room: Room?) {
 @Composable
 fun App(
     state: AppState,
+    practice: PracticeState,
     boardState: BoardState,
     conceptState: ConceptState,
     sketchState: SketchState,
@@ -75,7 +75,7 @@ fun App(
 
     // The Practice room can draw from a board: the board side says which there are and what is on them.
     LaunchedEffect(boardState) {
-        state.practiceBoards = object : AppState.PracticeBoards {
+        practice.practiceBoards = object : PracticeState.PracticeBoards {
             override fun boards() = boardState.availableBoards()
             override fun pictures(dir: java.io.File) = boardState.picturesOf(dir)
         }
@@ -94,23 +94,23 @@ fun App(
                             onSelect = state::selectRoom,
                             // The room opens under its pigment, once that covers the palette.
                             onOpen = { room -> if (bloom == null) bloom = Bloom(room, wellCentres[room] ?: Offset.Unspecified, opening = true) },
-                            corner = { MenuExtras(state, boardState) },
+                            corner = { MenuExtras(state, practice, boardState) },
                             onWellPlaced = { room, centre -> wellCentres[room] = centre },
                         )
                     }
-                    Screen.Menu -> PracticeScreen(state, onHome = state::showPalette)
-                    Screen.Picker -> PickerScreen(state, thumbs)
-                    Screen.Session -> SessionScreen(
-                        state,
-                        onToggleFullscreen,
-                        isFullscreen,
+                    Screen.Practice -> PracticeRoom(
+                        practice,
+                        thumbs,
                         pinTargets,
+                        isFullscreen,
+                        onToggleFullscreen,
+                        onHome = state::showPalette,
                         onSketch = { picture ->
                             sketchState.openFromSession(picture)
+                            practice.pauseForSketch()
                             state.sketchFromSession()
                         },
                     )
-                    Screen.Summary -> SummaryScreen(state, pinTargets, thumbs)
                     Screen.BoardList -> BoardListScreen(boardState, thumbs, onHome = boardState::leaveList)
                     Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen, onHome = boardState::closeBoard)
                     Screen.Concepts -> ConceptListScreen(conceptState, thumbs, onHome = conceptState::leaveList)
@@ -122,7 +122,7 @@ fun App(
                     Screen.Sketch -> SketchScreen(sketchState, thumbs, onHome = state::sketchHome)
                 }
                 // The room's pigment, settled into a line along the top — not over a running pose.
-                state.screen.room?.takeIf { state.screen != Screen.Session }?.let {
+                state.screen.room?.takeIf { !(state.screen == Screen.Practice && practice.page == PracticePage.Session) }?.let {
                     RoomLine(it, Modifier.align(Alignment.TopCenter))
                 }
                 BloomLayer(
@@ -164,8 +164,8 @@ internal fun paletteWells(lastBoard: Pair<String, java.io.File>?, sketchOpen: Bo
  * list. The others already climb there — a concept to the concept list, the list to the palette,
  * a board and a sketch to where they were opened from. Pure, so a test can press it.
  */
-internal fun escapeToPalette(screen: Screen, state: AppState, boards: BoardState): Boolean = when (screen) {
-    Screen.Menu -> { state.showPalette(); true }
+internal fun escapeToPalette(state: AppState, practice: PracticeState, boards: BoardState): Boolean = when (state.screen) {
+    Screen.Practice -> (practice.page == PracticePage.Menu).also { if (it) state.showPalette() }
     Screen.BoardList -> { boards.leaveList(); true }
     else -> false
 }

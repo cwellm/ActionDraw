@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.practice.PracticePage
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.SessionScreen
 import org.junit.After
@@ -40,13 +42,13 @@ class SessionChromeTest {
         config.deleteRecursively()
     }
 
-    private fun pose(): AppState {
+    private fun pose(): PracticeState {
         repeat(3) { i ->
             val image = BufferedImage(40, 30, BufferedImage.TYPE_INT_RGB)
             image.createGraphics().apply { paint = java.awt.Color(200, 160 - i * 20, 120); fillRect(0, 0, 40, 30); dispose() }
             ImageIO.write(image, "png", File(pictures, "pose$i.png"))
         }
-        val state = AppState(FileLib(config)).also { it.selectFolder(pictures) }
+        val state = PracticeState(FileLib(config)).also { it.selectFolder(pictures) }
         state.start()
         rule.mainClock.autoAdvance = false // a running pose ticks for ever
         rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
@@ -65,7 +67,7 @@ class SessionChromeTest {
         assertFalse(state.autoAdvance, "auto-advance, switched in words")
         rule.onNodeWithTag("session-stop").performClick()
         step()
-        assertEquals(Screen.Summary, state.screen)
+        assertEquals(PracticePage.Summary, state.page)
     }
 
     @Test

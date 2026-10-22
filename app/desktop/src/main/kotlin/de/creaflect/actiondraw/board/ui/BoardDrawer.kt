@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,8 +42,9 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.Markdown
+import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.lampShadow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -129,7 +131,7 @@ fun BoardDrawer(state: BoardState, thumbs: Pictures) {
 /** A group in the drawer: colour, name, count, and what can be done to it as a whole. */
 @Composable
 private fun DrawerGroupRow(state: BoardState, group: BoardGroup, count: Int, nested: Boolean = false) {
-    val accent = Themes.parseColor(state.accentOfGroup(group)) ?: MaterialTheme.colors.secondary
+    val accent = Notes.parseColor(state.accentOfGroup(group)) ?: MaterialTheme.colors.secondary
     val collapsed = group.id in state.drawerCollapsed
     Column(Modifier.fillMaxWidth().padding(top = if (nested) 4.dp else 10.dp, start = if (nested) 18.dp else 0.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -207,7 +209,7 @@ private fun DrawerItemRow(state: BoardState, thumbs: Pictures, item: BoardItem, 
                 is ImageItem -> {
                     val file = state.fileOf(item)
                     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-                        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 64) } }
+                        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it, maxSize = 64)?.toComposeImageBitmap() } }
                     }
                     thumb?.let {
                         Image(

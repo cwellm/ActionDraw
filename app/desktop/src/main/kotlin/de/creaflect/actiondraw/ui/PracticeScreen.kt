@@ -56,11 +56,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.RampStep
 import de.creaflect.actiondraw.SessionPlan
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.practice.PracticeState
 
 /**
  * The Practice room (F9.6): the exercises as index cards taped to the table, and beside them
@@ -68,7 +68,7 @@ import de.creaflect.actiondraw.ViewMode
  * [onHome] is the way back to the palette (none when a test composes the screen on its own).
  */
 @Composable
-fun PracticeScreen(state: AppState, onHome: (() -> Unit)? = null) {
+fun PracticeScreen(state: PracticeState, onHome: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize().grain().padding(horizontal = 24.dp, vertical = 6.dp)) {
         // Where the pictures come from sits in the room's header, leaving the panel to the timing.
         if (onHome != null) RoomHeader(Room.PRACTICE, onHome, actions = { DrawingFrom(state) })
@@ -103,7 +103,7 @@ private fun Overline(text: String) {
 private val CARD_TILT = floatArrayOf(-1f, 0.8f, -0.6f, 0.5f, -0.9f, 0.7f)
 
 @Composable
-private fun ExerciseCards(state: AppState) {
+private fun ExerciseCards(state: PracticeState) {
     val chosen = state.exercise
     Column(verticalArrangement = Arrangement.spacedBy(28.dp), modifier = Modifier.padding(top = 10.dp)) {
         Exercise.entries.chunked(3).forEach { row ->
@@ -171,7 +171,7 @@ private fun ExerciseCard(exercise: Exercise, chosen: Boolean, onChoose: () -> Un
 /** Where the pictures come from, how long each pose is, and Start. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TimingPanel(state: AppState, modifier: Modifier) {
+private fun TimingPanel(state: PracticeState, modifier: Modifier) {
     val exercise = state.exercise
     val plan = state.rampPlan
     Column(modifier.clip(RoundedCornerShape(12.dp)).background(Design.colors.board).padding(22.dp)) {
@@ -241,7 +241,7 @@ private fun TimingPanel(state: AppState, modifier: Modifier) {
  * with ultramarine's dot - how many are unseen, and the pictures to draw from it.
  */
 @Composable
-private fun DrawingFrom(state: AppState) {
+private fun DrawingFrom(state: PracticeState) {
     var open by remember { mutableStateOf(false) }
     val board = state.practiceBoard
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -272,7 +272,7 @@ private fun DrawingFrom(state: AppState) {
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 DropdownMenuItem(onClick = {
                     open = false
-                    chooseFolder(state.folder)?.let { state.selectFolder(it) }
+                    state.dialogs.chooseFolder(state.folder, "Select image folder")?.let { state.selectFolder(it) }
                 }, modifier = Modifier.testTag("source-folder")) { Text("A folder…") }
                 val boards = state.practiceBoards?.boards().orEmpty()
                 if (boards.isNotEmpty()) Divider()

@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,8 +48,6 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.bitmap
-import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Design
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -147,7 +146,7 @@ fun ReferenceStrip(state: BoardState, thumbs: Pictures) {
                     val item = state.item(id) as? ImageItem
                     val file = item?.let(state::fileOf)
                     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-                        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 128) } }
+                        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it, maxSize = 128)?.toComposeImageBitmap() } }
                     }
                     Box(
                         Modifier
@@ -208,7 +207,7 @@ private fun StripSlide(
     val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file, current) {
         value = file?.let { f ->
             withContext(Dispatchers.IO) {
-                if (current) thumbs.bitmap(f) else thumbs.thumbnailBitmap(f, maxSize = 480)
+                if (current) runCatching { thumbs.decode(f)?.toComposeImageBitmap() }.getOrNull() else thumbs.thumbnail(f, maxSize = 480)?.toComposeImageBitmap()
             }
         }
     }

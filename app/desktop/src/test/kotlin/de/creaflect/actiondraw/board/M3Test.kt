@@ -1,7 +1,7 @@
 package de.creaflect.actiondraw.board
 
 import androidx.compose.ui.graphics.Color
-import de.creaflect.actiondraw.board.ui.Markdown
+import de.creaflect.actiondraw.ui.Markdown
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

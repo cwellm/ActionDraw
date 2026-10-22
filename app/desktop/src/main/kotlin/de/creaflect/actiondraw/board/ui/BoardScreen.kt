@@ -66,6 +66,7 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -88,7 +89,7 @@ import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.board.SessionRecipe
 import de.creaflect.actiondraw.board.WallpaperFit
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.bitmap
+import de.creaflect.actiondraw.platform.chooseImages
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.actiondraw.ui.CrossRoomButton
 import de.creaflect.actiondraw.ui.Design
@@ -96,8 +97,6 @@ import de.creaflect.actiondraw.ui.HomeButton
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.PigmentDab
 import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.chooseImages
-import de.creaflect.actiondraw.ui.chooseSaveFile
 import de.creaflect.actiondraw.ui.formatTime
 import de.creaflect.actiondraw.ui.grainBehind
 import de.creaflect.actiondraw.ui.lampShadow
@@ -429,7 +428,7 @@ private fun AddMenu(state: BoardState) {
             Divider()
             DropdownMenuItem(onClick = {
                 open = false
-                chooseImages(state.root, state.pictureExtensions).takeIf { it.isNotEmpty() }?.let { state.importExternal(it) }
+                state.dialogs.chooseImages(state.root, state.pictureExtensions).takeIf { it.isNotEmpty() }?.let { state.importExternal(it) }
             }) { Text("Import pictures…") }
             DropdownMenuItem(onClick = { open = false; state.importPasted() }) { Text("Paste") }
         }
@@ -463,7 +462,7 @@ private fun MoreMenu(state: BoardState, onImmersive: () -> Unit) {
             DropdownMenuItem(onClick = {
                 open = false
                 val items = state.sheetItems
-                chooseSaveFile(
+                state.dialogs.chooseSaveFile(
                     suggested = BoardState.contactSheetName(state.board?.name ?: "board"),
                     start = state.root,
                 )?.let { state.exportContactSheet(items, it) }
@@ -491,7 +490,7 @@ private fun WallpaperLayer(state: BoardState, thumbs: Pictures) {
     val paper = state.wallpaper ?: return
     val file = state.wallpaperFile ?: return
     val bitmap: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = withContext(Dispatchers.IO) { thumbs.bitmap(file) }
+        value = withContext(Dispatchers.IO) { runCatching { thumbs.decode(file)?.toComposeImageBitmap() }.getOrNull() }
     }
     val bmp = bitmap ?: return
     val free = state.layout == BoardLayouts.FREE

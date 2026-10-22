@@ -30,6 +30,9 @@ data class PenSample(
 interface PenSource {
     val name: String
 
+    /** What the source can say about how it listens — how many windows it hooked — or null. */
+    val detail: String? get() = null
+
     /** Begins delivering samples; the callback may arrive on any thread. */
     fun start(onSample: (PenSample) -> Unit): Boolean
 

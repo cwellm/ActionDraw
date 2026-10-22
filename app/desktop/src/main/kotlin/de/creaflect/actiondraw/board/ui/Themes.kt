@@ -123,12 +123,4 @@ half4 main(float2 xy) {
         onBackground = design.ink,
         onSurface = design.ink,
     )
-
-    /** A post-it's yellow slip, and the ink every note is written in. */
-    val noteBacking = Color(0xFFFFF3B8)
-    val noteInk = Color(0xFF3A3315)
-
-    fun parseColor(hex: String?): Color? =
-        hex?.removePrefix("#")?.takeIf { it.length == 6 }?.toLongOrNull(16)
-            ?.let { Color(0xFF000000 or it) }
 }

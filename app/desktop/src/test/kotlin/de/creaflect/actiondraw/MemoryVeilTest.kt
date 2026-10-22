@@ -3,6 +3,7 @@ package de.creaflect.actiondraw
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.SessionScreen
 import org.junit.After
@@ -33,13 +34,13 @@ class MemoryVeilTest {
     }
 
     /** A session paused on its first memory pose — paused, so only this test moves its clock. */
-    private fun pausedMemorySession(): AppState {
+    private fun pausedMemorySession(): PracticeState {
         repeat(2) { i ->
             val image = BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB)
             image.createGraphics().apply { paint = Color.ORANGE; fillRect(0, 0, 16, 16); dispose() }
             ImageIO.write(image, "png", File(dir, "pose$i.png"))
         }
-        val state = AppState(FileLib(config))
+        val state = PracticeState(FileLib(config))
         state.selectFolder(dir)
         state.rampPlan = SessionPlan("Memory", listOf(RampStep(20, 2, studySeconds = 5)))
         state.start()

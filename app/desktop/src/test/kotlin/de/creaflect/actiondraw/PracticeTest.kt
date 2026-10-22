@@ -11,6 +11,8 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.practice.PracticePage
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.Exercise
 import de.creaflect.actiondraw.ui.PracticeScreen
 import de.creaflect.actiondraw.ui.ProvideAtelier
@@ -50,13 +52,13 @@ class PracticeTest {
         config.deleteRecursively()
     }
 
-    private fun stateWithPictures(n: Int = 3): AppState {
+    private fun stateWithPictures(n: Int = 3): PracticeState {
         repeat(n) { i ->
             val image = BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB)
             image.createGraphics().apply { paint = java.awt.Color.ORANGE; fillRect(0, 0, 16, 16); dispose() }
             ImageIO.write(image, "png", File(pictures, "pose$i.png"))
         }
-        return AppState(FileLib(config)).also { it.selectFolder(pictures) }
+        return PracticeState(FileLib(config)).also { it.selectFolder(pictures) }
     }
 
     @Test
@@ -70,7 +72,7 @@ class PracticeTest {
 
     @Test
     fun choosingAnExerciseSetsWhatMakesItThatExercise() {
-        val state = AppState(FileLib(config))
+        val state = PracticeState(FileLib(config))
         state.chooseExercise(Exercise.LENS)
         assertEquals(ViewMode.NOTAN, state.viewMode)
         assertEquals(Exercise.LENS, state.exercise)
@@ -189,7 +191,7 @@ class PracticeTest {
         val onBoard = listOf(File(boardDir, "own.png"), File(elsewhere, "borrowed.png")).onEach { f ->
             ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", f)
         }
-        val boards = object : AppState.PracticeBoards {
+        val boards = object : PracticeState.PracticeBoards {
             override fun boards() = listOf("Buch" to boardDir)
             override fun pictures(dir: File) = if (dir == boardDir) onBoard else emptyList()
         }
@@ -200,11 +202,11 @@ class PracticeTest {
             assertEquals("Buch" to boardDir, state.practiceBoard)
             assertEquals(2, state.totalCount, "the board's own picture and its concept's")
             state.start()
-            assertEquals(Screen.Session, state.screen)
+            assertEquals(PracticePage.Session, state.page)
             assertTrue(state.currentImage in onBoard, "drawing from the board: ${state.currentImage}")
             assertEquals(2, state.totalCount, "the session holds the concept's picture too, not just the folder's")
 
-            val next = AppState(FileLib(config))
+            val next = PracticeState(FileLib(config))
             assertNull(next.practiceBoard, "until the boards are handed over")
             next.practiceBoards = boards
             assertEquals("Buch" to boardDir, next.practiceBoard, "remembered for the next start")
@@ -223,7 +225,7 @@ class PracticeTest {
         try {
             ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", File(boardDir, "a.png"))
             val state = stateWithPictures()
-            state.practiceBoards = object : AppState.PracticeBoards {
+            state.practiceBoards = object : PracticeState.PracticeBoards {
                 override fun boards() = listOf("Buch" to boardDir)
                 override fun pictures(dir: File) = listOf(File(boardDir, "a.png"))
             }

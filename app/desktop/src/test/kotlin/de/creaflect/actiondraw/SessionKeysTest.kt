@@ -1,6 +1,8 @@
 package de.creaflect.actiondraw
 
 import androidx.compose.ui.input.key.Key
+import de.creaflect.actiondraw.practice.PracticeState
+import de.creaflect.actiondraw.ui.handleSessionShortcut
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -21,11 +23,11 @@ class SessionKeysTest {
         settingsDir.deleteRecursively()
     }
 
-    private fun state() = AppState(FileLib(settingsDir))
+    private fun state() = PracticeState(FileLib(settingsDir))
 
     private fun press(
         key: Key,
-        state: AppState,
+        state: PracticeState,
         isFullscreen: Boolean = false,
         setFullscreen: (Boolean) -> Unit = {},
     ) = handleSessionShortcut(key, state, isFullscreen, setFullscreen)
@@ -130,7 +132,7 @@ class SessionKeysTest {
     @Test
     fun escapeLiftsTheGlassThenPutsItAwayBeforeAnythingElse() {
         val state = state()
-        val screen = state.screen
+        val screen = state.page
         var fullscreen = true
         state.glass.setDown(state.currentImage, 0.3f, 0.3f)
         press(Key.Escape, state, isFullscreen = true) { fullscreen = it }
@@ -142,7 +144,7 @@ class SessionKeysTest {
         assertTrue(fullscreen)
         press(Key.Escape, state, isFullscreen = true) { fullscreen = it }
         assertFalse(fullscreen, "then the window")
-        assertEquals(screen, state.screen, "and the session is still on")
+        assertEquals(screen, state.page, "and the session is still on")
     }
 
     @Test

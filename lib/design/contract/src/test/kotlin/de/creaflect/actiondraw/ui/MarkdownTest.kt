@@ -1,8 +1,7 @@
-package de.creaflect.actiondraw.board
+package de.creaflect.actiondraw.ui
 
-import de.creaflect.actiondraw.board.ui.Markdown
-import de.creaflect.actiondraw.board.ui.Markdown.Block
-import de.creaflect.actiondraw.board.ui.Markdown.Span
+import de.creaflect.actiondraw.ui.Markdown.Block
+import de.creaflect.actiondraw.ui.Markdown.Span
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

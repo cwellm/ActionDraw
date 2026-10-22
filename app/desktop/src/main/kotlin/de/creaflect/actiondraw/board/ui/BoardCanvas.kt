@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isCtrlPressed
@@ -89,12 +90,12 @@ import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.image.Pictures
-import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.LocalDesign
 import de.creaflect.actiondraw.ui.LocalReducedMotion
 import de.creaflect.actiondraw.ui.Motion
+import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.Pigment
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RuleRed
@@ -456,7 +457,7 @@ private fun CanvasItem(
                     // A grouped card carries its group's colour, so it is recognisable even when
                     // dragged out of the group area.
                     state.accentOf(item)?.let { hex ->
-                        Themes.parseColor(hex)?.let { accent ->
+                        Notes.parseColor(hex)?.let { accent ->
                             Box(
                                 Modifier
                                     .align(Alignment.TopStart)
@@ -481,7 +482,7 @@ private fun CanvasItem(
 private fun CanvasImage(state: BoardState, thumbs: Pictures, item: ImageItem, textured: Boolean) {
     val file = state.fileOf(item)
     val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
-        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(it, maxSize = 384) } }
+        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it, maxSize = 384)?.toComposeImageBitmap() } }
     }
     // Remember the aspect once, so the card keeps its shape on every future open.
     LaunchedEffect(thumb) {
@@ -519,7 +520,7 @@ private fun CanvasImage(state: BoardState, thumbs: Pictures, item: ImageItem, te
 private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(3.dp)
     val paper = notePaper(item, Design.colors.paper)
-    val ink = Themes.noteInk
+    val ink = Notes.ink
     if (item.kind == NoteKind.PALETTE) {
         PaletteCard(state, item, Modifier.fillMaxSize())
     } else if (item.kind == NoteKind.POSTIT) {
@@ -659,7 +660,7 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
 private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
     val zoom = state.zoom
     val density = LocalDensity.current
-    val accent = Themes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
+    val accent = Notes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
     val x = (hull.left - state.camX) * zoom + viewSize.width / 2f
     val y = (hull.top - state.camY) * zoom + viewSize.height / 2f
     val w = (hull.right - hull.left) * zoom
@@ -935,7 +936,7 @@ internal fun partOfOutline(path: org.jetbrains.skia.Path, fraction: Float, start
 @Composable
 private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
     val zoom = state.zoom
-    val accent = Themes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
+    val accent = Notes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
     val left = (hull.left - state.camX) * zoom + viewSize.width / 2f
     val top = (hull.top - state.camY) * zoom + viewSize.height / 2f
     val right = (hull.right - state.camX) * zoom + viewSize.width / 2f

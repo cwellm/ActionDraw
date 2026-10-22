@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.practice.PracticeState
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -24,9 +25,9 @@ class MemoryPoseTest {
     }
 
     /** A memory leg (10 s, 4 s of study) followed by an ordinary one, over three pictures. */
-    private fun session(plan: SessionPlan): AppState {
+    private fun session(plan: SessionPlan): PracticeState {
         listOf("a.jpg", "b.jpg", "c.jpg").forEach { File(dir, it).createNewFile() }
-        val state = AppState(FileLib(config))
+        val state = PracticeState(FileLib(config))
         state.selectFolder(dir)
         state.rampPlan = plan
         state.start()
@@ -38,7 +39,7 @@ class MemoryPoseTest {
         listOf(RampStep(10, 2, studySeconds = 4), RampStep(6, 1)),
     )
 
-    private fun AppState.runFor(seconds: Int) = repeat(seconds) { tick() }
+    private fun PracticeState.runFor(seconds: Int) = repeat(seconds) { tick() }
 
     // ---- The three beats ----
 

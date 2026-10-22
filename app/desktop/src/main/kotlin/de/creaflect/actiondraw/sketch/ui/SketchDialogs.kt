@@ -33,12 +33,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.SelectChip
-import de.creaflect.actiondraw.ui.chooseFolder
-import de.creaflect.actiondraw.ui.chooseSketchFile
 import de.creaflect.actiondraw.ui.confirmOnEnter
 import de.creaflect.actiondraw.ui.focusOnShow
 import de.creaflect.actiondraw.ui.lampShadow
@@ -186,7 +185,7 @@ private fun SaveAsDialog(state: SketchState) {
         )
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(dir.path, style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f), modifier = Modifier.weight(1f))
-            OutlinedButton(onClick = { chooseFolder(dir.takeIf { it.isDirectory }, "Where to save")?.let { dir = it } }) { Text("Change…") }
+            OutlinedButton(onClick = { state.dialogs.chooseFolder(dir.takeIf { it.isDirectory }, "Where to save")?.let { dir = it } }) { Text("Change…") }
         }
         Text("A PNG of the picture and a .sketch.json of the strokes, to continue later.", style = MaterialTheme.typography.caption, color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f))
         error?.let { Text(it, color = MaterialTheme.colors.error, style = MaterialTheme.typography.caption) }
@@ -250,7 +249,7 @@ private fun OpenDialog(state: SketchState) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = { chooseSketchFile(state.sketchesHome())?.let(::openThis) }) { Text("Browse…") }
+            OutlinedButton(onClick = { state.dialogs.chooseSketchFile(state.sketchesHome())?.let(::openThis) }) { Text("Browse…") }
             OutlinedButton(onClick = state::closeEditor) { Text("Cancel") }
         }
     }
@@ -280,3 +279,7 @@ private fun Scrim(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> 
         }
     }
 }
+
+/** A sketch document (`*.sketch.json`). Null when cancelled. */
+private fun FileDialogs.chooseSketchFile(start: java.io.File?): java.io.File? =
+    chooseFile(start, "Open sketch", "Sketches (*.sketch.json)") { it.name.endsWith(".sketch.json") }

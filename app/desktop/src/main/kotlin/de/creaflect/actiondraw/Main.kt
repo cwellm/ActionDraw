@@ -28,13 +28,23 @@ import de.creaflect.actiondraw.board.ui.handleBoardKey
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.lifecycle.LibRun
+import de.creaflect.actiondraw.platform.AwtClipboard
+import de.creaflect.actiondraw.platform.DesktopBrowser
+import de.creaflect.actiondraw.platform.SwingFileDialogs
+import de.creaflect.actiondraw.platform.SystemPreferences
+import de.creaflect.actiondraw.platform.onUiThread
+import de.creaflect.actiondraw.practice.PracticePage
+import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.sketch.SketchHost
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.sketch.handleSketchChar
 import de.creaflect.actiondraw.sketch.handleSketchShortcut
+import de.creaflect.actiondraw.sketch.input.PenSources
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
+import de.creaflect.actiondraw.ui.handleSessionShortcut
+import de.creaflect.actiondraw.ui.handleSummaryKey
 import java.io.File
 
 fun main() = application {
@@ -51,7 +61,8 @@ fun main() = application {
     val lib: Lib = remember { FileLib(run).also { PointerLog.diagnostics = it.diagnostics } }
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
     val windowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
-    val appState = remember { AppState(lib) }
+    val appState = remember { AppState(lib, SystemPreferences) }
+    val practiceState = remember { PracticeState(lib, dialogs = SwingFileDialogs) }
     // Boards and concepts need each other — a concept is linked onto boards, a board reads its
     // concepts — but each only through its host, and the holder lets them be built in turn.
     val boardHolder = remember { BoardStateHolder() }
@@ -76,6 +87,8 @@ fun main() = application {
                     appState.showSketch(from = Screen.Concept)
                 }
             },
+            browser = DesktopBrowser,
+            dialogs = SwingFileDialogs,
         )
     }
     // The board talks to the rest of the app only through this host (its "plugin" boundary).
@@ -84,12 +97,12 @@ fun main() = application {
             lib,
             object : BoardHost {
                 override fun startSession(root: File, images: List<File>, setup: SessionSetup?) =
-                    appState.startBoardSession(root, images, setup)
+                    practiceState.startBoardSession(root, images, setup)
 
                 override fun showBoard() = appState.showBoard()
                 override fun showBoardList() = appState.showBoardList()
                 override fun leaveBoard() = appState.leaveBoard()
-                override fun currentSetup(): SessionSetup = appState.currentSetup()
+                override fun currentSetup(): SessionSetup = practiceState.currentSetup()
                 override fun showConcept(id: String) {
                     conceptState.openById(id)
                 }
@@ -104,6 +117,10 @@ fun main() = application {
                 }
             },
             concepts = conceptState,
+            // The desktop's own: its clipboard, its browser, its file dialogs.
+            clipboard = AwtClipboard,
+            browser = DesktopBrowser,
+            dialogs = SwingFileDialogs,
         ).also { boardHolder.state = it }
     }
     // Lets a running session file pictures away on a board, without the session knowing what a
@@ -123,6 +140,7 @@ fun main() = application {
                 override fun addToConcept(id: String, pictures: List<File>) = conceptState.addToConcept(id, pictures, emptyList()) != null
                 override fun leaveSketch() = appState.leaveSketch()
             },
+            dialogs = SwingFileDialogs,
         ).also { sketchHolder.state = it }
     }
     val isFullscreen = windowState.placement == WindowPlacement.Fullscreen
@@ -131,8 +149,8 @@ fun main() = application {
 
     // A session started from a board changes its seen/redo state; refresh the badges when the
     // session window closes.
-    LaunchedEffect(appState.boardWindowScreen) {
-        if (appState.boardWindowScreen == null) boardState.refreshPractice()
+    LaunchedEffect(practiceState.windowPage) {
+        if (practiceState.windowPage == null) boardState.refreshPractice()
     }
 
     Window(
@@ -145,16 +163,17 @@ fun main() = application {
         },
         title = "ActionDraw",
         state = windowState,
-        onKeyEvent = { handleKey(it, appState, boardState, conceptState, sketchState, windowState) },
+        onKeyEvent = { handleKey(it, appState, practiceState, boardState, conceptState, sketchState, windowState) },
     ) {
         // The pen probe hooks the native window for pressure and tilt while its screen is up, and
         // lets go when it is left — nothing else in the app sees the pen as more than a mouse.
         LaunchedEffect(appState.screen) {
-            if (appState.screen == Screen.Sketch) sketchState.onEnter(window) else sketchState.detach()
+            if (appState.screen == Screen.Sketch) sketchState.onEnter(PenSources.forWindow(window)?.let(::onUiThread)) else sketchState.detach()
         }
         LaunchedEffect(Unit) { mainWindow.value = window }
         App(
             appState,
+            practiceState,
             boardState,
             conceptState,
             sketchState,
@@ -186,26 +205,27 @@ fun main() = application {
 
     // Board sessions run in their own window: the board stays visible in the main one, and
     // closing this window aborts the drawing and returns to the board.
-    val boardWindow = appState.boardWindowScreen
+    val boardWindow = practiceState.windowPage
     if (boardWindow != null) {
         val sessionWindowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
         Window(
-            onCloseRequest = { appState.abortBoardSession() },
+            onCloseRequest = { practiceState.abortBoardSession() },
             title = "ActionDraw — Session",
             state = sessionWindowState,
-            onKeyEvent = { handleSessionWindowKey(it, appState, sessionWindowState) },
+            onKeyEvent = { handleSessionWindowKey(it, practiceState, sessionWindowState) },
         ) {
             AtelierTheme(reducedMotion = appState.reducedMotion) {
                 Surface {
                     when (boardWindow) {
-                        Screen.Summary -> SummaryScreen(appState, pinTargets, lib.pictures)
+                        PracticePage.Summary -> SummaryScreen(practiceState, pinTargets, lib.pictures)
                         else -> SessionScreen(
-                            appState,
+                            practiceState,
                             onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
                             isFullscreen = sessionWindowState.placement == WindowPlacement.Fullscreen,
                             pinTargets = pinTargets,
                             onSketch = { picture ->
                                 sketchState.openFromSession(picture)
+                                practiceState.pauseForSketch()
                                 appState.sketchFromSession()
                                 mainWindow.value?.toFront()
                             },
@@ -236,6 +256,7 @@ private fun describeKey(event: KeyEvent): String {
 private fun handleKey(
     event: KeyEvent,
     state: AppState,
+    practice: PracticeState,
     boardState: BoardState,
     conceptState: ConceptState,
     sketchState: SketchState,
@@ -289,15 +310,21 @@ private fun handleKey(
         return false
     }
     return when (state.screen) {
-        Screen.Summary -> summaryKeys(event, state)
+        Screen.Practice -> when (practice.page) {
+            PracticePage.Summary -> handleSummaryKey(event.key, practice)
 
-        Screen.Picker -> when (event.key) {
-            Key.Escape, Key.Enter -> { state.closePicker(); true }
-            else -> false
+            PracticePage.Picker -> when (event.key) {
+                Key.Escape, Key.Enter -> { practice.closePicker(); true }
+                else -> false
+            }
+
+            // The top of a room: Esc goes home to the palette.
+            PracticePage.Menu -> event.key == Key.Escape && escapeToPalette(state, practice, boardState)
+
+            PracticePage.Session -> sessionKeys(event, practice, windowState)
         }
 
-        // The top of a room: Esc goes home to the palette.
-        Screen.Menu, Screen.BoardList -> event.key == Key.Escape && escapeToPalette(state.screen, state, boardState)
+        Screen.BoardList -> event.key == Key.Escape && escapeToPalette(state, practice, boardState)
 
         Screen.Board -> handleBoardKey(
             event,
@@ -308,28 +335,21 @@ private fun handleKey(
             },
         )
 
-        Screen.Session -> sessionKeys(event, state, windowState)
-
         else -> false
     }
 }
 
 /** The board-session window: the same session/summary shortcuts, scoped to its own window. */
-private fun handleSessionWindowKey(event: KeyEvent, state: AppState, windowState: WindowState): Boolean {
+private fun handleSessionWindowKey(event: KeyEvent, state: PracticeState, windowState: WindowState): Boolean {
     if (event.type != KeyEventType.KeyDown) return false
-    return when (state.boardWindowScreen) {
-        Screen.Summary -> summaryKeys(event, state)
-        Screen.Session -> sessionKeys(event, state, windowState)
+    return when (state.windowPage) {
+        PracticePage.Summary -> handleSummaryKey(event.key, state)
+        PracticePage.Session -> sessionKeys(event, state, windowState)
         else -> false
     }
 }
 
-private fun summaryKeys(event: KeyEvent, state: AppState): Boolean = when (event.key) {
-    Key.Escape, Key.Enter -> { state.backToMenu(); true }
-    else -> false
-}
-
-private fun sessionKeys(event: KeyEvent, state: AppState, windowState: WindowState): Boolean =
+private fun sessionKeys(event: KeyEvent, state: PracticeState, windowState: WindowState): Boolean =
     handleSessionShortcut(
         key = event.key,
         state = state,
@@ -338,66 +358,6 @@ private fun sessionKeys(event: KeyEvent, state: AppState, windowState: WindowSta
             windowState.placement = if (on) WindowPlacement.Fullscreen else WindowPlacement.Floating
         },
     )
-
-/**
- * The session shortcuts as a plain function of the key pressed, so they can be tested: a
- * [KeyEvent] cannot be constructed outside the Compose runtime, and wiring bugs in this table
- * would otherwise only ever show up under someone's fingers.
- */
-internal fun handleSessionShortcut(
-    key: Key,
-    state: AppState,
-    isFullscreen: Boolean,
-    setFullscreen: (Boolean) -> Unit,
-): Boolean =
-    when (key) {
-        Key.Spacebar -> { state.togglePause(); true }
-        Key.DirectionLeft -> { state.previous(); true }
-        Key.DirectionRight -> { state.next(); true }
-        Key.Escape -> {
-            // Esc steps back one thing at a time: the glass off the picture, the glass put away,
-            // fullscreen left (restoring the decorated window), and only then the session ended.
-            when {
-                state.glass.focusOn(state.currentImage) != null -> state.glass.wholePicture()
-                state.glass.inHand -> state.glass.putAway()
-                isFullscreen -> setFullscreen(false)
-                else -> state.stop()
-            }
-            true
-        }
-        // The glass: L takes it up or puts it away, O turns to the next optic, + − magnify.
-        Key.L -> { state.glass.toggle(); true }
-        Key.O -> { state.glass.nextOptic(); true }
-        Key.Plus, Key.Equals, Key.NumPadAdd -> state.glass.inHand.also { if (it) state.glass.magnifyBy(1f) }
-        Key.Minus, Key.NumPadSubtract -> state.glass.inHand.also { if (it) state.glass.magnifyBy(-1f) }
-        Key.F -> { setFullscreen(!isFullscreen); true }
-        Key.G -> { state.cycleGrid(); true }
-        Key.R -> { state.toggleRedoCurrent(); true }
-        Key.A -> { state.autoAdvance = !state.autoAdvance; true }
-        Key.I -> { state.invert = !state.invert; true }
-        Key.D -> { state.toggleDefraction(); true }
-        Key.N -> { state.viewMode = ViewMode.NOTAN; true }
-        Key.M -> { state.mirror = !state.mirror; true }
-        Key.B -> { state.blur = !state.blur; true }
-        Key.U -> { state.upsideDown = !state.upsideDown; true }
-        // H covers the reference — or peeks at it, while drawing from memory.
-        Key.H -> { state.toggleReference(); true }
-        // Number row selects the view mode (1..9 -> the nine ViewMode values in order).
-        Key.One -> { state.viewMode = ViewMode.NONE; true }
-        Key.Two -> { state.viewMode = ViewMode.GRAYSCALE; true }
-        Key.Three -> { state.viewMode = ViewMode.SQUINT; true }
-        Key.Four -> { state.viewMode = ViewMode.SEPIA; true }
-        Key.Five -> { state.viewMode = ViewMode.POSTERIZE; true }
-        Key.Six -> { state.viewMode = ViewMode.PIXELATE; true }
-        Key.Seven -> { state.viewMode = ViewMode.EDGE; true }
-        Key.Eight -> { state.viewMode = ViewMode.SILHOUETTE; true }
-        Key.Nine -> { state.viewMode = ViewMode.NOTAN; true }
-        // Light: comma cools, period warms, zero puts it back to neutral.
-        Key.Comma -> { state.temperature = (state.temperature - 0.1f).coerceAtLeast(-1f); true }
-        Key.Period -> { state.temperature = (state.temperature + 0.1f).coerceAtMost(1f); true }
-        Key.Zero -> { state.temperature = 0f; true }
-        else -> false
-    }
 
 /** Lets the concept host reach the board state that is built after it. */
 private class BoardStateHolder {
