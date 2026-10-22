@@ -78,9 +78,8 @@ import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.platform.DesktopBrowser
-import de.creaflect.actiondraw.ui.Atelier
-import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.HomeButton
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.PigmentDab
@@ -88,16 +87,16 @@ import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.SelectChip
+import de.creaflect.actiondraw.ui.Tooth
 import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.chooseImages
 import de.creaflect.actiondraw.ui.confirmOnEnter
-import de.creaflect.actiondraw.ui.drawPaperclip
 import de.creaflect.actiondraw.ui.focusOnShow
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.actiondraw.ui.ruled
 import de.creaflect.actiondraw.ui.seed
-import de.creaflect.sketch.Paper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -222,8 +221,8 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: Pictures, onOpen: () ->
     ) {
         Text(
             summary.entry.kind.ifBlank { "concept" },
-            style = AtelierType.Hand.copy(fontSize = 18.sp),
-            color = Atelier.Paper,
+            style = Design.hand.copy(fontSize = 18.sp),
+            color = Design.colors.paper,
             maxLines = 1,
             modifier = Modifier
                 .padding(start = 14.dp)
@@ -236,11 +235,11 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: Pictures, onOpen: () ->
                 .lampShadow(Lift.RESTING, RoundedCornerShape(4.dp))
                 .clip(RoundedCornerShape(4.dp))
                 .background(FolioKraft)
-                .paperTooth(Paper.ROUGH, strength = 0.16f)
+                .paperTooth(Tooth.ROUGH, strength = 0.16f)
                 .padding(10.dp),
         ) {
             Box(
-                Modifier.fillMaxWidth().background(Atelier.Paper).paperTooth().padding(5.dp).aspectRatio(1.4f).background(Color(0xFF1A1715)),
+                Modifier.fillMaxWidth().background(Design.colors.paper).paperTooth().padding(5.dp).aspectRatio(1.4f).background(Color(0xFF1A1715)),
                 contentAlignment = Alignment.Center,
             ) {
                 val bmp = cover
@@ -252,8 +251,8 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: Pictures, onOpen: () ->
             }
             Text(
                 summary.entry.name,
-                style = AtelierType.Hand.copy(fontSize = 24.sp),
-                color = Atelier.Ink,
+                style = Design.hand.copy(fontSize = 24.sp),
+                color = Design.colors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 6.dp),
@@ -269,7 +268,7 @@ private fun ConceptTile(summary: ConceptSummary, thumbs: Pictures, onOpen: () ->
                 Text(
                     "Delete…",
                     style = MaterialTheme.typography.caption,
-                    color = Atelier.Ink,
+                    color = Design.colors.ink,
                     modifier = Modifier.clip(RoundedCornerShape(3.dp)).clickable { onDelete() }.padding(horizontal = 4.dp, vertical = 2.dp),
                 )
             }
@@ -433,7 +432,7 @@ internal fun PictureCard(state: ConceptState, thumbs: Pictures, item: ImageItem,
         modifier
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Atelier.Paper)
+            .background(Design.colors.paper)
             .paperTooth()
             .border(if (selected) 3.dp else 0.dp, if (selected) Room.CONCEPTS.pigment.glow else Color.Transparent, shape)
             .clickable { state.toggleSelected(item.id) }
@@ -444,7 +443,7 @@ internal fun PictureCard(state: ConceptState, thumbs: Pictures, item: ImageItem,
         Box(Modifier.fillMaxSize().background(Color(0x14000000)), contentAlignment = Alignment.Center) {
             val bmp = thumb
             if (bmp != null) Image(bitmap = bmp, contentDescription = item.path, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-            else Text("…", color = Atelier.InkQuiet)
+            else Text("…", color = Design.colors.inkQuiet)
         }
         if (selected) {
             Text(
@@ -476,14 +475,14 @@ internal fun NoteCard(state: ConceptState, item: NoteItem, modifier: Modifier = 
         modifier
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Themes.parseColor(item.color) ?: if (postit) Themes.noteBacking else Atelier.Paper)
+            .background(Themes.parseColor(item.color) ?: if (postit) Themes.noteBacking else Design.colors.paper)
             .paperTooth()
             .then(if (postit) Modifier else Modifier.ruled(first = 10.dp, spacing = 9.dp))
             .clickable { state.openEditor(ConceptEditor.EditNote(item.id)) }
             .padding(10.dp),
     ) {
         if (postit) {
-            Text(item.text, style = AtelierType.Hand.copy(fontSize = 20.sp, lineHeight = 22.sp), color = Themes.noteInk)
+            Text(item.text, style = Design.hand.copy(fontSize = 20.sp, lineHeight = 22.sp), color = Themes.noteInk)
         } else {
             Markdown.Rendered(item.text, style = MaterialTheme.typography.body2, color = Themes.noteInk, onLink = ::browse)
         }
@@ -499,13 +498,14 @@ internal fun LinkCard(state: ConceptState, item: LinkItem, modifier: Modifier = 
         modifier = modifier
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Atelier.Paper)
+            .background(Design.colors.paper)
             .paperTooth()
             .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
             .clickable { browse(item.url) }
             .padding(10.dp),
     ) {
-        Canvas(Modifier.size(14.dp, 30.dp)) { drawPaperclip(Offset(1f, 0f), size.height) }
+        val materials = Design.materials
+        Canvas(Modifier.size(14.dp, 30.dp)) { with(materials) { drawPaperclip(Offset(1f, 0f), size.height) } }
         Spacer(Modifier.width(8.dp))
         Text(
             item.title.ifBlank { item.url },

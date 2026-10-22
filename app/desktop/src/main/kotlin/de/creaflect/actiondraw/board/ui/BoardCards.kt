@@ -30,6 +30,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -69,15 +70,14 @@ import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.thumbnailBitmap
-import de.creaflect.actiondraw.ui.Atelier
-import de.creaflect.actiondraw.ui.AtelierType
 import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RuleRed
-import de.creaflect.actiondraw.ui.drawPaperclip
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.actiondraw.ui.ruled
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -139,7 +139,7 @@ internal fun ConceptTab(state: BoardState, item: BoardItem, modifier: Modifier =
     val viridian = Room.CONCEPTS.pigment
     Text(
         name,
-        style = AtelierType.Hand.copy(fontSize = 14.sp, lineHeight = 15.sp),
+        style = Design.hand.copy(fontSize = 14.sp, lineHeight = 15.sp),
         color = viridian.onMass,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
@@ -236,6 +236,8 @@ internal fun Modifier.cardClicks(state: BoardState, id: String): Modifier =
     }
 
 /** What is selected on a board is marked in the Boards room's pigment, ultramarine. */
+@Composable
+@ReadOnlyComposable
 internal fun selectionBorder(state: BoardState, id: String): Color = when {
     id in state.selection -> Room.BOARDS.pigment.glow
     state.focusId == id -> Room.BOARDS.pigment.glow.copy(alpha = 0.45f)
@@ -254,7 +256,7 @@ private fun ImageCard(state: BoardState, thumbs: Pictures, item: ImageItem, text
         Modifier
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Atelier.Paper)
+            .background(Design.colors.paper)
             .paperTooth()
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
@@ -283,7 +285,7 @@ private fun ImageCard(state: BoardState, thumbs: Pictures, item: ImageItem, text
         Text(
             item.caption ?: file?.name ?: item.path,
             style = MaterialTheme.typography.caption,
-            color = Atelier.InkQuiet,
+            color = Design.colors.inkQuiet,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 4.dp),
@@ -312,7 +314,7 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
             Modifier
                 .lampShadow(Lift.RESTING, shape)
                 .clip(shape)
-                .background(notePaper(item))
+                .background(notePaper(item, Design.colors.paper))
                 .paperTooth()
                 .border(2.dp, selectionBorder(state, item.id), shape)
                 .cardClicks(state, item.id)
@@ -320,7 +322,7 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
         ) {
             Text(
                 item.text,
-                style = AtelierType.Hand.copy(fontSize = 20.sp, lineHeight = 22.sp),
+                style = Design.hand.copy(fontSize = 20.sp, lineHeight = 22.sp),
                 color = ink,
                 modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
             )
@@ -332,7 +334,7 @@ private fun NoteCard(state: BoardState, item: NoteItem, textured: Boolean) {
             modifier = Modifier
                 .lampShadow(Lift.RESTING, shape)
                 .clip(shape)
-                .background(notePaper(item))
+                .background(notePaper(item, Design.colors.paper))
                 .paperTooth()
                 .ruled(first = 10.dp, spacing = 9.dp)
                 .border(2.dp, selectionBorder(state, item.id), shape)
@@ -369,7 +371,7 @@ private fun LinkCard(state: BoardState, thumbs: Pictures, item: LinkItem, textur
         modifier = Modifier
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Atelier.Paper)
+            .background(Design.colors.paper)
             .paperTooth()
             .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
             .border(2.dp, selectionBorder(state, item.id), shape)
@@ -389,7 +391,8 @@ private fun LinkCard(state: BoardState, thumbs: Pictures, item: LinkItem, textur
             )
         } else {
             // No picture yet: a paperclip holds it to the board.
-            Canvas(Modifier.size(14.dp, 30.dp)) { drawPaperclip(Offset(1f, 0f), size.height) }
+            val materials = Design.materials
+            Canvas(Modifier.size(14.dp, 30.dp)) { with(materials) { drawPaperclip(Offset(1f, 0f), size.height) } }
         }
         Spacer(Modifier.width(8.dp))
         Column {
@@ -404,7 +407,7 @@ private fun LinkCard(state: BoardState, thumbs: Pictures, item: LinkItem, textur
             Text(
                 host(item.url),
                 style = MaterialTheme.typography.caption,
-                color = Atelier.InkQuiet,
+                color = Design.colors.inkQuiet,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -417,11 +420,11 @@ internal fun host(url: String): String =
 
 /**
  * A note's paper, the same on every surface: the colour chosen for it, else a yellow slip for a
- * post-it and a white sheet for a document. (The plain board once drew them dark; on the
+ * post-it and the design's [paper] for a document. (The plain board once drew them dark; on the
  * graphite table they are paper like everything else.) The ink is [Themes.noteInk] on all.
  */
-internal fun notePaper(item: NoteItem): Color =
-    Themes.parseColor(item.color) ?: if (item.kind == NoteKind.POSTIT) Themes.noteBacking else Atelier.Paper
+internal fun notePaper(item: NoteItem, paper: Color): Color =
+    Themes.parseColor(item.color) ?: if (item.kind == NoteKind.POSTIT) Themes.noteBacking else paper
 
 /** Section header: collapse toggle, colour dot, name, count and the group's Draw button. */
 @Composable
@@ -527,7 +530,7 @@ internal fun PracticeBadge(practice: BoardState.Practice, modifier: Modifier) {
     val (glyph, color) = when (practice) {
         // Practice's own pigment for what is to be drawn again; quiet ink for what was drawn.
         BoardState.Practice.REDO -> "⟳" to Room.PRACTICE.pigment.glow
-        BoardState.Practice.SEEN -> "✓" to Atelier.TextSoft
+        BoardState.Practice.SEEN -> "✓" to Design.colors.textSoft
         BoardState.Practice.UNSEEN -> return
     }
     Surface(color = Color(0x99000000), shape = RoundedCornerShape(3.dp), modifier = modifier) {
@@ -557,7 +560,7 @@ internal fun PaletteCard(state: BoardState, item: NoteItem, modifier: Modifier =
         modifier
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Atelier.Paper)
+            .background(Design.colors.paper)
             .paperTooth()
             .border(2.dp, selectionBorder(state, item.id), shape)
             .cardClicks(state, item.id)
@@ -570,8 +573,8 @@ internal fun PaletteCard(state: BoardState, item: NoteItem, modifier: Modifier =
         }
         Text(
             item.paletteCaption(),
-            style = AtelierType.Hand.copy(fontSize = 16.sp, lineHeight = 17.sp),
-            color = Atelier.InkQuiet,
+            style = Design.hand.copy(fontSize = 16.sp, lineHeight = 17.sp),
+            color = Design.colors.inkQuiet,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

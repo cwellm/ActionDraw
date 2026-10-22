@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.SessionScreen
 import org.junit.After
 import org.junit.Rule
@@ -48,7 +49,7 @@ class SessionChromeTest {
         val state = AppState(FileLib(config)).also { it.selectFolder(pictures) }
         state.start()
         rule.mainClock.autoAdvance = false // a running pose ticks for ever
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         rule.mainClock.advanceTimeBy(300)
         return state
     }

@@ -1209,11 +1209,30 @@ device   pen
   The app reaching `io`, the network, the stored format or a store, the domain reaching `data` or
   `io`, the data reaching Compose: none of it compiles
 
-### ⬜ F11.9 `:lib:design` — the contract and the atelier
-- ⬜ `design:contract`: tokens (colours, type, lifts, motion), materials and room chrome as
-  interfaces, read through the theme
-- ⬜ `design:atelier`: the default implementation — `Atelier`, `Materials`, `Motion`, the room
-  chrome, the fonts — and the app's screens reading the theme instead of `Atelier` directly
+### ✅ F11.9 `:lib:design` — the contract and the atelier
+- ✅ `design:contract`: what a screen may ask of the design it is drawn in. `DesignSystem` holds
+  its colours (`DesignColors`), the rooms' pigments, Material's palette and type, the pencil's
+  hand, its `Materials` (the grain, paper's tooth, ruled lines, the lamp's shadows, dabs, wells,
+  tape, pins, a pencil, a paperclip) and its `Chrome` (the way home, a room's dab, line and
+  header, the hand-off to another room). It is read through the theme the way `MaterialTheme`
+  is: `Design.colors.ink`, `room.pigment`, `Modifier.lampShadow(…)`. With it, the kit's basics:
+  the vocabulary (`Room`, `Pigment`, `Lift`, `Tooth`), motion and the chrome that steps back, a
+  chip, focus and Enter in a field. It depends on nothing of ours
+- ✅ `design:atelier`: the default implementation — `Atelier`, `AtelierMaterials`,
+  `AtelierChrome`, the bloom that opens a room, the fonts — and `AtelierTheme`, which the app
+  chooses
+- ✅ The screens read the theme: some two hundred colours and every material and piece of
+  chrome. A draw scope has no theme to ask, so it takes the design before it draws. Only `Main`
+  and `App`, on top, name the atelier
+- ✅ `actiondraw.compose` in build-logic: a module of the UI kit gets Compose, its tests the
+  desktop runtime and Compose's test rule
+- ✅ Tests: the atelier's colours, materials and bloom are tested in the atelier, the receding
+  chrome in the contract, a paper board's palette with the board. A screen under test is drawn in
+  the atelier's design (`ProvideAtelier`), its layout unchanged. `OneLampTest` reads the design
+  system's sources as well as the app's
+- ✅ The font script writes into the atelier's resources; it still wrote into `src/`, gone since
+  F11.5
+- ✅ Broken on purpose and seen red after a no-op control stayed green: the boards' glow darkened past reading, muted text faded below it, the bloom without its darker rim, the lamp's shadow falling up and to the left, a design theme that gives no design, paper without its tooth, a paper board inked in its own paper, a second light in the atelier's sources (the scan now reads them). The contract reaching the atelier or the bare lib, the atelier reaching the app: none of it compiles
 
 ### ⬜ F11.10 `:lib:feature:*` — the four rooms
 - ⬜ `practice`, `board`, `concept` and `sketch`: each with its own domain layer, its state and

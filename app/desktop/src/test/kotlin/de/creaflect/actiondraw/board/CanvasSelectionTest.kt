@@ -10,6 +10,7 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
@@ -52,7 +53,9 @@ class CanvasSelectionTest {
         val state = boardWithTwoCards()
         val first = state.board!!.items.first().id
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
 
         rule.onNodeWithTag("card-$first").performClick()
@@ -66,7 +69,9 @@ class CanvasSelectionTest {
         val state = boardWithTwoCards()
         val (first, second) = state.board!!.items.map { it.id }
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
 
         rule.onNodeWithTag("card-$first").performClick()

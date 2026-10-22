@@ -13,6 +13,10 @@ include(":lib:domain")
 include(":lib:data")
 include(":lib:sketch-engine")
 
+// The UI kit: the design system's contract and the default design, the atelier.
+include(":lib:design:contract")
+include(":lib:design:atelier")
+
 // device — the hardware the apps talk to natively.
 include(":device:pen")
 
@@ -21,7 +25,8 @@ include(":app:desktop")
 
 pluginManagement {
     // The modules' shared setup: Kotlin on Java 17 and their tests (actiondraw.kotlin-library),
-    // Skia on top for those that draw or decode (actiondraw.skia).
+    // Skia on top for those that draw or decode (actiondraw.skia), Compose for the UI kit
+    // (actiondraw.compose).
     includeBuild("build-logic")
     repositories {
         gradlePluginPortal()

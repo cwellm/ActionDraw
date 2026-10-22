@@ -288,16 +288,16 @@ private fun TopRow(state: AppState, onToggleFullscreen: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Atelier.Raised)
+                    .background(Design.colors.raised)
                     .clickable(role = Role.Button, onClickLabel = "Stop the session") { state.stop() }
                     .padding(horizontal = 12.dp, vertical = 7.dp)
                     .testTag("session-stop"),
             ) {
-                Text("✕", fontSize = 13.sp, color = Atelier.Text)
-                Text("Stop", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Text)
-                Text("Esc", fontSize = 11.sp, color = Atelier.Muted)
+                Text("✕", fontSize = 13.sp, color = Design.colors.text)
+                Text("Stop", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Design.colors.text)
+                Text("Esc", fontSize = 11.sp, color = Design.colors.muted)
             }
-            Text(sessionCaption(state), fontSize = 13.sp, color = Atelier.TextSoft, maxLines = 1, modifier = Modifier.overPicture().testTag("session-caption"))
+            Text(sessionCaption(state), fontSize = 13.sp, color = Design.colors.textSoft, maxLines = 1, modifier = Modifier.overPicture().testTag("session-caption"))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.overPicture()) {
             QuietSwitch("Auto-advance", "A", state.autoAdvance, "session-auto") { state.autoAdvance = !state.autoAdvance }
@@ -329,9 +329,9 @@ private fun QuietSwitch(label: String, key: String, on: Boolean, tag: String, on
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .testTag(tag),
     ) {
-        Box(Modifier.size(6.dp).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Atelier.Line))
-        Text(label, fontSize = 12.sp, color = if (on) Atelier.Text else Atelier.Muted)
-        Text(key, fontSize = 10.sp, color = Atelier.InkQuiet)
+        Box(Modifier.size(6.dp).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Design.colors.line))
+        Text(label, fontSize = 12.sp, color = if (on) Design.colors.text else Design.colors.muted)
+        Text(key, fontSize = 10.sp, color = Design.colors.inkQuiet)
     }
 }
 
@@ -416,26 +416,27 @@ private fun RoundButton(
     ) {
         Box {
             Box(
-                Modifier.size(size).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Atelier.Raised),
+                Modifier.size(size).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Design.colors.raised),
                 contentAlignment = Alignment.Center,
             ) {
+                val ink = when {
+                    !enabled -> Design.colors.muted
+                    on -> Design.colors.onGlow
+                    else -> Design.colors.textSoft
+                }
                 Canvas(Modifier.size(18.dp)) {
                     val k = this.size.width / 18f
                     drawContext.transform.scale(k, k, Offset.Zero)
                     drawPath(
                         glyph,
-                        when {
-                            !enabled -> Atelier.Muted
-                            on -> Atelier.OnGlow
-                            else -> Atelier.TextSoft
-                        },
+                        ink,
                         style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round),
                     )
                 }
             }
             room?.let { PigmentDab(it.pigment, size = 11.dp, seed = it.seed, wet = enabled, modifier = Modifier.align(Alignment.TopEnd)) }
         }
-        if (label) Text(name, fontSize = 11.sp, color = if (on) Atelier.Text else Atelier.TextSoft, modifier = Modifier.overPicture())
+        if (label) Text(name, fontSize = 11.sp, color = if (on) Design.colors.text else Design.colors.textSoft, modifier = Modifier.overPicture())
     }
 }
 
@@ -443,13 +444,13 @@ private fun RoundButton(
 @Composable
 private fun PausePanel(state: AppState, modifier: Modifier) {
     val shape = RoundedCornerShape(10.dp)
-    Surface(color = Atelier.Raised, shape = shape, modifier = modifier.lampShadow(Lift.LIFTED, shape).testTag("session-paused")) {
+    Surface(color = Design.colors.raised, shape = shape, modifier = modifier.lampShadow(Lift.LIFTED, shape).testTag("session-paused")) {
         Column(
             Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Paused — a click on the ensō or Space goes on", fontSize = 13.sp, color = Atelier.TextSoft)
+            Text("Paused — a click on the ensō or Space goes on", fontSize = 13.sp, color = Design.colors.textSoft)
             if (!state.isRamp) IntervalSelector(seconds = state.intervalSeconds, onChange = { state.intervalSeconds = it })
         }
     }
@@ -468,7 +469,7 @@ private fun Tray(
     onAnchor: (SessionSettings, Float) -> Unit,
 ) {
     val shape = RoundedCornerShape(16.dp)
-    Surface(color = Atelier.Board, shape = shape, modifier = Modifier.lampShadow(Lift.LIFTED, shape)) {
+    Surface(color = Design.colors.board, shape = shape, modifier = Modifier.lampShadow(Lift.LIFTED, shape)) {
         FlowRow(
             Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
@@ -479,7 +480,7 @@ private fun Tray(
                 onChosenAgain = { settings.value = if (settings.value == SessionSettings.LENS) null else SessionSettings.LENS },
                 onAnchor = { x -> onAnchor(SessionSettings.LENS, x) },
             )
-            Box(Modifier.width(1.dp).height(72.dp).background(Atelier.Line).align(Alignment.CenterVertically))
+            Box(Modifier.width(1.dp).height(72.dp).background(Design.colors.line).align(Alignment.CenterVertically))
             Knobs(state, settings, onAnchor)
         }
     }
@@ -496,12 +497,12 @@ private fun SettingsPopover(state: AppState, target: SessionSettings, onClose: (
         SessionSettings.SHARDS -> "Shards"
         SessionSettings.GLASS -> "The glass"
     }
-    Surface(color = Atelier.Raised, shape = shape, modifier = Modifier.lampShadow(Lift.LIFTED, shape).testTag("settings-" + target.name.lowercase())) {
+    Surface(color = Design.colors.raised, shape = shape, modifier = Modifier.lampShadow(Lift.LIFTED, shape).testTag("settings-" + target.name.lowercase())) {
         // As wide as what it holds, not the window - a popover over the picture must leave the
         // picture be - so nothing in it fills the width; the x sits over its top right corner.
         Box {
             Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Text, modifier = Modifier.padding(end = 28.dp))
+                Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Design.colors.text, modifier = Modifier.padding(end = 28.dp))
                 when (target) {
                     SessionSettings.LENS -> LensParameters(state)
                     SessionSettings.LIGHT -> {
@@ -528,7 +529,7 @@ private fun SettingsPopover(state: AppState, target: SessionSettings, onClose: (
             Text(
                 "×",
                 fontSize = 16.sp,
-                color = Atelier.Muted,
+                color = Design.colors.muted,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 6.dp, end = 8.dp)
@@ -556,6 +557,7 @@ private fun Enso(state: AppState, dimmed: Boolean, modifier: Modifier) {
     val alpha by animateFloatAsState(if (dimmed) 0.4f else 1f, tween(if (reduced) Motion.REDUCED_MS else Motion.RECEDE_MS))
     val low = state.remainingSeconds <= 5 && state.overtimeSeconds == 0
     val brush = if (low) LowTimeColor else Room.PRACTICE.pigment.glow
+    val dryBrush = Room.PRACTICE.pigment.mass.copy(alpha = 0.8f)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -571,15 +573,15 @@ private fun Enso(state: AppState, dimmed: Boolean, modifier: Modifier) {
                 val topLeft = center - Offset(r, r)
                 drawArc(brush, -100f, arc, false, topLeft, Size(2 * r, 2 * r), style = Stroke(width, cap = StrokeCap.Round))
                 // Dry brush where the stroke began: a thinner, darker line along the first stretch.
-                drawArc(Room.PRACTICE.pigment.mass.copy(alpha = 0.8f), -100f, arc.coerceAtMost(110f), false, topLeft, Size(2 * r, 2 * r), style = Stroke(width * 0.4f, cap = StrokeCap.Round))
+                drawArc(dryBrush, -100f, arc.coerceAtMost(110f), false, topLeft, Size(2 * r, 2 * r), style = Stroke(width * 0.4f, cap = StrokeCap.Round))
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(timerText(state), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (low) LowTimeColor else Atelier.Text)
+                Text(timerText(state), fontSize = 26.sp, fontWeight = FontWeight.Bold, color = if (low) LowTimeColor else Design.colors.text)
                 Text(
                     if (state.isPaused) "paused"
                     else state.rampPlan?.let { "pose ${state.rampPose + 1} of ${state.rampTotalPoses}" } ?: "${state.sessionPoses} drawn",
                     fontSize = 11.sp,
-                    color = if (state.isPaused) Room.PRACTICE.pigment.glow else Atelier.Muted,
+                    color = if (state.isPaused) Room.PRACTICE.pigment.glow else Design.colors.muted,
                 )
             }
         }
@@ -598,7 +600,7 @@ private fun Enso(state: AppState, dimmed: Boolean, modifier: Modifier) {
                                 .then(
                                     when {
                                         now -> Modifier.background(Room.PRACTICE.pigment.glow)
-                                        done -> Modifier.background(Atelier.InkQuiet)
+                                        done -> Modifier.background(Design.colors.inkQuiet)
                                         else -> Modifier.background(Color(0x553A342E))
                                     },
                                 ),
@@ -611,7 +613,7 @@ private fun Enso(state: AppState, dimmed: Boolean, modifier: Modifier) {
             Text(
                 it,
                 fontSize = 12.sp,
-                color = if (state.comparing) Room.PRACTICE.pigment.glow else Atelier.TextSoft,
+                color = if (state.comparing) Room.PRACTICE.pigment.glow else Design.colors.textSoft,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.width(170.dp).clip(RoundedCornerShape(6.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(6.dp),
             )
@@ -805,8 +807,8 @@ private fun LensSlide(state: AppState, mode: ViewMode, name: String, key: Int, b
                 Canvas(Modifier.fillMaxSize()) { drawLensSign(mode) }
             }
         }
-        Text(name, fontSize = 11.sp, maxLines = 1, softWrap = false, fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal, color = if (chosen) Atelier.Text else Atelier.Muted)
-        Text("$key", fontSize = 10.sp, color = Atelier.InkQuiet)
+        Text(name, fontSize = 11.sp, maxLines = 1, softWrap = false, fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal, color = if (chosen) Design.colors.text else Design.colors.muted)
+        Text("$key", fontSize = 10.sp, color = Design.colors.inkQuiet)
     }
 }
 
@@ -819,7 +821,7 @@ private fun LensParameters(state: AppState) {
         ViewMode.SILHOUETTE -> ParamSlider(label = "Threshold: " + "%.2f".format(state.silhouetteThreshold), value = state.silhouetteThreshold, range = 0.05f..0.95f, steps = 17) { state.silhouetteThreshold = it }
         ViewMode.NOTAN -> {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Values:", fontSize = 12.sp, color = Atelier.TextSoft)
+                Text("Values:", fontSize = 12.sp, color = Design.colors.textSoft)
                 Spacer(Modifier.width(6.dp))
                 SelectChip("2", state.notanBands == 2) { state.notanBands = 2 }
                 Spacer(Modifier.width(4.dp))
@@ -877,21 +879,22 @@ private fun Knob(
             .testTag(tag),
     ) {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Atelier.Raised),
+            Modifier.size(40.dp).clip(CircleShape).background(if (on) Room.PRACTICE.pigment.glow else Design.colors.raised),
             contentAlignment = Alignment.Center,
         ) {
+            val ink = if (on) Design.colors.onGlow else Design.colors.textSoft
             Canvas(Modifier.size(18.dp)) {
                 val s = size.width / 18f
                 drawContext.transform.scale(s, s, Offset.Zero)
                 drawPath(
                     glyph,
-                    if (on) Atelier.OnGlow else Atelier.TextSoft,
+                    ink,
                     style = Stroke(1.5f, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(2f, 2.4f)) else null),
                 )
             }
         }
-        Text(label, fontSize = 11.sp, color = if (on) Atelier.Text else Atelier.Muted)
-        Text(key, fontSize = 10.sp, color = Atelier.InkQuiet)
+        Text(label, fontSize = 11.sp, color = if (on) Design.colors.text else Design.colors.muted)
+        Text(key, fontSize = 10.sp, color = Design.colors.inkQuiet)
     }
 }
 
@@ -910,7 +913,7 @@ private fun MemoryVeil() {
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.testTag("memory-veil"),
     ) {
-        Text("From memory", style = AtelierType.Hand.copy(fontSize = 40.sp), color = Color.White.copy(alpha = 0.7f))
+        Text("From memory", style = Design.hand.copy(fontSize = 40.sp), color = Color.White.copy(alpha = 0.7f))
         Text("H peeks", style = MaterialTheme.typography.body2, color = Color.White.copy(alpha = 0.35f))
     }
 }
@@ -941,7 +944,7 @@ private fun ParamSlider(
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, fontSize = 12.sp, color = Atelier.TextSoft)
+        Text(label, fontSize = 12.sp, color = Design.colors.textSoft)
         Slider(
             value = value,
             onValueChange = onChange,

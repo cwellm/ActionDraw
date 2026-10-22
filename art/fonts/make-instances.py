@@ -2,7 +2,8 @@
 
 Compose Desktop 1.7 loads a font file as it is: it cannot set a variable font's axes, so a
 variable font would only ever show its default instance. The weights the app uses are cut here
-once, with fontTools, and the static files go into src/main/resources/fonts/.
+once, with fontTools, and the static files go into the atelier's resources
+(lib/design/atelier/src/main/resources/fonts/).
 
     pip install fonttools
     python art/fonts/make-instances.py
@@ -17,7 +18,7 @@ from fontTools.ttLib import TTFont
 from fontTools.varLib.instancer import instantiateVariableFont
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE.parent.parent / "src" / "main" / "resources" / "fonts"
+OUT = HERE.parent.parent / "lib" / "design" / "atelier" / "src" / "main" / "resources" / "fonts"
 
 # (source, family, style, axis positions). Text sizes use opsz 14; the display cut is for large
 # titles only, where a high optical size tightens the spacing and sharpens the contrast.

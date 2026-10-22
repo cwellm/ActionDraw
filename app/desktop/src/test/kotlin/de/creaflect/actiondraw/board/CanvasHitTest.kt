@@ -14,6 +14,7 @@ import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -83,7 +84,9 @@ class CanvasHitTest {
 
     private fun show(state: BoardState) {
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
     }
@@ -324,8 +327,10 @@ class CanvasHitTest {
         val state = board()
         val (a, b, loose) = state.addCards("a.jpg", "b.jpg", "loose.jpg")
         rule.setContent {
-            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
-            BoardDialogs(state)
+            ProvideAtelier {
+                BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
+                BoardDialogs(state)
+            }
         }
         rule.waitForIdle()
         val canvasBounds = rule.onNodeWithTag("canvas").fetchSemanticsNode().boundsInRoot

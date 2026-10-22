@@ -278,6 +278,7 @@ fun BoxScope.GlassOverlay(
     focused: Boolean,
 ) {
     val glass = state.glass
+    val design = LocalDesign.current
     Canvas(Modifier.fillMaxSize()) {
         val p = progress.value
         if (p > 0f) {
@@ -288,16 +289,16 @@ fun BoxScope.GlassOverlay(
         if (!glass.inHand || p > 0f || at == null) return@Canvas
         val from = pointer.dragFrom
         if (from != null) {
-            drawPart(Rect(from, at))
+            drawPart(Rect(from, at), design)
         } else {
-            drawGlass(at, glass.radius.dp.toPx())
+            drawGlass(at, glass.radius.dp.toPx(), design)
         }
     }
     if (focused) WholePicture(bitmap, state, picture, pointer, Modifier.align(Alignment.BottomStart).padding(16.dp))
 }
 
 /** A part being dragged out: a pencilled frame, the rest of the picture a shade darker. */
-private fun DrawScope.drawPart(part: Rect) {
+private fun DrawScope.drawPart(part: Rect, design: DesignSystem) {
     val r = Rect(minOf(part.left, part.right), minOf(part.top, part.bottom), maxOf(part.left, part.right), maxOf(part.top, part.bottom))
     val outside = Path().apply {
         fillType = PathFillType.EvenOdd
@@ -305,14 +306,14 @@ private fun DrawScope.drawPart(part: Rect) {
         addRect(r)
     }
     drawPath(outside, Color.Black.copy(alpha = 0.35f))
-    drawRect(Atelier.Paper.copy(alpha = 0.9f), r.topLeft, r.size, style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))))
+    drawRect(design.colors.paper.copy(alpha = 0.9f), r.topLeft, r.size, style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))))
 }
 
 /**
  * A reading glass lying over the picture at [c], [r] across: its shadow on the picture, the
  * glass a little darker towards its edge, the lamp's light on it, a turned rim and a handle.
  */
-private fun DrawScope.drawGlass(c: Offset, r: Float) {
+private fun DrawScope.drawGlass(c: Offset, r: Float, design: DesignSystem) {
     val rim = (r * 0.085f).coerceAtLeast(5.dp.toPx())
     val handleWidth = (r * 0.2f).coerceAtLeast(12.dp.toPx())
     val handleLength = r * 1.05f
@@ -323,7 +324,7 @@ private fun DrawScope.drawGlass(c: Offset, r: Float) {
     }
     val handle = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(Rect(c.x + r + rim * 0.5f, c.y - handleWidth / 2f, c.x + r + rim + handleLength, c.y + handleWidth / 2f), androidx.compose.ui.geometry.CornerRadius(handleWidth / 2f))) }
     rotate(45f, c) {
-        drawLampShadow(Path().apply { addPath(ring); addPath(handle) }, 10.dp.toPx(), alpha = 0.5f)
+        with(design.materials) { drawLampShadow(Path().apply { addPath(ring); addPath(handle) }, 10.dp.toPx(), alpha = 0.5f) }
     }
     // The glass: darker towards its edge, where it is thicker, and the lamp's light on its top left.
     drawCircle(Brush.radialGradient(0.7f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.28f), center = c, radius = r), r, c)
@@ -366,7 +367,7 @@ private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, p
         Box(
             Modifier
                 .lampShadow(Lift.LIFTED)
-                .background(Atelier.Paper)
+                .background(Design.colors.paper)
                 .paperTooth()
                 .clickable(onClickLabel = "Back to the whole picture") { glass.wholePicture() }
                 .padding(5.dp)
@@ -379,6 +380,7 @@ private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, p
                 },
             ) {
                 Image(bitmap, contentDescription = "The whole picture", contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
+                val design = LocalDesign.current
                 Canvas(Modifier.fillMaxSize().testTag("glass-whole-part")) {
                     val focus = glass.focusOn(picture) ?: return@Canvas
                     val area = pointer.area
@@ -394,15 +396,15 @@ private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, p
                         (b.x / iw).coerceIn(0f, 1f) * size.width, (b.y / ih).coerceIn(0f, 1f) * size.height,
                     )
                     drawPath(Path().apply { fillType = PathFillType.EvenOdd; addRect(Rect(Offset.Zero, size)); addRect(part) }, Color.Black.copy(alpha = 0.4f))
-                    drawRect(Atelier.Paper, part.topLeft, part.size, style = Stroke(1.6.dp.toPx()))
-                    drawRect(Room.LENS.pigment.mass, part.topLeft, part.size, style = Stroke(0.7.dp.toPx()))
+                    drawRect(design.colors.paper, part.topLeft, part.size, style = Stroke(1.6.dp.toPx()))
+                    drawRect(design.pigmentOf(Room.LENS).mass, part.topLeft, part.size, style = Stroke(0.7.dp.toPx()))
                 }
             }
         }
         Text(
             "×%.1f · %s · Esc for the whole".format(glass.magnification, glass.optic.label.lowercase()),
             fontSize = 11.sp,
-            color = Atelier.TextSoft,
+            color = Design.colors.textSoft,
             modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.55f)).padding(horizontal = 6.dp, vertical = 3.dp),
         )
     }
@@ -417,6 +419,7 @@ private fun WholePicture(bitmap: ImageBitmap, state: AppState, picture: File?, p
 @Composable
 fun OpticChoices(state: AppState) {
     val glass = state.glass
+    val design = LocalDesign.current
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag("glass-optics")) {
         Optic.entries.forEach { optic ->
             val chosen = glass.inHand && glass.optic == optic
@@ -429,22 +432,22 @@ fun OpticChoices(state: AppState) {
                     .testTag("glass-optic-${optic.name.lowercase()}"),
             ) {
                 Box(
-                    Modifier.size(44.dp, 40.dp).clip(RoundedCornerShape(8.dp)).background(if (chosen) Atelier.Board else Color.Transparent),
+                    Modifier.size(44.dp, 40.dp).clip(RoundedCornerShape(8.dp)).background(if (chosen) Design.colors.board else Color.Transparent),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Canvas(Modifier.size(34.dp, 26.dp)) { drawOpticSection(optic, chosen) }
+                    Canvas(Modifier.size(34.dp, 26.dp)) { drawOpticSection(optic, chosen, design) }
                 }
-                Text(optic.label, fontSize = 11.sp, color = if (chosen) Atelier.Text else Atelier.Muted, maxLines = 1)
+                Text(optic.label, fontSize = 11.sp, color = if (chosen) Design.colors.text else Design.colors.muted, maxLines = 1)
             }
         }
     }
 }
 
 /** An optic as a cross-section of its glass, light passing left to right, in a 34 × 26 box. */
-private fun DrawScope.drawOpticSection(optic: Optic, chosen: Boolean) {
+private fun DrawScope.drawOpticSection(optic: Optic, chosen: Boolean, design: DesignSystem) {
     val s = size.width / 34f
-    val fill = Room.LENS.pigment.glow.copy(alpha = if (chosen) 0.85f else 0.45f)
-    val edge = if (chosen) Atelier.Text else Atelier.TextSoft
+    val fill = design.pigmentOf(Room.LENS).glow.copy(alpha = if (chosen) 0.85f else 0.45f)
+    val edge = if (chosen) design.colors.text else design.colors.textSoft
     fun pt(x: Float, y: Float) = Offset(x * s, y * s)
     val path = Path().apply {
         when (optic) {
@@ -479,7 +482,7 @@ private fun DrawScope.drawOpticSection(optic: Optic, chosen: Boolean) {
     drawPath(path, edge, style = Stroke(1f))
     if (optic == Optic.PRISM) {
         // White light in, colours out.
-        drawLine(Atelier.Paper.copy(alpha = 0.8f), pt(0f, 15f), pt(11f, 15f), 1.2f)
+        drawLine(design.colors.paper.copy(alpha = 0.8f), pt(0f, 15f), pt(11f, 15f), 1.2f)
         listOf(Color(0xFFE0574A), Color(0xFF7CC46A), Color(0xFF5B7FE0)).forEachIndexed { i, colour ->
             drawLine(colour, pt(24f, 15f), pt(34f, 12f + i * 3.5f), 1.2f)
         }

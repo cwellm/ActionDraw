@@ -75,18 +75,17 @@ import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
-import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.ChromeEdge
 import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.actiondraw.ui.PointerWatch
 import de.creaflect.actiondraw.ui.RecedingChrome
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
-import de.creaflect.actiondraw.ui.drawLampShadow
-import de.creaflect.actiondraw.ui.drawTape
 import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.actiondraw.ui.watchPointer
 import de.creaflect.sketch.PencilModel
 import de.creaflect.sketch.Pencils
@@ -114,7 +113,7 @@ fun SketchScreen(state: SketchState, thumbs: Pictures, onHome: (() -> Unit)? = n
     val watch = remember { PointerWatch() }
     val receded = remember { mutableStateOf(false) }
     var largeReference by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(Atelier.Ground).watchPointer(watch)) {
+    Column(Modifier.fillMaxSize().background(Design.colors.ground).watchPointer(watch)) {
         RecedeWhileDrawing(state, receded)
         SketchChrome(state, watch, receded, ChromeEdge.TOP, "sketch-chrome") { Header(state, onHome) }
         state.notice?.let {
@@ -204,7 +203,7 @@ private fun Header(state: SketchState, onHome: (() -> Unit)?) {
                     Text(
                         state.title + if (state.dirty) " •" else "",
                         style = MaterialTheme.typography.body1,
-                        color = Atelier.TextSoft,
+                        color = Design.colors.textSoft,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.testTag("sketch-title"),
@@ -247,16 +246,17 @@ private fun IconFlat(name: String, icon: String, enabled: Boolean, tag: String, 
         Modifier
             .size(34.dp)
             .clip(CircleShape)
-            .background(Atelier.Raised)
+            .background(Design.colors.raised)
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = name, onClick = onClick)
             .semantics { contentDescription = name }
             .testTag(tag),
         contentAlignment = Alignment.Center,
     ) {
+        val ink = if (enabled) Design.colors.textSoft else Design.colors.line
         Canvas(Modifier.size(18.dp)) {
             val k = size.width / 18f
             drawContext.transform.scale(k, k, Offset.Zero)
-            drawPath(glyph, if (enabled) Atelier.TextSoft else Atelier.Line, style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawPath(glyph, ink, style = Stroke(1.6f, cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
     }
 }
@@ -293,7 +293,7 @@ private fun StatusLine(state: SketchState) {
         sample != null ->
             Room.CONCEPTS.pigment.glow to
                 "Pen · " + (if (sample.tiltX != 0 || sample.tiltY != 0) "pressure and tilt arriving" else "pressure arriving") + " · ${state.rateHz} Hz"
-        else -> Atelier.Muted to state.penStatus
+        else -> Design.colors.muted to state.penStatus
     }
     Row(
         Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 2.dp, bottom = 6.dp),
@@ -304,13 +304,13 @@ private fun StatusLine(state: SketchState) {
         Text(
             text,
             style = MaterialTheme.typography.caption,
-            color = if (hint != null) dot else Atelier.Muted,
+            color = if (hint != null) dot else Design.colors.muted,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).testTag("sketch-status"),
         )
-        Text(state.pageName, style = MaterialTheme.typography.caption, color = Atelier.Muted, maxLines = 1, softWrap = false)
+        Text(state.pageName, style = MaterialTheme.typography.caption, color = Design.colors.muted, maxLines = 1, softWrap = false)
         Flat("${(state.zoom * 100).roundToInt()} %", tag = "sketch-fit") { state.fit() }
     }
 }
@@ -319,7 +319,7 @@ private fun StatusLine(state: SketchState) {
 
 @Composable
 private fun FoldOut(content: @Composable () -> Unit) {
-    Surface(color = Atelier.Raised, shape = RoundedCornerShape(10.dp), elevation = 0.dp, modifier = Modifier.widthIn(max = 640.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(10.dp))) {
+    Surface(color = Design.colors.raised, shape = RoundedCornerShape(10.dp), elevation = 0.dp, modifier = Modifier.widthIn(max = 640.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(10.dp))) {
         Box(Modifier.padding(horizontal = 14.dp, vertical = 8.dp)) { content() }
     }
 }
@@ -329,7 +329,7 @@ private fun PenPanel(state: SketchState) {
     val mono = MaterialTheme.typography.caption.copy(fontFamily = FontFamily.Monospace)
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(state.penStatus, style = MaterialTheme.typography.caption, color = Atelier.TextSoft, modifier = Modifier.weight(1f).testTag("sketch-pen-status"))
+            Text(state.penStatus, style = MaterialTheme.typography.caption, color = Design.colors.textSoft, modifier = Modifier.weight(1f).testTag("sketch-pen-status"))
             Flat(if (state.recording) "Stop recording" else "Record samples", tag = "sketch-record") { state.toggleRecording() }
         }
         state.penHint?.let {
@@ -347,10 +347,10 @@ private fun PenPanel(state: SketchState) {
                 s.x, s.y, state.rateHz, state.sampleCount,
             )
         }
-        Text(line, style = mono, color = Atelier.TextSoft, modifier = Modifier.testTag("sketch-readout"))
-        state.lastInput?.let { Text("last input: $it", style = mono, color = Atelier.TextSoft, modifier = Modifier.testTag("sketch-last-input")) }
+        Text(line, style = mono, color = Design.colors.textSoft, modifier = Modifier.testTag("sketch-readout"))
+        state.lastInput?.let { Text("last input: $it", style = mono, color = Design.colors.textSoft, modifier = Modifier.testTag("sketch-last-input")) }
         state.recordedTo?.let { file ->
-            Text((if (state.recording) "Recording to " else "Recorded to ") + file.path, style = MaterialTheme.typography.caption, color = Atelier.Muted)
+            Text((if (state.recording) "Recording to " else "Recorded to ") + file.path, style = MaterialTheme.typography.caption, color = Design.colors.muted)
         }
     }
 }
@@ -367,11 +367,11 @@ private fun Tunables(state: SketchState) {
     }
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${lead.label}: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold, color = Atelier.Text)
+            Text("${lead.label}: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold, color = Design.colors.text)
             Text(
                 "width %.2f..%.2f γ %.2f · alpha %.2f..%.2f · speed k %.2f · edge %.2f · tilt +%.2f −%.2f · grain %.2f".format(model.minWidth, model.maxWidth, model.gamma, model.alphaFloor, model.alphaCeiling, model.speedK, model.edge, model.tiltWidth, model.tiltAlpha, model.grain),
                 style = MaterialTheme.typography.caption.copy(fontFamily = FontFamily.Monospace),
-                color = Atelier.TextSoft,
+                color = Design.colors.textSoft,
                 modifier = Modifier.weight(1f).testTag("sketch-tunables"),
             )
             Flat("Reset") { Pencils.reset(lead); model = Pencils.of(lead); state.markTuned() }
@@ -397,9 +397,9 @@ private fun Tunables(state: SketchState) {
         }
         if (state.presets.isNotEmpty()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Presets: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold, color = Atelier.Text)
+                Text("Presets: ", style = MaterialTheme.typography.caption, fontWeight = FontWeight.Bold, color = Design.colors.text)
                 state.presets.forEach { preset ->
-                    Text("${preset.name} (${preset.base.label})", style = MaterialTheme.typography.caption, color = Atelier.TextSoft)
+                    Text("${preset.name} (${preset.base.label})", style = MaterialTheme.typography.caption, color = Design.colors.textSoft)
                     Flat("×", tag = "sketch-preset-delete-${preset.name}") { state.deletePreset(preset.name) }
                 }
             }
@@ -410,7 +410,7 @@ private fun Tunables(state: SketchState) {
 @Composable
 private fun RowScope.Knob(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
     Column(Modifier.weight(1f)) {
-        Text(label, style = MaterialTheme.typography.caption, color = Atelier.Muted)
+        Text(label, style = MaterialTheme.typography.caption, color = Design.colors.muted)
         Slider(value = value, onValueChange = onChange, valueRange = range, modifier = Modifier.height(28.dp))
     }
 }
@@ -483,14 +483,15 @@ private fun Page(state: SketchState, thumbs: Pictures) {
         if (session == null) {
             Text(
                 "No page yet — File ▾ → New…, or Ctrl+N.",
-                color = Atelier.Muted,
+                color = Design.colors.muted,
                 modifier = Modifier.align(Alignment.Center),
             )
         } else {
             // Under the page: the lamp's shadow.
+            val materials = Design.materials
             Canvas(Modifier.fillMaxSize()) {
                 val page = ComposeRect(state.panX, state.panY, state.panX + session.width * state.zoom, state.panY + session.height * state.zoom)
-                drawLampShadow(Path().apply { addRect(page) }, 12.dp.toPx(), alpha = 0.6f)
+                with(materials) { drawLampShadow(Path().apply { addRect(page) }, 12.dp.toPx(), alpha = 0.6f) }
             }
             Canvas(Modifier.fillMaxSize()) {
                 state.tick // a stroke went onto the page: draw it again
@@ -542,10 +543,12 @@ private fun Page(state: SketchState, thumbs: Pictures) {
                 val r = l + session.width * state.zoom
                 val b = t + session.height * state.zoom
                 val tape = Size(58.dp.toPx(), 18.dp.toPx())
-                drawTape(Offset(l, t), tape, -45f, seed = 1)
-                drawTape(Offset(r, t), tape, 45f, seed = 2)
-                drawTape(Offset(l, b), tape, 45f, seed = 3)
-                drawTape(Offset(r, b), tape, -45f, seed = 4)
+                with(materials) {
+                    drawTape(Offset(l, t), tape, -45f, seed = 1)
+                    drawTape(Offset(r, t), tape, 45f, seed = 2)
+                    drawTape(Offset(l, b), tape, 45f, seed = 3)
+                    drawTape(Offset(r, b), tape, -45f, seed = 4)
+                }
             }
         }
     }

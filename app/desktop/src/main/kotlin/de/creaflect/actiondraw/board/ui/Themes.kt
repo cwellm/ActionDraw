@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import de.creaflect.actiondraw.board.BoardThemes
-import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.DesignColors
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.RuntimeEffect
@@ -109,19 +109,19 @@ half4 main(float2 xy) {
     fun isTextured(theme: String): Boolean = theme != BoardThemes.PLAIN
 
     /**
-     * Light Material palette for the textured (paper) boards: the atelier's paper and ink. The
+     * Light Material palette for the textured (paper) boards: the design's paper and ink. The
      * accents stay the dark brown and teal they were, since Material sets text in them on paper.
      */
-    val paperColors: Colors = lightColors(
+    fun paperColors(design: DesignColors): Colors = lightColors(
         primary = Color(0xFF6D4C41),
         primaryVariant = Color(0xFF5D4037),
         secondary = Color(0xFF00796B),
-        background = Atelier.PaperShade,
-        surface = Atelier.Paper,
-        onPrimary = Atelier.Paper,
-        onSecondary = Atelier.Paper,
-        onBackground = Atelier.Ink,
-        onSurface = Atelier.Ink,
+        background = design.paperShade,
+        surface = design.paper,
+        onPrimary = design.paper,
+        onSecondary = design.paper,
+        onBackground = design.ink,
+        onSurface = design.ink,
     )
 
     /** A post-it's yellow slip, and the ink every note is written in. */

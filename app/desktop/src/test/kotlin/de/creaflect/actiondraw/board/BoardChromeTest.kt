@@ -16,6 +16,7 @@ import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -61,8 +62,10 @@ class BoardChromeTest {
         state.clearSelection()
         // The dialogs float above every screen in the app shell, so the test composes them too.
         rule.setContent {
-            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
-            BoardDialogs(state)
+            ProvideAtelier {
+                BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
+                BoardDialogs(state)
+            }
         }
         rule.waitForIdle()
         return state to state.board!!.items.map { it.id }

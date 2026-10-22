@@ -1,4 +1,4 @@
-package de.creaflect.actiondraw
+package de.creaflect.actiondraw.ui
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -17,14 +17,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
-import de.creaflect.actiondraw.ui.Materials
-import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.dabPath
-import de.creaflect.actiondraw.ui.drawDab
-import de.creaflect.actiondraw.ui.drawLampShadow
-import de.creaflect.actiondraw.ui.drawPin
-import de.creaflect.actiondraw.ui.drawTape
-import de.creaflect.actiondraw.ui.drawWell
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -44,7 +36,7 @@ class MaterialsTest {
 
     @Test
     fun theGrainIsAFaintToothOfLightAndDark() {
-        val tile = Materials.renderGrain(64, Materials.STRENGTH)
+        val tile = AtelierMaterials.renderGrain(64, AtelierMaterials.STRENGTH)
         val grey = Color(0xFF808080)
         val pixels = draw(64, 64) {
             drawRect(grey)
@@ -53,7 +45,7 @@ class MaterialsTest {
         val shifts = buildList { for (x in 0 until 64) for (y in 0 until 64) add(pixels[x, y].red - grey.red) }
         assertTrue(shifts.any { it > 0.01f }, "some grains are lighter")
         assertTrue(shifts.any { it < -0.01f }, "some grains are darker")
-        assertTrue(shifts.all { kotlin.math.abs(it) <= Materials.STRENGTH * 0.6f }, "felt more than seen: ${shifts.maxOf { kotlin.math.abs(it) }}")
+        assertTrue(shifts.all { kotlin.math.abs(it) <= AtelierMaterials.STRENGTH * 0.6f }, "felt more than seen: ${shifts.maxOf { kotlin.math.abs(it) }}")
     }
 
     @Test
@@ -68,10 +60,10 @@ class MaterialsTest {
 
     @Test
     fun wetPaintShinesAndDryPaintHasGonePale() {
-        val pigment = Room.BOARDS.pigment
+        val pigment = Atelier.pigmentOf(Room.BOARDS)
         val size = Size(100f, 88f)
-        val wet = draw(100, 88) { drawDab(Offset.Zero, size, pigment, seed = 3, wet = true) }
-        val dry = draw(100, 88) { drawDab(Offset.Zero, size, pigment, seed = 3, wet = false) }
+        val wet = draw(100, 88) { with(AtelierMaterials) { drawDab(Offset.Zero, size, pigment, seed = 3, wet = true) } }
+        val dry = draw(100, 88) { with(AtelierMaterials) { drawDab(Offset.Zero, size, pigment, seed = 3, wet = false) } }
         val centre = 50 to 52
         val gloss = 36 to 23
         assertTrue(wet[gloss.first, gloss.second].luminance() > wet[centre.first, centre.second].luminance() + 0.2f, "the lamp shines on wet paint")
@@ -82,27 +74,27 @@ class MaterialsTest {
 
     @Test
     fun aWellIsInShadowAlongItsTop() {
-        val pixels = draw(100, 100) { drawWell(Offset(50f, 50f), 45f) }
+        val pixels = draw(100, 100) { with(AtelierMaterials) { drawWell(Offset(50f, 50f), 45f) } }
         assertTrue(pixels[50, 12].luminance() < pixels[50, 86].luminance(), "lit from above, the inner wall at the top is in shadow")
     }
 
     @Test
     fun theLampCastsShadowsDownAndToTheRight() {
         val square = Path().apply { addRect(Rect(30f, 30f, 70f, 70f)) }
-        val pixels = draw(100, 100) { drawLampShadow(square, depth = 10f) }
+        val pixels = draw(100, 100) { with(AtelierMaterials) { drawLampShadow(square, depth = 10f) } }
         // Just past the square's own corner, where only the cast shadow can be — and its mirror.
         assertTrue(pixels[72, 74].alpha > pixels[28, 26].alpha + 0.1f, "below right: ${pixels[72, 74].alpha} · above left: ${pixels[28, 26].alpha}")
     }
 
     @Test
     fun tapeIsPaperYouCanSeeThrough() {
-        val pixels = draw(100, 100) { drawTape(Offset(50f, 50f), Size(80f, 20f), degrees = 0f, seed = 1) }
+        val pixels = draw(100, 100) { with(AtelierMaterials) { drawTape(Offset(50f, 50f), Size(80f, 20f), degrees = 0f, seed = 1) } }
         assertTrue(pixels[50, 50].alpha in 0.6f..0.95f, "alpha ${pixels[50, 50].alpha}")
     }
 
     @Test
     fun aPinsShadowFallsToTheBottomRight() {
-        val pixels = draw(100, 100) { drawPin(Offset(50f, 50f), 10f, Room.BOARDS.pigment) }
+        val pixels = draw(100, 100) { with(AtelierMaterials) { drawPin(Offset(50f, 50f), 10f, Atelier.pigmentOf(Room.BOARDS)) } }
         assertTrue(pixels[60, 62].alpha > 0.2f, "shadow below right")
         assertEquals(0f, pixels[40, 38].alpha, "nothing above left")
     }

@@ -61,10 +61,10 @@ import androidx.compose.ui.window.rememberPopupPositionProviderAtPosition
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
-import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.LocalDesign
 import de.creaflect.actiondraw.ui.Room
-import de.creaflect.actiondraw.ui.drawLampShadow
 import de.creaflect.actiondraw.ui.drawRoomDab
 import kotlin.math.PI
 import kotlin.math.cos
@@ -200,27 +200,30 @@ private fun RingButton(room: Room?, label: String, enabled: Boolean, modifier: M
             }
             .semantics { contentDescription = label },
     ) {
+        val design = LocalDesign.current
         Canvas(Modifier.size(size)) {
             val r = this.size.minDimension / 2f
             val c = center
-            drawLampShadow(Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r * 0.94f)) }, Lift.LIFTED.depth.toPx() * 0.6f, alpha = 0.5f)
+            with(design.materials) {
+                drawLampShadow(Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r * 0.94f)) }, depthOf(Lift.LIFTED).toPx() * 0.6f, alpha = 0.5f)
+            }
             // Porcelain, lit from the top left, the inside of the well in shadow along its top.
-            drawCircle(Brush.radialGradient(listOf(Color(0xFFFBF8F2), Atelier.Paper, Atelier.PaperShade), center = c - Offset(r * 0.3f, r * 0.3f), radius = r * 1.4f), r, c)
+            drawCircle(Brush.radialGradient(listOf(Color(0xFFFBF8F2), design.colors.paper, design.colors.paperShade), center = c - Offset(r * 0.3f, r * 0.3f), radius = r * 1.4f), r, c)
             drawCircle(Brush.verticalGradient(listOf(Color(0x33000000), Color.Transparent), c.y - r * 0.62f, c.y + r * 0.2f), r * 0.62f, c)
             if (room != null) {
-                drawRoomDab(room, c - Offset(r * 0.42f, r * 0.37f), Size(r * 0.84f, r * 0.74f), wet = enabled)
+                drawRoomDab(design, room, c - Offset(r * 0.42f, r * 0.37f), Size(r * 0.84f, r * 0.74f), wet = enabled)
             } else {
                 // The middle: three dots, ink on porcelain.
-                listOf(-1, 0, 1).forEach { k -> drawCircle(Atelier.InkQuiet, r * 0.08f, c + Offset(k * r * 0.28f, 0f)) }
+                listOf(-1, 0, 1).forEach { k -> drawCircle(design.colors.inkQuiet, r * 0.08f, c + Offset(k * r * 0.28f, 0f)) }
             }
-            if (lit) drawCircle(room?.pigment?.glow ?: Atelier.Text, r + 2.dp.toPx(), c, style = Stroke(2.dp.toPx()))
+            if (lit) drawCircle(room?.let { design.pigmentOf(it).glow } ?: design.colors.text, r + 2.dp.toPx(), c, style = Stroke(2.dp.toPx()))
         }
         Text(
             if (enabled || room == null) label else "$label · coming",
             fontSize = 11.sp,
             lineHeight = 13.sp,
             textAlign = TextAlign.Center,
-            color = if (enabled) Atelier.Text else Atelier.Muted,
+            color = if (enabled) Design.colors.text else Design.colors.muted,
             maxLines = 2,
             modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.62f)).padding(horizontal = 5.dp, vertical = 1.dp),
         )
@@ -237,7 +240,7 @@ private fun ConceptChoice(board: BoardState, close: () -> Unit, onBack: () -> Un
         Modifier
             .width(220.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(Atelier.Raised)
+            .background(Design.colors.raised)
             .padding(vertical = 6.dp)
             .testTag("ring-concepts")
             .onPreviewKeyEvent { event ->
@@ -249,12 +252,12 @@ private fun ConceptChoice(board: BoardState, close: () -> Unit, onBack: () -> Un
                 }
             },
     ) {
-        Text("To which concept?", fontSize = 11.sp, color = Atelier.Muted, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+        Text("To which concept?", fontSize = 11.sp, color = Design.colors.muted, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
         concepts.forEachIndexed { i, concept ->
             Text(
                 (if (concept.kind.isNotBlank()) concept.kind + " · " else "") + concept.name,
                 fontSize = 13.sp,
-                color = Atelier.Text,
+                color = Design.colors.text,
                 modifier = Modifier
                     .let { if (i == 0) it.focusRequester(first) else it }
                     .clickable {

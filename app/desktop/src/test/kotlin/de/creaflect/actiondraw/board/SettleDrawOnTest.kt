@@ -28,6 +28,7 @@ import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Lifted
 import de.creaflect.actiondraw.ui.LocalReducedMotion
 import de.creaflect.actiondraw.ui.Motion
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.leanFor
 import org.jetbrains.skia.PathMeasure
 import org.junit.After
@@ -89,7 +90,7 @@ class SettleDrawOnTest {
     @Test
     fun aDraggedCardLiftsAndLandsAndStillGoesExactlyWhereThePointerTookIt() {
         val (state, ids) = freeBoard()
-        rule.setContent { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) }
+        rule.setContent { ProvideAtelier { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) } }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
         state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())
@@ -125,7 +126,7 @@ class SettleDrawOnTest {
     fun aNewGroupsFrameIsDrawnOnceAndThenSimplyThere() {
         val (state, ids) = freeBoard()
         rule.mainClock.autoAdvance = false
-        rule.setContent { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) }
+        rule.setContent { ProvideAtelier { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) } }
         rule.waitForIdle()
         ids.take(2).forEach { state.clickItem(it, ctrl = true, shift = false) }
         val group = state.groupSelection("Wings")!!
@@ -143,8 +144,10 @@ class SettleDrawOnTest {
         val (state, ids) = freeBoard()
         rule.mainClock.autoAdvance = false
         rule.setContent {
-            CompositionLocalProvider(LocalReducedMotion provides true) {
-                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                CompositionLocalProvider(LocalReducedMotion provides true) {
+                    BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+                }
             }
         }
         rule.waitForIdle()
@@ -212,7 +215,7 @@ class SettleDrawOnTest {
     @Test
     fun theCanvasNotesWhereThePointerLetGo() {
         val (state, ids) = freeBoard()
-        rule.setContent { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) }
+        rule.setContent { ProvideAtelier { BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize()) } }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
         state.fitAll(canvas.width.toFloat(), canvas.height.toFloat())
@@ -230,8 +233,10 @@ class SettleDrawOnTest {
     fun aHeldCardsLandingPlaceIsMarkedAroundIt() {
         val (state, ids) = freeBoard()
         rule.setContent {
-            Box(Modifier.fillMaxSize().background(Atelier.Ground)) {
-                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                Box(Modifier.fillMaxSize().background(Atelier.colors.ground)) {
+                    BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+                }
             }
         }
         rule.waitForIdle()

@@ -148,8 +148,9 @@ fun PaletteScreen(
         val cy = maxHeight * 0.52f
 
         if (maxHeight > 600.dp && maxWidth > 900.dp) {
+            val materials = Design.materials
             Canvas(Modifier.fillMaxSize()) {
-                drawPencil(Offset(48.dp.toPx(), size.height - 70.dp.toPx()), 300.dp.toPx(), 18.dp.toPx(), -11f, Color(0xFF44525F))
+                with(materials) { drawPencil(Offset(48.dp.toPx(), size.height - 70.dp.toPx()), 300.dp.toPx(), 18.dp.toPx(), -11f, Color(0xFF44525F)) }
             }
         }
 
@@ -159,7 +160,7 @@ fun PaletteScreen(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 16.dp),
         ) {
             PigmentDab(Room.PRACTICE.pigment, size = 16.dp, seed = Room.PRACTICE.seed)
-            Text("ActionDraw", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Atelier.Text)
+            Text("ActionDraw", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Design.colors.text)
         }
 
         Porcelain(disk, Modifier.offset(cx - disk / 2, cy - disk / 2))
@@ -192,8 +193,8 @@ fun PaletteScreen(
 
         Text(
             "Esc in any room brings you back here",
-            style = AtelierType.Hand,
-            color = Atelier.Muted,
+            style = Design.hand,
+            color = Design.colors.muted,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 48.dp, bottom = 32.dp).rotate(-3f),
         )
 
@@ -240,6 +241,7 @@ private fun Well(
         animationSpec = infiniteRepeatable(tween(2600, easing = CubicBezierEasing(0.2f, 0.7f, 0.3f, 1f))),
     )
     val glow = well.room.pigment.glow
+    val design = LocalDesign.current
     val click by rememberUpdatedState(onClick)
     Box(
         modifier
@@ -257,9 +259,9 @@ private fun Well(
                     }
                     drawCircle(glow, r + 3.dp.toPx(), style = Stroke(4.dp.toPx()))
                 }
-                drawWell(center, r)
+                with(design.materials) { drawWell(center, r) }
                 val dab = Size(size.width * 0.71f, size.height * 0.64f)
-                drawRoomDab(well.room, center - Offset(dab.width / 2, dab.height / 2), dab, wet = well.open)
+                drawRoomDab(design, well.room, center - Offset(dab.width / 2, dab.height / 2), dab, wet = well.open)
             }
             // Keyboard focus chooses a well (Tab); a pointer does not focus, it taps. A clickable
             // would take focus on the press, and the focus would choose the well before the
@@ -315,13 +317,13 @@ private fun WellLabel(well: PaletteWell, selected: Boolean, angle: Double, dista
             well.room.label,
             fontSize = 19.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Atelier.Text.copy(alpha = if (selected) 1f else 0.72f),
+            color = Design.colors.text.copy(alpha = if (selected) 1f else 0.72f),
             textAlign = textAlign,
         )
         Text(
             if (well.open) well.verb else "coming",
-            style = AtelierType.Hand.copy(fontSize = 23.sp),
-            color = if (well.open) well.room.pigment.glow else Atelier.Muted,
+            style = Design.hand.copy(fontSize = 23.sp),
+            color = if (well.open) well.room.pigment.glow else Design.colors.muted,
             textAlign = textAlign,
         )
     }
@@ -331,12 +333,13 @@ private fun WellLabel(well: PaletteWell, selected: Boolean, angle: Double, dista
 @Composable
 private fun Mix(well: PaletteWell, size: Dp, modifier: Modifier, onOpen: () -> Unit) {
     val pigment = well.room.pigment
+    val materials = Design.materials
     Box(
         modifier
             .size(size)
             .drawBehind {
                 val r = this.size.minDimension / 2
-                drawWell(center, r)
+                with(materials) { drawWell(center, r) }
                 drawCircle(Brush.radialGradient(0f to pigment.mass.copy(alpha = 0.3f), 1f to Color.Transparent, center = center + Offset(0f, r * 0.12f), radius = r * 0.8f), r)
             }
             .testTag("palette-mix"),
@@ -347,8 +350,8 @@ private fun Mix(well: PaletteWell, size: Dp, modifier: Modifier, onOpen: () -> U
             verticalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.padding(horizontal = size * 0.08f),
         ) {
-            Text(well.room.label, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Atelier.Ink)
-            Text(well.line, fontSize = 12.5.sp, lineHeight = 16.sp, color = Atelier.InkQuiet, textAlign = TextAlign.Center)
+            Text(well.room.label, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Design.colors.ink)
+            Text(well.line, fontSize = 12.5.sp, lineHeight = 16.sp, color = Design.colors.inkQuiet, textAlign = TextAlign.Center)
             well.action?.let { action ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -359,13 +362,13 @@ private fun Mix(well: PaletteWell, size: Dp, modifier: Modifier, onOpen: () -> U
                         .wrapContentWidth(unbounded = true)
                         .widthIn(max = size * 0.96f)
                         .clip(RoundedCornerShape(50))
-                        .background(Atelier.Ink)
+                        .background(Design.colors.ink)
                         .clickable(role = Role.Button, onClick = onOpen)
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                         .testTag("palette-open"),
                 ) {
                     PigmentDab(pigment, size = 9.dp, seed = well.room.seed)
-                    Text(action, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Paper, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(action, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Design.colors.paper, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

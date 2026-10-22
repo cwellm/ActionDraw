@@ -53,10 +53,11 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.thumbnailBitmap
 import de.creaflect.actiondraw.sketch.SketchState
-import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.sketch.Paper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -78,7 +79,7 @@ internal fun PaperPanel(state: SketchState, thumbs: Pictures, largeReference: Bo
             .padding(end = 16.dp, top = 4.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Surface(color = Atelier.Board, shape = RoundedCornerShape(10.dp)) {
+        Surface(color = Design.colors.board, shape = RoundedCornerShape(10.dp)) {
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Overline("Paper")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -87,7 +88,7 @@ internal fun PaperPanel(state: SketchState, thumbs: Pictures, largeReference: Bo
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Shade", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+                    Text("Shade", style = MaterialTheme.typography.caption, color = Design.colors.muted)
                     Spacer(Modifier.weight(1f))
                     SketchState.SHADES.forEach { (name, argb) ->
                         ShadeChip(name, argb, chosen = state.shade == argb) { state.setShade(argb) }
@@ -101,7 +102,7 @@ internal fun PaperPanel(state: SketchState, thumbs: Pictures, largeReference: Bo
 
 @Composable
 private fun Overline(text: String) {
-    Text(text.uppercase(), style = MaterialTheme.typography.overline, color = Atelier.Muted)
+    Text(text.uppercase(), style = MaterialTheme.typography.overline, color = Design.colors.muted)
 }
 
 /** A swatch of the paper itself: its tooth drawn by the engine that draws the page, a little stronger. */
@@ -119,7 +120,7 @@ private fun PaperSwatch(paper: Paper, shade: Int, chosen: Boolean, modifier: Mod
                 .fillMaxWidth()
                 .aspectRatio(1.05f)
                 .clip(RoundedCornerShape(3.dp))
-                .border(if (chosen) 2.dp else 1.dp, if (chosen) madder.glow else Atelier.Line, RoundedCornerShape(3.dp)),
+                .border(if (chosen) 2.dp else 1.dp, if (chosen) madder.glow else Design.colors.line, RoundedCornerShape(3.dp)),
         ) {
             drawRect(Color(shade))
             drawIntoCanvas { paper.grain.shade(it.nativeCanvas, 0f, 0f, size.width, size.height, scale = 1f, strength = SWATCH_TOOTH) }
@@ -128,7 +129,7 @@ private fun PaperSwatch(paper: Paper, shade: Int, chosen: Boolean, modifier: Mod
             paper.label,
             style = MaterialTheme.typography.caption,
             fontWeight = if (chosen) FontWeight.Bold else FontWeight.Normal,
-            color = if (chosen) Atelier.Text else Atelier.Muted,
+            color = if (chosen) Design.colors.text else Design.colors.muted,
             modifier = Modifier.padding(top = 3.dp),
         )
     }
@@ -144,7 +145,7 @@ private fun ShadeChip(name: String, argb: Int, chosen: Boolean, onClick: () -> U
             .size(24.dp)
             .clip(CircleShape)
             .background(Color(argb))
-            .border(if (chosen) 2.dp else 1.dp, if (chosen) Room.SKETCH.pigment.glow else Atelier.Line, CircleShape)
+            .border(if (chosen) 2.dp else 1.dp, if (chosen) Room.SKETCH.pigment.glow else Design.colors.line, CircleShape)
             .selectable(chosen, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = name }
             .testTag("sketch-shade-${name.lowercase()}"),
@@ -157,7 +158,7 @@ private fun ReferenceCard(state: SketchState, file: File, thumbs: Pictures, larg
     val bitmap by produceState<ImageBitmap?>(null, file) {
         value = withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 900) }
     }
-    Surface(color = Atelier.Board, shape = RoundedCornerShape(10.dp)) {
+    Surface(color = Design.colors.board, shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Overline("Underneath")
             bitmap?.let { bmp ->
@@ -176,13 +177,13 @@ private fun ReferenceCard(state: SketchState, file: File, thumbs: Pictures, larg
             ) {
                 Checkbox(checked = state.referenceUnder, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = Room.SKETCH.pigment.glow))
                 Spacer(Modifier.width(6.dp))
-                Text(if (state.referenceOver) "Lay the reference over the strokes" else "Show the reference underneath", style = MaterialTheme.typography.body2, color = Atelier.TextSoft)
+                Text(if (state.referenceOver) "Lay the reference over the strokes" else "Show the reference underneath", style = MaterialTheme.typography.body2, color = Design.colors.textSoft)
             }
             if (state.referenceUnder) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Strength", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+                    Text("Strength", style = MaterialTheme.typography.caption, color = Design.colors.muted)
                     Spacer(Modifier.weight(1f))
-                    Text("${(state.referenceStrength * 100).roundToInt()} %", style = MaterialTheme.typography.caption, color = Atelier.TextSoft)
+                    Text("${(state.referenceStrength * 100).roundToInt()} %", style = MaterialTheme.typography.caption, color = Design.colors.textSoft)
                 }
                 Slider(
                     value = state.referenceStrength,
@@ -213,7 +214,7 @@ internal fun LargeReference(file: File, thumbs: Pictures, onClose: () -> Unit, m
         value = withContext(Dispatchers.IO) { thumbs.thumbnailBitmap(file, maxSize = 900) }
     }
     val bmp = bitmap ?: return
-    Surface(elevation = 0.dp, shape = RoundedCornerShape(4.dp), color = Atelier.Paper, modifier = modifier.padding(12.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(4.dp))) {
+    Surface(elevation = 0.dp, shape = RoundedCornerShape(4.dp), color = Design.colors.paper, modifier = modifier.padding(12.dp).lampShadow(Lift.LIFTED, RoundedCornerShape(4.dp))) {
         Image(
             bitmap = bmp,
             contentDescription = file.name,

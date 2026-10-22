@@ -58,11 +58,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
-import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.LocalReducedMotion
+import de.creaflect.actiondraw.ui.Materials
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.SelectChip
-import de.creaflect.actiondraw.ui.drawLampShadow
+import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.sketch.Lead
 import kotlin.math.roundToInt
 
@@ -82,8 +83,9 @@ internal fun SketchTray(state: SketchState, modifier: Modifier = Modifier) {
             .padding(start = 16.dp, top = 4.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Surface(color = Atelier.Board, shape = RoundedCornerShape(10.dp)) {
+        Surface(color = Design.colors.board, shape = RoundedCornerShape(10.dp)) {
             Column(Modifier.padding(vertical = 6.dp)) {
+                val materials = Design.materials
                 Lead.entries.forEachIndexed { i, lead ->
                     ToolRow(
                         key = "${i + 1}",
@@ -91,11 +93,11 @@ internal fun SketchTray(state: SketchState, modifier: Modifier = Modifier) {
                         chosen = !state.eraser && state.brush.lead == lead,
                         tag = "sketch-tool-${lead.name}",
                         onClick = { state.setLead(lead) },
-                    ) { drawTool(lead) }
+                    ) { drawTool(lead, materials) }
                 }
-                Divider(color = Atelier.Line, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                Divider(color = Design.colors.line, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                 ToolRow(key = "E", label = "Rubber", chosen = state.eraser, tag = "sketch-rubber", onClick = { state.toggleEraser() }) {
-                    drawRubber()
+                    drawRubber(materials)
                 }
                 if (state.eraser) {
                     // A rubber lifts part of the graphite per pass; "hard" takes it all at once.
@@ -105,16 +107,16 @@ internal fun SketchTray(state: SketchState, modifier: Modifier = Modifier) {
                 }
             }
         }
-        Surface(color = Atelier.Board, shape = RoundedCornerShape(10.dp)) {
+        Surface(color = Design.colors.board, shape = RoundedCornerShape(10.dp)) {
             Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Size", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+                    Text("Size", style = MaterialTheme.typography.caption, color = Design.colors.muted)
                     Spacer(Modifier.weight(1f))
                     Text(
                         "${state.brush.size.roundToInt()} px",
                         style = MaterialTheme.typography.caption,
                         fontWeight = FontWeight.Bold,
-                        color = Atelier.TextSoft,
+                        color = Design.colors.textSoft,
                         modifier = Modifier.testTag("sketch-size"),
                     )
                 }
@@ -126,14 +128,14 @@ internal fun SketchTray(state: SketchState, modifier: Modifier = Modifier) {
                     modifier = Modifier.height(24.dp).testTag("sketch-size-slider"),
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Colour", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+                    Text("Colour", style = MaterialTheme.typography.caption, color = Design.colors.muted)
                     Spacer(Modifier.weight(1f))
                     Box(
                         Modifier
                             .size(24.dp)
                             .clip(CircleShape)
                             .background(Color(state.brush.color))
-                            .border(1.dp, Atelier.Line, CircleShape)
+                            .border(1.dp, Design.colors.line, CircleShape)
                             .clickable { state.openEditor(SketchEditor.Colour) }
                             .testTag("sketch-colour"),
                     )
@@ -146,7 +148,7 @@ internal fun SketchTray(state: SketchState, modifier: Modifier = Modifier) {
                 ) {
                     Checkbox(checked = state.tiltShading, onCheckedChange = null, colors = CheckboxDefaults.colors(checkedColor = Room.SKETCH.pigment.glow))
                     Spacer(Modifier.width(6.dp))
-                    Text("Shade with the side (tilt)", style = MaterialTheme.typography.caption, color = Atelier.TextSoft)
+                    Text("Shade with the side (tilt)", style = MaterialTheme.typography.caption, color = Design.colors.textSoft)
                 }
                 PresetChoice(state)
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -180,7 +182,7 @@ private fun ToolRow(key: String, label: String, chosen: Boolean, tag: String, on
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(key, style = MaterialTheme.typography.caption, color = if (chosen) madder.glow else Atelier.Muted, modifier = Modifier.width(16.dp))
+        Text(key, style = MaterialTheme.typography.caption, color = if (chosen) madder.glow else Design.colors.muted, modifier = Modifier.width(16.dp))
         Box(Modifier.width(92.dp).height(30.dp).offset(x = slide)) {
             Canvas(Modifier.fillMaxSize().padding(vertical = 8.dp)) { draw() }
             if (chosen) {
@@ -192,7 +194,7 @@ private fun ToolRow(key: String, label: String, chosen: Boolean, tag: String, on
             label,
             style = MaterialTheme.typography.body2,
             fontWeight = if (chosen) FontWeight.Bold else FontWeight.Normal,
-            color = if (chosen) Atelier.Text else Atelier.TextSoft,
+            color = if (chosen) Design.colors.text else Design.colors.textSoft,
             maxLines = 1,
         )
     }
@@ -201,10 +203,10 @@ private fun ToolRow(key: String, label: String, chosen: Boolean, tag: String, on
 // ---------------- The tools, drawn ----------------
 
 /** A tool lying in the tray, its point to the right, filling the draw scope's height. */
-private fun DrawScope.drawTool(lead: Lead) {
+private fun DrawScope.drawTool(lead: Lead, materials: Materials) {
     val w = size.width
     val t = size.height
-    toolShadow(Size(w - t * 0.4f, t))
+    toolShadow(Size(w - t * 0.4f, t), materials)
     when (lead) {
         Lead.HARD -> pencil(Color(0xFFA9B4BF), Color(0xFF77726D))
         Lead.MEDIUM -> pencil(Color(0xFF3E5873), Color(0xFF3A3734))
@@ -216,9 +218,9 @@ private fun DrawScope.drawTool(lead: Lead) {
     }
 }
 
-private fun DrawScope.toolShadow(of: Size) {
+private fun DrawScope.toolShadow(of: Size, materials: Materials) {
     val outline = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, 0f, of.width, of.height, CornerRadius(of.height * 0.3f))) }
-    drawLampShadow(outline, size.height * 0.45f, alpha = 0.55f)
+    with(materials) { drawLampShadow(outline, size.height * 0.45f, alpha = 0.55f) }
 }
 
 /** Lacquer in three facets, lit from above. */
@@ -331,12 +333,12 @@ private fun DrawScope.brush() {
 }
 
 /** The rubber: a white block in its paper sleeve, shorter than the tools. */
-private fun DrawScope.drawRubber() {
+private fun DrawScope.drawRubber(materials: Materials) {
     val w = size.width * 0.52f
     val t = size.height * 1.3f
     val y = (size.height - t) / 2
     val outline = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(0f, y, w, y + t, CornerRadius(t * 0.12f))) }
-    drawLampShadow(outline, size.height * 0.45f, alpha = 0.55f)
+    with(materials) { drawLampShadow(outline, size.height * 0.45f, alpha = 0.55f) }
     drawRoundRect(Color(0xFFEFEAE0), Offset(0f, y), Size(w, t), CornerRadius(t * 0.12f))
     drawRect(Brush.verticalGradient(listOf(Color(0xFF3F61A8), Color(0xFF2B4785)), y, y + t), Offset(0f, y), Size(w * 0.58f, t))
     drawRect(Color(0x22FFFFFF), Offset(0f, y), Size(w * 0.58f, t * 0.2f))
@@ -347,7 +349,7 @@ private fun DrawScope.drawRubber() {
 private fun PresetChoice(state: SketchState) {
     var open by remember { mutableStateOf(false) }
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Preset", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+        Text("Preset", style = MaterialTheme.typography.caption, color = Design.colors.muted)
         Spacer(Modifier.weight(1f))
         Box {
             Row(
@@ -355,13 +357,13 @@ private fun PresetChoice(state: SketchState) {
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier
                     .clip(RoundedCornerShape(6.dp))
-                    .border(1.dp, Atelier.Line, RoundedCornerShape(6.dp))
+                    .border(1.dp, Design.colors.line, RoundedCornerShape(6.dp))
                     .clickable(role = Role.Button, onClickLabel = "Choose a preset") { open = true }
                     .padding(horizontal = 10.dp, vertical = 5.dp)
                     .testTag("sketch-preset"),
             ) {
-                Text(state.activePreset ?: "None", style = MaterialTheme.typography.body2, color = Atelier.Text, maxLines = 1)
-                Text("▾", style = MaterialTheme.typography.caption, color = Atelier.Muted)
+                Text(state.activePreset ?: "None", style = MaterialTheme.typography.body2, color = Design.colors.text, maxLines = 1)
+                Text("▾", style = MaterialTheme.typography.caption, color = Design.colors.muted)
             }
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 DropdownMenuItem(onClick = { open = false; state.clearPreset() }, modifier = Modifier.testTag("sketch-preset-none")) { Text("None") }

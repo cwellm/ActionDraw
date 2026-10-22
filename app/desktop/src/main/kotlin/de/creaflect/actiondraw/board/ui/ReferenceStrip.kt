@@ -49,7 +49,7 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.bitmap
 import de.creaflect.actiondraw.image.thumbnailBitmap
-import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Design
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -81,7 +81,7 @@ fun ReferenceStrip(state: BoardState, thumbs: Pictures) {
 
     LaunchedEffect(index) { if (offset.value != 0f && !offset.isRunning) offset.snapTo(0f) }
 
-    Column(Modifier.fillMaxSize().background(Atelier.Ground)) {
+    Column(Modifier.fillMaxSize().background(Design.colors.ground)) {
         Box(
             Modifier
                 .weight(1f)

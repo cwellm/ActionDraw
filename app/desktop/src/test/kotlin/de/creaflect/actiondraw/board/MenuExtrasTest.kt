@@ -11,6 +11,7 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.MenuExtras
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -41,7 +42,7 @@ class MenuExtrasTest {
     fun settingsOpenFromTheMenuAndChangeThePreference() {
         val lib = FileLib(config)
         val boards = BoardState(lib, host)
-        rule.setContent { MenuExtras(AppState(lib), boards) }
+        rule.setContent { ProvideAtelier { MenuExtras(AppState(lib), boards) } }
         rule.waitForIdle()
 
         rule.onNodeWithTag("menu-settings").performClick()
@@ -56,7 +57,7 @@ class MenuExtrasTest {
     @Test
     fun hotkeysOpenFromTheMenu() {
         val lib = FileLib(config)
-        rule.setContent { MenuExtras(AppState(lib), BoardState(lib, host)) }
+        rule.setContent { ProvideAtelier { MenuExtras(AppState(lib), BoardState(lib, host)) } }
         rule.waitForIdle()
 
         rule.onNodeWithTag("menu-hotkeys").performClick()

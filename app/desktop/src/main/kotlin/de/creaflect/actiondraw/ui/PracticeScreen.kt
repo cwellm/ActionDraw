@@ -86,7 +86,7 @@ fun PracticeScreen(state: AppState, onHome: (() -> Unit)? = null) {
                 Text(
                     "Unseen pictures come first; pictures flagged for redo come before anything new.",
                     fontSize = 13.sp,
-                    color = Atelier.Muted,
+                    color = Design.colors.muted,
                 )
             }
             TimingPanel(state, Modifier.width(360.dp).fillMaxHeight())
@@ -96,7 +96,7 @@ fun PracticeScreen(state: AppState, onHome: (() -> Unit)? = null) {
 
 @Composable
 private fun Overline(text: String) {
-    Text(text.uppercase(), fontSize = 12.sp, letterSpacing = 1.8.sp, color = Atelier.Muted)
+    Text(text.uppercase(), fontSize = 12.sp, letterSpacing = 1.8.sp, color = Design.colors.muted)
 }
 
 /** Each card lies a little askew on the table, as cards do. */
@@ -141,7 +141,7 @@ private fun ExerciseCard(exercise: Exercise, chosen: Boolean, onChoose: () -> Un
                 }
                 .lampShadow(if (chosen) Lift.LIFTED else Lift.RESTING, shape)
                 .clip(shape)
-                .background(Atelier.Paper)
+                .background(Design.colors.paper)
                 .paperTooth()
                 .then(if (exercise.available) Modifier.clickable(role = Role.Button, onClickLabel = exercise.title, onClick = onChoose) else Modifier)
                 .semantics {
@@ -151,19 +151,19 @@ private fun ExerciseCard(exercise: Exercise, chosen: Boolean, onChoose: () -> Un
                 .testTag("exercise-" + exercise.name.lowercase())
                 .padding(14.dp),
         ) {
-            Canvas(Modifier.fillMaxWidth().aspectRatio(258f / 124f).background(Color(0xFFECE5D8))) { drawExercise(exercise) }
+            val design = LocalDesign.current
+            Canvas(Modifier.fillMaxWidth().aspectRatio(258f / 124f).background(Color(0xFFECE5D8))) { drawExercise(exercise, design) }
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(exercise.title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Atelier.Ink)
-                if (!exercise.available) Text("coming", style = AtelierType.Hand.copy(fontSize = 20.sp), color = Atelier.InkQuiet)
+                Text(exercise.title, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Design.colors.ink)
+                if (!exercise.available) Text("coming", style = Design.hand.copy(fontSize = 20.sp), color = Design.colors.inkQuiet)
             }
-            Text(exercise.line, fontSize = 13.sp, lineHeight = 18.sp, color = Atelier.InkQuiet, minLines = 3)
+            Text(exercise.line, fontSize = 13.sp, lineHeight = 18.sp, color = Design.colors.inkQuiet, minLines = 3)
         }
         // A strip of tape across the top edge — cadmium on the chosen card.
+        val materials = Design.materials
+        val tape = if (chosen) Room.PRACTICE.pigment.mass.copy(alpha = 0.88f) else TapeColor
         Canvas(Modifier.align(Alignment.TopCenter).offset(y = (-10).dp).size(80.dp, 22.dp)) {
-            drawTape(
-                center, size, if (chosen) -3f else 2f, seed = exercise.ordinal,
-                color = if (chosen) Room.PRACTICE.pigment.mass.copy(alpha = 0.88f) else TapeColor,
-            )
+            with(materials) { drawTape(center, size, if (chosen) -3f else 2f, seed = exercise.ordinal, color = tape) }
         }
     }
 }
@@ -174,15 +174,15 @@ private fun ExerciseCard(exercise: Exercise, chosen: Boolean, onChoose: () -> Un
 private fun TimingPanel(state: AppState, modifier: Modifier) {
     val exercise = state.exercise
     val plan = state.rampPlan
-    Column(modifier.clip(RoundedCornerShape(12.dp)).background(Atelier.Board).padding(22.dp)) {
+    Column(modifier.clip(RoundedCornerShape(12.dp)).background(Design.colors.board).padding(22.dp)) {
         // The settings scroll when the window is short; Start is pinned under them.
         Column(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
         ) {
             Column {
-                Text(exercise.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Atelier.Text)
-                Text(exercise.verb, style = AtelierType.Hand.copy(fontSize = 22.sp), color = Room.PRACTICE.pigment.glow)
+                Text(exercise.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Design.colors.text)
+                Text(exercise.verb, style = Design.hand.copy(fontSize = 22.sp), color = Room.PRACTICE.pigment.glow)
             }
             Overline("Timing")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -198,7 +198,7 @@ private fun TimingPanel(state: AppState, modifier: Modifier) {
                         "The reference is hidden after the study time — you draw the rest from memory, " +
                             "and it comes back at the end so you can compare.",
                         fontSize = 12.sp,
-                        color = Atelier.Muted,
+                        color = Design.colors.muted,
                     )
                 }
             }
@@ -209,13 +209,13 @@ private fun TimingPanel(state: AppState, modifier: Modifier) {
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = state.autoAdvance, onCheckedChange = { state.autoAdvance = it })
-                Text("Auto-advance to the next picture", fontSize = 14.sp, color = Atelier.TextSoft)
+                Text("Auto-advance to the next picture", fontSize = 14.sp, color = Design.colors.textSoft)
             }
             if (state.lastSessionPoses > 0) {
                 Text(
                     "Last session: ${state.lastSessionPoses} poses · ${formatDuration(state.lastSessionSeconds)}",
                     fontSize = 12.sp,
-                    color = Atelier.Muted,
+                    color = Design.colors.muted,
                 )
             }
         }
@@ -229,8 +229,8 @@ private fun TimingPanel(state: AppState, modifier: Modifier) {
         }
         Text(
             "space pauses · arrows change the picture",
-            style = AtelierType.Hand.copy(fontSize = 19.sp),
-            color = Atelier.Muted,
+            style = Design.hand.copy(fontSize = 19.sp),
+            color = Design.colors.muted,
             modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp),
         )
     }
@@ -245,14 +245,14 @@ private fun DrawingFrom(state: AppState) {
     var open by remember { mutableStateOf(false) }
     val board = state.practiceBoard
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Drawing from", fontSize = 13.sp, color = Atelier.Muted)
+        Text("Drawing from", fontSize = 13.sp, color = Design.colors.muted)
         Box {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .border(1.dp, Atelier.Line, RoundedCornerShape(8.dp))
+                    .border(1.dp, Design.colors.line, RoundedCornerShape(8.dp))
                     .clickable(role = Role.Button, onClickLabel = "Choose where the pictures come from") { open = true }
                     .padding(horizontal = 12.dp, vertical = 6.dp)
                     .testTag("drawing-from"),
@@ -262,12 +262,12 @@ private fun DrawingFrom(state: AppState) {
                     board?.first ?: state.folder?.name ?: "no folder yet",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Atelier.Text,
+                    color = Design.colors.text,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = 220.dp),
                 )
-                Text(if (board != null) "board ▾" else "folder ▾", fontSize = 12.sp, color = Atelier.Muted)
+                Text(if (board != null) "board ▾" else "folder ▾", fontSize = 12.sp, color = Design.colors.muted)
             }
             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                 DropdownMenuItem(onClick = {
@@ -293,7 +293,7 @@ private fun DrawingFrom(state: AppState) {
                 if (state.selection == null) "${state.unseenCount} of ${state.totalCount} unseen"
                 else "${state.unseenCount} of ${state.selectedCount} chosen unseen",
                 fontSize = 12.sp,
-                color = Atelier.Muted,
+                color = Design.colors.muted,
             )
             TextButton(onClick = { state.openPicker() }) {
                 Text(
@@ -330,11 +330,11 @@ private fun RampDrawing(plan: SessionPlan) {
                             )
                         }
                     }
-                    Text(legLabel(step), style = AtelierType.Hand.copy(fontSize = 17.sp), color = Atelier.Muted)
+                    Text(legLabel(step), style = Design.hand.copy(fontSize = 17.sp), color = Design.colors.muted)
                 }
             }
         }
-        Text("${plan.totalPoses} poses · ${formatDuration(plan.totalSeconds)}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Atelier.Text)
+        Text("${plan.totalPoses} poses · ${formatDuration(plan.totalSeconds)}", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Design.colors.text)
     }
 }
 
@@ -353,12 +353,13 @@ private fun LensChoice(mode: ViewMode, name: String, chosen: Boolean, onChoose: 
             .testTag("start-lens-" + mode.name.lowercase())
             .padding(2.dp),
     ) {
+        val ring = Room.PRACTICE.pigment.glow
         Canvas(
             Modifier
                 .size(40.dp)
-                .drawBehind { if (chosen) drawRect(Room.PRACTICE.pigment.glow, Offset(-3f, -3f), Size(size.width + 6f, size.height + 6f), style = Stroke(2.dp.toPx())) }
+                .drawBehind { if (chosen) drawRect(ring, Offset(-3f, -3f), Size(size.width + 6f, size.height + 6f), style = Stroke(2.dp.toPx())) }
                 .clip(RoundedCornerShape(6.dp)),
         ) { drawLensSign(mode) }
-        Text(name, fontSize = 11.sp, color = if (chosen) Atelier.Text else Atelier.Muted)
+        Text(name, fontSize = 11.sp, color = if (chosen) Design.colors.text else Design.colors.muted)
     }
 }

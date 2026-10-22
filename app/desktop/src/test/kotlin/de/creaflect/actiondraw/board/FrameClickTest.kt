@@ -12,6 +12,7 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -67,7 +68,9 @@ class FrameClickTest {
         val group = state.groupSelection("Ecke")!!
         state.clearSelection()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
@@ -122,7 +125,9 @@ class FrameClickTest {
         val group = state.groupSelection("Paar")!!
         state.clearSelection()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size

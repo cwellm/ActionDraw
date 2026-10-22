@@ -20,6 +20,7 @@ import de.creaflect.actiondraw.board.ui.BoardScreen
 import de.creaflect.actiondraw.board.ui.MenuExtras
 import de.creaflect.actiondraw.paletteWells
 import de.creaflect.actiondraw.ui.PaletteScreen
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -159,7 +160,9 @@ class DropIntoGroupTest {
     fun draggingACardOntoAFrameFilesItThere() {
         val (state, ids) = boardWithAGroup()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size
@@ -193,7 +196,9 @@ class DropIntoGroupTest {
         val boards = BoardState(lib, host)
         val wells = paletteWells(lastBoard = null, sketchOpen = false)
         rule.setContent {
-            PaletteScreen(wells, app.paletteRoom, app::selectRoom, onOpen = {}, corner = { MenuExtras(app, boards) })
+            ProvideAtelier {
+                PaletteScreen(wells, app.paletteRoom, app::selectRoom, onOpen = {}, corner = { MenuExtras(app, boards) })
+            }
         }
         rule.waitForIdle()
         rule.onNodeWithTag("menu-settings").assertIsDisplayed()
@@ -204,8 +209,10 @@ class DropIntoGroupTest {
     fun theBoardsOverflowOpensSettings() {
         val (state, _) = boardWithAGroup()
         rule.setContent {
-            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
-            BoardDialogs(state)
+            ProvideAtelier {
+                BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
+                BoardDialogs(state)
+            }
         }
         rule.waitForIdle()
         rule.onNodeWithTag("board-more").performClick()
@@ -221,8 +228,10 @@ class DropIntoGroupTest {
     fun theBoardsHotkeysShowOnlyTheBoards() {
         val (state, _) = boardWithAGroup()
         rule.setContent {
-            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
-            BoardDialogs(state)
+            ProvideAtelier {
+                BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
+                BoardDialogs(state)
+            }
         }
         rule.waitForIdle()
         rule.onNodeWithTag("board-more").performClick()
@@ -237,8 +246,10 @@ class DropIntoGroupTest {
     fun settingsAndHotkeysComeFirstInTheOverflowAndTheSurfaceIsChosenInTheHeader() {
         val (state, _) = boardWithAGroup()
         rule.setContent {
-            BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
-            BoardDialogs(state)
+            ProvideAtelier {
+                BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {})
+                BoardDialogs(state)
+            }
         }
         rule.waitForIdle()
         // The surface is a swatch of itself in the header, not a row in the overflow.

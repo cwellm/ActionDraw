@@ -64,24 +64,24 @@ fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Pictu
         ) {
             Text(
                 if (state.lastSessionCompleted) "Session complete" else "Nice work",
-                style = AtelierType.typography.h3,
-                color = Atelier.Text,
+                style = Design.typography.h3,
+                color = Design.colors.text,
             )
             Text(
                 if (state.lastSessionCompleted) "every pose drawn" else "stopped early, still counted",
-                style = AtelierType.Hand.copy(fontSize = 26.sp),
+                style = Design.hand.copy(fontSize = 26.sp),
                 color = Room.PRACTICE.pigment.glow,
             )
             Text(
                 "${state.lastSessionPoses} ${if (state.lastSessionPoses == 1) "pose" else "poses"} · ${formatDuration(state.lastSessionSeconds)} drawing",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Atelier.Text,
+                color = Design.colors.text,
             )
             Text(
                 "${state.unseenCount} of ${state.totalCount} pictures still unseen in this folder",
                 fontSize = 13.sp,
-                color = Atelier.Muted,
+                color = Design.colors.muted,
                 textAlign = TextAlign.Center,
             )
 
@@ -89,7 +89,7 @@ fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Pictu
             val flagged = state.sessionFlaggedFiles
             if (flagged.isNotEmpty()) {
                 Spacer(Modifier.height(6.dp))
-                Text("Flagged for another go", fontSize = 12.sp, letterSpacing = 1.8.sp, color = Atelier.Muted)
+                Text("Flagged for another go", fontSize = 12.sp, letterSpacing = 1.8.sp, color = Design.colors.muted)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -97,7 +97,7 @@ fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Pictu
                 ) {
                     flagged.take(8).forEachIndexed { i, file -> FlaggedPrint(file, thumbs, tilt = if (i % 2 == 0) -1.5f else 1.2f) }
                 }
-                if (flagged.size > 8) Text("and ${flagged.size - 8} more", fontSize = 12.sp, color = Atelier.Muted)
+                if (flagged.size > 8) Text("and ${flagged.size - 8} more", fontSize = 12.sp, color = Design.colors.muted)
             }
             if (pinTargets != null && flagged.isNotEmpty()) {
                 var open by remember { mutableStateOf(false) }
@@ -131,7 +131,7 @@ fun SummaryScreen(state: AppState, pinTargets: PinTargets? = null, thumbs: Pictu
             Text(
                 if (fromBoard) "Enter or Esc → the board" else "Enter or Esc → Practice",
                 fontSize = 12.sp,
-                color = Atelier.Muted,
+                color = Design.colors.muted,
             )
         }
     }
@@ -148,7 +148,7 @@ private fun FlaggedPrint(file: File, thumbs: Pictures?, tilt: Float) {
             Modifier
                 .size(104.dp)
                 .lampShadow(Lift.RESTING)
-                .background(Atelier.Paper)
+                .background(Design.colors.paper)
                 .paperTooth()
                 .padding(6.dp),
         ) {
@@ -159,6 +159,6 @@ private fun FlaggedPrint(file: File, thumbs: Pictures?, tilt: Float) {
                 drawCircle(Color(0xFF2F2B28), size.minDimension / 2.4f, center + Offset(2f, -2f), style = Stroke(1.6.dp.toPx()))
             }
         }
-        Text("again", style = AtelierType.Hand.copy(fontSize = 19.sp), color = Atelier.TextSoft)
+        Text("again", style = Design.hand.copy(fontSize = 19.sp), color = Design.colors.textSoft)
     }
 }

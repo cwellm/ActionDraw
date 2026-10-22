@@ -9,6 +9,7 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardViewer
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -55,7 +56,7 @@ class ViewerWheelTest {
     @Test
     fun wheelUpOverTheViewerZoomsIn() {
         val state = viewerOverTwoPictures()
-        rule.setContent { BoardViewer(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { BoardViewer(state, FileLib(config).pictures) } }
 
         rule.onNodeWithTag("viewer").performMouseInput {
             moveTo(center)
@@ -70,7 +71,7 @@ class ViewerWheelTest {
     @Test
     fun wheelDownAtFittedSizeStaysFitted() {
         val state = viewerOverTwoPictures()
-        rule.setContent { BoardViewer(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { BoardViewer(state, FileLib(config).pictures) } }
 
         rule.onNodeWithTag("viewer").performMouseInput {
             moveTo(center)

@@ -28,6 +28,7 @@ import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.sketch.SketchHost
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Optic
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
@@ -114,7 +115,9 @@ class RoomScreenshotTest {
         val pinTargets = PinTargets(boards = { boards.availableBoards() }, pin = boards::pinTo)
 
         fun show(test: ComposeUiTest) = test.setContent {
-            App(app, boards, concepts, sketch, thumbs, pinTargets, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+            ProvideAtelier {
+                App(app, boards, concepts, sketch, thumbs, pinTargets, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+            }
         }
     }
 

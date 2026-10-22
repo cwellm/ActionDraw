@@ -22,6 +22,7 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -232,12 +233,12 @@ class ConceptTest {
         state.saveDocument(null, "# Anatomy\n\nSix limbs.")
         state.closeConcept()
 
-        rule.setContent { ConceptListScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { ConceptListScreen(state, FileLib(config).pictures) } }
         rule.waitForIdle()
         rule.onNodeWithTag("concept-Drache").assertIsDisplayed()
 
         state.openConcept(state.availableConcepts().single().dir)
-        rule.setContent { ConceptScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { ConceptScreen(state, FileLib(config).pictures) } }
         rule.waitForIdle()
         rule.onNodeWithTag("document-Anatomy.md", useUnmergedTree = true).assertIsDisplayed()
         assertNotNull(state.concept)
@@ -261,7 +262,7 @@ class ConceptTest {
         state.createConcept("Drache")
 
         state.openEditor(ConceptEditor.DeleteConcept(state.root!!, "Drache"))
-        rule.setContent { ConceptDialogs(state) }
+        rule.setContent { ProvideAtelier { ConceptDialogs(state) } }
         rule.waitForIdle()
         rule.onNodeWithTag("delete-linked-boards", useUnmergedTree = true).assertTextEquals("Linked on: Buch")
 
@@ -325,7 +326,7 @@ class ConceptTest {
         state.setLayout(BoardLayouts.FREE)
         val id = state.items.single().id
 
-        rule.setContent { ConceptScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { ConceptScreen(state, FileLib(config).pictures) } }
         rule.waitForIdle()
         rule.onNodeWithTag("concept-canvas").assertExists()
         rule.onNodeWithTag("concept-card-$id", useUnmergedTree = true).assertExists()
@@ -344,7 +345,7 @@ class ConceptTest {
         val state = newState()
         state.createConcept("Drache")
         state.openEditor(ConceptEditor.EditNote(null))
-        rule.setContent { ConceptDialogs(state) }
+        rule.setContent { ProvideAtelier { ConceptDialogs(state) } }
         rule.waitForIdle()
 
         // Nothing clicked first: the note's field must already hold the focus, so a Space goes to
@@ -363,7 +364,7 @@ class ConceptTest {
         val state = newState()
         state.createConcept("Drache")
         state.openEditor(ConceptEditor.Rename)
-        rule.setContent { ConceptDialogs(state) }
+        rule.setContent { ProvideAtelier { ConceptDialogs(state) } }
         rule.waitForIdle()
 
         rule.onNodeWithTag("concept-rename-name").performTextInput("Feuer")

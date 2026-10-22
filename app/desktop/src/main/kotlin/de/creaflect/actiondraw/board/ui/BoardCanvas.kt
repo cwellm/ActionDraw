@@ -90,22 +90,19 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.thumbnailBitmap
-import de.creaflect.actiondraw.ui.Atelier
-import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.LocalDesign
 import de.creaflect.actiondraw.ui.LocalReducedMotion
 import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.actiondraw.ui.Pigment
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RuleRed
-import de.creaflect.actiondraw.ui.drawLampShadow
-import de.creaflect.actiondraw.ui.drawPaperclip
-import de.creaflect.actiondraw.ui.drawPin
-import de.creaflect.actiondraw.ui.drawTape
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.leanFor
 import de.creaflect.actiondraw.ui.lifted
 import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.actiondraw.ui.ruled
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -237,9 +234,10 @@ fun BoardCanvas(state: BoardState, thumbs: Pictures, textured: Boolean, modifier
         }
 
         // Alignment guides and the rubber band, drawn over the cards.
+        val pencil = Design.colors.textSoft
         Canvas(Modifier.fillMaxSize()) {
             // Graphite, as the design's materials have it: dark on cork and papyrus, pencil-light on the table.
-            val guideColor = if (textured) Color(0xB32B2724) else Atelier.TextSoft.copy(alpha = 0.6f)
+            val guideColor = if (textured) Color(0xB32B2724) else pencil.copy(alpha = 0.6f)
             state.snapGuideX?.let { gx ->
                 val x = (gx - state.camX) * state.zoom + size.width / 2
                 drawLine(guideColor, Offset(x, 0f), Offset(x, size.height), 1f)
@@ -319,7 +317,7 @@ private fun CanvasItem(
         spring(dampingRatio = Motion.SETTLE_DAMPING, stiffness = Motion.SETTLE_STIFFNESS),
     )
     // Pencil on cork and papyrus, a lighter line on the graphite table.
-    val ghostColor = if (textured) Color(0xB32B2724) else Atelier.TextSoft.copy(alpha = 0.6f)
+    val ghostColor = if (textured) Color(0xB32B2724) else Design.colors.textSoft.copy(alpha = 0.6f)
     // Asked of the disk once per card, not on every frame.
     val holder = remember(item.id, (item as? ImageItem)?.path) {
         when {
@@ -414,6 +412,7 @@ private fun CanvasItem(
                         }
                     },
             ) {
+                val design = LocalDesign.current
                 Box(
                     Modifier
                         .fillMaxSize()
@@ -427,17 +426,24 @@ private fun CanvasItem(
                             // The lamp's shadow grows longer and softer as the card rises.
                             if (lift > 0.01f) {
                                 val outline = Path().apply { addRect(Rect(Offset.Zero, size)) }
-                                drawLampShadow(outline, (Lift.RESTING.depth + (Lift.HELD.depth - Lift.RESTING.depth) * lift).toPx(), alpha = 0.4f * lift.coerceAtMost(1f))
+                                with(design.materials) {
+                                    val resting = depthOf(Lift.RESTING)
+                                    drawLampShadow(outline, (resting + (depthOf(Lift.HELD) - resting) * lift).toPx(), alpha = 0.4f * lift.coerceAtMost(1f))
+                                }
                             }
                         }
                         // What holds the card to the board: a pin through a print, tape over a sketch.
                         // A single selected card shows its rotate handle there instead.
                         .drawWithContent {
                             drawContent()
-                            if (!singleSelected) when (holder) {
-                                CardHolder.PIN -> drawPin(Offset(size.width / 2f, 3.dp.toPx()), 5.dp.toPx(), Room.BOARDS.pigment)
-                                CardHolder.TAPE -> drawTape(Offset(size.width / 2f, 1.dp.toPx()), Size(minOf(56.dp.toPx(), size.width * 0.5f), 14.dp.toPx()), -3f, seed = item.id.hashCode())
-                                CardHolder.NONE -> Unit
+                            if (!singleSelected) {
+                                with(design.materials) {
+                                    when (holder) {
+                                        CardHolder.PIN -> drawPin(Offset(size.width / 2f, 3.dp.toPx()), 5.dp.toPx(), design.pigmentOf(Room.BOARDS))
+                                        CardHolder.TAPE -> drawTape(Offset(size.width / 2f, 1.dp.toPx()), Size(minOf(56.dp.toPx(), size.width * 0.5f), 14.dp.toPx()), -3f, seed = item.id.hashCode())
+                                        CardHolder.NONE -> Unit
+                                    }
+                                }
                             }
                         },
                 ) {
@@ -491,7 +497,7 @@ private fun CanvasImage(state: BoardState, thumbs: Pictures, item: ImageItem, te
             .fillMaxSize()
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Atelier.Paper)
+            .background(Design.colors.paper)
             .paperTooth()
             .border(3.dp, selectionBorder(state, item.id), shape)
             .padding(6.dp),
@@ -512,7 +518,7 @@ private fun CanvasImage(state: BoardState, thumbs: Pictures, item: ImageItem, te
 @Composable
 private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
     val shape = RoundedCornerShape(3.dp)
-    val paper = notePaper(item)
+    val paper = notePaper(item, Design.colors.paper)
     val ink = Themes.noteInk
     if (item.kind == NoteKind.PALETTE) {
         PaletteCard(state, item, Modifier.fillMaxSize())
@@ -529,7 +535,7 @@ private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
         ) {
             Text(
                 item.text,
-                style = AtelierType.Hand.copy(fontSize = 20.sp, lineHeight = 22.sp),
+                style = Design.hand.copy(fontSize = 20.sp, lineHeight = 22.sp),
                 color = ink,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
@@ -620,7 +626,7 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
             .fillMaxSize()
             .lampShadow(Lift.RESTING, shape)
             .clip(shape)
-            .background(Atelier.Paper)
+            .background(Design.colors.paper)
             .paperTooth()
             .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
             .border(2.dp, selectionBorder(state, item.id), shape)
@@ -629,7 +635,8 @@ private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
             .padding(horizontal = 10.dp)
             .testTag("link-" + item.id),
     ) {
-        Canvas(Modifier.size(14.dp, 30.dp)) { drawPaperclip(Offset(1f, 0f), size.height) }
+        val materials = Design.materials
+        Canvas(Modifier.size(14.dp, 30.dp)) { with(materials) { drawPaperclip(Offset(1f, 0f), size.height) } }
         Spacer(Modifier.width(8.dp))
         Text(
             item.title.ifBlank { item.url },
@@ -688,7 +695,7 @@ private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: I
     // Drawn in graphite, as a hand draws a loop round things on a table; in the group's own colour
     // only while it is about to take a card.
     val textured = Themes.isTextured(state.board?.theme ?: BoardThemes.PLAIN)
-    val line = if (receiving) accent else if (textured) Color(0xD92B2724) else Atelier.Muted
+    val line = if (receiving) accent else if (textured) Color(0xD92B2724) else Design.colors.muted
     // Twice the width it shows: the clip takes the outer half of a stroke centred on the edge.
     val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() } * 2f
     // A concept's group is outlined in dashes: borrowed, not the board's own.
@@ -946,7 +953,7 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
     // A paper tag pinned to the frame, its name lettered; the pin is the group's colour, a
     // concept's is viridian.
     Surface(
-        color = Atelier.Paper,
+        color = Design.colors.paper,
         shape = RoundedCornerShape(2.dp),
         elevation = 0.dp,
         modifier = Modifier
@@ -987,18 +994,21 @@ private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: 
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.padding(start = 7.dp, end = 9.dp, top = 1.dp, bottom = 1.dp),
         ) {
+            val design = LocalDesign.current
             Canvas(Modifier.size(10.dp)) {
-                drawPin(center, this.size.minDimension / 2.2f, if (hull.group.isConcept) Room.CONCEPTS.pigment else Pigment("group", accent, accent, Atelier.Ink))
+                with(design.materials) {
+                    drawPin(center, this@Canvas.size.minDimension / 2.2f, if (hull.group.isConcept) design.pigmentOf(Room.CONCEPTS) else Pigment("group", accent, accent, design.colors.ink))
+                }
             }
             Text(
                 (if (hull.group.isConcept) "⧉ " else "") + hull.group.name,
-                style = AtelierType.Hand.copy(fontSize = 19.sp),
-                color = Atelier.Ink,
+                style = Design.hand.copy(fontSize = 19.sp),
+                color = Design.colors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.widthIn(max = 240.dp),
             )
-            Text("${hull.count}", fontSize = 11.sp, color = Atelier.InkQuiet)
+            Text("${hull.count}", fontSize = 11.sp, color = Design.colors.inkQuiet)
         }
     }
 }

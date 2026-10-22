@@ -37,6 +37,7 @@ import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
 import de.creaflect.actiondraw.ui.ChromeAlpha
 import de.creaflect.actiondraw.ui.Motion
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
 import de.creaflect.sketch.Paper
@@ -451,7 +452,9 @@ class SketchStateTest {
     fun theToolbarWrapsInsteadOfClippingItsTail() {
         val state = newState()
         rule.setContent {
-            Box(Modifier.width(900.dp)) { SketchScreen(state, FileLib(config).pictures) }
+            ProvideAtelier {
+                Box(Modifier.width(900.dp)) { SketchScreen(state, FileLib(config).pictures) }
+            }
         }
         rule.waitForIdle()
         rule.onNodeWithTag("sketch-back").assertIsDisplayed()
@@ -466,7 +469,7 @@ class SketchStateTest {
     @Test
     fun noLabelOnTheSketchScreenIsCutOffAtTheBottom() {
         val state = newState()
-        rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         rule.waitForIdle()
         state.newSketch(PageSize.pixels(300, 200))
         state.showPenPanel = true
@@ -486,7 +489,7 @@ class SketchStateTest {
     @Test
     fun thePenPanelShowsTheLastInputEvent() {
         val state = newState()
-        rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         rule.waitForIdle()
         state.newSketch(PageSize.pixels(300, 200))
         state.showPenPanel = true
@@ -570,9 +573,11 @@ class SketchStateTest {
         try {
             val state = newState()
             rule.setContent {
-                Box(Modifier.fillMaxSize()) {
-                    SketchScreen(state, FileLib(config).pictures)
-                    SketchDialogs(state)
+                ProvideAtelier {
+                    Box(Modifier.fillMaxSize()) {
+                        SketchScreen(state, FileLib(config).pictures)
+                        SketchDialogs(state)
+                    }
                 }
             }
             rule.waitForIdle()
@@ -601,7 +606,7 @@ class SketchStateTest {
     @Test
     fun thePickerKeepsItsHueThroughAGrey() {
         var colour by mutableStateOf(0xFF2040C0.toInt()) // a blue
-        rule.setContent { ColorPicker(current = colour, recent = emptyList(), onPick = { colour = it }) }
+        rule.setContent { ProvideAtelier { ColorPicker(current = colour, recent = emptyList(), onPick = { colour = it }) } }
         rule.waitForIdle()
         val square = rule.onNodeWithTag("colour-square")
         val size = square.fetchSemanticsNode().size
@@ -622,7 +627,7 @@ class SketchStateTest {
     @Test
     fun theScreenDrawsTheStrokesThroughTheTiles() {
         val state = newState()
-        rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         rule.waitForIdle()
         rule.onNodeWithTag("sketch-undo").assertIsNotEnabled()
         state.newSketch(PageSize.pixels(600, 300))
@@ -669,7 +674,7 @@ class SketchStateTest {
     @Test
     fun theTrayHoldsTheToolsAndThePanelThePaper() {
         val state = newState()
-        rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         state.newSketch(PageSize.pixels(300, 200))
         rule.waitForIdle()
         rule.onNodeWithTag("sketch-tool-SOFT").performClick()
@@ -690,7 +695,7 @@ class SketchStateTest {
     @Test
     fun thePageIsTapedToTheTableAtItsCorners() {
         val state = newState()
-        rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         state.newSketch(PageSize.pixels(600, 300))
         rule.waitForIdle()
         state.fit()
@@ -718,7 +723,7 @@ class SketchStateTest {
     @Test
     fun theToolbarStepsBackDuringAStrokeAndThePageUploadsNothingForIt() {
         val state = newState()
-        rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         state.newSketch(PageSize.pixels(600, 300))
         rule.waitForIdle()
         state.fit()
@@ -782,7 +787,7 @@ class SketchStateTest {
             javax.imageio.ImageIO.write(image, "png", f)
         }
         val state = newState()
-        rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         state.newSketch(PageSize.pixels(600, 400))
         state.openFromSession(red)
         rule.waitForIdle()
@@ -823,7 +828,7 @@ class SketchStateTest {
     fun thePresetIsChosenFromADropdown() {
         try {
             val state = newState()
-            rule.setContent { SketchScreen(state, FileLib(config).pictures) }
+            rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
             state.newSketch(PageSize.pixels(300, 200))
             rule.waitForIdle()
             rule.onNodeWithTag("sketch-preset").assertTextContains("None", substring = true)

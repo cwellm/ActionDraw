@@ -45,8 +45,7 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.thumbnailBitmap
-import de.creaflect.actiondraw.ui.Atelier
-import de.creaflect.actiondraw.ui.AtelierType
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
@@ -196,7 +195,7 @@ private fun BoardTile(
             Modifier
                 .padding(8.dp)
                 .lampShadow(Lift.RESTING)
-                .background(Atelier.Paper)
+                .background(Design.colors.paper)
                 .paperTooth()
                 .padding(6.dp)
                 .fillMaxWidth()
@@ -229,8 +228,8 @@ private fun BoardTile(
         }
         Text(
             board.name,
-            style = AtelierType.Hand.copy(fontSize = 24.sp),
-            color = Atelier.Text,
+            style = Design.hand.copy(fontSize = 24.sp),
+            color = Design.colors.text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = if (board.parent == null) 8.dp else 0.dp),

@@ -26,6 +26,9 @@ dependencies {
     implementation(project(":lib:data"))
     // The lib's run: its scope and dispatcher, the writes it must not lose, closing cleanly.
     implementation(project(":lib:core:lifecycle"))
+    // The design the app is drawn in: the atelier, and with it the design contract the screens
+    // read it through.
+    implementation(project(":lib:design:atelier"))
     // The pen's own input: Windows Ink, through JNA.
     implementation(project(":device:pen"))
     // Windows' animation setting (SystemPreferences) is read through JNA too.

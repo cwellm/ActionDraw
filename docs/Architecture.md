@@ -128,8 +128,8 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 | `:lib:domain` | the types of `:core:model` (F11.7: `Board`, `Concept`, …); `Lib` and its contracts — `Boards`, `Concepts`, `Pictures`, `PracticeHistory`, `Sketches`, `LinkPreviews`, `Preferences`, `Diagnostics` (F11.8); the host contracts `SystemClipboard`, `Browser`, `FileDialogs`, `HostPreferences` and `PenSource` |
 | `:lib:data` | `FileLib`, over `BoardStore`, `ConceptStore`, the registries, `Settings`, `SeenStore`, `RedoStore`, `ThumbCache`, `Importer`, `LinkPreview`, `ContactSheet`, `Palette` — and the storage that was inside `BoardState`, `ConceptState`, `SketchState`, `AppState` (F11.8) |
 | `:lib:sketch-engine` | `:sketch-engine` |
-| `:lib:design:contract` | new: what `ui/Atelier`, `Materials`, `Motion` and the room chrome offer, as a contract |
-| `:lib:design:atelier` | `ui/Atelier.kt`, `Materials.kt`, `Motion.kt`, `RoomChrome.kt`, `Components.kt`, the fonts |
+| `:lib:design:contract` | new: `DesignSystem`, `Materials` and `Chrome` as contracts, read through `DesignTheme`; and the kit's basics, `ui/Motion.kt` (without the bloom) and `Components.kt` (F11.9) |
+| `:lib:design:atelier` | `ui/Atelier.kt`, `Materials.kt` (now `AtelierMaterials`), `RoomChrome.kt` (now `AtelierChrome`), the bloom out of `Motion.kt`, the fonts (F11.9) |
 | `:lib:feature:practice` | `AppState` and the Practice room's screens (`ui/PracticeScreen`, `SessionScreen`, the glass, …) |
 | `:lib:feature:board` | `BoardState` and `board/ui` |
 | `:lib:feature:concept` | `ConceptState` and `concept/ui` |
@@ -139,12 +139,15 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 
 ## Where it stands
 
-After F11.8 the app reaches the disk and the network only through `Lib`; the core and the network
-are `lib:data`'s own, and the stored format is no longer on the app's classpath:
+After F11.9 the app reaches the disk and the network only through `Lib`, and its screens draw
+only through the design contract; `Main` and `App` choose the atelier:
 
 ```mermaid
 flowchart TB
   desktop[":app:desktop<br/>rooms · states · screens<br/>clipboard · dialogs · browser"]
+  desktop --> atelier[":lib:design:atelier"]
+  atelier --> contract[":lib:design:contract"]
+  atelier --> engine
   desktop --> data[":lib:data<br/>FileLib"]
   desktop --> domain[":lib:domain"]
   desktop --> lifecycle[":lib:core:lifecycle"]
@@ -159,5 +162,4 @@ flowchart TB
   pen --> domain
 ```
 
-The rest comes in this order: the design system (F11.9), the features (F11.10) and the desktop on
-top (F11.11).
+The rest comes in this order: the features (F11.10) and the desktop on top (F11.11).

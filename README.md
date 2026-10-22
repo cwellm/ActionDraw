@@ -541,11 +541,16 @@ In three groups — `lib` for what an application builds on, `device` for the ha
   memory it holds while running, closing down cleanly
 - `lib/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
 - `lib/sketch-engine` — the drawing engine: pen samples in, pixels out
+- `lib/design/contract` — the design system's contract: what a screen may ask of the design it is
+  drawn in (colours, pigments, type, materials, chrome), read through the theme; and the UI kit's
+  basics (motion, the chrome that steps back)
+- `lib/design/atelier` — the default design: the atelier of [CONCEPT.md](CONCEPT.md), and its
+  fonts
 - `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
 - `app/desktop` — the app: the rooms, their state and screens, the desktop's clipboard, dialogs
   and browser, and the start-up
-- `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library` and
-  `actiondraw.skia`
+- `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library`,
+  `actiondraw.skia` and `actiondraw.compose`
 
 ## Requirements
 - JDK 17 (a `JAVA_HOME` pointing at a JDK 17 install) — only for running from source and

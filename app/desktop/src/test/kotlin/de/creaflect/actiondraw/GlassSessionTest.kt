@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.rightClick
 import de.creaflect.actiondraw.ui.Optic
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.fitScale
 import de.creaflect.actiondraw.ui.magnificationFor
@@ -55,7 +56,7 @@ class GlassSessionTest {
         val state = AppState(FileLib(config)).also { it.selectFolder(pictures) }
         state.start()
         rule.mainClock.autoAdvance = false // a running pose ticks for ever
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         rule.mainClock.advanceTimeBy(500)
         return state
     }

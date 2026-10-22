@@ -42,14 +42,14 @@ private fun DrawScope.figure(color: Color, width: Float) {
     ).forEach { line(it, color, width) }
 }
 
-/** Draws [exercise]'s little picture, fitted into this scope's size. */
-fun DrawScope.drawExercise(exercise: Exercise) {
+/** Draws [exercise]'s little picture, fitted into this scope's size, in [design]'s pigments and ink. */
+fun DrawScope.drawExercise(exercise: Exercise, design: DesignSystem) {
     val s = minOf(size.width / BOX_W, size.height / BOX_H)
     translate((size.width - BOX_W * s) / 2f, (size.height - BOX_H * s) / 2f) {
         scale(s, s, pivot = Offset.Zero) {
             when (exercise) {
                 Exercise.ACTION -> {
-                    line("M64 118 C88 84 112 62 152 24", Room.PRACTICE.pigment.mass.copy(alpha = 0.85f), 4f)
+                    line("M64 118 C88 84 112 62 152 24", design.pigmentOf(Room.PRACTICE).mass.copy(alpha = 0.85f), 4f)
                     drawCircle(ink, 9f, Offset(158f, 18f), style = Stroke(2f))
                     listOf(
                         "M152 30 C142 50 130 62 118 78", "M136 38 L168 46", "M108 78 L132 86",
@@ -68,14 +68,14 @@ fun DrawScope.drawExercise(exercise: Exercise) {
                         line(hill, width = 1.6f)
                         drawCircle(ink, 10f, Offset(186f, 34f), style = Stroke(1.6f))
                     }
-                    drawCircle(Room.LENS.pigment.mass, 32f, Offset(130f, 60f), style = Stroke(3.5f))
-                    line("M153 83 L172 104", Room.LENS.pigment.mass, 5f)
+                    drawCircle(design.pigmentOf(Room.LENS).mass, 32f, Offset(130f, 60f), style = Stroke(3.5f))
+                    line("M153 83 L172 104", design.pigmentOf(Room.LENS).mass, 5f)
                 }
                 Exercise.MEMORY -> {
                     drawRect(ink, Offset(34f, 12f), Size(104f, 100f), style = Stroke(1.6f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f))))
                     drawPath(path("M74 32 L98 32 L98 46 C116 54 120 72 116 100 L56 100 C52 72 56 54 74 46 Z"), ink.copy(alpha = 0.2f))
-                    line("M146 58 C160 44 172 44 184 52", Atelier.InkQuiet, 1.6f)
-                    line("M178 46 L185 52 L177 57", Atelier.InkQuiet, 1.6f)
+                    line("M146 58 C160 44 172 44 184 52", design.colors.inkQuiet, 1.6f)
+                    line("M178 46 L185 52 L177 57", design.colors.inkQuiet, 1.6f)
                     line("M202 44 L220 44 L220 56 C234 62 238 78 234 104 L188 104 C184 78 188 62 202 56 Z")
                 }
                 Exercise.FLICKER -> {
@@ -83,24 +83,24 @@ fun DrawScope.drawExercise(exercise: Exercise) {
                     drawRect(ink, Offset(46f, 26f), Size(90f, 88f), style = Stroke(1.6f))
                     drawCircle(ink, 10f, Offset(90f, 52f), style = Stroke(1.6f))
                     line("M90 62 C84 80 78 92 70 106", width = 1.6f)
-                    drawRect(Atelier.Paper, Offset(118f, 16f), Size(90f, 88f))
+                    drawRect(design.colors.paper, Offset(118f, 16f), Size(90f, 88f))
                     drawRect(ink, Offset(118f, 16f), Size(90f, 88f), style = Stroke(1.6f))
                     drawCircle(ink, 10f, Offset(166f, 40f), style = Stroke(1.6f))
                     line("M166 50 C172 66 180 80 192 94", width = 1.6f)
-                    line("M216 34 C230 46 230 70 216 84", Atelier.InkQuiet, 1.6f)
-                    line("M212 79 L216 85 L222 80", Atelier.InkQuiet, 1.6f)
+                    line("M216 34 C230 46 230 70 216 84", design.colors.inkQuiet, 1.6f)
+                    line("M212 79 L216 85 L222 80", design.colors.inkQuiet, 1.6f)
                 }
                 Exercise.STAGED -> {
-                    drawRect(Atelier.Paper, Offset(20f, 30f), Size(62f, 62f))
+                    drawRect(design.colors.paper, Offset(20f, 30f), Size(62f, 62f))
                     drawPath(path("M20 70 C40 58 60 62 82 56 L82 92 L20 92 Z"), ink)
                     drawCircle(ink, 7f, Offset(62f, 46f))
                     drawRect(ink, Offset(20f, 30f), Size(62f, 62f), style = Stroke(1.4f))
-                    line("M88 61 L102 61 M97 56 L102 61 L97 66", Atelier.InkQuiet, 1.5f)
-                    drawRect(Atelier.Paper, Offset(108f, 30f), Size(62f, 62f))
+                    line("M88 61 L102 61 M97 56 L102 61 L97 66", design.colors.inkQuiet, 1.5f)
+                    drawRect(design.colors.paper, Offset(108f, 30f), Size(62f, 62f))
                     drawRect(ink, Offset(108f, 30f), Size(62f, 62f), style = Stroke(1.4f))
                     line("M108 70 C128 58 148 62 170 56", width = 1.5f)
                     drawCircle(ink, 7f, Offset(150f, 46f), style = Stroke(1.5f))
-                    line("M176 61 L190 61 M185 56 L190 61 L185 66", Atelier.InkQuiet, 1.5f)
+                    line("M176 61 L190 61 M185 56 L190 61 L185 66", design.colors.inkQuiet, 1.5f)
                     drawRect(Color(0xFFD9CFBE), Offset(196f, 30f), Size(62f, 62f))
                     drawPath(path("M196 70 C216 58 236 62 258 56 L258 92 L196 92 Z"), Color(0xFF8C8377))
                     drawCircle(Color(0xFFEFE7DA), 7f, Offset(238f, 46f))
@@ -109,7 +109,7 @@ fun DrawScope.drawExercise(exercise: Exercise) {
                 Exercise.COMPARE -> {
                     figure(ink, 2f)
                     translate(12f, 4f) {
-                        rotate(3f, pivot = Offset(120f, 70f)) { figure(Room.PRACTICE.pigment.mass.copy(alpha = 0.7f), 2.4f) }
+                        rotate(3f, pivot = Offset(120f, 70f)) { figure(design.pigmentOf(Room.PRACTICE).mass.copy(alpha = 0.7f), 2.4f) }
                     }
                 }
             }

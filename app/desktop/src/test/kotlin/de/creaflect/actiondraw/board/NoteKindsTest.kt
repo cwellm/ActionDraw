@@ -15,6 +15,7 @@ import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.BoardDialogs
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -157,8 +158,10 @@ class NoteKindsTest {
 
     private fun shown(state: BoardState) {
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
-            BoardDialogs(state)
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+                BoardDialogs(state)
+            }
         }
         rule.waitForIdle()
         val canvas = rule.onNodeWithTag("canvas").fetchSemanticsNode().size

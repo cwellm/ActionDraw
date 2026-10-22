@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import de.creaflect.actiondraw.ui.Exercise
 import de.creaflect.actiondraw.ui.PracticeScreen
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
 import de.creaflect.actiondraw.ui.chooseExercise
@@ -103,7 +104,7 @@ class PracticeTest {
     @Test
     fun theCardsChooseTheExerciseAndOnlyTheBuiltOnesCanBeChosen() {
         val state = stateWithPictures()
-        rule.setContent { PracticeScreen(state) }
+        rule.setContent { ProvideAtelier { PracticeScreen(state) } }
         rule.waitForIdle()
         rule.onNodeWithTag("exercise-action").assertIsSelected()
         rule.onNodeWithTag("exercise-flicker").assertIsNotEnabled()
@@ -129,7 +130,7 @@ class PracticeTest {
         val state = stateWithPictures()
         state.start()
         rule.mainClock.autoAdvance = false // a running pose ticks for ever
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         rule.mainClock.advanceTimeBy(100)
         rule.onNodeWithTag("enso").assertIsDisplayed()
 
@@ -153,7 +154,7 @@ class PracticeTest {
         state.intervalSeconds = 10
         state.start()
         rule.mainClock.autoAdvance = false
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         fun brush(): Int {
             val map = rule.onNodeWithTag("enso").captureToImage().toPixelMap()
             var n = 0
@@ -174,7 +175,7 @@ class PracticeTest {
         state.start()
         state.toggleRedoCurrent()
         state.stop()
-        rule.setContent { SummaryScreen(state) }
+        rule.setContent { ProvideAtelier { SummaryScreen(state) } }
         rule.waitForIdle()
         rule.onNodeWithTag("summary-flagged").assertIsDisplayed()
         assertNull(state.pinNotice)
@@ -226,7 +227,7 @@ class PracticeTest {
                 override fun boards() = listOf("Buch" to boardDir)
                 override fun pictures(dir: File) = listOf(File(boardDir, "a.png"))
             }
-            rule.setContent { PracticeScreen(state, onHome = {}) }
+            rule.setContent { ProvideAtelier { PracticeScreen(state, onHome = {}) } }
             rule.waitForIdle()
             rule.onNodeWithTag("drawing-from").performClick()
             rule.waitForIdle()
@@ -242,7 +243,7 @@ class PracticeTest {
     @Test
     fun everyExerciseCanStartWithALens() {
         val state = stateWithPictures()
-        rule.setContent { PracticeScreen(state, onHome = {}) }
+        rule.setContent { ProvideAtelier { PracticeScreen(state, onHome = {}) } }
         rule.waitForIdle()
         assertEquals(Exercise.ACTION, state.exercise)
         rule.onNodeWithTag("start-lens-notan").performClick()

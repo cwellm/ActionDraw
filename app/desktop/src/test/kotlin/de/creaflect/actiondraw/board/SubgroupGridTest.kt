@@ -9,6 +9,7 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardScreen
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -53,7 +54,7 @@ class SubgroupGridTest {
         state.clearSelection(); state.clickItem(ids[2], ctrl = false, shift = false)
         val membrane = state.groupSelection("Membran", parentId = wings)!!
         state.clearSelection()
-        rule.setContent { BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {}) }
+        rule.setContent { ProvideAtelier { BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {}) } }
         rule.waitForIdle()
         return Triple(state, wings, membrane)
     }

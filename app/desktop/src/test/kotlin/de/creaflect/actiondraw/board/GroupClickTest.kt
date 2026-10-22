@@ -12,6 +12,7 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -70,7 +71,9 @@ class GroupClickTest {
     fun clickingAGroupsLabelSelectsTheWholeGroup() {
         val (state, groupId) = groupedBoard()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
 
@@ -83,7 +86,9 @@ class GroupClickTest {
     fun theLabelStaysClickableWhenZoomedOutOverACard() {
         val (state, groupId) = groupedBoard()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         // Far enough out that the hull's padding is thinner than the label is tall, so a card
         // now lies across the corner the label sits in.
@@ -114,7 +119,9 @@ class GroupClickTest {
     fun aGroupWhoseCornerIsOffTheViewCanStillBeSelected() {
         val (state, groupId) = groupedBoard()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
         // This is the reported case: the group runs off the left of the view and takes its
@@ -137,7 +144,9 @@ class GroupClickTest {
     fun clickingTheGroupItselfSelectsIt() {
         val (state, groupId) = groupedBoard()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
 
@@ -160,7 +169,9 @@ class GroupClickTest {
     fun draggingTheGroupStillMovesItRatherThanSelectingOnly() {
         val (state, groupId) = groupedBoard()
         rule.setContent {
-            BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            ProvideAtelier {
+                BoardCanvas(state, FileLib(config).pictures, textured = false, modifier = Modifier.fillMaxSize())
+            }
         }
         rule.waitForIdle()
         val before = state.freeItems.first { groupId in it.groups }.pos!!.x

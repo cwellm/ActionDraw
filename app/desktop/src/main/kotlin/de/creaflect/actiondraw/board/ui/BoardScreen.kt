@@ -90,8 +90,8 @@ import de.creaflect.actiondraw.board.WallpaperFit
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.bitmap
 import de.creaflect.actiondraw.samePathAs
-import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.CrossRoomButton
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.HomeButton
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.PigmentDab
@@ -101,6 +101,7 @@ import de.creaflect.actiondraw.ui.chooseSaveFile
 import de.creaflect.actiondraw.ui.formatTime
 import de.creaflect.actiondraw.ui.grainBehind
 import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.actiondraw.ui.seed
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -123,7 +124,7 @@ fun BoardScreen(
 ) {
     val board = state.board ?: return
     val textured = Themes.isTextured(board.theme)
-    val colors = if (textured) Themes.paperColors else MaterialTheme.colors
+    val colors = if (textured) Themes.paperColors(Design.colors) else MaterialTheme.colors
 
     // Chrome disappears only in explicit immersive mode; leaving fullscreen by any means
     // (Esc, OS controls) always brings every menu back.
@@ -290,7 +291,7 @@ private fun SurfaceSwatches(state: BoardState, theme: String, modifier: Modifier
             val tile = remember(surface) { Themes.tile(surface) }
             val on = surface == theme
             TooltipArea(tooltip = {
-                Text(label, style = MaterialTheme.typography.caption, color = Atelier.Text, modifier = Modifier.background(Atelier.Raised, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
+                Text(label, style = MaterialTheme.typography.caption, color = Design.colors.text, modifier = Modifier.background(Design.colors.raised, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 2.dp))
             }) {
                 Box(
                     Modifier
@@ -298,7 +299,7 @@ private fun SurfaceSwatches(state: BoardState, theme: String, modifier: Modifier
                         .clip(RoundedCornerShape(5.dp))
                         .then(
                             if (tile != null) Modifier.background(ShaderBrush(ImageShader(tile, TileMode.Repeated, TileMode.Repeated)))
-                            else Modifier.background(Atelier.Ground).grainBehind(),
+                            else Modifier.background(Design.colors.ground).grainBehind(),
                         )
                         .border(if (on) 2.dp else 1.dp, if (on) Room.BOARDS.pigment.glow else MaterialTheme.colors.onSurface.copy(alpha = 0.3f), RoundedCornerShape(5.dp))
                         .selectable(on, role = Role.RadioButton) { state.setTheme(surface) }

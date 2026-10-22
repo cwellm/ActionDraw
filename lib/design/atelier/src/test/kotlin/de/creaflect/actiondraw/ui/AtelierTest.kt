@@ -1,13 +1,8 @@
-package de.creaflect.actiondraw
+package de.creaflect.actiondraw.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
-import de.creaflect.actiondraw.board.ui.Themes
-import de.creaflect.actiondraw.ui.Atelier
-import de.creaflect.actiondraw.ui.AtelierColors
-import de.creaflect.actiondraw.ui.AtelierType
-import de.creaflect.actiondraw.ui.Room
 import org.jetbrains.skia.Data
 import org.jetbrains.skia.FontMgr
 import kotlin.test.Test
@@ -33,31 +28,31 @@ class AtelierTest {
         assertTrue(failing.isEmpty(), failing.joinToString("\n") { "${it.first}: ${it.second} = %.2f:1".format(it.third) })
     }
 
-    private val table = listOf(Atelier.Ground, Atelier.Board, Atelier.Raised)
+    private val table = listOf(Atelier.colors.ground, Atelier.colors.board, Atelier.colors.raised)
 
     @Test
     fun textReadsOnTheTable() = assertReadable(
-        listOf(Atelier.Text, Atelier.TextSoft, Atelier.Muted).flatMap { fg -> table.map { Triple("text", fg, it) } },
+        listOf(Atelier.colors.text, Atelier.colors.textSoft, Atelier.colors.muted).flatMap { fg -> table.map { Triple("text", fg, it) } },
     )
 
     @Test
     fun inkReadsOnPaper() = assertReadable(
-        listOf(Atelier.Ink, Atelier.InkQuiet).flatMap { fg ->
-            listOf(Atelier.Paper, Atelier.PaperShade).map { Triple("ink", fg, it) }
+        listOf(Atelier.colors.ink, Atelier.colors.inkQuiet).flatMap { fg ->
+            listOf(Atelier.colors.paper, Atelier.colors.paperShade).map { Triple("ink", fg, it) }
         },
     )
 
     @Test
     fun everyGlowReadsOnTheTable() = assertReadable(
-        Room.entries.flatMap { room -> table.map { Triple("${room.label} glow", room.pigment.glow, it) } },
+        Room.entries.flatMap { room -> table.map { Triple("${room.label} glow", Atelier.pigmentOf(room).glow, it) } },
     )
 
     @Test
     fun textReadsOnEveryGlowAndMass() = assertReadable(
         Room.entries.flatMap { room ->
             listOf(
-                Triple("on ${room.label} glow", Atelier.OnGlow, room.pigment.glow),
-                Triple("on ${room.label} mass", room.pigment.onMass, room.pigment.mass),
+                Triple("on ${room.label} glow", Atelier.colors.onGlow, Atelier.pigmentOf(room).glow),
+                Triple("on ${room.label} mass", Atelier.pigmentOf(room).onMass, Atelier.pigmentOf(room).mass),
             )
         },
     )
@@ -65,14 +60,11 @@ class AtelierTest {
     @Test
     fun materialPalettesRead() = assertReadable(
         listOf(
-            Triple("on surface", AtelierColors.onSurface, AtelierColors.surface),
-            Triple("on background", AtelierColors.onBackground, AtelierColors.background),
-            Triple("on primary", AtelierColors.onPrimary, AtelierColors.primary),
-            Triple("on secondary", AtelierColors.onSecondary, AtelierColors.secondary),
-            Triple("primary on surface", AtelierColors.primary, AtelierColors.surface),
-            Triple("paper: on surface", Themes.paperColors.onSurface, Themes.paperColors.surface),
-            Triple("paper: on background", Themes.paperColors.onBackground, Themes.paperColors.background),
-            Triple("paper: primary on surface", Themes.paperColors.primary, Themes.paperColors.surface),
+            Triple("on surface", Atelier.materialColors.onSurface, Atelier.materialColors.surface),
+            Triple("on background", Atelier.materialColors.onBackground, Atelier.materialColors.background),
+            Triple("on primary", Atelier.materialColors.onPrimary, Atelier.materialColors.primary),
+            Triple("on secondary", Atelier.materialColors.onSecondary, Atelier.materialColors.secondary),
+            Triple("primary on surface", Atelier.materialColors.primary, Atelier.materialColors.surface),
         ),
     )
 

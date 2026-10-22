@@ -34,7 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.AppState
 import de.creaflect.actiondraw.board.BoardState
-import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.chooseFolder
 import de.creaflect.actiondraw.ui.lampShadow
@@ -53,8 +53,8 @@ fun MenuExtras(app: AppState, boards: BoardState) {
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp, end = 24.dp),
         ) {
-            TextButton(onClick = { settings = true }, modifier = Modifier.testTag("menu-settings")) { Text("Settings", color = Atelier.Muted) }
-            TextButton(onClick = { hotkeys = true }, modifier = Modifier.testTag("menu-hotkeys")) { Text("Hotkeys", color = Atelier.Muted) }
+            TextButton(onClick = { settings = true }, modifier = Modifier.testTag("menu-settings")) { Text("Settings", color = Design.colors.muted) }
+            TextButton(onClick = { hotkeys = true }, modifier = Modifier.testTag("menu-hotkeys")) { Text("Hotkeys", color = Design.colors.muted) }
         }
         if (settings) MenuScrim(onDismiss = { settings = false }) { SettingsSheet(app, boards) { settings = false } }
         if (hotkeys) MenuScrim(onDismiss = { hotkeys = false }) { HotkeysSheet { hotkeys = false } }

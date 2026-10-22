@@ -3,6 +3,7 @@ package de.creaflect.actiondraw
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.SessionScreen
 import org.junit.After
 import org.junit.Rule
@@ -49,7 +50,7 @@ class MemoryVeilTest {
     @Test
     fun theReferenceIsOnScreenWhileThereIsStillTimeToStudyIt() {
         val state = pausedMemorySession()
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         rule.waitForIdle()
 
         rule.onNodeWithTag("reference").assertIsDisplayed()
@@ -59,7 +60,7 @@ class MemoryVeilTest {
     @Test
     fun oncePastTheStudyTimeThePictureIsNotDrawnAtAll() {
         val state = pausedMemorySession()
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         rule.waitForIdle()
 
         repeat(5) { state.tick() }
@@ -72,7 +73,7 @@ class MemoryVeilTest {
     @Test
     fun hBringsItBackForAPeekAndHidesItAgain() {
         val state = pausedMemorySession()
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         repeat(5) { state.tick() }
         rule.waitForIdle()
         rule.onNodeWithTag("reference").assertDoesNotExist()
@@ -89,7 +90,7 @@ class MemoryVeilTest {
     @Test
     fun theReferenceIsBackForTheComparisonAtTheEnd() {
         val state = pausedMemorySession()
-        rule.setContent { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) }
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
         repeat(20) { state.tick() }
         rule.waitForIdle()
 

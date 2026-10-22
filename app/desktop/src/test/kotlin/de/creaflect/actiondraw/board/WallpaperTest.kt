@@ -9,6 +9,7 @@ import de.creaflect.actiondraw.LoadResult
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardScreen
+import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -170,7 +171,7 @@ class WallpaperTest {
     @Test
     fun theWallpaperIsDrawnWhenSetAndGoneWhenRemoved() {
         val state = board()
-        rule.setContent { BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {}) }
+        rule.setContent { ProvideAtelier { BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {}) } }
         rule.waitForIdle()
         rule.onNodeWithTag("wallpaper").assertDoesNotExist()
 
