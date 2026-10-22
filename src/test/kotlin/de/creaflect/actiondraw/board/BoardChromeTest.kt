@@ -187,9 +187,11 @@ class BoardChromeTest {
         rule.onNodeWithTag("board-draw-all").performClick()
         rule.waitForIdle()
         assertEquals(listOf("a.jpg", "b.jpg"), started.map { it.name }.sorted(), "every picture on the board")
-        rule.onNodeWithTag("board-surface-cork").performClick()
-        rule.waitForIdle()
+        // A board starts on cork, so the swatch that proves anything is another one.
         assertEquals(BoardThemes.CORK, state.theme)
+        rule.onNodeWithTag("board-surface-papyrus").performClick()
+        rule.waitForIdle()
+        assertEquals(BoardThemes.PAPYRUS, state.theme)
     }
 
     @Test
