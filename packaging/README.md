@@ -29,7 +29,7 @@ its own WiX 3 automatically — **no manual WiX install needed**.
 .\gradlew.bat packageMsi
 ```
 
-Output: `build/compose/binaries/main/msi/ActionDraw-1.0.0.msi` (~52 MB, bundled JRE).
+Output: `app/desktop/build/compose/binaries/main/msi/ActionDraw-1.0.0.msi` (~52 MB, bundled JRE).
 
 ## ArchLinux — `.pkg.tar.zst` (built via Docker, works on Windows)
 

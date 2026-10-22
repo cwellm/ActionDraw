@@ -1,15 +1,20 @@
 rootProject.name = "ActionDraw"
 
-// The drawing engine is a library of its own: pure Kotlin/JVM over Skia, no Compose, testable
-// headless (docs/Pencil-Engine-Architecture.md). The app depends on it; nothing depends on the app.
-include(":sketch-engine")
+// Three groups of modules (docs/Architecture.md). Each depends only on what it declares, and
+// Gradle holds it to that: lib knows nothing of app or device.
 
-// The modules of M10 (ROADMAP), bottom up: what the app is made of, then how it is stored, then
-// the rooms. Each depends only on the ones below it, and Gradle holds it to that.
-include(":core:model")
-include(":core:io")
-include(":core:network")
-include(":core:platform")
+// lib — what an application builds on. The bare lib is headless: the core, the network, the
+// drawing engine (a library of its own).
+include(":lib:core:model")
+include(":lib:core:io")
+include(":lib:network")
+include(":lib:sketch-engine")
+
+// device — the hardware the apps talk to natively.
+include(":device:pen")
+
+// app — the applications on top.
+include(":app:desktop")
 
 pluginManagement {
     // The modules' shared setup: Kotlin on Java 17 and their tests (actiondraw.kotlin-library),

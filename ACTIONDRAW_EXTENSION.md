@@ -34,12 +34,12 @@ exactly those.**
 
 | Area | Today | Relevant because… |
 |---|---|---|
-| UI shell | Compose Desktop 1.7.3, single window, `Screen` enum (Menu / Picker / Session / Summary) switched in [App.kt](src/main/kotlin/de/creaflect/actiondraw/App.kt) | a Board screen slots in the same way |
-| State | one hoisted [AppState](src/main/kotlin/de/creaflect/actiondraw/AppState.kt), plain Compose state + action methods, pure logic unit-tested | board state can follow the same pattern |
-| Image source | exactly one flat folder; [ImageScanner](src/main/kotlin/de/creaflect/actiondraw/image/ImageScanner.kt) scans top-level only, 6 extensions | a board wants subfolders (and maybe several sources) |
+| UI shell | Compose Desktop 1.7.3, single window, `Screen` enum (Menu / Picker / Session / Summary) switched in [App.kt](app/desktop/src/main/kotlin/de/creaflect/actiondraw/App.kt) | a Board screen slots in the same way |
+| State | one hoisted [AppState](app/desktop/src/main/kotlin/de/creaflect/actiondraw/AppState.kt), plain Compose state + action methods, pure logic unit-tested | board state can follow the same pattern |
+| Image source | exactly one flat folder; [ImageScanner](lib/core/io/src/main/kotlin/de/creaflect/actiondraw/image/ImageScanner.kt) scans top-level only, 6 extensions | a board wants subfolders (and maybe several sources) |
 | Selection | the picker's `Set<String>` of file names — in memory only, per folder, lost on folder change | the board is, in essence, a **persistent, structured, annotated picker** |
 | Persistence | per-folder sidecar text files (`.actiondraw_seen.txt`, `.actiondraw_redo.txt`); app-level `~/.actiondraw/settings.properties` | precedent: state lives *with the images*, plain files, best-effort IO |
-| Thumbnails | [Thumbnails.load](src/main/kotlin/de/creaflect/actiondraw/image/Thumbnails.kt) downscales to 192 px on demand — **no cache**, recomputed every time | a board shows hundreds of thumbs → disk cache becomes necessary |
+| Thumbnails | [Thumbnails.load](app/desktop/src/main/kotlin/de/creaflect/actiondraw/image/Thumbnails.kt) downscales to 192 px on demand — **no cache**, recomputed every time | a board shows hundreds of thumbs → disk cache becomes necessary |
 | Filters | ColorMatrix + Skia runtime shaders, applied live in the session | sessions started *from a board* inherit all of it for free |
 | Dependencies | none beyond Compose | adding e.g. `kotlinx-serialization-json` is a real (but small) step |
 
@@ -92,7 +92,7 @@ Everything else should stay deliberately lean — the goal is not to rebuild Eag
   (`DataFlavor.javaFileListFlavor` / `imageFlavor`). So Ctrl+V of an image copied in a browser can
   work; a pasted bitmap must be written to disk (PNG) so it has a home.
 - **Grouped grid UI** — `LazyVerticalGrid` with section headers: essentially
-  [PickerScreen](src/main/kotlin/de/creaflect/actiondraw/ui/PickerScreen.kt) plus structure. Cheap
+  [PickerScreen](app/desktop/src/main/kotlin/de/creaflect/actiondraw/ui/PickerScreen.kt) plus structure. Cheap
   and scales well.
 - **Freeform pan/zoom canvas** — `graphicsLayer` (translate/scale) + `pointerInput`; needs manual
   hit-testing, z-order and culling. Feasible, but real work compared to the grid.
@@ -223,7 +223,7 @@ mode adds an optional `"pos": { "x": …, "y": …, "scale": … }` per item —
 
 - The menu splits into two entry points: **Practice** (today's flow, unchanged) and **Boards**.
 - `Screen.Board` (+ maybe `Screen.BoardList`) joins the enum in
-  [App.kt](src/main/kotlin/de/creaflect/actiondraw/App.kt); a `BoardState` sits beside `AppState`'s
+  [App.kt](app/desktop/src/main/kotlin/de/creaflect/actiondraw/App.kt); a `BoardState` sits beside `AppState`'s
   session concerns.
 - Board screen layout: header (board name, filter chips, later search) · groups as titled sections
   in one scrolling `LazyVerticalGrid` · action bar ("Draw selection", "Draw group…", "New note",

@@ -357,7 +357,7 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
 
 ## Live Sketch — a page, a pencil, a pen
 
-The drawing engine lives in its own module, `sketch-engine`, with no Compose in it: pen samples
+The drawing engine lives in its own module, `lib/sketch-engine`, with no Compose in it: pen samples
 in, pixels out ([docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)). Pen
 pressure never reaches Compose, so on Windows the app hooks its own window through Windows Ink
 and reads pressure, tilt and rotation straight from the pen, alongside the mouse events
@@ -502,7 +502,7 @@ a normal file in your board folder and the board works offline again. *Remove pr
 back off the card.
 
 Nothing else in the app makes a network request — no updates, no telemetry, no fonts or icons
-loaded from anywhere. In the code, only the `core/network` module can make one, and it refuses
+loaded from anywhere. In the code, only the `lib/network` module can make one, and it refuses
 any address that is not `http` or `https` before anything is sent.
 
 ## Image formats
@@ -514,7 +514,7 @@ libavif/libdav1d as prebuilt JNI binaries, ~7 MB, x86-64 Windows/macOS/Linux).
 Decoding runs through `ImageDecoder`: Skia first, ImageIO as a fallback. Formats that need a
 plugin are only advertised when a reader is actually installed, so a board never shows a card
 whose picture cannot be drawn — drop in a HEIC reader and `.heic` files start working with no code
-change. Remove the AVIF line from [core/io/build.gradle.kts](core/io/build.gradle.kts) and
+change. Remove the AVIF line from [lib/core/io/build.gradle.kts](lib/core/io/build.gradle.kts) and
 `.avif` files simply stop being offered; nothing else breaks.
 
 An import that leaves something out (unreadable format, or a picture already on the board) says so
@@ -524,15 +524,18 @@ on the board instead of silently ignoring the drop.
 Gradle modules, each depending only on the ones below it. Where this is going, with a diagram,
 is [docs/Architecture.md](docs/Architecture.md); the steps are M10 in the [roadmap](ROADMAP.md).
 
-- `core/model` — boards and their cards, concepts, session plans: plain serializable data and
+In three groups — `lib` for what an application builds on, `device` for the hardware it talks to,
+`app` for the applications on top:
+
+- `lib/core/model` — boards and their cards, concepts, session plans: plain serializable data and
   the pure rules on it, with no Compose and no file access
-- `core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
+- `lib/core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
   moving and deleting folders, names Windows accepts, listing and decoding pictures
-- `core/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
-- `core/platform` — the operating system: the pen's own input (Windows Ink, through JNA), the
-  clipboard, the file dialogs, the browser, the system's animation setting
-- `sketch-engine` — the drawing engine: pen samples in, pixels out
-- the root project — the app: the rooms, their state and screens, storage, and the start-up
+- `lib/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
+- `lib/sketch-engine` — the drawing engine: pen samples in, pixels out
+- `device/pen` — the pen's own input: Windows Ink, through JNA
+- `app/desktop` — the app: the rooms, their state and screens, storage, the desktop's clipboard,
+  dialogs and browser, and the start-up
 - `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library` and
   `actiondraw.skia`
 
@@ -576,6 +579,8 @@ whose checks have passed:
 ./gradlew packageMsi    # Windows installer
 ./gradlew packageDeb    # Debian/Linux package
 ```
+
+The installers land in `app/desktop/build/compose/binaries/main/`.
 
 Step-by-step guides, including install/upgrade/uninstall verification:
 [Windows (MSI)](docs/Packaging-Windows.md) ·

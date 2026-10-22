@@ -1117,16 +1117,19 @@ device   pen
   guards broken on purpose and seen red, each by its named test, after a control that changes
   nothing stayed green. The pen moved unchanged; only a hand on the XPPen can say it still works
 
-### ⬜ F11.5 The three groups: `lib`, `app`, `device`
-- ⬜ Moves only, with Gradle's project paths and nothing else: `core/model` → `lib/core/model`,
-  `core/io` → `lib/core/io`, `core/network` → `lib/network`, `sketch-engine` →
-  `lib/sketch-engine`
-- ⬜ `:core:platform` splits: the pen's Windows side (`WindowsPointerSource`) becomes
-  `device/pen`; the clipboard, the dialogs, the browser and the animation setting go to the app
-  until their contracts move to `domain` (F11.7)
-- ⬜ The root project becomes `app/desktop`, with the packaging (`compose.desktop`) and its own
-  build file; the root keeps only the build's own files. `./gradlew run` still starts the app
-- ⬜ CI, README and `docs/Architecture.md` follow the new paths
+### ✅ F11.5 The three groups: `lib`, `app`, `device`
+- ✅ Moves only: `core/model` → `lib/core/model`, `core/io` → `lib/core/io`, `core/network` →
+  `lib/network`, `sketch-engine` → `lib/sketch-engine`, Gradle's project paths with them;
+  packages unchanged, so no import changed
+- ✅ `:core:platform` split: the pen (`PenSample`, `PenSource`, `WindowsPointerSource`) is
+  `device/pen`; the clipboard, the dialogs, the browser and the animation setting went to the
+  app, until their contracts move to `domain` (F11.7)
+- ✅ The root project is `app/desktop`, with the packaging and a build file of its own; the root
+  only declares the plugins' versions and the lint. `./gradlew run`, `packageMsi` and
+  `packageDeb` still work from the root
+- ✅ CI keeps the room screenshots from `app/desktop/build/screenshots`; the README, the packaging
+  docs and the PKGBUILD follow the new paths (installers land in
+  `app/desktop/build/compose/binaries/main/`)
 
 ### ⬜ F11.6 `:lib:core:lifecycle` — the lib's run
 - ⬜ Loading the lib, and the scopes and dispatchers its async work runs in, handed to whoever

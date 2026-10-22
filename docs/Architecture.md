@@ -131,18 +131,18 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 
 ## Where it stands
 
-As of F11.4 (PR #21), before the move into `lib`, `app` and `device`:
+After F11.5 the modules sit in their three groups; what each holds has not changed yet:
 
 ```mermaid
 flowchart TB
-  app["root project: the app<br/>rooms · states · screens · stores"]
-  app --> model[":core:model"]
-  app --> io[":core:io"]
-  app --> network[":core:network"]
-  app --> platform[":core:platform<br/>pen · clipboard · dialogs · browser"]
-  app --> engine[":sketch-engine"]
+  desktop[":app:desktop<br/>rooms · states · screens · stores<br/>clipboard · dialogs · browser"]
+  desktop --> model[":lib:core:model"]
+  desktop --> io[":lib:core:io"]
+  desktop --> network[":lib:network"]
+  desktop --> engine[":lib:sketch-engine"]
+  desktop --> pen[":device:pen"]
 ```
 
-The core modules already depend on nothing of ours. The rest comes in this order: the three
+The rest comes in this order: the three
 groups (F11.5), `lifecycle` (F11.6), `domain` (F11.7), `data` (F11.8), the design system (F11.9),
 the features (F11.10) and the desktop on top (F11.11).
