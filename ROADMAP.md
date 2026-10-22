@@ -13,7 +13,8 @@ Background documents: [ACTIONDRAW_EXTENSION.md](ACTIONDRAW_EXTENSION.md) (explor
 [LEARNINGS.md](LEARNINGS.md) and the engine's shape in
 [docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)) ·
 [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (M7) ·
-[CONCEPT.md](CONCEPT.md) (the vision, the atelier design language and the six rooms — M8, M9).
+[CONCEPT.md](CONCEPT.md) (the vision, the atelier design language and the six rooms — M8, M9) ·
+[docs/Architecture.md](docs/Architecture.md) (the modules and their rules — M10).
 
 ---
 
@@ -1019,23 +1020,30 @@ split into Gradle modules so that the build holds the boundaries rather than a c
 can use only what it depends on. Built bottom up, each step committed with the full suite green;
 package names stay as they are, so moving a file changes no imports.
 
+The shape, revised with the user on 2026-10-22, is in
+[docs/Architecture.md](docs/Architecture.md) (with a diagram): three groups.
+
 ```
-:app ──> :feature:practice · :feature:board · :feature:concept · :feature:sketch
-:feature:* ──> :design-system · :core:data · :core:model · :core:platform
-:core:data ──> :core:io · :core:network · :core:model · :sketch-engine
-:design-system ──> :sketch-engine
-:core:io · :core:network · :core:platform · :core:model ──> nothing of ours
+lib      bare:   core (model · io · lifecycle) · network · domain · data · sketch-engine
+         UI kit: design (contract · atelier) · feature (practice · board · concept · sketch)
+app      desktop
+device   pen
 ```
 
-- **Rooms never depend on each other.** What one room needs of another is an interface it
-  defines (`BoardHost`, `ConceptSource`, `SketchHost`, `PinTargets`), connected in `:app`.
-- **Only the rooms hold Compose state**; the core modules hand out plain values and `suspend`
-  functions.
-- **The files stay the source of truth** — a board is a folder plus a sidecar. No database; an
-  index (search across boards, pictures by content) could later sit under `:core:data` without
-  the rooms noticing.
-- **No `:core:domain`**: the rooms rarely combine repositories, so use cases would mostly
-  forward calls. Rules more than one room uses live in `:core:model`, beside the data.
+- **The bare lib is headless and usable on its own**: no Compose, no Swing, no JNA. The UI kit —
+  the design system and the features — is the convenient way of using it from a GUI.
+- **`domain` is the API**: the types and contracts callers work with, abstracted from the stored
+  model, and the contracts the lib needs from its host (clipboard, choosing files, links, the
+  pen). It depends on nothing of ours. **`data`** implements it over `core` and `network`, and is
+  the only module that reaches either.
+- **Features** — one per room — add to the domain in their own domain layer, hold the room's
+  state and logic, and draw their screens on the design system's contract. Nothing in the lib
+  depends on a feature, and no feature on another.
+- **The design system** is a contract and a default implementation, *atelier*; another can
+  replace it, since features use only the contract.
+- **`app:desktop` is on top**: windows, navigation, the design system chosen, the desktop's own
+  implementations of the host contracts, the pen from `device:pen`.
+- **The files stay the source of truth** — a board is a folder plus a sidecar. No database.
 
 ### ✅ F11.1 `:core:model` — what the app is made of
 - ✅ Moved unchanged: `BoardFile` and everything on a board (groups, cards, camera, wallpaper,
@@ -1043,8 +1051,8 @@ package names stay as they are, so moving a file changes no imports.
   over a board), `ConceptFile`, and the session vocabulary (`SessionPlan`, `RampStep`,
   `SessionSetup`, `ViewMode`, `GridMode`)
 - ✅ `ConceptRef`, `ConceptSnapshot` and `BoardLink` out of the `ConceptSource` seam into
-  `ConceptRefs.kt`; the seam itself stays with the board until F11.7, and `PinTargets` stays in
-  the app — a seam, not data
+  `ConceptRefs.kt`; the seam itself stays with the board, and `PinTargets` stays in the app — a
+  seam, not data
 - ✅ `CardLayout`: the card size, the strip and palette aspects, the natural tilt and
   `placeMissing`, out of `BoardState`'s companion. Concepts used them and needed `BoardState` for
   nothing else, so `ConceptState` no longer imports it
@@ -1073,7 +1081,7 @@ package names stay as they are, so moving a file changes no imports.
 - ✅ `build-logic`: the shared Gradle setup as two convention plugins — `actiondraw.kotlin-library`
   (Kotlin, Java 17, kotlin.test on JUnit 5) and `actiondraw.skia` (Compose's own Skia, and its
   native runtime for headless tests) — used by `:sketch-engine`, `:core:model` and `:core:io`
-- ✅ The homes' folder listings stay in the states until the repositories take them (F11.5)
+- ✅ The homes' folder listings stay in the states until the repositories take them (F11.8)
 - ✅ Broken on purpose and seen red, each by its own named test, after a control that changes
   nothing stayed green: ten guards in `Folders` and `SafeFile`. `ImageScannerTest` moved with
   the scanner
@@ -1081,11 +1089,11 @@ package names stay as they are, so moving a file changes no imports.
 ### ✅ F11.3 `:core:network` — HTTP
 - ✅ `Http`: the JDK's HTTP client, the http/https rule, the 8 MB cap and the timeouts, out of
   `LinkPreview`, with `Fetcher` and `Fetched`. Only a module that depends on `:core:network` can
-  go online — the app today, and from F11.5 only `:core:data`
+  go online — the app today, and from F11.8 only `lib:data`
 - ✅ The client refuses any other scheme itself, before anything is sent. A page's preview
   picture is an address the page chose; until now only the JDK's own refusal of `file:` stood
   between such an address and the disk
-- ✅ What stays in `LinkPreview` until F11.5: reading a page for its `og:image` and keeping the
+- ✅ What stays in `LinkPreview` until F11.8: reading a page for its `og:image` and keeping the
   picture in the board folder
 - ✅ `HttpTest`: the address tests from `LinkPreviewTest`, and the scheme check through a seam
   that records what would have been sent, so no test opens a socket. Broken on purpose and
@@ -1109,29 +1117,55 @@ package names stay as they are, so moving a file changes no imports.
   guards broken on purpose and seen red, each by its named test, after a control that changes
   nothing stayed green. The pen moved unchanged; only a hand on the XPPen can say it still works
 
-### ⬜ F11.5 `:core:data` — repositories
-- ⬜ Boards, concepts, sketches, settings, practice history (seen and redo), the two
-  registries, pictures and the thumbnail cache, link previews: interfaces with file-backed
-  implementations, working off the UI thread
-- ⬜ The states take repositories in their constructors, and no screen reads a store again
-  (`ConceptScreens`, `BoardListScreen` and four `ImageLoader` calls today)
-- ⬜ Saving leaves the UI thread: today every board edit writes the whole sidecar from
-  `BoardState.update()`
+### ⬜ F11.5 The three groups: `lib`, `app`, `device`
+- ⬜ Moves only, with Gradle's project paths and nothing else: `core/model` → `lib/core/model`,
+  `core/io` → `lib/core/io`, `core/network` → `lib/network`, `sketch-engine` →
+  `lib/sketch-engine`
+- ⬜ `:core:platform` splits: the pen's Windows side (`WindowsPointerSource`) becomes
+  `device/pen`; the clipboard, the dialogs, the browser and the animation setting go to the app
+  until their contracts move to `domain` (F11.7)
+- ⬜ The root project becomes `app/desktop`, with the packaging (`compose.desktop`) and its own
+  build file; the root keeps only the build's own files. `./gradlew run` still starts the app
+- ⬜ CI, README and `docs/Architecture.md` follow the new paths
 
-### ⬜ F11.6 `:design-system`
-- ⬜ Atelier tokens, pigments, fonts, Materials, Motion, the room chrome, `Markdown` and the
-  board surfaces (`Themes`)
-- ⬜ First the Practice room's screens leave `ui/`, since they import `AppState`
+### ⬜ F11.6 `:lib:core:lifecycle` — the lib's run
+- ⬜ Loading the lib, and the scopes and dispatchers its async work runs in, handed to whoever
+  needs them instead of each state choosing its own `Dispatchers.IO`
+- ⬜ The memory it holds while running — caches, what is open — owned there and given back
+- ⬜ Closing down cleanly: whatever is still to be written is written before the app goes
 
-### ⬜ F11.7 `:feature:*` — the four rooms
-- ⬜ `practice`, `board`, `concept` and `sketch`, each with its state, its screens and its tests;
-  each seam defined by the room that needs it
-- ⬜ What the board takes from Practice moves to the app (`MenuExtras` takes an `AppState` for
-  the settings sheet)
+### ⬜ F11.7 `:lib:domain` — the API
+- ⬜ The types callers work with — boards, cards, concepts, sketches, practice — abstracted from
+  the stored model, and the contracts for getting and changing them
+- ⬜ The host contracts: the clipboard, choosing files, opening a link, the pen's input (today
+  `SystemClipboard`, `FileDialogs`, `Browser`, `PenSource`)
+- ⬜ Depends on nothing of ours
 
-### ⬜ F11.8 `:app` — the assembly
-- ⬜ `Main`, `App`, navigation, building and wiring everything; the tests that cross rooms
-  (`RoomScreenshotTest`) live here
+### ⬜ F11.8 `:lib:data` — the domain, implemented
+- ⬜ Repositories over the files for boards, concepts, sketches, settings, practice history (seen
+  and redo), the two registries, pictures and their thumbnails, link previews, contact sheets and
+  palettes — mapping what is stored to the domain's types
+- ⬜ Saving leaves the UI thread, through `lifecycle`: today every board edit writes the whole
+  sidecar from `BoardState.update()`
+- ⬜ `io` and `network` become `data`'s own: nothing above can reach the files or the network
+
+### ⬜ F11.9 `:lib:design` — the contract and the atelier
+- ⬜ `design:contract`: tokens (colours, type, lifts, motion), materials and room chrome as
+  interfaces, read through the theme
+- ⬜ `design:atelier`: the default implementation — `Atelier`, `Materials`, `Motion`, the room
+  chrome, the fonts — and the app's screens reading the theme instead of `Atelier` directly
+
+### ⬜ F11.10 `:lib:feature:*` — the four rooms
+- ⬜ `practice`, `board`, `concept` and `sketch`: each with its own domain layer, its state and
+  logic over `domain` and `data`, and its screens on the design contract
+- ⬜ The links between rooms become contracts (`BoardHost`, `ConceptSource`, `SketchHost`,
+  `PinTargets` today), and what the board takes from Practice (`MenuExtras` takes an `AppState`)
+  moves to where the app is assembled
+
+### ⬜ F11.11 `:app:desktop` — on top
+- ⬜ The windows, navigation and the palette home; the design system chosen; the desktop's
+  implementations of the host contracts; the pen from `device:pen`
+- ⬜ The tests that cross rooms (`RoomScreenshotTest`) live here
 
 ---
 
