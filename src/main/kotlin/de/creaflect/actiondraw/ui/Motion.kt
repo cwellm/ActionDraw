@@ -34,6 +34,9 @@ import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import org.jetbrains.skia.RuntimeEffect
 import org.jetbrains.skia.RuntimeShaderBuilder
 import kotlin.math.hypot
@@ -112,12 +115,25 @@ fun chromeAlpha(receded: Boolean, near: Boolean, over: Boolean): Float = when {
 val ChromeAlpha = SemanticsPropertyKey<Float>("ChromeAlpha")
 var SemanticsPropertyReceiver.chromeAlpha by ChromeAlpha
 
-/** Where the pointer is over a room (in window coordinates) and how often it has moved. */
+/** Where the pointer is over a room (in window coordinates), and each move as it happens. */
 class PointerWatch {
     var position by mutableStateOf(Offset.Unspecified)
         internal set
-    var moves by mutableStateOf(0)
-        internal set
+
+    /**
+     * One item per move, sent by the pointer handler itself. A flow and not a counter read with
+     * snapshotFlow: a snapshotFlow's observer runs on whatever thread applies the snapshot, and in
+     * a desktop test that is Swing's while the composition is on the test thread — the two once took
+     * each other's locks (Compose 1.7.3) and a test hung for good. This is sent on the thread the
+     * pointer events arrive on, which is the composition's.
+     */
+    val moves: SharedFlow<Unit> get() = moved
+    private val moved = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    internal fun moved() {
+        moved.tryEmit(Unit)
+    }
+
     internal var origin = Offset.Zero
 }
 
@@ -130,7 +146,7 @@ fun Modifier.watchPointer(watch: PointerWatch): Modifier = this
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 val change = event.changes.firstOrNull() ?: continue
                 watch.position = change.position + watch.origin
-                if (event.type == PointerEventType.Move) watch.moves++
+                if (event.type == PointerEventType.Move) watch.moved()
             }
         }
     }

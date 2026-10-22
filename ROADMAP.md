@@ -1219,6 +1219,30 @@ section of [IDEAS.md](IDEAS.md).
 
 ## Housekeeping
 
+- ✅ M8's guards checked for real (2026-10-17, `fix/verify-m8-guards`). The script that broke
+  each guard and ran its test had called Gradle in a way this machine's shell could not find, so
+  every "seen red" in M8 had been the shell failing in under a second, not a test. All 61 checks,
+  recovered from the session's log, were run again with Gradle actually starting (a control that
+  changes nothing must stay green first, and a check counts only when a named test fails):
+  53 were caught as claimed. Four tests turned out weak and are fixed — the watercolour's rim was
+  probed where the rim begins, so it has no darkening there (`MotionTest`); the Sketch tray was
+  never tested with a pointer on screen (`SketchStateTest`); the surface swatch clicked was cork,
+  which every board already is (`BoardChromeTest`); and a session drawn from the board's folder
+  passed for one drawn from the board (`PracticeTest`). Three checks aimed at code F9.10 had
+  rewritten and one did not compile; they were written again against the code as it is. With
+  that, every M8 guard has been seen red. The checks in M3–M7 ("checked by reverting") were made
+  in earlier sessions whose scripts are gone and are not re-verified here
+- ✅ A session test that could hang for good (2026-10-17): `PracticeTest` once sat for half an
+  hour in a Java-level deadlock inside Compose 1.7.3. In a desktop test the composition runs on
+  the test thread while Compose sends its snapshot notifications on Swing's; a `snapshotFlow`'s
+  observer, called there with the snapshot observer's lock held, resumed its collector onto the
+  dispatcher the test thread was running a click on, and each thread waited for the other's
+  lock. Reproduced under CPU load in a stress loop of the same steps. The app's only two
+  `snapshotFlow`s are gone: the recede timer hears each move from the pointer handler itself
+  (`PointerWatch.moves`, a flow sent on the composition's thread), and the glass's last focus is
+  an effect keyed on the focus. An effect keyed on a move counter was tried first and was not the
+  same: `MotionTest` caught that its wait began a frame after the move. In the running app both
+  threads are Swing's, so the cycle cannot form there
 - ✅ Tidy-up pass (2026-09-07): dead `dismissOpenFailed` removed, two unused imports, one
   `File.samePathAs` for the six hand-spelled case-insensitive folder comparisons, imports in
   place of fully-qualified `java.net`/`java.awt` names; the base compiles without a warning

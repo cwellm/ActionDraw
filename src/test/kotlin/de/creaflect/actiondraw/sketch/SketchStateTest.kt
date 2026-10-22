@@ -22,6 +22,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.performTextInput
@@ -739,10 +740,16 @@ class SketchStateTest {
         rule.onNodeWithTag("sketch-paper-panel").assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
         assertEquals(before, surface.snapshotsTaken, "the toolbar's fading drew nothing on the page")
 
-        // Lifted, it stays back until the pointer comes up to it.
+        // Lifted, it stays back until the pointer comes up to it: on the page, far from every
+        // edge, nothing comes back.
         state.mouseUp()
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        rule.onRoot().performMouseInput { moveTo(center) }
+        rule.waitForIdle()
+        chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        rule.onNodeWithTag("sketch-tray").assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
+        rule.onNodeWithTag("sketch-paper-panel").assert(SemanticsMatcher.expectValue(ChromeAlpha, 0f))
         chrome.performMouseInput { moveTo(center) }
         rule.waitForIdle()
         chrome.assert(SemanticsMatcher.expectValue(ChromeAlpha, 1f))

@@ -40,7 +40,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -82,6 +81,7 @@ import de.creaflect.actiondraw.image.ImageLoader
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.min
@@ -220,8 +220,9 @@ private fun SessionRecede(state: AppState, watch: PointerWatch, receded: Mutable
             receded.value = false
             return@LaunchedEffect
         }
-        // Every move starts the wait again; a move does not bring the controls back, nearing them does.
-        snapshotFlow { watch.moves }.collectLatest {
+        // Every move starts the wait again, from the move itself; a move does not bring the controls
+        // back, nearing them does. (Why the moves are a flow: `PointerWatch.moves`.)
+        watch.moves.onStart { emit(Unit) }.collectLatest {
             delay(Motion.RECEDE_AFTER_MS)
             receded.value = true
         }
@@ -640,6 +641,17 @@ private fun rememberLensEffect(mode: ViewMode, state: AppState): RenderEffect? =
 }
 
 /**
+ * Keeps [lastFocus] at where the glass was last down on [current]. Its own composable, so the glass
+ * moving recomposes this and nothing else; an effect rather than a snapshotFlow, for the reason
+ * given at `PointerWatch.moves`.
+ */
+@Composable
+private fun LastFocus(glass: GlassState, current: File?, lastFocus: MutableState<GlassFocus?>) {
+    val focus = glass.focusOn(current)
+    LaunchedEffect(focus) { if (focus != null) lastFocus.value = focus }
+}
+
+/**
  * The picture, with every lens and knob on it, and the glass (F10.9) over it: taken up, it shows
  * the picture larger under the pointer; set down, the part it is on fills the area — zooming
  * there and back over [Motion.GLASS_MS] — and the whole picture waits in the corner.
@@ -656,9 +668,7 @@ private fun ImageArea(state: AppState, bitmap: ImageBitmap?, current: File?, mod
     }
     // Where the glass was last down on this picture, so lifting it zooms back out from there.
     val lastFocus = remember(current) { mutableStateOf<GlassFocus?>(null) }
-    LaunchedEffect(current) {
-        snapshotFlow { glass.focusOn(current) }.collect { if (it != null) lastFocus.value = it }
-    }
+    LastFocus(glass, current, lastFocus)
     val bmp = bitmap
     val usable = bmp != null && !state.referenceHidden
     Box(
