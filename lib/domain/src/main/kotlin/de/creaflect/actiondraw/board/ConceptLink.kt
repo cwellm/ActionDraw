@@ -7,7 +7,7 @@ package de.creaflect.actiondraw.board
  * opinions about it (its place, its star, its tags). A borrowed picture points at the concept's
  * file by a `concept:<id>/<path>` path, which `BoardState.fileOf` resolves through the concept.
  *
- * Pure functions over `BoardFile`; the state calls them when a board opens or a link changes.
+ * Pure functions over `Board`; the state calls them when a board opens or a link changes.
  */
 object ConceptLink {
     const val PREFIX = "concept:"
@@ -37,7 +37,7 @@ object ConceptLink {
      * board's. A concept [lookup] cannot find keeps what the board last saw of it; a group whose
      * concept is no longer linked goes, with its cards.
      */
-    fun reconcile(board: BoardFile, lookup: (String) -> ConceptSnapshot?): BoardFile {
+    fun reconcile(board: Board, lookup: (String) -> ConceptSnapshot?): Board {
         val linked = board.concepts.toSet()
         // Only a group in the form this code writes (id `concept:<id>`) is judged stale; its cards
         // are borrowed by definition. Anything else with a source is left exactly as found.

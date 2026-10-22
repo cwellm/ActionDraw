@@ -1,17 +1,12 @@
 package de.creaflect.actiondraw.board
 
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-
 /**
- * The Idea-Board sidecar (`.actiondraw_board.json`), stored next to the images it references.
- * Membership is explicit: the items listed here ARE the board — the folder is backing store, not
- * source (shaping A1). Image paths are relative to the board root, `/`-separated. Unknown JSON
- * keys are ignored on load so later phases (e.g. freeform `pos`) can extend the schema gently.
+ * An Idea Board: its groups and cards, how it is laid out and drawn. Membership is explicit — the
+ * items listed here ARE the board, and its folder is backing store, not source (shaping A1).
+ * Picture paths are relative to the board's folder, `/`-separated. How a board is stored is
+ * not this type's business: that is the sidecar's (`lib:core:model`), mapped by `lib:data`.
  */
-@Serializable
-data class BoardFile(
-    val version: Int = 1,
+data class Board(
     val name: String = "",
     val theme: String = "cork",
     /** [BoardLayouts.GRID] (grouped sections) or [BoardLayouts.FREE] (spatial canvas). */
@@ -33,7 +28,6 @@ data class BoardFile(
  * `_wallpaper/`), so it moves with the board. [fit] is one of [WallpaperFit]; [dim] darkens it so
  * the cards stay readable; [blur] softens it, in 0..1.
  */
-@Serializable
 data class Wallpaper(
     val path: String,
     val fit: String = WallpaperFit.COVER,
@@ -52,7 +46,6 @@ object WallpaperFit {
  * A board's remembered session settings ("Drachenbuch is always 60 s in Notan"). Stored as plain
  * names so the sidecar stays readable and survives renames of the practice enums.
  */
-@Serializable
 data class SessionRecipe(
     /** Gesture-ramp name, or null for a fixed time per picture. */
     val plan: String? = null,
@@ -65,7 +58,6 @@ data class SessionRecipe(
 )
 
 /** Freeform placement of one card, in board units; [scale] and [rotation] (degrees) around its centre. */
-@Serializable
 data class ItemPos(
     val x: Float,
     val y: Float,
@@ -74,7 +66,6 @@ data class ItemPos(
 )
 
 /** Freeform viewport: board point at the view centre + zoom. */
-@Serializable
 data class Camera(
     val x: Float = 0f,
     val y: Float = 0f,
@@ -82,7 +73,6 @@ data class Camera(
 )
 
 /** A named section of the board; `order` positions it, `color` is an optional `#rrggbb` accent. */
-@Serializable
 data class BoardGroup(
     val id: String,
     val name: String,
@@ -110,9 +100,8 @@ data class BoardGroup(
 
 /**
  * One card. Items may belong to several groups; an empty [groups] list means the Inbox.
- * Serialized with a `"type"` discriminator (`image` / `note`).
+ * Stored with a `"type"` discriminator (`image`, `note`, `link`).
  */
-@Serializable
 sealed class BoardItem {
     abstract val id: String
     abstract val groups: List<String>
@@ -135,8 +124,6 @@ sealed class BoardItem {
     }
 }
 
-@Serializable
-@SerialName("image")
 data class ImageItem(
     override val id: String,
     val path: String,
@@ -151,8 +138,6 @@ data class ImageItem(
     val contentId: String? = null,
 ) : BoardItem()
 
-@Serializable
-@SerialName("note")
 data class NoteItem(
     override val id: String,
     /** Plain text; a document note reads it as Markdown, a post-it shows it as typed. */
@@ -218,8 +203,6 @@ fun NoteItem.paletteCaption(): String = text.lines().firstOrNull().orEmpty()
  * A card that points somewhere on the web. ActionDraw never fetches it: the URL is stored as
  * typed and opened in the system browser, so boards stay an offline, plain-file affair.
  */
-@Serializable
-@SerialName("link")
 data class LinkItem(
     override val id: String,
     val url: String,
@@ -254,13 +237,13 @@ data class BoardTemplate(val name: String, val groups: List<String>) {
     }
 }
 
-/** Layout ids stored in the sidecar. */
+/** How a board lays out its cards: in groups, or placed freely. */
 object BoardLayouts {
     const val GRID = "grid"
     const val FREE = "free"
 }
 
-/** Theme ids stored in the sidecar; their rendering lives in the UI layer. */
+/** The surfaces a board can lie on; how each looks is the design system's business. */
 object BoardThemes {
     const val CORK = "cork"
     const val PAPYRUS = "papyrus"

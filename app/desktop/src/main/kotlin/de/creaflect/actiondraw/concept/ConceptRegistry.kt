@@ -1,8 +1,9 @@
 package de.creaflect.actiondraw.concept
 
+import de.creaflect.actiondraw.board.toEntry
+import de.creaflect.actiondraw.board.toJson
 import de.creaflect.actiondraw.isInside
-import de.creaflect.actiondraw.samePathAs
-import kotlinx.serialization.Serializable
+import de.creaflect.actiondraw.model.ConceptEntryJson
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -18,8 +19,8 @@ class ConceptRegistry(private val dir: File) {
     fun entries(): List<ConceptEntry> = runCatching {
         file.takeIf { it.isFile }
             ?.readText()
-            ?.removePrefix("﻿")
-            ?.let { json.decodeFromString(ListSerializer(ConceptEntry.serializer()), it) }
+            ?.removePrefix("")
+            ?.let { json.decodeFromString(ListSerializer(ConceptEntryJson.serializer()), it).map { e -> e.toEntry() } }
             .orEmpty()
     }.getOrDefault(emptyList())
 
@@ -59,7 +60,7 @@ class ConceptRegistry(private val dir: File) {
     private fun save(list: List<ConceptEntry>) {
         runCatching {
             dir.mkdirs()
-            file.writeText(json.encodeToString(ListSerializer(ConceptEntry.serializer()), list))
+            file.writeText(json.encodeToString(ListSerializer(ConceptEntryJson.serializer()), list.map { it.toJson() }))
         }
     }
 
@@ -67,16 +68,4 @@ class ConceptRegistry(private val dir: File) {
         const val FILE_NAME = "concepts.json"
         private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
     }
-}
-
-/** One concept's entry in the registry. */
-@Serializable
-data class ConceptEntry(
-    val id: String,
-    val name: String,
-    val kind: String = "",
-    val path: String,
-) {
-    val dir: File get() = File(path)
-    fun isAt(folder: File): Boolean = dir.samePathAs(folder)
 }

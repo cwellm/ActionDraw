@@ -3,10 +3,8 @@ package de.creaflect.actiondraw.board
 import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.io.Folders
-import java.awt.image.BufferedImage
+import de.creaflect.actiondraw.newId
 import java.io.File
-import java.util.UUID
-import javax.imageio.ImageIO
 
 /**
  * Turns external material into board items. Files already inside the board folder are referenced
@@ -60,12 +58,12 @@ object Importer {
         return Outcome(items, rest.filter { it.isFile }, duplicates)
     }
 
-    /** A pasted bitmap (e.g. browser → "Copy image") → PNG in `_imported/` + its item. */
-    fun importBitmap(root: File, image: BufferedImage, groupId: String?, timestamp: String): ImageItem? =
+    /** A pasted picture, as PNG ([png]), into `_imported/` + its item. */
+    fun importBitmap(root: File, png: ByteArray, groupId: String?, timestamp: String): ImageItem? =
         runCatching {
             val dir = File(root, IMPORT_DIR).apply { mkdirs() }
             val target = Folders.freeFile(File(dir, "pasted-$timestamp.png"))
-            check(ImageIO.write(image, "png", target))
+            target.writeBytes(png)
             val rel = relKey(root, target)
             ImageItem(
                 id = newId(),
@@ -85,6 +83,4 @@ object Importer {
     fun isUnder(root: File, file: File): Boolean = runCatching {
         file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())
     }.getOrDefault(false)
-
-    fun newId(): String = UUID.randomUUID().toString()
 }

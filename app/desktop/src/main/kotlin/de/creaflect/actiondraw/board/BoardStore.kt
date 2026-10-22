@@ -3,6 +3,7 @@ package de.creaflect.actiondraw.board
 import de.creaflect.actiondraw.image.ImageScanner
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.io.SafeFile
+import de.creaflect.actiondraw.model.BoardJson
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -24,7 +25,7 @@ object BoardStore {
         /** No sidecar — the folder isn't a board (yet). */
         data object None : LoadResult()
 
-        data class Loaded(val board: BoardFile, val fromBackup: Boolean) : LoadResult()
+        data class Loaded(val board: Board, val fromBackup: Boolean) : LoadResult()
 
         /** Sidecar exists but neither it nor the backup could be parsed. */
         data object Failed : LoadResult()
@@ -35,7 +36,7 @@ object BoardStore {
     fun exists(root: File): Boolean = sidecar(root).exists()
 
     /** Cheap look at a board (name etc.) without validation — for board lists. */
-    fun peek(root: File): BoardFile? = sidecar(root).load(::decode)?.value
+    fun peek(root: File): Board? = sidecar(root).load(::decode)?.value
 
     fun load(root: File): LoadResult {
         val sidecar = sidecar(root)
@@ -47,7 +48,7 @@ object BoardStore {
     /** Removes the sidecar and its backup: the folder stops being a board, its files stay. */
     fun forget(root: File): Boolean = sidecar(root).delete()
 
-    private fun decode(text: String): BoardFile = json.decodeFromString(BoardFile.serializer(), text)
+    private fun decode(text: String): Board = json.decodeFromString(BoardJson.serializer(), text).toBoard()
 
     /**
      * Reconciles the board with what is on disk. A card whose file is gone is not dropped
@@ -57,7 +58,7 @@ object BoardStore {
      * cards still missing a content id get one so they are recoverable next time. Notes are never
      * dropped. Changes become permanent with the next save.
      */
-    fun validate(board: BoardFile, root: File): BoardFile {
+    fun validate(board: Board, root: File): Board {
         // Borrowed pictures (a linked concept's) are checked against the concept, not this folder.
         val (present, missing) = board.items.filterIsInstance<ImageItem>()
             .filterNot { ConceptLink.isBorrowedPath(it.path) }
@@ -112,6 +113,6 @@ object BoardStore {
     private fun ImageItem.withContentId(root: File): ImageItem =
         if (contentId != null) this else copy(contentId = ContentId.of(File(root, path)))
 
-    fun save(root: File, board: BoardFile): Boolean =
-        runCatching { sidecar(root).write(json.encodeToString(BoardFile.serializer(), board)) }.getOrDefault(false)
+    fun save(root: File, board: Board): Boolean =
+        runCatching { sidecar(root).write(json.encodeToString(BoardJson.serializer(), board.toJson())) }.getOrDefault(false)
 }

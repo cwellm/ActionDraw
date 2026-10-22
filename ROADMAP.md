@@ -1148,12 +1148,30 @@ device   pen
 - ✅ `LibRunTest` (10). Seven guards broken on purpose and seen red, each by its named test, after
   a control that changes nothing stayed green
 
-### ⬜ F11.7 `:lib:domain` — the API
-- ⬜ The types callers work with — boards, cards, concepts, sketches, practice — abstracted from
-  the stored model, and the contracts for getting and changing them
-- ⬜ The host contracts: the clipboard, choosing files, opening a link, the pen's input (today
-  `SystemClipboard`, `FileDialogs`, `Browser`, `PenSource`)
-- ⬜ Depends on nothing of ours
+### ✅ F11.7 `:lib:domain` — the API
+- ✅ The types callers work with, out of `lib:core:model`: `Board` (until now `BoardFile`) and
+  everything on it, `Concept` (until now `ConceptFile`), the registries' `BoardEntry` and
+  `ConceptEntry`, the borrowed-card rules (`ConceptLink`), `CardLayout`, the session's vocabulary,
+  `ConceptSource` and what it speaks in. Plain types: nothing of storage, no serialization
+- ✅ `lib:core:model` is now how things are stored — `BoardJson`, `ConceptJson`, the registries'
+  entries — field for field, default for default what the files on disk hold. The stores map
+  between the two (until F11.8 moves them to `lib:data`)
+- ✅ The files do not drift: golden files captured from the code before the split, and
+  `StoredFormatTest` holding what is written to them byte for byte, what is read back to them field
+  for field, and a sidecar that leaves fields out to the domain's defaults
+- ✅ The host contracts: `SystemClipboard` (a pasted picture now arrives as PNG bytes, so no AWT
+  image crosses into the lib), `Browser`, `FileDialogs`, `HostPreferences`, and the pen's
+  `PenSource` and `PenSample`. The desktop fills them (`AwtClipboard`, `DesktopBrowser`,
+  `SwingFileDialogs`, `SystemPreferences`), `device:pen` the pen — a device depends on the domain
+  alone
+- ✅ The path rules (`samePathAs`, `isInside`, `relKey`) and `newId()` are the domain's;
+  `lib:core:io` keeps its own copies internal, so the core still depends on nothing of ours
+- ✅ The contracts for getting and changing boards, concepts and the rest come with their
+  implementations in F11.8
+- ✅ Broken on purpose and seen red after a control that changes nothing stayed green: a stored
+  name changed, a field dropped on reading and on writing, three defaults drifting (which the
+  first round let through — the sparse-sidecar test is what catches them), a pasted picture
+  losing its pixels; and the domain reaching for `io` or for the stored format does not compile
 
 ### ⬜ F11.8 `:lib:data` — the domain, implemented
 - ⬜ Repositories over the files for boards, concepts, sketches, settings, practice history (seen

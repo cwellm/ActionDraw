@@ -17,10 +17,10 @@ class BoardStoreTest {
         root.deleteRecursively()
     }
 
-    private fun sampleBoard(): BoardFile {
+    private fun sampleBoard(): Board {
         File(root, "wings").mkdirs()
         File(root, "wings/a.jpg").createNewFile()
-        return BoardFile(
+        return Board(
             name = "Drachenbuch",
             theme = BoardThemes.PAPYRUS,
             groups = listOf(BoardGroup(id = "g1", name = "Flügel", color = "#80CBC4", order = 1, collapsed = true)),
@@ -35,7 +35,7 @@ class BoardStoreTest {
     }
 
     /** Loading fills in content ids, so compare what the author actually wrote. */
-    private fun BoardFile.withoutContentIds() =
+    private fun Board.withoutContentIds() =
         copy(items = items.map { if (it is ImageItem) it.copy(contentId = null) else it })
 
     @Test

@@ -1,7 +1,10 @@
 package de.creaflect.actiondraw.concept
 
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.toConcept
+import de.creaflect.actiondraw.board.toJson
 import de.creaflect.actiondraw.io.SafeFile
+import de.creaflect.actiondraw.model.ConceptJson
 import kotlinx.serialization.json.Json
 import java.io.File
 
@@ -24,7 +27,7 @@ object ConceptStore {
 
     sealed class LoadResult {
         data object None : LoadResult()
-        data class Loaded(val concept: ConceptFile, val fromBackup: Boolean) : LoadResult()
+        data class Loaded(val concept: Concept, val fromBackup: Boolean) : LoadResult()
         data object Failed : LoadResult()
     }
 
@@ -33,7 +36,7 @@ object ConceptStore {
     fun exists(root: File): Boolean = sidecar(root).exists()
 
     /** The sidecar as written, without validation — for listings that must not touch the folder. */
-    fun peek(root: File): ConceptFile? = sidecar(root).load(::decode)?.value
+    fun peek(root: File): Concept? = sidecar(root).load(::decode)?.value
 
     fun load(root: File): LoadResult {
         val sidecar = sidecar(root)
@@ -45,14 +48,14 @@ object ConceptStore {
     /** Removes the sidecar and its backup: the folder stops being a concept, its files stay. */
     fun forget(root: File): Boolean = sidecar(root).delete()
 
-    private fun decode(text: String): ConceptFile = json.decodeFromString(ConceptFile.serializer(), text)
+    private fun decode(text: String): Concept = json.decodeFromString(ConceptJson.serializer(), text).toConcept()
 
     /** Drops pictures and documents whose files are gone; notes and links are never dropped. */
-    fun validate(concept: ConceptFile, root: File): ConceptFile = concept.copy(
+    fun validate(concept: Concept, root: File): Concept = concept.copy(
         items = concept.items.filter { it !is ImageItem || File(root, it.path).isFile },
         documents = concept.documents.filter { File(root, it).isFile },
     )
 
-    fun save(root: File, concept: ConceptFile): Boolean =
-        runCatching { sidecar(root).write(json.encodeToString(ConceptFile.serializer(), concept)) }.getOrDefault(false)
+    fun save(root: File, concept: Concept): Boolean =
+        runCatching { sidecar(root).write(json.encodeToString(ConceptJson.serializer(), concept.toJson())) }.getOrDefault(false)
 }

@@ -1,0 +1,13 @@
+[
+    {
+        "id": "ID",
+        "name": "Drachen",
+        "path": "FULL",
+        "ownsFolder": true
+    },
+    {
+        "id": "ID",
+        "name": "Adopted",
+        "path": "EMPTY"
+    }
+]

@@ -4,7 +4,9 @@ import java.awt.datatransfer.DataFlavor
 import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
 import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
 import java.io.File
+import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -41,7 +43,9 @@ class PlatformTest {
             override fun getTransferData(flavor: DataFlavor): Any = picture
         }
         val pasted = assertIs<SystemClipboard.Pasted.Bitmap>(AwtClipboard.read(copied))
-        assertEquals(6 to 4, pasted.image.width to pasted.image.height)
+        // Kept as PNG: what the lib writes into the board, at the picture's own size.
+        val back = ImageIO.read(ByteArrayInputStream(pasted.png))
+        assertEquals(6 to 4, back.width to back.height)
     }
 
     @Test

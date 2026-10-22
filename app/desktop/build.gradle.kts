@@ -17,7 +17,9 @@ dependencies {
     implementation(compose.desktop.currentOs)
     // The drawing engine (Live Sketch), a library of its own: docs/Pencil-Engine-Architecture.md.
     implementation(project(":lib:sketch-engine"))
-    // Boards, cards, concepts, session plans: the data, with no Compose and no files in it.
+    // How boards, concepts and the registries are stored: the sidecars' format.
+    // The API: boards, cards, concepts, the session's vocabulary, and the host contracts.
+    implementation(project(":lib:domain"))
     implementation(project(":lib:core:model"))
     // Files: the app's own folders, safe writes, moving and deleting folders, reading pictures.
     implementation(project(":lib:core:io"))

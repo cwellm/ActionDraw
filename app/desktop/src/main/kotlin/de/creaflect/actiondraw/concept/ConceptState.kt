@@ -4,7 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.Settings
-import de.creaflect.actiondraw.board.BoardFile
+import de.creaflect.actiondraw.board.Board
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardLink
@@ -19,6 +19,7 @@ import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.io.Folders
+import de.creaflect.actiondraw.newId
 import de.creaflect.actiondraw.samePathAs
 import de.creaflect.sketch.SketchDocument
 import java.io.File
@@ -72,7 +73,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
 
     var root by mutableStateOf<File?>(null)
         private set
-    var concept by mutableStateOf<ConceptFile?>(null)
+    var concept by mutableStateOf<Concept?>(null)
         private set
     var editor by mutableStateOf<ConceptEditor?>(null)
         private set
@@ -119,7 +120,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
             .filter { it.isDirectory && ConceptStore.exists(it) && known.none { k -> k.isAt(it) } }
             .forEach { dir ->
                 val file = ConceptStore.peek(dir) ?: return@forEach
-                val id = file.id.ifBlank { Importer.newId() }
+                val id = file.id.ifBlank { newId() }
                 if (file.id.isBlank()) ConceptStore.save(dir, file.copy(id = id))
                 known += registry.register(id, file.name.ifBlank { dir.name }, file.kind, dir)
             }
@@ -134,7 +135,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val home = conceptsHome().apply { mkdirs() }
         val dir = Folders.freeFolder(File(home, Folders.safeName(trimmed)))
         if (!dir.mkdirs()) return "Couldn't create:\n$dir"
-        val created = ConceptFile(id = Importer.newId(), name = trimmed, kind = kind.trim())
+        val created = Concept(id = newId(), name = trimmed, kind = kind.trim())
         if (!ConceptStore.save(dir, created)) return "Couldn't write the concept file in:\n$dir"
         registry.register(created.id, created.name, created.kind, dir)
         root = dir
@@ -294,7 +295,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
     private fun placeMissingIfFree() {
         if (layout != BoardLayouts.FREE) return
         if (items.none { it.pos == null }) return
-        update { c -> c.copy(items = CardLayout.placeMissing(BoardFile(items = c.items), camX, camY).items) }
+        update { c -> c.copy(items = CardLayout.placeMissing(Board(items = c.items), camX, camY).items) }
     }
 
     /** Width over height of a card on the canvas: the board's rule, so the two look alike. */
@@ -391,7 +392,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         if (itemId == null) {
-            update { it.copy(items = it.items + NoteItem(id = Importer.newId(), text = trimmed, kind = kind)) }
+            update { it.copy(items = it.items + NoteItem(id = newId(), text = trimmed, kind = kind)) }
             placeMissingIfFree()
         } else {
             update { c -> c.copy(items = c.items.map { if (it is NoteItem && it.id == itemId) it.copy(text = trimmed, kind = kind) else it }) }
@@ -403,7 +404,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
         if (trimmed.isEmpty()) return
         val name = title.trim()
         if (itemId == null) {
-            update { it.copy(items = it.items + LinkItem(id = Importer.newId(), url = trimmed, title = name)) }
+            update { it.copy(items = it.items + LinkItem(id = newId(), url = trimmed, title = name)) }
             placeMissingIfFree()
         } else {
             update { c -> c.copy(items = c.items.map { if (it is LinkItem && it.id == itemId) it.copy(url = trimmed, title = name) else it }) }
@@ -473,7 +474,7 @@ class ConceptState(private val settings: Settings, private val host: ConceptHost
 
     // ---- Persistence ----
 
-    private fun update(transform: (ConceptFile) -> ConceptFile) {
+    private fun update(transform: (Concept) -> Concept) {
         val dir = root ?: return
         val next = transform(concept ?: return)
         concept = next

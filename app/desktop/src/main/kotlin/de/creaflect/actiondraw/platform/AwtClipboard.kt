@@ -6,30 +6,14 @@ import java.awt.datatransfer.StringSelection
 import java.awt.datatransfer.Transferable
 import java.awt.datatransfer.UnsupportedFlavorException
 import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.io.File
+import javax.imageio.ImageIO
 
 /**
- * The system's clipboard. Copying files puts real file references on it, so pasting in Explorer
- * duplicates the files; pasting takes a file list or a raw bitmap (a browser's "Copy image").
- * Swappable, so the board can be tested without touching the clipboard of the machine.
+ * The clipboard of the machine, through AWT — the desktop's side of the lib's [SystemClipboard]. All
+ * of it best-effort: a busy clipboard is no crash.
  */
-interface SystemClipboard {
-    /** What a paste brought. */
-    sealed class Pasted {
-        data class Files(val files: List<File>) : Pasted()
-
-        data class Bitmap(val image: BufferedImage) : Pasted()
-    }
-
-    fun copyFiles(files: List<File>)
-
-    fun copyText(text: String)
-
-    /** What is on the clipboard that the app can take, or null. */
-    fun paste(): Pasted?
-}
-
-/** The clipboard of the machine, through AWT. All of it best-effort: a busy clipboard is no crash. */
 object AwtClipboard : SystemClipboard {
     override fun copyFiles(files: List<File>) {
         runCatching { Toolkit.getDefaultToolkit().systemClipboard.setContents(FileListTransferable(files), null) }
@@ -51,11 +35,15 @@ object AwtClipboard : SystemClipboard {
             }
 
             contents.isDataFlavorSupported(DataFlavor.imageFlavor) ->
-                SystemClipboard.Pasted.Bitmap(toBuffered(contents.getTransferData(DataFlavor.imageFlavor) as java.awt.Image))
+                SystemClipboard.Pasted.Bitmap(png(toBuffered(contents.getTransferData(DataFlavor.imageFlavor) as java.awt.Image)))
 
             else -> null
         }
     }.getOrNull()
+
+    /** The picture as PNG: what the lib keeps a pasted picture as. */
+    private fun png(image: BufferedImage): ByteArray =
+        ByteArrayOutputStream().also { check(ImageIO.write(image, "png", it)) }.toByteArray()
 
     /** Clipboard images arrive as generic AWT images; writing a PNG needs a [BufferedImage]. */
     private fun toBuffered(image: java.awt.Image): BufferedImage {

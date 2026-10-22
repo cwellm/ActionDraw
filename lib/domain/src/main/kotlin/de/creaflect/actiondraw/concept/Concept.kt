@@ -3,21 +3,18 @@ package de.creaflect.actiondraw.concept
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.Camera
-import kotlinx.serialization.Serializable
 
 /**
- * The concept sidecar (`.actiondraw_concept.json`), stored in the concept's folder next to its
- * pictures and documents. A concept is a *thing* — this character, this landscape, this creature
+ * A concept: a *thing* — this character, this landscape, this creature
  * — that lives once and is linked onto any number of boards
  * ([docs/Concepts-Ideation.md](../../../../../../../../docs/Concepts-Ideation.md)).
  *
  * Its cards are the board's card types, reused as they are: pictures, notes, links. Documents are
  * `.md` files in `_docs/`, listed by relative path so they stay readable in any editor and never
- * balloon the sidecar. Unknown JSON keys are ignored on load, as for boards.
+ * balloon what is stored. How a concept is stored (`.actiondraw_concept.json`) is the model's
+ * business, mapped by `lib:data`.
  */
-@Serializable
-data class ConceptFile(
-    val version: Int = 1,
+data class Concept(
     /** Stable identity; boards refer to a concept by this, never by path. */
     val id: String = "",
     val name: String = "",

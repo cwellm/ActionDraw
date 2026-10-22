@@ -95,7 +95,7 @@ class DeleteBoardTest {
     fun theBoardsHomeItselfIsNeverErased() {
         val (state, _) = boardWithAPicture()
         // Make the home look like a board, so only the guard stands between it and deletion.
-        BoardStore.save(home, BoardFile(name = "Home"))
+        BoardStore.save(home, Board(name = "Home"))
 
         val message = state.deleteBoard(home, BoardState.Deletion.DELETE_FOLDER)
 

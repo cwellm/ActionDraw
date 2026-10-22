@@ -21,6 +21,7 @@ import de.creaflect.actiondraw.io.Folders
 import de.creaflect.actiondraw.isInside
 import de.creaflect.actiondraw.network.Fetcher
 import de.creaflect.actiondraw.network.Http
+import de.creaflect.actiondraw.newId
 import de.creaflect.actiondraw.platform.AwtClipboard
 import de.creaflect.actiondraw.platform.DesktopBrowser
 import de.creaflect.actiondraw.platform.SystemClipboard
@@ -112,7 +113,7 @@ class BoardState(
 ) {
     var root by mutableStateOf<File?>(null)
         private set
-    var board by mutableStateOf<BoardFile?>(null)
+    var board by mutableStateOf<Board?>(null)
         private set
 
     /** The main sidecar was corrupt and the `.bak` was used — shown as a banner. */
@@ -614,10 +615,10 @@ class BoardState(
         // Creating a board inside another board is making a sub-board of it; that is nesting,
         // not a decision about where new top-level boards should go.
         if (registry.parentOf(dir) == null) settings.setBoardsHome(parent)
-        val created = BoardFile(
+        val created = Board(
             name = trimmed,
             groups = template.groups.mapIndexed { i, groupName ->
-                BoardGroup(id = Importer.newId(), name = groupName, order = i + 1)
+                BoardGroup(id = newId(), name = groupName, order = i + 1)
             },
         )
         if (!BoardStore.save(dir, created)) return "Couldn't write the board file in:\n$dir"
@@ -634,7 +635,7 @@ class BoardState(
         when (val result = BoardStore.load(dir)) {
             BoardStore.LoadResult.None -> {
                 // A folder without a sidecar becomes an (empty) board named after it.
-                val fresh = BoardFile(name = dir.name)
+                val fresh = Board(name = dir.name)
                 BoardStore.save(dir, fresh)
                 root = dir
                 board = fresh
@@ -843,7 +844,7 @@ class BoardState(
 
     // ---- Mutations (each one is persisted immediately) ----
 
-    private fun update(transform: (BoardFile) -> BoardFile) {
+    private fun update(transform: (Board) -> Board) {
         val dir = root ?: return
         val next = transform(board ?: return)
         board = next
@@ -863,7 +864,7 @@ class BoardState(
         val parent = parentId?.takeIf { groupById(it)?.let { g -> g.parentId == null && !g.isConcept } == true }
         update { b ->
             val order = (b.groups.maxOfOrNull { it.order } ?: 0) + 1
-            b.copy(groups = b.groups + BoardGroup(id = Importer.newId(), name = trimmed, order = order, parentId = parent))
+            b.copy(groups = b.groups + BoardGroup(id = newId(), name = trimmed, order = order, parentId = parent))
         }
     }
 
@@ -941,7 +942,7 @@ class BoardState(
         // Borrowed cards stay with their concept; the board's own cards make the group.
         val ids = selection.filterNot(::isBorrowed).toSet()
         if (ids.isEmpty()) return null
-        val id = Importer.newId()
+        val id = newId()
         val trimmed = name.trim().ifEmpty { "Group" }
         val parent = parentId?.takeIf { groupById(it)?.let { g -> g.parentId == null && !g.isConcept } == true }
         update { b ->
@@ -1104,7 +1105,7 @@ class BoardState(
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         if (itemId == null) {
-            val note = NoteItem(id = Importer.newId(), text = trimmed, kind = kind)
+            val note = NoteItem(id = newId(), text = trimmed, kind = kind)
             update { it.copy(items = it.items + note) }
             selection = setOf(note.id)
             focusId = note.id
@@ -1123,7 +1124,7 @@ class BoardState(
         if (trimmed.isEmpty()) return
         val name = title.trim()
         if (itemId == null) {
-            val link = LinkItem(id = Importer.newId(), url = trimmed, title = name)
+            val link = LinkItem(id = newId(), url = trimmed, title = name)
             update { it.copy(items = it.items + link) }
             if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
             selection = setOf(link.id)
@@ -1182,7 +1183,7 @@ class BoardState(
         val text = "colours of $name" + "\n" + colours.joinToString(" ") { Palette.hex(it) }
         val near = picture.pos?.let { it.copy(x = it.x + BASE_SIZE * 0.6f, y = it.y + BASE_SIZE * 0.55f, scale = 1f) }
         val card = NoteItem(
-            id = Importer.newId(),
+            id = newId(),
             text = text,
             kind = NoteKind.PALETTE,
             groups = picture.groups.filterNot { it.startsWith(ConceptLink.PREFIX) },
@@ -1681,7 +1682,7 @@ class BoardState(
      * In-memory-only board change during a gesture (drag/resize/rotate) — recomposes without
      * hitting the disk on every pointer move; [commitLayout] persists the result.
      */
-    private fun updateTransient(transform: (BoardFile) -> BoardFile) {
+    private fun updateTransient(transform: (Board) -> Board) {
         board = transform(board ?: return)
     }
 
@@ -1938,7 +1939,7 @@ class BoardState(
             is SystemClipboard.Pasted.Files -> importExternal(pasted.files)
 
             is SystemClipboard.Pasted.Bitmap -> {
-                val item = Importer.importBitmap(dir, pasted.image, null, timestamp()) ?: return
+                val item = Importer.importBitmap(dir, pasted.png, null, timestamp()) ?: return
                 importNotice = null
                 update { it.copy(items = it.items + item) }
                 if (layout == BoardLayouts.FREE) update { placeMissing(it, camX, camY) }
@@ -2029,7 +2030,7 @@ class BoardState(
     fun pinTo(dir: File, files: List<File>): String {
         val target = when (val loaded = BoardStore.load(dir)) {
             is BoardStore.LoadResult.Loaded -> loaded.board
-            BoardStore.LoadResult.None -> BoardFile(name = dir.name)
+            BoardStore.LoadResult.None -> Board(name = dir.name)
             BoardStore.LoadResult.Failed -> return "Couldn't read the board in ${dir.name}."
         }
         val existing = target.items.filterIsInstance<ImageItem>().map { it.path }.toSet()

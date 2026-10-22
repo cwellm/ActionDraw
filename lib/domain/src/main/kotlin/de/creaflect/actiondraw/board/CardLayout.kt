@@ -26,7 +26,7 @@ object CardLayout {
      * Gives every card without a position one, cascading in rows of five around
      * ([originX], [originY]) — below everything already placed.
      */
-    fun placeMissing(board: BoardFile, originX: Float = 0f, originY: Float = 0f): BoardFile {
+    fun placeMissing(board: Board, originX: Float = 0f, originY: Float = 0f): Board {
         val unplaced = board.items.count { it.pos == null }
         if (unplaced == 0) return board
         // Rows are spaced more generously than columns: a portrait card is far taller than

@@ -1,8 +1,5 @@
 package de.creaflect.actiondraw.sketch.input
 
-import com.sun.jna.Platform
-import java.awt.Window
-
 /**
  * One reading from the pen as the operating system reports it, before the engine sees it:
  * position in the window's client pixels, pressure 0..1, tilt and rotation in degrees, whether
@@ -26,9 +23,9 @@ data class PenSample(
 }
 
 /**
- * Where pen samples come from. Compose Desktop delivers none (LEARNINGS L1), so a source hooks
- * the window natively. [start] returns false when this machine has no such route; the app then
- * draws with the mouse at pressure 1.
+ * Where pen samples come from — a contract the host fills (`device:pen` on Windows). Compose
+ * Desktop delivers none (LEARNINGS L1), so a source hooks the window natively. [start] returns
+ * false when this machine has no such route; the app then draws with the mouse at pressure 1.
  */
 interface PenSource {
     val name: String
@@ -37,10 +34,4 @@ interface PenSource {
     fun start(onSample: (PenSample) -> Unit): Boolean
 
     fun stop()
-}
-
-object PenSources {
-    /** The native route for this platform, or null where there is none yet. */
-    fun forWindow(window: Window): PenSource? =
-        if (Platform.isWindows()) WindowsPointerSource(window) else null
 }

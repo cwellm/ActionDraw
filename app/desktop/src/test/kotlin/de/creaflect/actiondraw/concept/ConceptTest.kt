@@ -83,7 +83,7 @@ class ConceptTest {
     @Test
     fun aConceptFolderFoundUnderTheHomeIsAdopted() {
         val dir = File(home, "Legacy").apply { mkdirs() }
-        ConceptStore.save(dir, ConceptFile(name = "Legacy", kind = "prop")) // no id yet, as a hand-written file might be
+        ConceptStore.save(dir, Concept(name = "Legacy", kind = "prop")) // no id yet, as a hand-written file might be
 
         val listed = newState().availableConcepts()
 

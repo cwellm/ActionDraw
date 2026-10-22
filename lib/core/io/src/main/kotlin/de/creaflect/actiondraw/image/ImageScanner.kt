@@ -41,7 +41,7 @@ object ImageScanner {
  * name, which keeps existing flat-folder store files valid. Falls back to the plain name when
  * [file] cannot be relativized against [root].
  */
-fun relKey(root: File, file: File): String = runCatching {
+internal fun relKey(root: File, file: File): String = runCatching {
     root.absoluteFile.toPath().normalize()
         .relativize(file.absoluteFile.toPath().normalize())
         .joinToString("/")

@@ -164,7 +164,7 @@ class BoardRegistryTest {
     fun boardsFromBeforeTheRegistryAreAdoptedOnFirstListing() {
         // A board folder written straight to disk, as an older version would have left it.
         val old = File(home, "Legacy").apply { mkdirs() }
-        BoardStore.save(old, BoardFile(name = "Legacy"))
+        BoardStore.save(old, Board(name = "Legacy"))
 
         val state = newState()
         assertNull(state.entryFor(old), "unknown to begin with")

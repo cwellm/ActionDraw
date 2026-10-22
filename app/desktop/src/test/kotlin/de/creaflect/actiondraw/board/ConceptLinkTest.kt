@@ -325,7 +325,7 @@ class ConceptLinkTest {
         val root = File(home, "Loose").apply { mkdirs() }
         val borrowed = ImageItem(id = "b", path = ConceptLink.borrowedPath("c1", "_imported/wing.jpg"), groups = listOf(ConceptLink.groupId("c1")))
         val lost = ImageItem(id = "l", path = "gone.jpg")
-        val board = BoardFile(name = "Loose", items = listOf(borrowed, lost))
+        val board = Board(name = "Loose", items = listOf(borrowed, lost))
 
         val checked = BoardStore.validate(board, root)
 

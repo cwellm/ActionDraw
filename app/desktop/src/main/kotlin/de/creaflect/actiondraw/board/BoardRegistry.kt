@@ -1,8 +1,8 @@
 package de.creaflect.actiondraw.board
 
 import de.creaflect.actiondraw.isInside
-import de.creaflect.actiondraw.samePathAs
-import kotlinx.serialization.Serializable
+import de.creaflect.actiondraw.model.BoardEntryJson
+import de.creaflect.actiondraw.newId
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -25,8 +25,8 @@ class BoardRegistry(private val dir: File) {
     fun entries(): List<BoardEntry> = runCatching {
         file.takeIf { it.isFile }
             ?.readText()
-            ?.removePrefix("﻿")
-            ?.let { json.decodeFromString(ListSerializer(BoardEntry.serializer()), it) }
+            ?.removePrefix("")
+            ?.let { json.decodeFromString(ListSerializer(BoardEntryJson.serializer()), it).map { e -> e.toEntry() } }
             .orEmpty()
     }.getOrDefault(emptyList())
 
@@ -37,7 +37,7 @@ class BoardRegistry(private val dir: File) {
         val existing = entryFor(folder)
         val entry = existing?.copy(name = name)
             ?: BoardEntry(
-                id = Importer.newId(),
+                id = newId(),
                 name = name,
                 path = folder.absolutePath,
                 ownsFolder = ownsFolder,
@@ -89,7 +89,7 @@ class BoardRegistry(private val dir: File) {
     private fun save(list: List<BoardEntry>) {
         runCatching {
             dir.mkdirs()
-            file.writeText(json.encodeToString(ListSerializer(BoardEntry.serializer()), list))
+            file.writeText(json.encodeToString(ListSerializer(BoardEntryJson.serializer()), list.map { it.toJson() }))
         }
     }
 
@@ -97,30 +97,4 @@ class BoardRegistry(private val dir: File) {
         const val FILE_NAME = "boards.json"
         private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
     }
-}
-
-/** One board's entry in the registry. */
-@Serializable
-data class BoardEntry(
-    val id: String,
-    val name: String,
-    val path: String,
-    /**
-     * True when ActionDraw made this folder for the board; false when an existing folder was
-     * adopted (*Explore…*, or a drop of someone's picture library). It decides what deleting the
-     * board means: a folder the app created is the board and goes with it, while a folder that
-     * was already yours stays yours and merely stops being a board.
-     */
-    val ownsFolder: Boolean = false,
-) {
-    val dir: File get() = File(path)
-
-    /** Windows paths differ only in case, so compare that way rather than by string identity. */
-    fun isAt(folder: File): Boolean = dir.samePathAs(folder)
-
-    /** True when [folder] lies inside this board's folder. */
-    fun contains(folder: File): Boolean = folder.isInside(dir)
-
-    /** True when this board's folder lies inside [folder]. */
-    fun isInside(folder: File): Boolean = dir.isInside(folder)
 }

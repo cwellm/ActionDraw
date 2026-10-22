@@ -5,13 +5,13 @@ import com.sun.jna.ptr.IntByReference
 import com.sun.jna.win32.StdCallLibrary
 import com.sun.jna.win32.W32APIOptions
 
-/** What the person set in their operating system that the app should honour. */
-object SystemPreferences {
+/** What the person set in Windows that the lib should honour — the desktop's [HostPreferences]. */
+object SystemPreferences : HostPreferences {
     /**
      * Windows' *Show animations in Windows* (`SPI_GETCLIENTAREAANIMATION`): off means the person
      * asked for less movement. Anywhere else, or if it cannot be read, movement is on.
      */
-    fun prefersReducedMotion(): Boolean = runCatching {
+    override fun prefersReducedMotion(): Boolean = runCatching {
         if (!System.getProperty("os.name").orEmpty().startsWith("Windows")) return false
         val on = IntByReference(1)
         User32Spi.INSTANCE.SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, on, 0) && on.value == 0

@@ -10,8 +10,10 @@ import de.creaflect.actiondraw.image.SeenStore
 import de.creaflect.actiondraw.network.Fetched
 import de.creaflect.actiondraw.platform.SystemClipboard
 import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
+import javax.imageio.ImageIO
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -1054,7 +1056,9 @@ class BoardStateTest {
                 copied += text
             }
 
-            override fun paste() = SystemClipboard.Pasted.Bitmap(BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB))
+            override fun paste() = SystemClipboard.Pasted.Bitmap(
+                ByteArrayOutputStream().also { ImageIO.write(BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray(),
+            )
         }
         val state = BoardState(Settings(settingsDir), host, timestamp = { "20260830-120000" }, clipboard = clipboard)
         state.createBoard(home, "Clip")

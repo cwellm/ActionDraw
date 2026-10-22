@@ -4,11 +4,12 @@ rootProject.name = "ActionDraw"
 // Gradle holds it to that: lib knows nothing of app or device.
 
 // lib — what an application builds on. The bare lib is headless: the core, the network, the
-// drawing engine (a library of its own).
+// domain (the API), the drawing engine (a library of its own).
 include(":lib:core:model")
 include(":lib:core:io")
 include(":lib:core:lifecycle")
 include(":lib:network")
+include(":lib:domain")
 include(":lib:sketch-engine")
 
 // device — the hardware the apps talk to natively.
