@@ -1,0 +1,1018 @@
+package de.creaflect.actiondraw.board.ui
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ContextMenuArea
+import androidx.compose.foundation.ContextMenuItem
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.board.BoardEditor
+import de.creaflect.actiondraw.board.BoardItem
+import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.board.BoardThemes
+import de.creaflect.actiondraw.board.CardLayout
+import de.creaflect.actiondraw.board.FrameShape
+import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.board.LinkItem
+import de.creaflect.actiondraw.board.NoteItem
+import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.ui.Design
+import de.creaflect.actiondraw.ui.Lift
+import de.creaflect.actiondraw.ui.LocalDesign
+import de.creaflect.actiondraw.ui.LocalReducedMotion
+import de.creaflect.actiondraw.ui.Motion
+import de.creaflect.actiondraw.ui.Notes
+import de.creaflect.actiondraw.ui.Pigment
+import de.creaflect.actiondraw.ui.Room
+import de.creaflect.actiondraw.ui.RuleRed
+import de.creaflect.actiondraw.ui.lampShadow
+import de.creaflect.actiondraw.ui.leanFor
+import de.creaflect.actiondraw.ui.lifted
+import de.creaflect.actiondraw.ui.paperTooth
+import de.creaflect.actiondraw.ui.pigment
+import de.creaflect.actiondraw.ui.ruled
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
+
+/**
+ * The freeform board: an infinite pan/zoom surface where every card sits at its own position,
+ * scale and rotation. Drag empty space to pan · wheel zooms about the cursor · drag a card to
+ * move it (its selection moves along) · handles on a single-selected card resize (corner) and
+ * rotate (top) · Ctrl+wheel resizes and Shift+wheel rotates the selected card.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun BoardCanvas(state: BoardState, thumbs: Pictures, textured: Boolean, modifier: Modifier, showCorner: Boolean = true) {
+    var viewSize by remember { mutableStateOf(IntSize.Zero) }
+    var shiftHeld by remember { mutableStateOf(false) }
+
+    Box(
+        modifier
+            .clipToBounds()
+            .testTag("canvas")
+            .pointerLogging("root")
+            .onSizeChanged { viewSize = it }
+            // Every release, wherever it lands, noted and passed on: a group made next is drawn from there.
+            .pointerInput(state) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.type == PointerEventType.Release) {
+                            event.changes.firstOrNull()?.let { state.lastRelease = boardPoint(it.position, IntSize(size.width, size.height), state) }
+                        }
+                    }
+                }
+            }
+            .pointerInput(state) {
+                // Plain drag pans the board; Shift+drag pulls a rubber band over the cards.
+                var marqueeing = false
+                detectDragGestures(
+                    onDragStart = { start ->
+                        PointerLog.log("root: drag start at $start (marquee=$shiftHeld)")
+                        marqueeing = shiftHeld
+                        if (marqueeing) {
+                            val (bx, by) = boardPoint(start, viewSize, state)
+                            state.startMarquee(bx, by)
+                        }
+                    },
+                    onDrag = { change, drag ->
+                        change.consume()
+                        if (marqueeing) {
+                            val (bx, by) = boardPoint(change.position, viewSize, state)
+                            state.updateMarquee(bx, by)
+                        } else {
+                            state.pan(-drag.x / state.zoom, -drag.y / state.zoom)
+                        }
+                    },
+                    onDragEnd = {
+                        if (marqueeing) state.commitMarquee() else state.commitCamera()
+                        marqueeing = false
+                    },
+                    onDragCancel = {
+                        if (marqueeing) state.cancelMarquee() else state.commitCamera()
+                        marqueeing = false
+                    },
+                )
+            }
+            .onPointerEvent(PointerEventType.Move) { event ->
+                shiftHeld = event.keyboardModifiers.isShiftPressed
+            }
+            .onPointerEvent(PointerEventType.Press) { event ->
+                shiftHeld = event.keyboardModifiers.isShiftPressed
+            }
+            .onPointerEvent(PointerEventType.Scroll) { event ->
+                val change = event.changes.firstOrNull() ?: return@onPointerEvent
+                val delta = change.scrollDelta.y
+                if (delta == 0f) return@onPointerEvent
+                val target = state.selection.firstOrNull() ?: state.focusId
+                when {
+                    event.keyboardModifiers.isCtrlPressed && target != null -> {
+                        state.resizeBy(target, if (delta < 0) 1.1f else 1 / 1.1f)
+                        state.commitLayout()
+                    }
+
+                    event.keyboardModifiers.isShiftPressed && target != null -> {
+                        state.rotateBy(target, if (delta < 0) -5f else 5f)
+                        state.commitLayout()
+                    }
+
+                    else -> {
+                        // Zoom about the cursor: the board point underneath stays fixed.
+                        val factor = if (delta < 0) 1.15f else 1 / 1.15f
+                        val newZoom = (state.zoom * factor).coerceIn(0.1f, 5f)
+                        val halfW = viewSize.width / 2f
+                        val halfH = viewSize.height / 2f
+                        val bx = (change.position.x - halfW) / state.zoom + state.camX
+                        val by = (change.position.y - halfH) / state.zoom + state.camY
+                        state.setZoom(
+                            newZoom,
+                            bx - (change.position.x - halfW) / newZoom,
+                            by - (change.position.y - halfH) / newZoom,
+                        )
+                    }
+                }
+            },
+    ) {
+        // Empty board underneath everything: tapping it clears the selection. It must stay below
+        // the cards, or it would swallow their clicks (and it used to, which made it impossible
+        // to select more than one card at a time).
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(state) { detectTapGestures { state.clearSelection() } },
+        )
+
+        // Group areas next, so cards sit on top of their own group's tint.
+        state.groupHulls.forEach { hull ->
+            key("hull-" + hull.group.id) { GroupArea(state, hull, viewSize) }
+        }
+
+        state.freeItems.forEach { item ->
+            key(item.id) { CanvasItem(state, thumbs, item, textured, viewSize) }
+        }
+
+        // Group labels last of all: they are the handle for picking a group up, so nothing may
+        // end up lying over them.
+        state.groupHulls.forEach { hull ->
+            key("label-" + hull.group.id) { GroupLabel(state, hull, viewSize) }
+        }
+
+        // Alignment guides and the rubber band, drawn over the cards.
+        val pencil = Design.colors.textSoft
+        Canvas(Modifier.fillMaxSize()) {
+            // Graphite, as the design's materials have it: dark on cork and papyrus, pencil-light on the table.
+            val guideColor = if (textured) Color(0xB32B2724) else pencil.copy(alpha = 0.6f)
+            state.snapGuideX?.let { gx ->
+                val x = (gx - state.camX) * state.zoom + size.width / 2
+                drawLine(guideColor, Offset(x, 0f), Offset(x, size.height), 1f)
+            }
+            state.snapGuideY?.let { gy ->
+                val y = (gy - state.camY) * state.zoom + size.height / 2
+                drawLine(guideColor, Offset(0f, y), Offset(size.width, y), 1f)
+            }
+            state.marquee?.let { rect ->
+                val x1 = (minOf(rect[0], rect[2]) - state.camX) * state.zoom + size.width / 2
+                val x2 = (maxOf(rect[0], rect[2]) - state.camX) * state.zoom + size.width / 2
+                val y1 = (minOf(rect[1], rect[3]) - state.camY) * state.zoom + size.height / 2
+                val y2 = (maxOf(rect[1], rect[3]) - state.camY) * state.zoom + size.height / 2
+                drawRect(Color(0x2280CBC4), topLeft = Offset(x1, y1), size = Size(x2 - x1, y2 - y1))
+                drawRect(
+                    Color(0xCC80CBC4),
+                    topLeft = Offset(x1, y1),
+                    size = Size(x2 - x1, y2 - y1),
+                    style = Stroke(1f),
+                )
+            }
+        }
+
+        if (state.freeItems.isEmpty()) {
+            Text(
+                "An empty canvas. Drop pictures from Explorer, paste one (Ctrl+V), or use Import…",
+                style = MaterialTheme.typography.body1,
+                color = MaterialTheme.colors.onBackground.copy(alpha = 0.7f),
+                modifier = Modifier.align(Alignment.Center).padding(32.dp),
+            )
+        }
+
+        if (showCorner) {
+            ViewCorner(
+                state,
+                onFit = { state.fitAll(viewSize.width.toFloat(), viewSize.height.toFloat()); state.commitCamera() },
+                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CanvasItem(
+    state: BoardState,
+    thumbs: Pictures,
+    item: BoardItem,
+    textured: Boolean,
+    viewSize: IntSize,
+) {
+    val pos = item.pos ?: return
+    val zoom = state.zoom
+    val aspect = state.aspectOf(item)
+    val wPx = CardLayout.BASE_SIZE * pos.scale * zoom
+    val hPx = wPx / aspect
+    val cx = (pos.x - state.camX) * zoom + viewSize.width / 2f
+    val cy = (pos.y - state.camY) * zoom + viewSize.height / 2f
+    val density = LocalDensity.current
+    val singleSelected = state.selection.size == 1 && item.id in state.selection
+
+    // Settle (CONCEPT.md, Motion): held, the card lifts and leans into its sideways speed; let go,
+    // it lands on a spring. Only what is drawn moves — the box that takes the drag, and its hit
+    // box, stay as they are, so the drag's own arithmetic is untouched.
+    val reduced = LocalReducedMotion.current
+    var held by remember { mutableStateOf(false) }
+    var lean by remember { mutableStateOf(0f) }
+    val lift by animateFloatAsState(
+        if (held) 1f else 0f,
+        when {
+            reduced -> snap()
+            held -> tween(Motion.LIFT_MS)
+            else -> spring(dampingRatio = Motion.SETTLE_DAMPING, stiffness = Motion.SETTLE_STIFFNESS)
+        },
+    )
+    val tilt by animateFloatAsState(
+        if (held && !reduced) lean else 0f,
+        spring(dampingRatio = Motion.SETTLE_DAMPING, stiffness = Motion.SETTLE_STIFFNESS),
+    )
+    // Pencil on cork and papyrus, a lighter line on the graphite table.
+    val ghostColor = if (textured) Color(0xB32B2724) else Design.colors.textSoft.copy(alpha = 0.6f)
+    // Asked of the disk once per card, not on every frame.
+    val holder = remember(item.id, (item as? ImageItem)?.path) {
+        when {
+            item is NoteItem && item.kind == NoteKind.PALETTE -> CardHolder.TAPE
+            item !is ImageItem -> CardHolder.NONE
+            state.sketchOf(item) != null -> CardHolder.TAPE
+            else -> CardHolder.PIN
+        }
+    }
+
+    // Size and place go on a box *around* the menu area, so its hit box — and the card's — sit
+    // where the card is drawn. With the transform on the inner box, the menu area stayed at the
+    // canvas' top-left and swallowed presses meant for whatever was drawn there; the board then
+    // panned under the pointer, every card moving with the one the user had meant to drag.
+    Box(
+        Modifier
+            .requiredSize(with(density) { wPx.toDp() }, with(density) { hPx.toDp() })
+            .graphicsLayer {
+                translationX = cx - wPx / 2
+                translationY = cy - hPx / 2
+                rotationZ = pos.rotation
+            },
+    ) {
+        CardMenuArea(state, items = {
+            listOf(
+                ContextMenuItem("Bring forward") { state.stepZ(item.id, forward = true) },
+                ContextMenuItem("Send backward") { state.stepZ(item.id, forward = false) },
+                ContextMenuItem("Bring to front") { state.bringToFront(item.id) },
+                ContextMenuItem("Send to back") { state.sendToBack(item.id) },
+            ) + cardMenuItems(state, item)
+        }) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .testTag("card-" + item.id)
+                    .cardClicks(state, item.id)
+                    .pointerInput(item.id) {
+                        detectDragGestures(
+                            onDragStart = {
+                                PointerLog.log("card ${item.id.take(8)}: drag start")
+                                if (item.id !in state.selection) state.clickItem(item.id, ctrl = false, shift = false)
+                                held = true
+                            },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                lean = leanFor(drag.x)
+                                // The pointer delta arrives in the card's rotated space; rotate it
+                                // back so the card follows the cursor on screen.
+                                val rotation = state.item(item.id)?.pos?.rotation ?: 0f
+                                val rad = Math.toRadians(rotation.toDouble())
+                                val wx = drag.x * cos(rad).toFloat() - drag.y * sin(rad).toFloat()
+                                val wy = drag.x * sin(rad).toFloat() + drag.y * cos(rad).toFloat()
+                                state.dragBy(item.id, wx / state.zoom, wy / state.zoom)
+                                state.trackDropTarget(item.id)
+                                // Line the card up with its neighbours while it moves.
+                                state.item(item.id)?.pos?.let { moved ->
+                                    val (sx, sy) = state.snapPosition(item.id, moved.x, moved.y, 10f / state.zoom)
+                                    if (sx != moved.x || sy != moved.y) {
+                                        state.dragBy(item.id, sx - moved.x, sy - moved.y)
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                PointerLog.log("card ${item.id.take(8)}: drag end")
+                                held = false
+                                lean = 0f
+                                state.clearSnapGuides()
+                                // Let go over a group's frame: the card (or its selection) joins it.
+                                state.dropIntoGroupAt(item.id)
+                                state.commitLayout()
+                            },
+                            onDragCancel = {
+                                PointerLog.log("card ${item.id.take(8)}: drag cancelled")
+                                held = false
+                                lean = 0f
+                                state.clearSnapGuides()
+                            },
+                        )
+                    }
+                    .semantics { lifted = held }
+                    // Held, the card's footprint on the board stays marked, dashed, just outside it:
+                    // where it will land.
+                    .drawBehind {
+                        if (lift > 0.01f) {
+                            val out = 6.dp.toPx()
+                            drawRect(
+                                ghostColor.copy(alpha = ghostColor.alpha * lift.coerceAtMost(1f)),
+                                Offset(-out, -out),
+                                Size(size.width + 2 * out, size.height + 2 * out),
+                                style = Stroke(1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(7f, 5f))),
+                            )
+                        }
+                    },
+            ) {
+                val design = LocalDesign.current
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val s = 1f + Motion.LIFT_SCALE * lift
+                            scaleX = s
+                            scaleY = s
+                            rotationZ = tilt
+                        }
+                        .drawBehind {
+                            // The lamp's shadow grows longer and softer as the card rises.
+                            if (lift > 0.01f) {
+                                val outline = Path().apply { addRect(Rect(Offset.Zero, size)) }
+                                with(design.materials) {
+                                    val resting = depthOf(Lift.RESTING)
+                                    drawLampShadow(outline, (resting + (depthOf(Lift.HELD) - resting) * lift).toPx(), alpha = 0.4f * lift.coerceAtMost(1f))
+                                }
+                            }
+                        }
+                        // What holds the card to the board: a pin through a print, tape over a sketch.
+                        // A single selected card shows its rotate handle there instead.
+                        .drawWithContent {
+                            drawContent()
+                            if (!singleSelected) {
+                                with(design.materials) {
+                                    when (holder) {
+                                        CardHolder.PIN -> drawPin(Offset(size.width / 2f, 3.dp.toPx()), 5.dp.toPx(), design.pigmentOf(Room.BOARDS))
+                                        CardHolder.TAPE -> drawTape(Offset(size.width / 2f, 1.dp.toPx()), Size(minOf(56.dp.toPx(), size.width * 0.5f), 14.dp.toPx()), -3f, seed = item.id.hashCode())
+                                        CardHolder.NONE -> Unit
+                                    }
+                                }
+                            }
+                        },
+                ) {
+                    when (item) {
+                        is ImageItem -> CanvasImage(state, thumbs, item, textured)
+                        is NoteItem -> CanvasNote(state, item, textured)
+                        is LinkItem -> CanvasLink(state, item, textured)
+                    }
+                    if (state.isBorrowed(item)) ConceptTab(state, item, Modifier.align(Alignment.TopStart))
+                    // A grouped card carries its group's colour, so it is recognisable even when
+                    // dragged out of the group area.
+                    state.accentOf(item)?.let { hex ->
+                        Notes.parseColor(hex)?.let { accent ->
+                            Box(
+                                Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(3.dp)
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(accent),
+                            )
+                        }
+                    }
+                }
+                if (singleSelected) {
+                    RotateHandle(state, item.id, Modifier.align(Alignment.TopCenter))
+                    ScaleHandle(state, item.id, Modifier.align(Alignment.BottomEnd))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CanvasImage(state: BoardState, thumbs: Pictures, item: ImageItem, textured: Boolean) {
+    val file = state.fileOf(item)
+    val thumb: ImageBitmap? by produceState<ImageBitmap?>(null, file) {
+        value = file?.let { withContext(Dispatchers.IO) { thumbs.thumbnail(it, maxSize = 384)?.toComposeImageBitmap() } }
+    }
+    // Remember the aspect once, so the card keeps its shape on every future open.
+    LaunchedEffect(thumb) {
+        val bmp = thumb
+        if (bmp != null && item.aspect == null && bmp.height > 0) {
+            state.recordAspect(item.id, bmp.width.toFloat() / bmp.height)
+        }
+    }
+    // A print: the picture on paper with a white border, on cork, papyrus or the graphite table.
+    val shape = RoundedCornerShape(2.dp)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Design.colors.paper)
+            .paperTooth()
+            .border(3.dp, selectionBorder(state, item.id), shape)
+            .padding(6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        val bmp = thumb
+        if (bmp != null) {
+            Image(bitmap = bmp, contentDescription = item.path, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+        } else {
+            Text("…", color = MaterialTheme.colors.onSurface.copy(alpha = 0.4f))
+        }
+        if (item.starred) {
+            Text("★", color = Room.COLLAGE.pigment.glow, modifier = Modifier.align(Alignment.TopEnd).padding(4.dp))
+        }
+    }
+}
+
+@Composable
+private fun CanvasNote(state: BoardState, item: NoteItem, textured: Boolean) {
+    val shape = RoundedCornerShape(3.dp)
+    val paper = notePaper(item, Design.colors.paper)
+    val ink = Notes.ink
+    if (item.kind == NoteKind.PALETTE) {
+        PaletteCard(state, item, Modifier.fillMaxSize())
+    } else if (item.kind == NoteKind.POSTIT) {
+        // A post-it: a yellow slip, all of the text as typed, in a written hand.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .lampShadow(Lift.RESTING, shape)
+                .clip(shape)
+                .background(paper)
+                .paperTooth()
+                .border(2.dp, selectionBorder(state, item.id), shape),
+        ) {
+            Text(
+                item.text,
+                style = Design.hand.copy(fontSize = 20.sp, lineHeight = 22.sp),
+                color = ink,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(10.dp).testTag("postit-" + item.id),
+            )
+        }
+    } else {
+        // A document note: a ruled sheet with only its title; a tap opens the whole note to read.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxSize()
+                .lampShadow(Lift.RESTING, shape)
+                .clip(shape)
+                .background(paper)
+                .paperTooth()
+                .ruled(first = 10.dp, spacing = 9.dp)
+                .border(2.dp, selectionBorder(state, item.id), shape)
+                .pointerInput(item.id) { detectTapGestures { state.openEditor(BoardEditor.ShowNote(item.id)) } }
+                .padding(horizontal = 10.dp)
+                .testTag("note-" + item.id),
+        ) {
+            Text("▤", style = MaterialTheme.typography.body2, color = ink.copy(alpha = 0.6f))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                item.title,
+                style = if (item.heading) MaterialTheme.typography.subtitle1 else MaterialTheme.typography.body2,
+                fontWeight = FontWeight.Bold,
+                color = ink,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** Drag horizontally to rotate the card (0.4° per pixel). */
+@Composable
+private fun RotateHandle(state: BoardState, id: String, modifier: Modifier) {
+    Box(
+        modifier
+            .padding(2.dp)
+            .size(14.dp)
+            .background(MaterialTheme.colors.primary, CircleShape)
+            .pointerInput(id) {
+                detectDragGestures(
+                    onDrag = { change, drag ->
+                        change.consume()
+                        state.rotateBy(id, drag.x * 0.4f)
+                    },
+                    onDragEnd = { state.commitLayout() },
+                )
+            },
+    )
+}
+
+/** Drag outward/inward to resize the card. */
+@Composable
+private fun ScaleHandle(state: BoardState, id: String, modifier: Modifier) {
+    Box(
+        modifier
+            .padding(2.dp)
+            .size(14.dp)
+            .background(MaterialTheme.colors.secondary, CircleShape)
+            .pointerInput(id) {
+                detectDragGestures(
+                    onDrag = { change, drag ->
+                        change.consume()
+                        state.resizeBy(id, 1f + (drag.x + drag.y) / 300f)
+                    },
+                    onDragEnd = { state.commitLayout() },
+                )
+            },
+    )
+}
+
+/** Screen point -> board point, for the marquee. */
+private fun boardPoint(point: Offset, viewSize: IntSize, state: BoardState): Pair<Float, Float> =
+    ((point.x - viewSize.width / 2f) / state.zoom + state.camX) to
+        ((point.y - viewSize.height / 2f) / state.zoom + state.camY)
+
+/** A link card on the canvas — the same look as in the grid, sized to its cell. */
+@Composable
+private fun CanvasLink(state: BoardState, item: LinkItem, textured: Boolean) {
+    val shape = RoundedCornerShape(3.dp)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxSize()
+            .lampShadow(Lift.RESTING, shape)
+            .clip(shape)
+            .background(Design.colors.paper)
+            .paperTooth()
+            .ruled(first = 8.dp, spacing = 11.dp, header = RuleRed)
+            .border(2.dp, selectionBorder(state, item.id), shape)
+            // A plain tap opens the page; selecting is still Ctrl/Shift+click, drag, or right-click.
+            .pointerInput(item.id) { detectTapGestures { state.openLink(item) } }
+            .padding(horizontal = 10.dp)
+            .testTag("link-" + item.id),
+    ) {
+        val materials = Design.materials
+        Canvas(Modifier.size(14.dp, 30.dp)) { with(materials) { drawPaperclip(Offset(1f, 0f), size.height) } }
+        Spacer(Modifier.width(8.dp))
+        Text(
+            item.title.ifBlank { item.url },
+            style = MaterialTheme.typography.body2,
+            color = Room.BOARDS.pigment.mass,
+            textDecoration = TextDecoration.Underline,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * A group's territory on the canvas: a tinted, outlined area behind its cards with the group name
+ * in the corner. Dragging the area (or its label) moves the whole group; the cards on top keep
+ * their own drag, so a single card can still be moved out of place inside it.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun GroupArea(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
+    val zoom = state.zoom
+    val density = LocalDensity.current
+    val accent = Notes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
+    val x = (hull.left - state.camX) * zoom + viewSize.width / 2f
+    val y = (hull.top - state.camY) * zoom + viewSize.height / 2f
+    val w = (hull.right - hull.left) * zoom
+    val h = (hull.bottom - hull.top) * zoom
+    val nested = hull.group.parentId != null
+
+    // The frame's shape in the area's own pixels: the union of the padded boxes and bridges,
+    // each a rounded rectangle. Built once per hull geometry and zoom, then both drawn and
+    // hit-tested, so what shows is exactly what answers a click.
+    val shape = remember(hull.boxes, hull.connectors, zoom) {
+        frameShape(hull.boxes, hull.connectors, originX = hull.left, originY = hull.top, zoom = zoom, seed = hull.group.id.hashCode())
+    }
+    // Draw-on (CONCEPT.md, Motion): a group just made has its frame drawn round its cards once;
+    // every other frame is simply there.
+    val reduced = LocalReducedMotion.current
+    val drawn = remember(hull.group.id) { Animatable(if (state.freshGroupId == hull.group.id && !reduced) 0f else 1f) }
+    LaunchedEffect(hull.group.id) {
+        if (drawn.value < 1f) drawn.animateTo(1f, tween(Motion.DRAW_ON_MS, easing = FastOutSlowInEasing))
+        state.frameDrawn(hull.group.id)
+    }
+    val composePath = remember(shape) { shape.asComposePath() }
+    // The pencil starts the loop where the pointer let go - the nearest point of the outline to it.
+    val beginAt = remember(hull.group.id) {
+        state.lastRelease?.let { (bx, by) -> Offset((bx - hull.left) * zoom, (by - hull.top) * zoom) }
+    }
+    // The frame's layer clips to its own shape, and Compose hit-tests a clipping layer by its
+    // outline: a press outside the shape is not a hit here at all and goes on to whatever is
+    // drawn underneath. Without this, a frame's rectangle swallowed presses meant for another
+    // group's frame lying inside it (and the canvas panned instead).
+    val frameClip = remember(composePath) { GenericShape { _, _ -> addPath(composePath) } }
+    val receiving = state.dropTargetGroup == hull.group.id
+    val fill = accent.copy(alpha = if (receiving) 0.28f else if (nested) 0.10f else 0.14f)
+    // Drawn in graphite, as a hand draws a loop round things on a table; in the group's own colour
+    // only while it is about to take a card.
+    val textured = Themes.isTextured(state.board?.theme ?: BoardThemes.PLAIN)
+    val line = if (receiving) accent else if (textured) Color(0xD92B2724) else Design.colors.muted
+    // Twice the width it shows: the clip takes the outer half of a stroke centred on the edge.
+    val stroke = with(density) { (if (receiving) 4.dp else if (nested) 1.dp else 2.dp).toPx() } * 2f
+    // A concept's group is outlined in dashes: borrowed, not the board's own.
+    val borrowedDash = if (hull.group.isConcept) PathEffect.dashPathEffect(floatArrayOf(12f, 8f)) else null
+
+    // As for a card: the frame's size and place on a box around the menu area (see CanvasItem),
+    // clipped to the frame's shape so that only the shape is a hit.
+    Box(
+        Modifier
+            .requiredSize(with(density) { w.toDp() }, with(density) { h.toDp() })
+            .graphicsLayer {
+                translationX = x
+                translationY = y
+                clip = true
+                this.shape = frameClip // `shape` alone is the Skia path above
+            },
+    ) {
+        ContextMenuArea(items = {
+            val group = hull.group
+            if (group.isConcept) listOf(
+                ContextMenuItem("Draw " + hull.count) { state.drawGroup(group.id) },
+                ContextMenuItem("Select group") { state.selectGroup(group.id) },
+                ContextMenuItem("Open concept") { group.conceptId?.let(state::showConcept) },
+                ContextMenuItem("Unlink from this board") { group.conceptId?.let(state::unlinkConcept) },
+            ) else listOf(
+                ContextMenuItem("Draw " + hull.count) { state.drawGroup(group.id) },
+                ContextMenuItem("Select group") { state.selectGroup(group.id) },
+                ContextMenuItem("Rename group…") { state.openEditor(BoardEditor.RenameGroup(group.id)) },
+                ContextMenuItem("Cycle colour") { state.cycleGroupColor(group.id) },
+                ContextMenuItem("Delete group (cards stay)") { state.deleteGroup(group.id) },
+            )
+        }) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .drawBehind {
+                        val p = drawn.value
+                        drawPath(composePath, fill.copy(alpha = fill.alpha * p))
+                        val outline = if (p >= 1f) composePath else partOfOutline(shape, p, beginAt).asComposePath()
+                        drawPath(outline, line, style = Stroke(width = stroke, join = StrokeJoin.Round, cap = StrokeCap.Round, pathEffect = borrowedDash))
+                    }
+                    // A press on the frame picks the group up; a drag moves it as one. The layer
+                    // above clips to the frame's shape, so a press in the empty notch of an L never
+                    // arrives here. The drag detector is the one the cards use: its slop follows the
+                    // pointer type — a fraction of a pixel for a mouse — as the canvas' own pan does.
+                    // A handler waiting for the touch slop (some twenty pixels) lost every real mouse
+                    // drag to the pan underneath, which took the first four-pixel move and everything
+                    // after it: "everything moves with the group".
+                    .onPointerEvent(PointerEventType.Press) { event ->
+                        if (event.buttons.isPrimaryPressed) {
+                            PointerLog.log("frame ${hull.group.name}: press -> select")
+                            state.selectGroup(hull.group.id)
+                        }
+                    }
+                    .pointerInput(hull.group.id) {
+                        detectDragGestures(
+                            onDragStart = { PointerLog.log("frame ${hull.group.name}: drag start at $it") },
+                            onDrag = { change, drag ->
+                                change.consume()
+                                state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                            },
+                            onDragEnd = {
+                                PointerLog.log("frame ${hull.group.name}: drag end")
+                                state.commitLayout()
+                            },
+                            onDragCancel = { state.commitLayout() },
+                        )
+                    },
+            )
+        }
+    }
+}
+
+/**
+ * One Skia path for a group's frame: the union of [boxes] (rounded rectangles) and [connectors]
+ * (convex polygons filling the space between pieces), translated so that ([originX], [originY])
+ * is the path's origin and scaled by [zoom] to pixels. The union is then thickened with a round
+ * stroke and united back, which rounds off every corner the union left sharp — the frame reads
+ * as one soft shape rather than a stack of rectangles.
+ */
+internal fun frameShape(
+    boxes: List<List<Float>>,
+    connectors: List<List<Float>>,
+    originX: Float,
+    originY: Float,
+    zoom: Float,
+    seed: Int = 0,
+): org.jetbrains.skia.Path = handDrawn(frameUnion(boxes, connectors, originX, originY, zoom), seed, zoom)
+
+/** The frame's smooth outline, before the hand's wobble: see [frameShape]. */
+internal fun frameUnion(
+    boxes: List<List<Float>>,
+    connectors: List<List<Float>>,
+    originX: Float,
+    originY: Float,
+    zoom: Float,
+): org.jetbrains.skia.Path {
+    fun x(v: Float) = (v - originX) * zoom
+    fun y(v: Float) = (v - originY) * zoom
+    val radius = FrameShape.RADIUS * zoom
+    var union: org.jetbrains.skia.Path? = null
+    fun add(piece: org.jetbrains.skia.Path) {
+        union = if (union == null) piece else org.jetbrains.skia.Path.makeCombining(union!!, piece, org.jetbrains.skia.PathOp.UNION) ?: union
+    }
+    for (box in boxes) {
+        add(org.jetbrains.skia.Path().addRRect(org.jetbrains.skia.RRect.makeLTRB(x(box[0]), y(box[1]), x(box[2]), y(box[3]), radius)))
+    }
+    for (polygon in connectors) {
+        if (polygon.size < 6) continue
+        val points = Array(polygon.size / 2) { i -> org.jetbrains.skia.Point(x(polygon[2 * i]), y(polygon[2 * i + 1])) }
+        add(org.jetbrains.skia.Path().addPoly(points, true))
+    }
+    val core = union ?: return org.jetbrains.skia.Path()
+    // Dilate: stroke the outline with round joins and unite it with the fill.
+    val paint = org.jetbrains.skia.Paint().apply {
+        mode = org.jetbrains.skia.PaintMode.STROKE
+        strokeWidth = radius * 0.6f
+        strokeJoin = org.jetbrains.skia.PaintStrokeJoin.ROUND
+        strokeCap = org.jetbrains.skia.PaintStrokeCap.ROUND
+    }
+    val rim = org.jetbrains.skia.PathUtils.fillPathWithPaint(core, paint)
+    paint.close()
+    return org.jetbrains.skia.Path.makeCombining(core, rim, org.jetbrains.skia.PathOp.UNION) ?: core
+}
+
+/** How far a frame's edge wanders from the smooth outline, and over what length, in board units. */
+internal const val WOBBLE_AMPLITUDE = 1.4f
+internal const val WOBBLE_WAVELENGTH = 38f
+
+/**
+ * The frame as a hand draws it: every contour of [path] walked in small steps, each point pushed
+ * in or out along the edge's normal by a smooth noise of the distance walked. The distance is in
+ * board units, so the wobble stays where it is when zooming; it closes where it began. The result
+ * is again the frame's one path — drawn, clipped to and hit-tested — so what shows is still
+ * exactly what answers a click.
+ */
+internal fun handDrawn(path: org.jetbrains.skia.Path, seed: Int, zoom: Float): org.jetbrains.skia.Path {
+    val amplitude = WOBBLE_AMPLITUDE * zoom
+    if (amplitude < 0.3f) return path
+    val out = org.jetbrains.skia.Path().apply { fillMode = path.fillMode }
+    val measure = org.jetbrains.skia.PathMeasure(path, true)
+    var contour = 0
+    do {
+        val length = measure.length
+        if (length <= 0f) continue
+        val points = maxOf(12, (length / 5f).toInt())
+        val boardLength = length / zoom
+        for (i in 0 until points) {
+            val d = length * i / points
+            val pos = measure.getPosition(d) ?: continue
+            val tan = measure.getTangent(d) ?: continue
+            // Blend the last tenth back toward the start, so the line closes where it began.
+            val t = (d / zoom) / WOBBLE_WAVELENGTH
+            val toStart = ((d / length - 0.9f) / 0.1f).coerceIn(0f, 1f)
+            val n = wobbleNoise(t, seed + contour) * (1f - toStart) + wobbleNoise(0f, seed + contour) * toStart
+            val off = amplitude * n * (if (boardLength < WOBBLE_WAVELENGTH) boardLength / WOBBLE_WAVELENGTH else 1f)
+            val x = pos.x - tan.y * off
+            val y = pos.y + tan.x * off
+            if (i == 0) out.moveTo(x, y) else out.lineTo(x, y)
+        }
+        out.closePath()
+        contour++
+    } while (measure.nextContour())
+    return out
+}
+
+/** Smooth one-dimensional value noise in -1..1. */
+private fun wobbleNoise(t: Float, seed: Int): Float {
+    fun hash(k: Int): Float {
+        var h = k * 374761393 + seed * 668265263
+        h = (h xor (h ushr 13)) * 1274126177
+        h = h xor (h ushr 16)
+        return (h and 0xFFFF) / 32767.5f - 1f
+    }
+    val i = kotlin.math.floor(t).toInt()
+    val f = t - i
+    val u = f * f * (3f - 2f * f)
+    return hash(i) * (1f - u) + hash(i + 1) * u
+}
+
+/**
+ * The first [fraction] of [path]'s outline, all contours walked in turn: the frame as far as the
+ * pencil has got. With [start], the walk begins at the point of the outline nearest to it - on
+ * its contour, round to where it began - and then takes the others.
+ */
+internal fun partOfOutline(path: org.jetbrains.skia.Path, fraction: Float, start: Offset? = null): org.jetbrains.skia.Path {
+    val measure = org.jetbrains.skia.PathMeasure(path, false)
+    val lengths = mutableListOf<Float>()
+    do lengths += measure.length while (measure.nextContour())
+    // Where on which contour the pencil sets down: the nearest of points a few pixels apart.
+    var first = 0
+    var at = 0f
+    if (start != null) {
+        var best = Float.MAX_VALUE
+        val probe = org.jetbrains.skia.PathMeasure(path, false)
+        lengths.forEachIndexed { i, length ->
+            var d = 0f
+            while (d < length) {
+                probe.getPosition(d)?.let { p ->
+                    val dist = (p.x - start.x) * (p.x - start.x) + (p.y - start.y) * (p.y - start.y)
+                    if (dist < best) { best = dist; first = i; at = d }
+                }
+                d += 4f
+            }
+            probe.nextContour()
+        }
+    }
+    var left = lengths.sum() * fraction.coerceIn(0f, 1f)
+    val out = org.jetbrains.skia.Path()
+    // The contours from the first, then the rest in their order.
+    val order = listOf(first) + lengths.indices.filter { it != first }
+    for (i in order) {
+        if (left <= 0f) break
+        val walk = org.jetbrains.skia.PathMeasure(path, false)
+        repeat(i) { walk.nextContour() }
+        val length = lengths[i]
+        val from = if (i == first) at else 0f
+        val firstLeg = minOf(left, length - from)
+        walk.getSegment(from, from + firstLeg, out, true)
+        left -= firstLeg
+        // Round past the contour's start, back to where the pencil set down.
+        if (left > 0f && from > 0f) {
+            val second = minOf(left, from)
+            walk.getSegment(0f, second, out, false)
+            left -= second
+        }
+    }
+    return out
+}
+
+/**
+ * A group's name, drawn over everything else so no card can cover it, and kept in sight while any
+ * part of its group is: a hull is often far wider than the view, and pinning the label to the
+ * hull's top-left corner meant the handle disappeared with the corner.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+private fun GroupLabel(state: BoardState, hull: BoardState.GroupHull, viewSize: IntSize) {
+    val zoom = state.zoom
+    val accent = Notes.parseColor(hull.color) ?: MaterialTheme.colors.secondary
+    val left = (hull.left - state.camX) * zoom + viewSize.width / 2f
+    val top = (hull.top - state.camY) * zoom + viewSize.height / 2f
+    val right = (hull.right - state.camX) * zoom + viewSize.width / 2f
+    val bottom = (hull.bottom - state.camY) * zoom + viewSize.height / 2f
+    // Off screen entirely: there is nothing to label.
+    if (right <= 0f || bottom <= 0f || left >= viewSize.width || top >= viewSize.height) return
+
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    // Slide along the edge to stay visible, but never outside the group being named.
+    val x = left.coerceAtLeast(0f).coerceAtMost((right - size.width).coerceAtLeast(0f))
+    val y = top.coerceAtLeast(0f).coerceAtMost((bottom - size.height).coerceAtLeast(0f))
+    // A new group's tag comes once its frame has been drawn (Draw-on).
+    val shown by animateFloatAsState(if (state.freshGroupId == hull.group.id) 0f else 1f, tween(200))
+
+    // A paper tag pinned to the frame, its name lettered; the pin is the group's colour, a
+    // concept's is viridian.
+    Surface(
+        color = Design.colors.paper,
+        shape = RoundedCornerShape(2.dp),
+        elevation = 0.dp,
+        modifier = Modifier
+            .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+            // Pinned a little askew, as by hand; a layer turns hits with what it draws.
+            .graphicsLayer {
+                alpha = shown
+                rotationZ = CardLayout.naturalTilt(hull.group.id) * 1.5f
+            }
+            .lampShadow(Lift.RESTING, RoundedCornerShape(2.dp))
+            .onSizeChanged { size = it }
+            .testTag("group-label-" + hull.group.id)
+            // The label is the group's handle: a press picks the group up, a drag moves it — the
+            // same as the frame, with the same drag detector (see GroupArea for why that one).
+            .onPointerEvent(PointerEventType.Press) { event ->
+                if (event.buttons.isPrimaryPressed) {
+                    PointerLog.log("label ${hull.group.name}: press -> select")
+                    state.selectGroup(hull.group.id)
+                }
+            }
+            .pointerInput(hull.group.id) {
+                detectDragGestures(
+                    onDragStart = { PointerLog.log("label ${hull.group.name}: drag start at $it") },
+                    onDrag = { change, drag ->
+                        change.consume()
+                        state.dragGroupBy(hull.group.id, drag.x / state.zoom, drag.y / state.zoom)
+                    },
+                    onDragEnd = {
+                        PointerLog.log("label ${hull.group.name}: drag end")
+                        state.commitLayout()
+                    },
+                    onDragCancel = { state.commitLayout() },
+                )
+            },
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(start = 7.dp, end = 9.dp, top = 1.dp, bottom = 1.dp),
+        ) {
+            val design = LocalDesign.current
+            Canvas(Modifier.size(10.dp)) {
+                with(design.materials) {
+                    drawPin(center, this@Canvas.size.minDimension / 2.2f, if (hull.group.isConcept) design.pigmentOf(Room.CONCEPTS) else Pigment("group", accent, accent, design.colors.ink))
+                }
+            }
+            Text(
+                (if (hull.group.isConcept) "⧉ " else "") + hull.group.name,
+                style = Design.hand.copy(fontSize = 19.sp),
+                color = Design.colors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 240.dp),
+            )
+            Text("${hull.count}", fontSize = 11.sp, color = Design.colors.inkQuiet)
+        }
+    }
+}
+
+/** What holds a card to the board. */
+private enum class CardHolder { PIN, TAPE, NONE }

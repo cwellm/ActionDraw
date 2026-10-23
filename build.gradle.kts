@@ -1,10 +1,10 @@
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-
+// The root holds no code: the modules are in lib/, app/ and device/ (docs/Architecture.md). It
+// declares the plugins' versions once, for every module, and the lint every module gets.
 plugins {
-    kotlin("jvm") version "2.1.0"
-    kotlin("plugin.serialization") version "2.1.0"
-    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
-    id("org.jetbrains.compose") version "1.7.3"
+    kotlin("jvm") version "2.1.0" apply false
+    kotlin("plugin.serialization") version "2.1.0" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0" apply false
+    id("org.jetbrains.compose") version "1.7.3" apply false
     // The lint gate on every pull request (.github/workflows/lint.yml); the rules are in .editorconfig.
     id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
 }
@@ -14,81 +14,4 @@ allprojects {
     configure<org.jlleitschuh.gradle.ktlint.KtlintExtension> {
         version.set("1.5.0")
     }
-}
-
-group = "de.creaflect.actiondraw"
-version = "1.0.0"
-
-repositories {
-    mavenCentral()
-    google()
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-}
-
-dependencies {
-    implementation(compose.desktop.currentOs)
-    // The drawing engine (Live Sketch), a library of its own: docs/Pencil-Engine-Architecture.md.
-    implementation(project(":sketch-engine"))
-    // Pen pressure and tilt come from native input, not from Compose (LEARNINGS L1): on Windows,
-    // WM_POINTER + GetPointerPenInfo through JNA — pure Java, no compiler, no build step.
-    implementation("net.java.dev.jna:jna:5.14.0")
-    implementation("net.java.dev.jna:jna-platform:5.14.0")
-    // Idea-Board sidecar files (.actiondraw_board.json)
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    // AVIF decoding: an ImageIO plugin (libavif/libdav1d JNI). Neither the JDK nor the bundled
-    // Skia can read AVIF; ImageDecoder falls back to ImageIO, so this is all that is needed.
-    implementation("io.github.nemanjastokuca:avif-imageio-native-reader:0.1.0")
-    testImplementation(kotlin("test"))
-    // Drives the real composables in tests: pointer behaviour (what a click actually selects)
-    // cannot be checked any other way.
-    testImplementation(compose.desktop.uiTestJUnit4)
-    testRuntimeOnly("org.junit.vintage:junit-vintage-engine:5.10.2")
-}
-
-kotlin {
-    jvmToolchain(17)
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-compose.desktop {
-    application {
-        mainClass = "de.creaflect.actiondraw.MainKt"
-        nativeDistributions {
-            targetFormats(TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "ActionDraw"
-            packageVersion = "1.0.0"
-            description = "Timed reference drawing practice"
-            copyright = "© 2026 creaflect"
-            vendor = "creaflect"
-
-            windows {
-                iconFile.set(project.file("art/icons/actiondraw.ico"))
-                menuGroup = "ActionDraw"
-                shortcut = true
-                dirChooser = true
-                perUserInstall = true
-                // Stable GUID: future versions upgrade in place instead of installing side by side.
-                upgradeUuid = "028fad78-4d72-4bab-858a-6e06e449826e"
-            }
-            linux {
-                iconFile.set(project.file("art/icons/actiondraw-512.png"))
-                packageName = "actiondraw"
-                menuGroup = "Graphics"
-                appCategory = "Graphics"
-                shortcut = true
-            }
-        }
-    }
-}
-
-// Render art/actiondraw.svg into art/icons/ (PNGs + multi-res .ico) using the bundled Skia engine.
-tasks.register<JavaExec>("genIcons") {
-    group = "distribution"
-    description = "Generate icon assets from art/actiondraw.svg"
-    classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("de.creaflect.actiondraw.tools.IconGenKt")
-    args(project.file("art/actiondraw.svg").path, project.file("art/icons").path)
 }

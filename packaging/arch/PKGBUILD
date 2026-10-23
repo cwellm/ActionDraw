@@ -23,7 +23,7 @@ build() {
 
 package() {
     cd "$startdir/../.."
-    local app="build/compose/binaries/main/app/ActionDraw"
+    local app="app/desktop/build/compose/binaries/main/app/ActionDraw"
 
     # Self-contained app image (app + bundled runtime) under /opt.
     install -d "$pkgdir/opt/actiondraw"

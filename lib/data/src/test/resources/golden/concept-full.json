@@ -1,0 +1,49 @@
+{
+    "version": 1,
+    "id": "c1",
+    "name": "Wyvern",
+    "kind": "creature",
+    "notes": "Two legs, not four.",
+    "items": [
+        {
+            "type": "image",
+            "id": "ci1",
+            "path": "w.png",
+            "groups": [],
+            "caption": "Side",
+            "starred": false,
+            "tags": [],
+            "pos": null,
+            "aspect": null,
+            "contentId": null
+        },
+        {
+            "type": "note",
+            "id": "cn1",
+            "text": "scales",
+            "groups": [],
+            "pos": null,
+            "color": null,
+            "heading": false,
+            "kind": "document"
+        },
+        {
+            "type": "link",
+            "id": "cl1",
+            "url": "example.com",
+            "title": "",
+            "groups": [],
+            "pos": null,
+            "preview": null
+        }
+    ],
+    "documents": [
+        "_docs/Anatomy.md"
+    ],
+    "layout": "free",
+    "camera": {
+        "x": 1.0,
+        "y": 2.0,
+        "zoom": 3.0
+    }
+}

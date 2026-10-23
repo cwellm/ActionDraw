@@ -38,15 +38,15 @@ Expected tail of step 2:
 ```
 > Task :downloadWix
 > Task :packageMsi
-The distribution is written to ...\build\compose\binaries\main\msi\ActionDraw-1.0.0.msi
+The distribution is written to ...\app\desktop\build\compose\binaries\main\msi\ActionDraw-1.0.0.msi
 BUILD SUCCESSFUL
 ```
 
-**Output:** `build\compose\binaries\main\msi\ActionDraw-1.0.0.msi`
+**Output:** `app\desktop\build\compose\binaries\main\msi\ActionDraw-1.0.0.msi`
 
 ### Verify the artifact
 ```powershell
-Get-Item .\build\compose\binaries\main\msi\ActionDraw-1.0.0.msi |
+Get-Item .\app\desktop\build\compose\binaries\main\msi\ActionDraw-1.0.0.msi |
     Select-Object Name, @{n='MB';e={[math]::Round($_.Length/1MB,2)}}
 ```
 You should see `ActionDraw-1.0.0.msi` at roughly **52 MB**.
@@ -54,7 +54,7 @@ You should see `ActionDraw-1.0.0.msi` at roughly **52 MB**.
 Optional — read the product metadata straight from the MSI:
 ```powershell
 $w = New-Object -ComObject WindowsInstaller.Installer
-$db = $w.GetType().InvokeMember('OpenDatabase','InvokeMethod',$null,$w,@((Resolve-Path .\build\compose\binaries\main\msi\ActionDraw-1.0.0.msi).Path,0))
+$db = $w.GetType().InvokeMember('OpenDatabase','InvokeMethod',$null,$w,@((Resolve-Path .\app\desktop\build\compose\binaries\main\msi\ActionDraw-1.0.0.msi).Path,0))
 $v = $db.GetType().InvokeMember('OpenView','InvokeMethod',$null,$db,@("SELECT Property,Value FROM Property"))
 $v.GetType().InvokeMember('Execute','InvokeMethod',$null,$v,$null)
 while ($r = $v.GetType().InvokeMember('Fetch','InvokeMethod',$null,$v,$null)) {

@@ -1,0 +1,136 @@
+{
+    "version": 1,
+    "name": "Drachen",
+    "theme": "papyrus",
+    "layout": "free",
+    "camera": {
+        "x": 12.5,
+        "y": -3.0,
+        "zoom": 1.75
+    },
+    "session": {
+        "plan": "Classic gesture",
+        "intervalSeconds": 60,
+        "autoAdvance": false,
+        "viewMode": "NOTAN",
+        "grid": "THIRDS",
+        "temperature": -0.4
+    },
+    "groups": [
+        {
+            "id": "g1",
+            "name": "Heads",
+            "color": "#80CBC4",
+            "order": 1,
+            "collapsed": true,
+            "parentId": null,
+            "source": null
+        },
+        {
+            "id": "g2",
+            "name": "Eyes",
+            "color": null,
+            "order": 2,
+            "collapsed": false,
+            "parentId": "g1",
+            "source": null
+        },
+        {
+            "id": "concept:c1",
+            "name": "Wyvern",
+            "color": null,
+            "order": 3,
+            "collapsed": false,
+            "parentId": null,
+            "source": "concept:c1"
+        }
+    ],
+    "items": [
+        {
+            "type": "image",
+            "id": "i1",
+            "path": "heads/a.png",
+            "groups": [
+                "g1"
+            ],
+            "caption": "Front",
+            "starred": true,
+            "tags": [
+                "red",
+                "wing"
+            ],
+            "pos": {
+                "x": 10.0,
+                "y": 20.0,
+                "scale": 1.5,
+                "rotation": -2.4
+            },
+            "aspect": 0.75,
+            "contentId": "123-abc"
+        },
+        {
+            "type": "image",
+            "id": "i2",
+            "path": "b.jpg",
+            "groups": [],
+            "caption": null,
+            "starred": false,
+            "tags": [],
+            "pos": null,
+            "aspect": null,
+            "contentId": null
+        },
+        {
+            "type": "note",
+            "id": "n1",
+            "text": "# Light\nfrom the left",
+            "groups": [
+                "g2"
+            ],
+            "pos": {
+                "x": 1.0,
+                "y": 2.0,
+                "scale": 1.0,
+                "rotation": 0.0
+            },
+            "color": "#FFE082",
+            "heading": true,
+            "kind": "postit"
+        },
+        {
+            "type": "note",
+            "id": "n2",
+            "text": "Whose colours\n#112233 #445566",
+            "groups": [],
+            "pos": null,
+            "color": null,
+            "heading": false,
+            "kind": "palette"
+        },
+        {
+            "type": "link",
+            "id": "l1",
+            "url": "https://example.com/x",
+            "title": "Example",
+            "groups": [
+                "g1"
+            ],
+            "pos": {
+                "x": 5.0,
+                "y": 6.0,
+                "scale": 0.5,
+                "rotation": 0.0
+            },
+            "preview": "_previews/Example.png"
+        }
+    ],
+    "wallpaper": {
+        "path": "_wallpaper/w.jpg",
+        "fit": "tile",
+        "dim": 0.5,
+        "blur": 0.25
+    },
+    "concepts": [
+        "c1"
+    ]
+}

@@ -31,8 +31,8 @@ jobs:
       # Caches Gradle's downloads between runs and checks the wrapper is Gradle's own.
       - uses: gradle/actions/setup-gradle@v4
 
-      # The app's tests and the sketch engine's; --continue so one failing module does not hide
-      # the other's results. The gate is Gradle's exit code.
+      # Every module's tests; --continue so one failing module does not hide the others'
+      # results. The gate is Gradle's exit code.
       - name: Run every test
         run: ./gradlew.bat test --continue --console=plain
 
@@ -42,8 +42,7 @@ jobs:
         with:
           name: test-reports
           path: |
-            build/reports/tests/test
-            sketch-engine/build/reports/tests/test
-            build/screenshots
+            **/build/reports/tests/test
+            app/desktop/build/screenshots
           if-no-files-found: ignore
           retention-days: 14

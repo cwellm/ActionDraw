@@ -357,7 +357,7 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
 
 ## Live Sketch — a page, a pencil, a pen
 
-The drawing engine lives in its own module, `sketch-engine`, with no Compose in it: pen samples
+The drawing engine lives in its own module, `lib/sketch-engine`, with no Compose in it: pen samples
 in, pixels out ([docs/Pencil-Engine-Architecture.md](docs/Pencil-Engine-Architecture.md)). Pen
 pressure never reaches Compose, so on Windows the app hooks its own window through Windows Ink
 and reads pressure, tilt and rotation straight from the pen, alongside the mouse events
@@ -502,7 +502,8 @@ a normal file in your board folder and the board works offline again. *Remove pr
 back off the card.
 
 Nothing else in the app makes a network request — no updates, no telemetry, no fonts or icons
-loaded from anywhere.
+loaded from anywhere. In the code, only the `lib/network` module can make one, and it refuses
+any address that is not `http` or `https` before anything is sent.
 
 ## Image formats
 
@@ -513,11 +514,45 @@ libavif/libdav1d as prebuilt JNI binaries, ~7 MB, x86-64 Windows/macOS/Linux).
 Decoding runs through `ImageDecoder`: Skia first, ImageIO as a fallback. Formats that need a
 plugin are only advertised when a reader is actually installed, so a board never shows a card
 whose picture cannot be drawn — drop in a HEIC reader and `.heic` files start working with no code
-change. Remove the AVIF line from [build.gradle.kts](build.gradle.kts) and `.avif` files simply
-stop being offered; nothing else breaks.
+change. Remove the AVIF line from [lib/core/io/build.gradle.kts](lib/core/io/build.gradle.kts) and
+`.avif` files simply stop being offered; nothing else breaks.
 
 An import that leaves something out (unreadable format, or a picture already on the board) says so
 on the board instead of silently ignoring the drop.
+
+## How the code is laid out
+Gradle modules, each depending only on the ones below it. Where this is going, with a diagram,
+is [docs/Architecture.md](docs/Architecture.md); the steps are M10 in the [roadmap](ROADMAP.md).
+
+In three groups — `lib` for what an application builds on, `device` for the hardware it talks to,
+`app` for the applications on top:
+
+- `lib/domain` — the API: boards and their cards, concepts, the session's vocabulary and the
+  rules on them; `Lib`, through which everything is got and kept; and what the lib needs from its
+  host (clipboard, file dialogs, browser, pen)
+- `lib/data` — `FileLib`, the domain over the files: boards' and concepts' folders and their
+  sidecars, the registries, settings, thumbnails, practice history, link previews — writing off
+  the UI thread, and the only module that reaches the files or the network
+- `lib/core/model` — how things are stored: the sidecars' and registries' format, field for
+  field what the files on disk hold
+- `lib/core/io` — files: the app's own folders (`AppDirs`), writing a file whole or not at all,
+  moving and deleting folders, listing and decoding pictures
+- `lib/core/lifecycle` — the lib's run: its scope and dispatcher, the writes it must not lose, the
+  memory it holds while running, closing down cleanly
+- `lib/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
+- `lib/sketch-engine` — the drawing engine: pen samples in, pixels out
+- `lib/design/contract` — the design system's contract: what a screen may ask of the design it is
+  drawn in (colours, pigments, type, materials, chrome), read through the theme; and the UI kit's
+  basics (motion, the chrome that steps back)
+- `lib/design/atelier` — the default design: the atelier of [CONCEPT.md](CONCEPT.md), and its
+  fonts
+- `lib/feature/practice`, `board`, `concept`, `sketch` — the rooms: each one's state and logic
+  over the domain, its screens on the design contract; none knows another
+- `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
+- `app/desktop` — the app: the palette, the windows, the rooms put together, the desktop's
+  clipboard, dialogs, browser and pen, and the start-up
+- `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library`,
+  `actiondraw.skia` and `actiondraw.compose`
 
 ## Requirements
 - JDK 17 (a `JAVA_HOME` pointing at a JDK 17 install) — only for running from source and
@@ -542,9 +577,9 @@ misbehaves on one machine only. Unset, it costs nothing.
 Two GitHub Actions run on every pull request and on `main`, and `main` only takes a pull request
 whose checks have passed:
 
-- **Tests** (`.github/workflows/tests.yml`) — every test of the app and the sketch engine, on
-  Windows, where the app's fonts and pen are measured; the reports and the room screenshots are
-  kept as the run's artifacts.
+- **Tests** (`.github/workflows/tests.yml`) — every module's tests, on Windows, where the app's
+  fonts and pen are measured; the reports and the room screenshots are kept as the run's
+  artifacts.
 - **Lint** (`.github/workflows/lint.yml`) — ktlint over every Kotlin file, with the rules in
   `.editorconfig`: the IntelliJ IDEA style, hygiene on (imports, indentation, spacing, naming),
   wrapping left to the code.
@@ -559,6 +594,8 @@ whose checks have passed:
 ./gradlew packageMsi    # Windows installer
 ./gradlew packageDeb    # Debian/Linux package
 ```
+
+The installers land in `app/desktop/build/compose/binaries/main/`.
 
 Step-by-step guides, including install/upgrade/uninstall verification:
 [Windows (MSI)](docs/Packaging-Windows.md) ·
