@@ -30,18 +30,18 @@ fun exerciseOf(plan: SessionPlan?, viewMode: ViewMode): Exercise = when {
     else -> Exercise.ACTION
 }
 
-val PracticeState.exercise: Exercise get() = exerciseOf(rampPlan, viewMode)
+val PracticeState.exercise: Exercise get() = exerciseOf(rampPlan, lens.viewMode)
 
 /** Choosing an exercise sets what makes the session that exercise, and leaves the rest alone. */
 fun PracticeState.chooseExercise(exercise: Exercise) {
     if (!exercise.available) return
     when (exercise) {
         Exercise.ACTION -> {
-            viewMode = ViewMode.NONE
+            lens.viewMode = ViewMode.NONE
             if (rampPlan?.hasMemorySteps == true) rampPlan = SessionPlans.CLASSIC_GESTURE
         }
         Exercise.LENS -> {
-            if (viewMode == ViewMode.NONE) viewMode = ViewMode.NOTAN
+            if (lens.viewMode == ViewMode.NONE) lens.viewMode = ViewMode.NOTAN
             if (rampPlan?.hasMemorySteps == true) rampPlan = null
         }
         Exercise.MEMORY -> rampPlan = SessionPlans.FROM_MEMORY
@@ -62,16 +62,3 @@ fun rampBars(plan: SessionPlan): List<Float> {
 /** How far round the ensō is drawn: the share of the pose gone by, full once the time is up. */
 fun ensoSweep(elapsedSeconds: Int, intervalSeconds: Int): Float =
     if (intervalSeconds <= 0) 0f else (elapsedSeconds.toFloat() / intervalSeconds).coerceIn(0f, 1f)
-
-/** The lenses in the order of their keys, 1 to 9, with the names on their slides. */
-val LENSES: List<Pair<ViewMode, String>> = listOf(
-    ViewMode.NONE to "None",
-    ViewMode.GRAYSCALE to "B&W",
-    ViewMode.SQUINT to "Squint",
-    ViewMode.SEPIA to "Sepia",
-    ViewMode.POSTERIZE to "Posterize",
-    ViewMode.PIXELATE to "Pixelate",
-    ViewMode.EDGE to "Edge",
-    ViewMode.SILHOUETTE to "Silhouette",
-    ViewMode.NOTAN to "Notan",
-)

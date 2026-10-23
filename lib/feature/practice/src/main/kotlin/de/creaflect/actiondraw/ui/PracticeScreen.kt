@@ -205,7 +205,7 @@ private fun TimingPanel(state: PracticeState, modifier: Modifier) {
             // Any exercise can start with a lens; a lens chosen makes it a lens study.
             Overline("Start with a lens")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LENSES.forEach { (mode, name) -> LensChoice(mode, name, state.viewMode == mode) { state.viewMode = mode } }
+                LENSES.forEach { (mode, name) -> LensChoice(mode, name, state.lens.viewMode == mode) { state.lens.viewMode = mode } }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = state.autoAdvance, onCheckedChange = { state.autoAdvance = it })

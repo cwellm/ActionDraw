@@ -75,7 +75,7 @@ class PracticeTest {
     fun choosingAnExerciseSetsWhatMakesItThatExercise() {
         val state = PracticeState(FileLib(config))
         state.chooseExercise(Exercise.LENS)
-        assertEquals(ViewMode.NOTAN, state.viewMode)
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode)
         assertEquals(Exercise.LENS, state.exercise)
 
         state.chooseExercise(Exercise.MEMORY)
@@ -83,7 +83,7 @@ class PracticeTest {
         assertEquals(Exercise.MEMORY, state.exercise)
 
         state.chooseExercise(Exercise.ACTION)
-        assertEquals(ViewMode.NONE, state.viewMode)
+        assertEquals(ViewMode.NONE, state.lens.viewMode)
         assertEquals(SessionPlans.CLASSIC_GESTURE, state.rampPlan, "no longer hiding the picture")
         assertEquals(Exercise.ACTION, state.exercise)
 
@@ -116,10 +116,10 @@ class PracticeTest {
 
         rule.onNodeWithTag("exercise-lens").performClick()
         rule.waitForIdle()
-        assertEquals(ViewMode.NOTAN, state.viewMode)
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode)
         rule.onNodeWithTag("start-lens-edge").performClick()
         rule.waitForIdle()
-        assertEquals(ViewMode.EDGE, state.viewMode, "the starting lens")
+        assertEquals(ViewMode.EDGE, state.lens.viewMode, "the starting lens")
 
         rule.onNodeWithTag("exercise-memory").performClick()
         rule.waitForIdle()
@@ -139,15 +139,15 @@ class PracticeTest {
 
         rule.onNodeWithTag("lens-edge").performClick()
         rule.mainClock.advanceTimeBy(100)
-        assertEquals(ViewMode.EDGE, state.viewMode)
+        assertEquals(ViewMode.EDGE, state.lens.viewMode)
         rule.onNodeWithTag("lens-edge").assertIsSelected()
 
         rule.onNodeWithTag("knob-b").performClick()
         rule.mainClock.advanceTimeBy(100)
-        assertTrue(state.blur)
+        assertTrue(state.lens.blur)
         rule.onNodeWithTag("knob-g").performClick()
         rule.mainClock.advanceTimeBy(100)
-        assertEquals(GridMode.THIRDS, state.gridMode, "the grid knob turns the grids round, as G does")
+        assertEquals(GridMode.THIRDS, state.lens.gridMode, "the grid knob turns the grids round, as G does")
     }
 
     /** The ensō's brush is on screen, a tenth of the way round a tenth of the way into the pose. */
@@ -251,7 +251,7 @@ class PracticeTest {
         assertEquals(Exercise.ACTION, state.exercise)
         rule.onNodeWithTag("start-lens-notan").performClick()
         rule.waitForIdle()
-        assertEquals(ViewMode.NOTAN, state.viewMode)
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode)
         assertEquals(Exercise.LENS, state.exercise, "a lens to start with makes it a lens study")
         rule.onNodeWithTag("start-lens-none").performClick()
         rule.waitForIdle()

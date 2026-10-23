@@ -89,16 +89,17 @@ class PracticeStateTest {
     }
 
     @Test
-    fun defractionRollsAFreshSeedOnEverySwitchOn() {
+    fun aBoardsSetupIsWhatTheSessionsLensShowsAndWhatItRemembers() {
+        makeImages("a.jpg", "b.jpg")
         val state = newState()
-        val seeds = mutableSetOf<Float>()
-        repeat(4) {
-            state.toggleDefraction() // on -> rolls a seed
-            assertTrue(state.defraction)
-            seeds += state.defractionSeed
-            state.toggleDefraction() // off
-        }
-        assertTrue(seeds.size > 1, "seed must differ between activations (got $seeds)")
+        val setup = SessionSetup(null, 45, true, ViewMode.NOTAN, GridMode.PHI, temperature = -0.4f)
+        state.startBoardSession(dir, dir.listFiles()!!.toList(), setup)
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode)
+        assertEquals(GridMode.PHI, state.lens.gridMode)
+        assertEquals(-0.4f, state.lens.temperature)
+        state.lens.viewMode = ViewMode.EDGE
+        state.lens.gridMode = GridMode.THIRDS
+        assertEquals(SessionSetup(null, 45, true, ViewMode.EDGE, GridMode.THIRDS, temperature = -0.4f), state.currentSetup(), "what the board remembers is what is on screen")
     }
 
     @Test

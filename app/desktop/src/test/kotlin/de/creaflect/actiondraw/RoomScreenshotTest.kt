@@ -148,7 +148,7 @@ class RoomScreenshotTest {
         mainClock.autoAdvance = false // a running pose ticks for ever
         mainClock.advanceTimeBy(1500)
         shoot("04-session", null)
-        world.practice.glass.choose(Optic.CONVEX)
+        world.practice.lens.glass.choose(Optic.CONVEX)
         val reference = onNodeWithTag("reference")
         val size = reference.fetchSemanticsNode().size
         reference.performMouseInput { moveTo(Offset(size.width * 0.5f, size.height * 0.35f)) }

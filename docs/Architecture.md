@@ -7,8 +7,9 @@ dependency, so the build — not a convention — holds the boundaries below. M1
 - **`lib`** — what an application builds on, in two halves:
   - the **bare lib**: `core` (`model`, `io`, `lifecycle`), `network`, `domain`, `data` and the
     `sketch-engine`. Headless, usable on its own, with no UI at all;
-  - the **UI kit**: the design system (its contract and the default *atelier*) and the
-    features, one per room — the convenient way of putting the bare lib to use, ready for a GUI.
+  - the **UI kit**: the design system (its contract and the default *atelier*), the *lens* that
+    every room showing a picture sees it through, and the features, one per room — the convenient
+    way of putting the bare lib to use, ready for a GUI.
 - **`app`** — the applications on top. Today there is one, `desktop`.
 - **`device`** — the hardware the apps talk to natively. Today there is one, `pen`.
 
@@ -25,6 +26,7 @@ flowchart TB
   subgraph LIB["lib"]
     subgraph UI["UI kit"]
       features[":lib:feature:*<br/>practice · board · concept · sketch"]
+      lens[":lib:lens<br/>lenses · knobs · grids · the glass"]
       atelier[":lib:design:atelier<br/>the default design system"]
       contract[":lib:design:contract<br/>tokens · materials · chrome"]
     end
@@ -44,8 +46,11 @@ flowchart TB
   desktop --> atelier
   desktop --> pen
   pen --> domain
+  features --> lens
   features --> contract
   features --> domain
+  lens --> contract
+  lens --> domain
   atelier --> contract
   data --> domain
   data --> model
@@ -86,6 +91,10 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
   `MaterialTheme` is.
 - **`design:atelier`** — the default design system, in Compose: the atelier of
   [CONCEPT.md](../CONCEPT.md). Another design system implements the same contract.
+- **`lens`** — how a picture is seen: the lenses and the knobs over them, the proportion grids and
+  the glass, with the tray that holds them, the picture they work on and their keys, over one
+  `LensState`. Part of the UI kit and no room of its own: a session in the Practice room sees its
+  picture through it, and the Lens room will.
 - **`feature:*`** — a room as a unit: the contracts it adds in its own domain layer (its host, what
   it asks of other rooms), its state and logic over the domain's `Lib`, and its screens on the
   design contract. The desktop's services reach it as the domain's host contracts, handed in.
@@ -109,6 +118,7 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
    it in.
 7. **Nothing in the lib depends on a feature, and no feature on another.** What one room needs of
    another is a contract, in the domain or in the room's own domain layer, connected by the app.
+   What several rooms draw with lives below them in the UI kit — the design contract, the lens.
 8. **Features use the design contract, never `atelier` itself**, so another design system
    restyles them.
 9. **Compose lives in the UI kit and the app**; the operating system's services — the clipboard,
@@ -132,7 +142,8 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 | `:lib:sketch-engine` | `:sketch-engine` |
 | `:lib:design:contract` | new: `DesignSystem`, `Materials` and `Chrome` as contracts, read through `DesignTheme`; and the kit's basics, `ui/Motion.kt` (without the bloom) and `Components.kt` (F11.9) |
 | `:lib:design:atelier` | `ui/Atelier.kt`, `Materials.kt` (now `AtelierMaterials`), `RoomChrome.kt` (now `AtelierChrome`), the bloom out of `Motion.kt`, the fonts (F11.9) |
-| `:lib:feature:practice` | the Practice room out of `AppState` (now `PracticeState`, F11.10), `PinTargets`, and its screens (`ui/PracticeScreen`, `SessionScreen`, the glass, …) |
+| `:lib:lens` | the lens out of the Practice room (F10.1): `Filters.kt`, the glass (`Glass.kt`, `GlassView.kt`), `Grids.kt`; out of `SessionScreen` the tray (`LensTray`) and the picture (`LensView`), out of `SessionKeys` the lens's keys; the session's lens settings as one `LensState` |
+| `:lib:feature:practice` | the Practice room out of `AppState` (now `PracticeState`, F11.10), `PinTargets`, and its screens (`ui/PracticeScreen`, `SessionScreen`, …) |
 | `:lib:feature:board` | `BoardState` and `board/ui`, less the app's settings sheet |
 | `:lib:feature:concept` | `ConceptState` and `concept/ui` |
 | `:lib:feature:sketch` | `SketchState` and `sketch/ui` |

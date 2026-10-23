@@ -120,7 +120,7 @@ class SessionChromeTest {
         rule.onNodeWithTag("settings-close").performClick()
         step()
         rule.onNodeWithTag("settings-lens").assertDoesNotExist()
-        assertEquals(ViewMode.NOTAN, state.viewMode, "the lens stays on")
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode, "the lens stays on")
     }
 
     @Test
@@ -131,19 +131,19 @@ class SessionChromeTest {
         rule.onNodeWithTag("settings-light").assertExists()
         rule.onNodeWithTag("knob-b").performClick()
         step()
-        assertTrue(state.blur)
+        assertTrue(state.lens.blur)
         rule.onNodeWithTag("settings-blur").assertExists()
         rule.onNodeWithTag("settings-light").assertDoesNotExist()
         rule.onNodeWithTag("glass").performClick()
         step()
-        assertTrue(state.glass.inHand)
+        assertTrue(state.lens.glass.inHand)
         rule.onNodeWithTag("settings-glass").assertExists()
         rule.onNodeWithTag("glass-optic-fisheye").performClick()
         step()
-        assertEquals(de.creaflect.actiondraw.ui.Optic.FISHEYE, state.glass.optic)
+        assertEquals(de.creaflect.actiondraw.ui.Optic.FISHEYE, state.lens.glass.optic)
         rule.onNodeWithTag("glass").performClick()
         step()
-        assertFalse(state.glass.inHand)
+        assertFalse(state.lens.glass.inHand)
         rule.onNodeWithTag("settings-glass").assertDoesNotExist()
     }
 }

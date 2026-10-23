@@ -3,24 +3,22 @@ package de.creaflect.actiondraw.practice
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.Lib
 import de.creaflect.actiondraw.RampStep
 import de.creaflect.actiondraw.SessionPlan
 import de.creaflect.actiondraw.SessionSetup
-import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.relKey
+import de.creaflect.actiondraw.lens.LensState
 import de.creaflect.actiondraw.platform.FileDialogs
 import java.io.File
-import kotlin.random.Random
 
 /**
  * The Practice room: the folder or board it draws from, the pictures chosen, a session's pool and
- * clock, the filters and the glass, and what has been drawn. Plain class backed by Compose state so
- * the UI recomposes on change; all mutations happen through the action methods below. Where the
- * room is — its menu, the picker, a session, the summary — is its own [page]; the app shows the
- * room, and a session started on a board in a window of its own ([windowPage]).
+ * clock, the [lens] its pictures are seen through, and what has been drawn. Plain class backed by
+ * Compose state so the UI recomposes on change; all mutations happen through the action methods
+ * below. Where the room is — its menu, the picker, a session, the summary — is its own [page]; the
+ * app shows the room, and a session started on a board in a window of its own ([windowPage]).
  *
  * [lib] is where the pictures, what has been drawn of them, and the preferences (the last opened
  * folder) come from; a test hands in one over a temp folder, so it never touches the real user's.
@@ -91,55 +89,11 @@ class PracticeState(
     var isPaused by mutableStateOf(false)
         private set
 
-    // ---- Live filters ----
-    var viewMode by mutableStateOf(ViewMode.NONE)
-    var blur by mutableStateOf(false)
-    var upsideDown by mutableStateOf(false)
-    var mirror by mutableStateOf(false)
-    var gridMode by mutableStateOf(GridMode.OFF)
-
-    /** The glass held over the picture (F10.9): kept for the app's life, so its optic carries over. */
-    val glass = de.creaflect.actiondraw.ui.GlassState()
-
     /**
-     * White balance from -1 (cool) through 0 (neutral) to +1 (warm). Independent of the view
-     * mode, so a Notan study can still be lit warm; replaces the old Warm/Cool view modes.
+     * How the pose's picture is seen: its lens, the knobs, the grid and the glass. It lives as long
+     * as the room, so a lens chosen — the glass's optic too — carries over from pose to pose.
      */
-    var temperature by mutableStateOf(0f)
-
-    /** Invert the final colours — independent of (and applied after) every other effect. */
-    var invert by mutableStateOf(false)
-
-    /** Cubist "defraction": the image splits into random shards. Re-rolled on every switch-on. */
-    var defraction by mutableStateOf(false)
-        private set
-    var defractionSeed by mutableStateOf(0f)
-        private set
-
-    // ---- Adjustable filter parameters ----
-    /** Blur radius in dp. */
-    var blurRadius by mutableStateOf(12)
-
-    /** Posterize: number of value bands per channel. */
-    var posterizeLevels by mutableStateOf(5)
-
-    /** Pixelate: block edge length in pixels. */
-    var pixelateBlock by mutableStateOf(8)
-
-    /** Silhouette: luminance threshold (0..1) separating black from white. */
-    var silhouetteThreshold by mutableStateOf(0.5f)
-
-    /** Notan: number of values (2 or 3). */
-    var notanBands by mutableStateOf(2)
-
-    /** Notan: centre luminance threshold (0..1). */
-    var notanThreshold by mutableStateOf(0.5f)
-
-    /** Defraction: approximate shard size in pixels. */
-    var defractionBlock by mutableStateOf(96)
-
-    /** Defraction: displacement/rotation strength (0..1). */
-    var defractionStrength by mutableStateOf(0.5f)
+    val lens = LensState()
 
     // ---- Session stats ----
     var sessionPoses by mutableStateOf(0)
@@ -412,14 +366,14 @@ class PracticeState(
         rampPlan = setup.plan
         intervalSeconds = setup.intervalSeconds
         autoAdvance = setup.autoAdvance
-        viewMode = setup.viewMode
-        gridMode = setup.gridMode
-        temperature = setup.temperature
+        lens.viewMode = setup.viewMode
+        lens.gridMode = setup.gridMode
+        lens.temperature = setup.temperature
     }
 
     /** The current settings, so a board can remember exactly what is on screen. */
     fun currentSetup(): SessionSetup =
-        SessionSetup(rampPlan, intervalSeconds, autoAdvance, viewMode, gridMode, temperature)
+        SessionSetup(rampPlan, intervalSeconds, autoAdvance, lens.viewMode, lens.gridMode, lens.temperature)
 
     /** Files of this session's pool that are flagged for redo — what the summary offers to pin. */
     val sessionFlaggedFiles: List<File>
@@ -543,17 +497,6 @@ class PracticeState(
         if (!redo.add(k)) redo.remove(k)
         lib.practice.setRedo(dir, redo)
         redoTick++
-    }
-
-    /** Cycle the proportion overlay: Off -> Thirds -> Phi -> Diagonal -> Off. */
-    fun cycleGrid() {
-        gridMode = GridMode.entries[(gridMode.ordinal + 1) % GridMode.entries.size]
-    }
-
-    /** Toggle defraction; every switch-on rolls a fresh seed, so the shards differ each time. */
-    fun toggleDefraction() {
-        defraction = !defraction
-        if (defraction) defractionSeed = Random.nextFloat() * 1000f
     }
 
     private fun markCurrentSeen() {

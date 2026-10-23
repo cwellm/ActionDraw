@@ -914,19 +914,28 @@ What the design canvas shows and the first pass left out, gathered by laying the
 
 ---
 
-## ⬜ M9 — Shaping the features
+## 🔄 M9 — Shaping the features
 
 What the vision names and the app does not do yet, or does only halfway. Feature level on purpose;
 tasks are broken out when M9 becomes active. Shapes: [CONCEPT.md](CONCEPT.md) (*The rooms, one by
 one*, *How the rooms hand things over*) and the design canvas.
 
-### ⬜ F10.1 Lens — filters without a session
-- A picture from a file, the clipboard, a board card or the current collage, seen through the
+### 🔄 F10.1 Lens — filters without a session
+- ⬜ A picture from a file, the clipboard, a board card or the current collage, seen through the
   session's lens tray (all nine view modes, every adjustment, the grids) with no clock running
-- Side by side: the picture and its lensed view, or two lenses at once (Notan beside Edge)
-- Save the lensed view as a PNG, or pin it to a board beside its original
-- `Filters.kt` and the shaders as they are; one `LensState` that the session uses too, so tray and
-  keys are one code path
+- ⬜ Side by side: the picture and its lensed view, or two lenses at once (Notan beside Edge)
+- ⬜ Save the lensed view as a PNG, or pin it to a board beside its original
+- ✅ The lens kit, `:lib:lens`, below the rooms: `Filters.kt` and the shaders as they were, the
+  glass, the grids; out of the session the tray (`LensTray`, its settings above it), the picture
+  (`LensView`) and the lens's keys (`handleLensKey`, `LensHotkeys`) — all over one `LensState`,
+  which the session holds, so tray and keys are one code path for a session and the Lens room. The
+  tray is lit in the pigment of the room it lies in; a memory pose's veil stands in the picture's
+  place through the view (`veil`), and Esc asks the lens first (`LensState.stepBack`)
+- ✅ The session keeps its own keys and hands the rest to the lens's; a board's setup is the
+  session's lens and comes back out of it. `LensKeysTest`, `LensStateTest`, `LensViewTest` (the
+  picture through a lens and the knobs, the veil, the tray's pigment, with no room around it) and
+  the session's tests unchanged but for the way to the lens. Broken on purpose and seen red after
+  a no-op control stayed green: 17 guards (the session handing its other keys to the lens, Esc asking the lens first, the keys 9 and G, stepping back from the glass, the picture through its lens, invert, the veil keeping the picture and the glass out, the tray's pigment, a board's setup in and out of the session's lens, the menu's starting lens and the lens exercise, the session's tray, picture and memory veil on the session's own lens); and the build refuses the kit the Practice room, the default design and the files
 
 ### ⬜ F10.2 Flicker (Wechselzeichnung)
 - Two or more pictures trade places at an interval (1 s by default, 0.25–5 s), as a hard cut or a
