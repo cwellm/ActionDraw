@@ -100,6 +100,20 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
 
     override fun setLeadPresetsJson(json: String) = set(KEY_LEAD_PRESETS, json)
 
+    override fun glass(): GlassSetting? = runCatching {
+        val props = read()
+        val optic = props.getProperty(KEY_GLASS_OPTIC)?.takeIf { it.isNotBlank() } ?: return null
+        GlassSetting(optic, props.getProperty(KEY_GLASS_MAGNIFICATION).toFloat(), props.getProperty(KEY_GLASS_RADIUS).toFloat())
+    }.getOrNull()
+
+    override fun setGlass(setting: GlassSetting) {
+        val props = read()
+        props.setProperty(KEY_GLASS_OPTIC, setting.optic)
+        props.setProperty(KEY_GLASS_MAGNIFICATION, setting.magnification.toString())
+        props.setProperty(KEY_GLASS_RADIUS, setting.radius.toString())
+        write(props)
+    }
+
     private fun folder(key: String): File? = runCatching { read().getProperty(key)?.takeIf { it.isNotBlank() }?.let(::File) }.getOrNull()
 
     private fun set(key: String, value: String) {
@@ -135,5 +149,8 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
         private const val KEY_LEAD_PRESETS = "leadPresets"
         private const val KEY_RECENT_BOARD = "recentBoard"
         private const val MAX_RECENT_BOARDS = 5
+        private const val KEY_GLASS_OPTIC = "glassOptic"
+        private const val KEY_GLASS_MAGNIFICATION = "glassMagnification"
+        private const val KEY_GLASS_RADIUS = "glassRadius"
     }
 }

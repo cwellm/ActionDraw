@@ -457,6 +457,11 @@ class BoardState(
         if (sketch != null) host.openSketch(sketch) else fileOf(item)?.let(host::sketchOver)
     }
 
+    /** Into the Lens room with [item]'s picture, to see its values. */
+    fun checkValues(item: ImageItem) {
+        fileOf(item)?.let(host::checkValues)
+    }
+
     val selectedItems: List<BoardItem> get() = board?.items.orEmpty().filter { it.id in selection }
 
     val selectedImageFiles: List<File>

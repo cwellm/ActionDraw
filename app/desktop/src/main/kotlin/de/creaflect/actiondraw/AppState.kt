@@ -112,4 +112,27 @@ class AppState(private val lib: Lib, host: HostPreferences = HostPreferences { f
         screen = sketchOrigin
         sketchOrigin = Screen.Palette
     }
+
+    // ---- The Lens room ----
+
+    /** Where Back from the Lens room goes: the palette, a board, a sketch. */
+    var lensOrigin by mutableStateOf(Screen.Palette)
+        private set
+
+    fun showLens(from: Screen = Screen.Palette) {
+        if (screen != Screen.Lens) lensOrigin = if (from == Screen.Lens) Screen.Palette else from
+        screen = Screen.Lens
+    }
+
+    /** Home from the Lens room: the palette, wherever it was entered from. */
+    fun lensHome() {
+        lensOrigin = Screen.Palette
+        screen = Screen.Palette
+    }
+
+    /** Back from the Lens room, to where it was entered from — a board's card, a sketch, the palette. */
+    fun leaveLens() {
+        screen = lensOrigin
+        lensOrigin = Screen.Palette
+    }
 }

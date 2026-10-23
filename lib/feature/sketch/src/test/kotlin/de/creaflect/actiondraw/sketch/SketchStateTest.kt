@@ -126,6 +126,28 @@ class SketchStateTest {
         contact = contact, barrel = false, eraser = false, pointerType = PenSample.PointerKind.PEN, timeNanos = ms * 1_000_000L,
     )
 
+    // ---- Into the Lens room ----
+
+    @Test
+    fun checkingTheValuesHandsThePageAsItIsToTheLensRoom() {
+        var handed: Pair<ByteArray, String>? = null
+        val lensHost = object : SketchHost by host {
+            override fun checkValues(png: ByteArray, name: String) {
+                handed = png to name
+            }
+        }
+        val state = SketchState(FileLib(config), lensHost, timestamp = { "2026-09-22 14.05" }).also { it.setSketchesHomeDir(home) }
+        state.checkValues()
+        assertNull(handed, "no page, nothing to look at")
+        state.newSketch(PageSize.pixels(300, 200))
+        state.checkValues()
+        val (png, name) = assertNotNull(handed)
+        assertEquals(state.title, name)
+        val page = assertNotNull(org.jetbrains.skia.Image.makeFromEncoded(png))
+        assertEquals(300 to 200, page.width to page.height, "the page itself, as a picture")
+        assertEquals(0, left, "and the sketch is not left: it waits as it is")
+    }
+
     // ---- The page and the view ----
 
     @Test

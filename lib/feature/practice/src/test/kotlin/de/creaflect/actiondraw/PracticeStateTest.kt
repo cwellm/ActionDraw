@@ -2,6 +2,7 @@ package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
+import de.creaflect.actiondraw.ui.Optic
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
@@ -100,6 +101,12 @@ class PracticeStateTest {
         state.lens.viewMode = ViewMode.EDGE
         state.lens.gridMode = GridMode.THIRDS
         assertEquals(SessionSetup(null, 45, true, ViewMode.EDGE, GridMode.THIRDS, temperature = -0.4f), state.currentSetup(), "what the board remembers is what is on screen")
+    }
+
+    @Test
+    fun theSessionsGlassIsAsItWasLeftInTheLastRun() {
+        newState().lens.glass.choose(Optic.CYLINDER)
+        assertEquals(Optic.CYLINDER, newState().lens.glass.optic)
     }
 
     @Test

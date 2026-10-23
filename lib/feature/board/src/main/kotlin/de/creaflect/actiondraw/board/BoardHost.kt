@@ -37,4 +37,7 @@ interface BoardHost {
 
     /** Open Live Sketch on a page with [picture] beside it as the reference, to draw over or from. */
     fun sketchOver(picture: File) {}
+
+    /** Open [picture] in the Lens room, to see its values — a card's *Check the values*. */
+    fun checkValues(picture: File) {}
 }

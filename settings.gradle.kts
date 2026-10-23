@@ -22,6 +22,7 @@ include(":lib:feature:practice")
 include(":lib:feature:board")
 include(":lib:feature:concept")
 include(":lib:feature:sketch")
+include(":lib:feature:lens")
 
 // device — the hardware the apps talk to natively.
 include(":device:pen")

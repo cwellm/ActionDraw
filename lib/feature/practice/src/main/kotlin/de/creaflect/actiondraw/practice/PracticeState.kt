@@ -11,6 +11,7 @@ import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.lens.LensState
 import de.creaflect.actiondraw.platform.FileDialogs
+import de.creaflect.actiondraw.ui.keptIn
 import java.io.File
 
 /**
@@ -91,9 +92,10 @@ class PracticeState(
 
     /**
      * How the pose's picture is seen: its lens, the knobs, the grid and the glass. It lives as long
-     * as the room, so a lens chosen — the glass's optic too — carries over from pose to pose.
+     * as the room, so a lens chosen carries over from pose to pose; the glass is kept from one run
+     * to the next.
      */
-    val lens = LensState()
+    val lens = LensState().also { it.glass.keptIn(lib.preferences) }
 
     // ---- Session stats ----
     var sessionPoses by mutableStateOf(0)

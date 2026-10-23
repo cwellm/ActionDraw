@@ -548,8 +548,8 @@ In three groups — `lib` for what an application builds on, `device` for the ha
   fonts
 - `lib/lens` — how a picture is seen: the lenses, the knobs, the grids and the glass, with the
   tray, the picture and the keys that work them — shared by every room that shows a picture
-- `lib/feature/practice`, `board`, `concept`, `sketch` — the rooms: each one's state and logic
-  over the domain, its screens on the design contract; none knows another
+- `lib/feature/practice`, `board`, `concept`, `sketch`, `lens` — the rooms: each one's state and
+  logic over the domain, its screens on the design contract; none knows another
 - `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
 - `app/desktop` — the app: the palette, the windows, the rooms put together, the desktop's
   clipboard, dialogs, browser and pen, and the start-up

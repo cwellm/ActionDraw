@@ -25,4 +25,7 @@ interface SketchHost {
 
     /** Navigate back to the menu. */
     fun leaveSketch()
+
+    /** Shows the page — [png], called [name] — in the Lens room, to see its values. */
+    fun checkValues(png: ByteArray, name: String) {}
 }

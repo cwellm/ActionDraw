@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import de.creaflect.actiondraw.GlassSetting
+import de.creaflect.actiondraw.Preferences
 import org.jetbrains.skia.FilterMipmap
 import org.jetbrains.skia.FilterMode
 import org.jetbrains.skia.FilterTileMode
@@ -51,7 +53,10 @@ enum class Optic(val label: String) {
 /** Where the glass was set down: on [picture], at a point given as fractions of its width and height, [magnification] times larger than the whole picture is shown. */
 data class GlassFocus(val picture: File?, val x: Float, val y: Float, val magnification: Float)
 
-/** The glass and what it is doing; it lives as long as the app, so the optic is kept between sessions. */
+/**
+ * The glass and what it is doing. It lives as long as the lens it belongs to, so the optic carries
+ * over from picture to picture; kept in the preferences ([keptIn]), it is the same in the next run.
+ */
 class GlassState {
     /** The glass is taken up: it follows the pointer over the picture. */
     var inHand by mutableStateOf(false)
@@ -68,6 +73,9 @@ class GlassState {
     var focus by mutableStateOf<GlassFocus?>(null)
         private set
 
+    /** Told when the glass is settled — an optic chosen, or the glass put away: when it is worth keeping. */
+    var onSettle: (() -> Unit)? = null
+
     fun takeUp() {
         inHand = true
     }
@@ -76,6 +84,7 @@ class GlassState {
     fun putAway() {
         inHand = false
         focus = null
+        onSettle?.invoke()
     }
 
     fun toggle() = if (inHand) putAway() else takeUp()
@@ -83,6 +92,7 @@ class GlassState {
     fun choose(optic: Optic) {
         this.optic = optic
         inHand = true
+        onSettle?.invoke()
     }
 
     fun nextOptic() = choose(Optic.entries[(optic.ordinal + 1) % Optic.entries.size])
@@ -121,6 +131,16 @@ class GlassState {
     /** Where the glass is down on [picture] — none on another picture: a new pose starts whole. */
     fun focusOn(picture: File?): GlassFocus? = focus?.takeIf { it.picture == picture }
 
+    /** The glass as it is kept between runs. */
+    fun setting(): GlassSetting = GlassSetting(optic.name, magnification, radius)
+
+    /** Takes up what was kept — the optic, the magnification, the size — neither in hand nor down. */
+    fun restore(setting: GlassSetting) {
+        Optic.entries.firstOrNull { it.name == setting.optic }?.let { optic = it }
+        magnification = setting.magnification.coerceIn(MIN_MAGNIFICATION, MAX_MAGNIFICATION)
+        radius = setting.radius.coerceIn(MIN_RADIUS, MAX_RADIUS)
+    }
+
     companion object {
         const val MIN_MAGNIFICATION = 1.25f
         const val MAX_MAGNIFICATION = 12f
@@ -130,6 +150,12 @@ class GlassState {
         const val DEFAULT_RADIUS = 110f
         private const val STEP = 1.15f
     }
+}
+
+/** The glass as [preferences] kept it, and kept there again whenever it is settled. */
+fun GlassState.keptIn(preferences: Preferences): GlassState = apply {
+    preferences.glass()?.let(::restore)
+    onSettle = { preferences.setGlass(setting()) }
 }
 
 // ---------------- The optics ----------------

@@ -4,6 +4,8 @@ import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
+import de.creaflect.actiondraw.lens.LensHost
+import de.creaflect.actiondraw.lens.LensRoomState
 import de.creaflect.actiondraw.platform.Browser
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.HostPreferences
@@ -65,6 +67,10 @@ class Rooms(val lib: Lib, host: HostServices = HostServices.None) {
                 sketch.openFromSession(picture)
                 app.showSketch(from = Screen.Board)
             }
+            override fun checkValues(picture: File) {
+                lens.open(picture)
+                app.showLens(from = Screen.Board)
+            }
         },
         concepts = concepts,
         clipboard = host.clipboard,
@@ -85,8 +91,24 @@ class Rooms(val lib: Lib, host: HostServices = HostServices.None) {
             override fun conceptDir(id: String) = concepts.entryById(id)?.dir
             override fun addToConcept(id: String, pictures: List<File>) = concepts.addToConcept(id, pictures, emptyList()) != null
             override fun leaveSketch() = app.leaveSketch()
+            override fun checkValues(png: ByteArray, name: String) {
+                lens.openPng(png, name)
+                app.showLens(from = Screen.Sketch)
+            }
         },
         dialogs = host.dialogs,
+    )
+
+    /** The Lens room pins its views to the boards, and goes back to where it was entered from. */
+    val lens: LensRoomState = LensRoomState(
+        lib,
+        object : LensHost {
+            override fun boards() = boards.availableBoards()
+            override fun pin(dir: File, pictures: List<File>) = boards.pinTo(dir, pictures)
+            override fun leaveLens() = app.leaveLens()
+        },
+        dialogs = host.dialogs,
+        clipboard = host.clipboard,
     )
 
     init {

@@ -59,13 +59,13 @@ import de.creaflect.actiondraw.lens.LensState
 import kotlin.math.roundToInt
 
 /** What the settings above the tray can show: the chosen lens's, the light, blur, shards, the glass. */
-enum class LensSettings { LENS, LIGHT, BLUR, SHARDS, GLASS }
+internal enum class LensSettings { LENS, LIGHT, BLUR, SHARDS, GLASS }
 
 private fun ViewMode.hasSettings(): Boolean =
     this == ViewMode.POSTERIZE || this == ViewMode.PIXELATE || this == ViewMode.SILHOUETTE || this == ViewMode.NOTAN
 
 /** Whether there is anything to set: a lens with settings chosen, blur or shards on, the glass in hand. */
-fun LensSettings.isOn(lens: LensState): Boolean = when (this) {
+internal fun LensSettings.isOn(lens: LensState): Boolean = when (this) {
     LensSettings.LENS -> lens.viewMode.hasSettings()
     LensSettings.LIGHT -> true
     LensSettings.BLUR -> lens.blur
@@ -75,7 +75,7 @@ fun LensSettings.isOn(lens: LensState): Boolean = when (this) {
 
 /** Choosing a lens with settings, or turning blur, shards or the glass on - by click or key - opens its settings. */
 @Composable
-fun OpenSettingsWithTheirControls(lens: LensState, settings: MutableState<LensSettings?>) {
+internal fun OpenSettingsWithTheirControls(lens: LensState, settings: MutableState<LensSettings?>) {
     fun follow(target: LensSettings, on: Boolean) {
         if (on) settings.value = target else if (settings.value == target) settings.value = null
     }
@@ -88,12 +88,12 @@ fun OpenSettingsWithTheirControls(lens: LensState, settings: MutableState<LensSe
 /**
  * The tray: the lenses as glass slides, then the knobs - light, blur, mirror, flip, invert, shards,
  * grid, the glass - lit in the pigment of the [room] it lies in. It wraps onto two lines in a narrow
- * window. [settings] are the settings open above it, which the screen holding the tray places
+ * window. [settings] are the settings open above it, which [LensControls] places
  * ([LensSettingsPopover]); [onAnchor] says where each control with settings sits, in the root's x.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LensTray(
+internal fun LensTray(
     lens: LensState,
     bitmap: ImageBitmap?,
     settings: MutableState<LensSettings?>,
@@ -120,7 +120,7 @@ fun LensTray(
 
 /** The settings of one thing, above the tray: a title, a way to put them away, and what can be set. */
 @Composable
-fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose: () -> Unit) {
+internal fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
     val title = when (target) {
         LensSettings.LENS -> LENSES.firstOrNull { it.first == lens.viewMode }?.second ?: "Lens"

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -26,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -45,10 +43,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.graphics.vector.PathParser
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -117,13 +111,7 @@ fun SessionScreen(
             tween(if (reduced) Motion.REDUCED_MS else if (receded.value) Motion.RECEDE_MS else Motion.RETURN_MS),
         )
         val barHeight = remember { mutableStateOf(0) }
-        // The settings above the tray: of what was just chosen or turned on.
-        val settings = remember { mutableStateOf<LensSettings?>(null) }
-        OpenSettingsWithTheirControls(state.lens, settings)
-        // Where each control with settings sits along the tray, so they open right above it.
-        val anchors = remember { mutableStateMapOf<LensSettings, Float>() }
-        val originX = remember { mutableStateOf(0f) }
-        Box(Modifier.fillMaxSize().watchPointer(watch).onGloballyPositioned { coordinates -> coordinates.positionInRoot().x.let { if (originX.value != it) originX.value = it } }) {
+        Box(Modifier.fillMaxSize().watchPointer(watch)) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -155,34 +143,9 @@ fun SessionScreen(
                 SessionPiece(receded, watch, ChromeEdge.RIGHT, "session-side") { SideButtons(state, pinTargets, onSketch) }
             }
             if (state.isPaused) PausePanel(state, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
-            settings.value?.takeIf { it.isOn(state.lens) }?.let { target ->
-                val above = with(LocalDensity.current) { barHeight.value.toDp() } + 6.dp
-                Box(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .padding(bottom = above)
-                        .layout { measurable, constraints ->
-                            // Centred over its control, kept on screen.
-                            val popover = measurable.measure(constraints.copy(minWidth = 0))
-                            val margin = 12.dp.roundToPx()
-                            val centre = anchors[target] ?: (constraints.maxWidth / 2f)
-                            val x = (centre - popover.width / 2f).roundToInt()
-                                .coerceIn(margin, (constraints.maxWidth - popover.width - margin).coerceAtLeast(margin))
-                            layout(constraints.maxWidth, popover.height) { popover.place(x, 0) }
-                        },
-                ) {
-                    SessionPiece(receded, watch, ChromeEdge.BOTTOM, "session-settings") {
-                        LensSettingsPopover(state.lens, target, onClose = { settings.value = null })
-                    }
-                }
-            }
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().onSizeChanged { barHeight.value = it.height }) {
-                SessionPiece(receded, watch, ChromeEdge.BOTTOM, "session-chrome", Modifier.fillMaxWidth()) {
-                    Box(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp, start = 12.dp, end = 12.dp), contentAlignment = Alignment.Center) {
-                        LensTray(state.lens, bitmap, settings, Room.PRACTICE, onAnchor = { target, x -> (x - originX.value).let { if (anchors[target] != it) anchors[target] = it } })
-                    }
-                }
+            // Along the bottom the lens's tray, and the settings above it, stepping back with the rest.
+            LensControls(state.lens, bitmap, Room.PRACTICE, barHeight, tag = "session") { tag, modifier, content ->
+                SessionPiece(receded, watch, ChromeEdge.BOTTOM, tag, modifier, content)
             }
         }
     }

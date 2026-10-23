@@ -7,6 +7,7 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.ui.GlassState
 import java.io.File
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 /**
@@ -75,6 +76,31 @@ class LensState {
     fun toggleDefraction() {
         defraction = !defraction
         if (defraction) defractionSeed = Random.nextFloat() * 1000f
+    }
+
+    /**
+     * This lens as it shows the picture [scale] times as large: the same lens, knobs and grid, with
+     * the sizes counted in pixels — pixelate's block, the shards' — scaled along. The glass stays:
+     * the copy's own is put away. What a picture is saved through, at its own size.
+     */
+    fun copy(scale: Float = 1f): LensState = LensState().also { c ->
+        c.viewMode = viewMode
+        c.blur = blur
+        c.upsideDown = upsideDown
+        c.mirror = mirror
+        c.gridMode = gridMode
+        c.temperature = temperature
+        c.invert = invert
+        c.defraction = defraction
+        c.defractionSeed = defractionSeed
+        c.blurRadius = blurRadius
+        c.posterizeLevels = posterizeLevels
+        c.pixelateBlock = (pixelateBlock * scale).roundToInt().coerceAtLeast(1)
+        c.silhouetteThreshold = silhouetteThreshold
+        c.notanBands = notanBands
+        c.notanThreshold = notanThreshold
+        c.defractionBlock = (defractionBlock * scale).roundToInt().coerceAtLeast(1)
+        c.defractionStrength = defractionStrength
     }
 
     /**

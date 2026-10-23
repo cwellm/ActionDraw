@@ -46,6 +46,7 @@ class RingMenuTest {
     private val config: File = Files.createTempDirectory("ring-cfg").toFile()
     private var drawn: List<File> = emptyList()
     private var sketchedOver: File? = null
+    private var checked: File? = null
 
     private val host = object : BoardHost {
         override fun startSession(root: File, images: List<File>, setup: SessionSetup?) { drawn = images }
@@ -54,6 +55,7 @@ class RingMenuTest {
         override fun leaveBoard() = Unit
         override fun currentSetup() = SessionSetup(null, 120, true, ViewMode.NONE, GridMode.OFF)
         override fun sketchOver(picture: File) { sketchedOver = picture }
+        override fun checkValues(picture: File) { checked = picture }
     }
     private val concepts = ConceptState(
         FileLib(config),
@@ -97,7 +99,7 @@ class RingMenuTest {
         val (state, ids) = board()
         ring(ids[0])
         assertEquals(setOf(ids[0]), state.selection, "the right click took the card")
-        listOf("ring-draw", "ring-sketch", "ring-concept", "ring-tag", "ring-group", "ring-more").forEach {
+        listOf("ring-draw", "ring-sketch", "ring-lens", "ring-concept", "ring-tag", "ring-group", "ring-more").forEach {
             rule.onNodeWithTag(it).assertIsEnabled()
         }
         rule.onNodeWithTag("ring-collage").assertIsNotEnabled()
@@ -116,6 +118,12 @@ class RingMenuTest {
         rule.onNodeWithTag("ring-sketch").performClick()
         rule.waitForIdle()
         assertEquals("b.jpg", sketchedOver?.name, "into Sketch with it beside the page")
+
+        ring(ids[0])
+        rule.onNodeWithTag("ring-lens").performClick()
+        rule.waitForIdle()
+        assertEquals("a.jpg", checked?.name, "into the Lens room, to check its values")
+        rule.onNodeWithTag("ring-menu").assertDoesNotExist()
 
         ring(ids[0])
         rule.onNodeWithTag("ring-group").performClick()

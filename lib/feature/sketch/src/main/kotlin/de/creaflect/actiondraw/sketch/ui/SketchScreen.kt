@@ -217,6 +217,7 @@ private fun Header(state: SketchState, onHome: (() -> Unit)?) {
                 Flat("Save", tag = "sketch-save") { state.save() }
                 CrossRoomButton(Room.BOARDS, "To a board", Modifier.testTag("sketch-to-board")) { state.openEditor(SketchEditor.ToBoard) }
                 CrossRoomButton(Room.CONCEPTS, "To a concept", Modifier.testTag("sketch-to-concept")) { state.openEditor(SketchEditor.ToConcept) }
+                CrossRoomButton(Room.LENS, "Check the values", Modifier.testTag("sketch-to-lens"), enabled = state.session != null) { state.checkValues() }
                 Flat("Back", tag = "sketch-back") { state.leave() }
             },
         )

@@ -10,6 +10,7 @@ plugins {
 dependencies {
     api(project(":lib:domain"))
     api(project(":lib:design:contract"))
-    // Its tests draw in the default design.
+    // Its tests draw in the default design, and keep the glass over a temp folder.
     testImplementation(project(":lib:design:atelier"))
+    testImplementation(project(":lib:data"))
 }

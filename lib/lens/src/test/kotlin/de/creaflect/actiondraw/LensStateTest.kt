@@ -1,7 +1,11 @@
 package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.lens.LensState
+import de.creaflect.actiondraw.ui.GlassState
+import de.creaflect.actiondraw.ui.Optic
+import de.creaflect.actiondraw.ui.keptIn
 import java.io.File
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -40,6 +44,43 @@ class LensStateTest {
         assertTrue(lens.stepBack(picture))
         assertFalse(lens.glass.inHand, "then the glass put away")
         assertFalse(lens.stepBack(picture), "and then there is nothing of the lens to step back from")
+    }
+
+    @Test
+    fun theGlassIsKeptAsItWasLastSettled() {
+        val home = Files.createTempDirectory("lens-glass").toFile()
+        try {
+            val glass = GlassState().keptIn(FileLib(home).preferences)
+            glass.choose(Optic.FISHEYE)
+            glass.magnify(6f)
+            glass.resizeBy(2f)
+            glass.putAway()
+            val next = GlassState().keptIn(FileLib(home).preferences)
+            assertEquals(Optic.FISHEYE, next.optic, "the next run takes it up as it was")
+            assertEquals(6f, next.magnification)
+            assertEquals(glass.radius, next.radius)
+            assertFalse(next.inHand, "but not in hand")
+        } finally {
+            home.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun aCopySeesThePictureAsTheLensDoesWithItsPixelsScaled() {
+        val lens = LensState().apply {
+            viewMode = ViewMode.PIXELATE
+            pixelateBlock = 8
+            mirror = true
+            toggleDefraction()
+            glass.takeUp()
+        }
+        val copy = lens.copy(scale = 2.5f)
+        assertEquals(ViewMode.PIXELATE, copy.viewMode)
+        assertTrue(copy.mirror && copy.defraction)
+        assertEquals(lens.defractionSeed, copy.defractionSeed, "the same shards")
+        assertEquals(20, copy.pixelateBlock, "a block as large on the larger picture")
+        assertEquals(240, copy.defractionBlock)
+        assertFalse(copy.glass.inHand, "and the glass stays behind")
     }
 
     @Test

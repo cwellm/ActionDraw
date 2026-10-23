@@ -44,6 +44,13 @@ interface Pictures {
     fun importPng(root: File, png: ByteArray, groupId: String?, timestamp: String): ImageItem?
 
     /**
+     * [png] — a picture as PNG bytes — written whole to [target], replacing what was there; or,
+     * with [beside], beside it under the first free name when [target] is taken. The file written,
+     * or null when it could not be.
+     */
+    fun writePng(png: ByteArray, target: File, beside: Boolean = false): File?
+
+    /**
      * Draws [cells] as one printable sheet, [columns] wide, under [title], and writes it as a PNG
      * to [target]. False when there was nothing to draw or it could not be written.
      */

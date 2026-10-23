@@ -92,6 +92,14 @@ class PaletteTest {
         assertEquals(Screen.Concepts, app.screen)
         shell.concepts.leaveList()
 
+        // The Lens room, with nothing to look at yet; once it has a picture, the well says which.
+        assertEquals("Open a picture", paletteWells(null, false).single { it.room == Room.LENS }.action)
+        shell.open(Room.LENS)
+        assertEquals(Screen.Lens, app.screen)
+        assertEquals(Screen.Palette, app.lensOrigin, "Back from the Lens room leads home")
+        app.leaveLens()
+        assertEquals("Look at pose", paletteWells(null, false, lensPicture = "pose").single { it.room == Room.LENS }.action)
+
         // No board opened yet: the list.
         shell.open(Room.BOARDS)
         assertEquals(Screen.BoardList, app.screen)
@@ -109,7 +117,6 @@ class PaletteTest {
 
         // A dry well does nothing.
         shell.boards.closeBoard()
-        shell.open(Room.LENS)
         shell.open(Room.COLLAGE)
         assertEquals(Screen.Palette, app.screen)
     }
@@ -161,7 +168,8 @@ class PaletteTest {
     fun theKeysTurnThePalettePastTheDryWells() {
         val wells = paletteWells(lastBoard = null, sketchOpen = false)
         assertEquals(PALETTE_ORDER, wells.map { it.room }, "the wells are listed in their order round the rim")
-        assertEquals(Room.SKETCH, stepRoom(wells, Room.PRACTICE, 1), "Lens is dry")
+        assertEquals(Room.LENS, stepRoom(wells, Room.PRACTICE, 1), "Lens is a room now")
+        assertEquals(Room.SKETCH, stepRoom(wells, Room.LENS, 1))
         assertEquals(Room.CONCEPTS, stepRoom(wells, Room.SKETCH, 1), "Collage is dry")
         assertEquals(Room.PRACTICE, stepRoom(wells, Room.BOARDS, 1), "round the rim")
         assertEquals(Room.BOARDS, stepRoom(wells, Room.PRACTICE, -1))
@@ -183,7 +191,7 @@ class PaletteTest {
         }
         rule.waitForIdle()
         for (room in PALETTE_ORDER) rule.onNodeWithTag("well-${room.name.lowercase()}").assertIsDisplayed()
-        rule.onNodeWithTag("well-lens").assertIsNotEnabled()
+        rule.onNodeWithTag("well-lens").assertIsEnabled()
         rule.onNodeWithTag("well-collage").assertIsNotEnabled()
         rule.onNodeWithTag("well-sketch").assertIsEnabled()
 
@@ -195,7 +203,7 @@ class PaletteTest {
         assertEquals(emptyList(), opened)
 
         // A dry well cannot be chosen.
-        rule.onNodeWithTag("well-lens").performClick()
+        rule.onNodeWithTag("well-collage").performClick()
         rule.waitForIdle()
         assertEquals(emptyList(), opened)
 

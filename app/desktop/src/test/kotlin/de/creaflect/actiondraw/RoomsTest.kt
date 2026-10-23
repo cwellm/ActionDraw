@@ -1,15 +1,20 @@
 package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.lens.LensPicture
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.HostPreferences
 import de.creaflect.actiondraw.platform.SystemClipboard
 import de.creaflect.actiondraw.practice.PracticePage
+import java.awt.image.BufferedImage
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
+import javax.imageio.ImageIO
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -104,6 +109,46 @@ class RoomsTest {
         assertEquals(Screen.Practice, rooms.app.screen, "and home from the sketch is the session")
     }
 
+    /** A small picture, as PNG bytes. */
+    private fun png(): ByteArray =
+        ByteArrayOutputStream().also { ImageIO.write(BufferedImage(20, 10, BufferedImage.TYPE_INT_RGB), "png", it) }.toByteArray()
+
+    @Test
+    fun aCardIsCheckedInTheLensRoomAndBackIsTheBoard() {
+        val rooms = rooms()
+        rooms.boardWithPictures()
+        rooms.app.showBoard()
+        val card = rooms.boards.board!!.items.filterIsInstance<ImageItem>().first()
+        rooms.boards.checkValues(card)
+        assertEquals(Screen.Lens, rooms.app.screen)
+        assertEquals(rooms.boards.fileOf(card), rooms.lens.file, "the card's picture")
+        rooms.lens.leave()
+        assertEquals(Screen.Board, rooms.app.screen, "and Back is the board it came from")
+    }
+
+    @Test
+    fun aSketchsPageIsCheckedInTheLensRoomAndBackIsTheSketch() {
+        val rooms = rooms()
+        rooms.app.showSketch()
+        rooms.sketch.newSketch()
+        rooms.sketch.checkValues()
+        assertEquals(Screen.Lens, rooms.app.screen)
+        assertIs<LensPicture.Pasted>(rooms.lens.picture, "the page as it is now")
+        rooms.lens.leave()
+        assertEquals(Screen.Sketch, rooms.app.screen)
+    }
+
+    @Test
+    fun theLensRoomPinsItsViewToABoard() {
+        val rooms = rooms()
+        val board = rooms.boardWithPictures()
+        assertEquals(listOf(board.absolutePath), rooms.lens.boards().map { it.second.absolutePath }, "it is told which boards there are")
+        rooms.lens.open(File(board, "a.jpg"))
+        rooms.lens.pinTo(board)
+        rooms.lens.finish(png())
+        assertTrue(rooms.boards.board!!.items.filterIsInstance<ImageItem>().any { it.path.endsWith("a - seen.png") }, "and the board takes it")
+    }
+
     @Test
     fun theHostsServicesReachEveryRoom() {
         val opened = mutableListOf<String>()
@@ -112,13 +157,15 @@ class RoomsTest {
             override fun copyText(text: String) {
                 copied += text
             }
+            override fun paste() = SystemClipboard.Pasted.Bitmap(png())
         }
         val dialogs = object : FileDialogs by FileDialogs.None {}
         val host = HostServices(clipboard, { url -> opened += url; true }, dialogs, HostPreferences { true })
         val rooms = Rooms(FileLib(File(root, "home")), host)
 
         assertTrue(rooms.app.reducedMotion, "the system's preference, until the person chooses")
-        assertTrue(listOf(rooms.practice.dialogs, rooms.boards.dialogs, rooms.concepts.dialogs, rooms.sketch.dialogs).all { it === dialogs }, "the host's dialogs, in every room")
+        assertTrue(listOf(rooms.practice.dialogs, rooms.boards.dialogs, rooms.concepts.dialogs, rooms.sketch.dialogs, rooms.lens.dialogs).all { it === dialogs }, "the host's dialogs, in every room")
+        assertTrue(rooms.lens.paste(), "the Lens room looks at the host's clipboard")
 
         rooms.boards.setBoardsHomeDir(boardsHome)
         rooms.boards.createBoard(boardsHome, "Notes")

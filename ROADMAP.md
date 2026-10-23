@@ -920,22 +920,41 @@ What the vision names and the app does not do yet, or does only halfway. Feature
 tasks are broken out when M9 becomes active. Shapes: [CONCEPT.md](CONCEPT.md) (*The rooms, one by
 one*, *How the rooms hand things over*) and the design canvas.
 
-### 🔄 F10.1 Lens — filters without a session
-- ⬜ A picture from a file, the clipboard, a board card or the current collage, seen through the
-  session's lens tray (all nine view modes, every adjustment, the grids) with no clock running
-- ⬜ Side by side: the picture and its lensed view, or two lenses at once (Notan beside Edge)
-- ⬜ Save the lensed view as a PNG, or pin it to a board beside its original
+### ✅ F10.1 Lens — filters without a session
+- ✅ The Lens room, `:lib:feature:lens`, in Payne's grey: a picture from a file, the clipboard, a
+  board's card (*Check the values* on its ring and in its menu) or a sketch's page (*Check the
+  values* in Sketch's header), seen through the lens tray — all nine view modes, every adjustment,
+  the grids, the glass — with no clock running. Back returns to the board or the sketch it came
+  from; with nothing open, the room invites a picture in; the palette's well opens it, or says what
+  it is looking at. From the current collage once there is one (F10.6)
+- ✅ Side by side: alone, beside the original, or two lenses at once — the second starts as Edge
+  (Notan, where the first is Edge) until it is turned; a click on a side's name, or Tab, chooses
+  the lens the tray and the keys work
+- ✅ Save the view as a PNG where the person chooses, or pin it to a board beside its original —
+  both pinned at once, so they land together. The view is drawn off screen by the same `LensView`
+  the screen draws with (`lensedPng`, through an `ImageComposeScene`), whole and at the picture's
+  own size; the lens's sizes in pixels and the blur grow with it, so it looks as it did on screen,
+  and the grid and the glass stay behind. New in the domain: `Pictures.writePng`
 - ✅ The lens kit, `:lib:lens`, below the rooms: `Filters.kt` and the shaders as they were, the
-  glass, the grids; out of the session the tray (`LensTray`, its settings above it), the picture
-  (`LensView`) and the lens's keys (`handleLensKey`, `LensHotkeys`) — all over one `LensState`,
-  which the session holds, so tray and keys are one code path for a session and the Lens room. The
-  tray is lit in the pigment of the room it lies in; a memory pose's veil stands in the picture's
-  place through the view (`veil`), and Esc asks the lens first (`LensState.stepBack`)
+  glass, the grids; out of the session the tray and the settings above it (`LensControls`, for the
+  session and the room alike), the picture (`LensView`) and the lens's keys (`handleLensKey`,
+  `LensHotkeys`) — all over one `LensState`, so tray and keys are one code path. The tray and
+  Material's controls are lit in the pigment of the room they lie in; a memory pose's veil stands
+  in the picture's place through the view (`veil`), and Esc asks the lens first
+  (`LensState.stepBack`)
 - ✅ The session keeps its own keys and hands the rest to the lens's; a board's setup is the
-  session's lens and comes back out of it. `LensKeysTest`, `LensStateTest`, `LensViewTest` (the
-  picture through a lens and the knobs, the veil, the tray's pigment, with no room around it) and
-  the session's tests unchanged but for the way to the lens. Broken on purpose and seen red after
-  a no-op control stayed green: 17 guards (the session handing its other keys to the lens, Esc asking the lens first, the keys 9 and G, stepping back from the glass, the picture through its lens, invert, the veil keeping the picture and the glass out, the tray's pigment, a board's setup in and out of the session's lens, the menu's starting lens and the lens exercise, the session's tray, picture and memory veil on the session's own lens); and the build refuses the kit the Practice room, the default design and the files
+  session's lens and comes back out of it
+- ✅ Tests: `LensKeysTest`, `LensStateTest`, `LensViewTest`, `LensExportTest` (the picture's own
+  size, a pixelate's blocks grown with it, the grid and the glass left out), `LensRoomStateTest`,
+  `LensRoomKeysTest`, `LensRoomScreenTest` (opened, laid out, saved and pinned for real),
+  `RoomsTest` (a card and a sketch into the room and Back out again, a view pinned), the ring's new
+  button, and the room in `RoomScreenshotTest`. Broken on purpose and seen red after a no-op
+  control stayed green: in the kit, 17 guards (the session handing its other keys to the lens, Esc
+  asking the lens first, the keys 9 and G, stepping back from the glass, the picture through its
+  lens, invert, the veil keeping the picture and the glass out, the tray's pigment, a board's setup
+  in and out of the session's lens, the menu's starting lens and the lens exercise, the session's
+  tray, picture and memory veil on the session's own lens); in the room, 29 guards (the view saved at the screen's pixel sizes and without the grid, the glass kept and taken up again, the room's tray and Material's controls in its own pigment, the view drawn and the original beside it, where a view is saved and what is pinned, two lenses different, the tray on the lens chosen, a pasted picture, Tab, Esc, the lens keys only with a picture, a card's and a sketch's way in, Back, the pin through the app, the palette's well, the session's glass, a PNG written beside another, the optic kept); and
+  the build refuses the kit the Practice room, the default design and the files
 
 ### ⬜ F10.2 Flicker (Wechselzeichnung)
 - Two or more pictures trade places at an interval (1 s by default, 0.25–5 s), as a hard cut or a
@@ -1015,8 +1034,11 @@ one*, *How the rooms hand things over*) and the design canvas.
   dragged out, mirrored, lifted by the print and by a right click), `SessionKeysTest` (+2). Caught
   on the way: the print's click lifted the glass and the same release, passing on to the picture,
   set it straight down again. Seven guards broken on purpose and seen red
-- ⬜ The glass in the Lens room (F10.1), on a board's large view, and in Sketch over the reference
-- ⬜ Kept between runs (the optic and the magnification are kept only while the app runs)
+- 🔄 The glass in the Lens room ✅ (F10.1); on a board's large view and in Sketch over the
+  reference ⬜
+- ✅ Kept between runs: the optic, the magnification and the size, as they were when the glass
+  was last settled — an optic chosen, or the glass put away (`GlassState.keptIn`,
+  `Preferences.glass`) — in a session and in the Lens room alike
 
 ---
 

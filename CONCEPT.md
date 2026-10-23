@@ -53,7 +53,7 @@ pigment of its own. It marks the room's things and nothing else (see *Colour is 
 | **Boards** | Ultramarine | Collect: the mood board, with pictures, notes, links, groups and frames, on cork, papyrus or plain | ✅ M1–M5 |
 | **Concepts** | Viridian | Keep: a creature, a place, a character, collected once and linked onto every board that needs it | ✅ M7 |
 | **Practice** | Cadmium orange | Train: timed poses, filtered studies, memory drawing, and the new *Flicker*, *Staged* and *Compare* exercises | ✅ M0, M+ (new exercises open) |
-| **Lens** | Payne's grey | See: any picture through notan, edge, squint, mirror or upside down, with no session around it | ⬜ new; filters exist inside sessions |
+| **Lens** | Payne's grey | See: any picture through notan, edge, squint, mirror or upside down, with no session around it | ✅ F10.1 |
 | **Sketch** | Madder rose | Draw: the drawing board with real-feeling leads, paper tooth, and a picture laid underneath to compare | ✅ M6 (the underlay is new) |
 | **Collage** | Naples yellow | Compose: scissors on a cutting mat. Cut pictures and concepts apart and test whether a scene holds | ⬜ new |
 
@@ -74,7 +74,7 @@ material to the others in one step:
 | Practice | Board | *Pin* | ✅ |
 | Board / Concept | Collage | *To a collage*; the Collage's source drawer lists boards and concepts | ⬜ |
 | Collage | Sketch | *Sketch over it*: the composition becomes the underlay | ⬜ |
-| Collage, Board, Sketch | Lens | *Check the values*: the current picture seen through a lens | ⬜ |
+| Collage, Board, Sketch | Lens | *Check the values*: the current picture seen through a lens | ✅ board, sketch / ⬜ collage |
 | Anything | Compare | Your drawing laid over its reference | ⬜ (F+.3) |
 
 The rule that makes this readable: **a button that leads into another room carries that room's
@@ -188,14 +188,15 @@ exercise*, *Open Drachenbuch* or *New sketch*.
   cuts straight. On the right is a pieces list (top to bottom); at the bottom, a source drawer for
   boards and concepts. *Check the values* sends the composition to the Lens, and *Sketch over it*
   sends it to Sketch as the underlay.
-- **Lens** (designed in the Practice session's tray; no screen of its own yet). Open any picture
-  (a file, the clipboard, a board card, the current collage) and look at it through the same
-  tray, with no clock running. It is the vision's "schnelle Filter zum Ausprobieren".
+- **Lens** (F10.1). Open any picture (a file, the clipboard, a board card, a sketch's page, the
+  current collage) and look at it through the same tray as a session's, with no clock running —
+  alone, beside the original, or through two lenses at once — and keep what you saw as a picture
+  or pin it to a board beside its original. It is the vision's "schnelle Filter zum Ausprobieren".
   And a real lens: **the glass**, a reading glass held over the picture — plain, or bending what
   it shows (convex, concave, fisheye, a glass rod, a prism) — and set down on a part, which then
   fills the view, the whole picture one click back in the corner. Drawing what the glass shows
-  rather than what one knows is there. It lives in the session for now (F10.9) and comes into the
-  Lens room with it.
+  rather than what one knows is there. It is the same glass in a session and in the Lens room
+  (F10.9), and it is kept as it was left.
 
 ## What stays true
 

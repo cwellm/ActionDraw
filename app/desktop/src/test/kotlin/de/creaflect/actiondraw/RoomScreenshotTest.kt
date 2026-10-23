@@ -21,6 +21,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.lens.LensLayout
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.Room
@@ -263,5 +264,32 @@ class RoomScreenshotTest {
         mainClock.advanceTimeBy(2500)
         shoot("14-sketch-drawing", Room.SKETCH)
         s.mouseUp()
+    }
+
+    @Test
+    fun theLensRoomEmptyAloneBesideAndThroughTwoLenses() = window {
+        val world = World()
+        val lens = world.rooms.lens
+        world.app.showLens()
+        world.show(this)
+        mainClock.advanceTimeBy(500)
+        shoot("15-lens-empty", Room.LENS)
+        lens.open(picture(File(root, "pose.png")))
+        lens.first.viewMode = ViewMode.NOTAN
+        // The picture is decoded off the UI thread: real time, and the clock stepped with it.
+        for (i in 0 until 50) {
+            if (onAllNodesWithTag("reference").fetchSemanticsNodes().isNotEmpty()) break
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        mainClock.advanceTimeBy(500)
+        shoot("16-lens-notan", Room.LENS)
+        lens.arrange(LensLayout.BESIDE)
+        mainClock.advanceTimeBy(500)
+        shoot("17-lens-beside", Room.LENS)
+        lens.arrange(LensLayout.TWO)
+        lens.choose(de.creaflect.actiondraw.lens.LensSide.SECOND)
+        mainClock.advanceTimeBy(500)
+        shoot("18-lens-two", Room.LENS)
     }
 }

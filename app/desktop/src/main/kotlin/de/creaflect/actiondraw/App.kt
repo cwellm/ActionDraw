@@ -19,6 +19,7 @@ import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
+import de.creaflect.actiondraw.lens.ui.LensRoomScreen
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
@@ -43,6 +44,7 @@ enum class Screen(val room: Room?) {
     Board(Room.BOARDS), BoardList(Room.BOARDS),
     Concepts(Room.CONCEPTS), Concept(Room.CONCEPTS),
     Sketch(Room.SKETCH),
+    Lens(Room.LENS),
 }
 
 /** The main window's content: the palette, or the room on screen, with the bloom between them. */
@@ -78,7 +80,7 @@ fun App(
                 when (state.screen) {
                     Screen.Palette -> {
                         // Read when the palette shows, not on every frame: it looks at the disk.
-                        val wells = remember(state.screen) { paletteWells(boardState.lastBoard(), sketchState.session != null) }
+                        val wells = remember(state.screen) { paletteWells(boardState.lastBoard(), sketchState.session != null, rooms.lens.picture?.name) }
                         PaletteScreen(
                             wells,
                             selected = state.paletteRoom,
@@ -107,6 +109,7 @@ fun App(
                     })
                     // Leaving the screen lets go of the pen and the mouse, as Back does (see Main).
                     Screen.Sketch -> SketchScreen(sketchState, thumbs, onHome = state::sketchHome)
+                    Screen.Lens -> LensRoomScreen(rooms.lens, onHome = state::lensHome)
                 }
                 // The room's pigment, settled into a line along the top — not over a running pose.
                 state.screen.room?.takeIf { !(state.screen == Screen.Practice && practice.page == PracticePage.Session) }?.let {
@@ -128,12 +131,13 @@ fun App(
 
 /**
  * What each well of the palette says, from what exists: only rooms that are built have a next
- * step. Lens and Collage come with M9; until then their wells are dry.
+ * step. Collage comes with M9; until then its well is dry. [lensPicture] is what the Lens room is
+ * looking at, if anything.
  */
-internal fun paletteWells(lastBoard: Pair<String, java.io.File>?, sketchOpen: Boolean): List<PaletteWell> =
+internal fun paletteWells(lastBoard: Pair<String, java.io.File>?, sketchOpen: Boolean, lensPicture: String? = null): List<PaletteWell> =
     listOf(
         PaletteWell(Room.PRACTICE, "draw against the clock", "Timed poses and memory drawing.", "Set up a session"),
-        PaletteWell(Room.LENS, "see it differently", "Any picture through notan or edge. Not built yet.", null),
+        PaletteWell(Room.LENS, "see it differently", "Any picture through notan, edge or the glass.", lensPicture?.let { "Look at $it" } ?: "Open a picture"),
         PaletteWell(
             Room.SKETCH, "draw", "Seven tools, three papers, a real pen.",
             if (sketchOpen) "Continue the sketch" else "New sketch",
@@ -174,6 +178,7 @@ internal fun openRoom(room: Room, state: AppState, boards: BoardState, concepts:
         }
         Room.CONCEPTS -> concepts.openList()
         Room.SKETCH -> state.showSketch(from = Screen.Palette)
-        Room.LENS, Room.COLLAGE -> Unit
+        Room.LENS -> state.showLens(from = Screen.Palette)
+        Room.COLLAGE -> Unit
     }
 }

@@ -71,9 +71,9 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The ring menu (CONCEPT.md, *Boards*): a right click on a card opens six porcelain buttons round
+ * The ring menu (CONCEPT.md, *Boards*): a right click on a card opens seven porcelain buttons round
  * it, each a way out of the board into a room, marked with that room's pigment — Draw these,
- * Sketch over, To a collage, To a concept, Tag, Group. The middle one opens the full menu, which
+ * Sketch over, Check the values, To a collage, To a concept, Tag, Group. The middle one opens the full menu, which
  * keeps every other command. A context menu's *representation*, so `ContextMenuArea` still decides
  * when it opens and what the full menu holds; [list] is how that full menu is shown.
  */
@@ -125,6 +125,7 @@ private fun Ring(board: BoardState, close: () -> Unit, onConcepts: () -> Unit, o
             if (single != null && board.sketchOf(single) != null) "Continue sketch" else "Sketch over",
             single != null,
         ) { single?.let(board::sketchOver) },
+        RingAction("ring-lens", Room.LENS, "Check the values", single != null) { single?.let(board::checkValues) },
         // Collage is a dry well until it is built (M9).
         RingAction("ring-collage", Room.COLLAGE, "To a collage", false) {},
         RingAction("ring-concept", Room.CONCEPTS, "To a concept", own && board.conceptsAvailable().isNotEmpty()) { onConcepts() },

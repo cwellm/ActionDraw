@@ -606,6 +606,13 @@ class SketchState(
 
     // ---- Leaving ----
 
+    /** Into the Lens room with the page as it is now, to see its values; the sketch waits as it is. */
+    fun checkValues() {
+        val s = session ?: return
+        mouseUp()
+        host.checkValues(s.exportPng(), title)
+    }
+
     /** Back to where Live Sketch was opened from; the sketch stays for next time. */
     fun leave() {
         mouseUp()
