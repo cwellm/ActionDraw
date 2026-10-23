@@ -5,7 +5,6 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 // starts it; `./gradlew packageMsi` and `packageDeb` build its installers.
 plugins {
     kotlin("jvm")
-    kotlin("plugin.serialization")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
 }
@@ -15,8 +14,11 @@ version = "1.0.0"
 
 dependencies {
     implementation(compose.desktop.currentOs)
-    // The drawing engine (Live Sketch), a library of its own: docs/Pencil-Engine-Architecture.md.
-    implementation(project(":lib:sketch-engine"))
+    // The rooms: each a feature of the lib, put together here.
+    implementation(project(":lib:feature:practice"))
+    implementation(project(":lib:feature:board"))
+    implementation(project(":lib:feature:concept"))
+    implementation(project(":lib:feature:sketch"))
     // The API: boards, cards, concepts, the session's vocabulary, the contracts for getting and
     // keeping them (Lib), and the host contracts the desktop fills.
     implementation(project(":lib:domain"))
@@ -34,8 +36,6 @@ dependencies {
     // Windows' animation setting (SystemPreferences) is read through JNA too.
     implementation("net.java.dev.jna:jna:5.14.0")
     implementation("net.java.dev.jna:jna-platform:5.14.0")
-    // The Tune panel's leads, kept as JSON among the preferences.
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     testImplementation(kotlin("test"))
     // Drives the real composables in tests: pointer behaviour (what a click actually selects)
     // cannot be checked any other way.

@@ -16,6 +16,7 @@ import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardScreen
+import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
@@ -217,5 +218,43 @@ class BoardChromeTest {
         rule.onNodeWithTag("board-contents").performClick()
         rule.waitForIdle()
         assertTrue(state.drawerOpen, "Contents, from the bottom right")
+    }
+
+    // ---- The host's services, as the board asks for them ----
+
+    @Test
+    fun importingAsksTheHostsDialogsForThePictures() {
+        val outside = Files.createTempDirectory("chrome-outside").toFile()
+        val picture = File(outside, "wing.jpg").apply { createNewFile() }
+        var asked: Collection<String>? = null
+        val dialogs = object : FileDialogs by FileDialogs.None {
+            override fun chooseFiles(start: File?, title: String, description: String, extensions: Collection<String>): List<File> {
+                asked = extensions
+                return listOf(picture)
+            }
+        }
+        val state = BoardState(FileLib(config), host, dialogs = dialogs)
+        state.createBoard(home, "Import")
+        rule.setContent { ProvideAtelier { BoardScreen(state, FileLib(config).pictures, isFullscreen = false, setFullscreen = {}) } }
+        rule.waitForIdle()
+
+        rule.onNodeWithTag("board-add").performClick()
+        rule.waitForIdle()
+        rule.onNode(androidx.compose.ui.test.hasText("Import pictures…")).performClick()
+        rule.waitForIdle()
+
+        assertTrue("jpg" in asked.orEmpty(), "the dialog offers the pictures the lib reads: $asked")
+        assertEquals(listOf("_imported/wing.jpg"), state.board!!.items.filterIsInstance<ImageItem>().map { it.path }, "and what was chosen is on the board")
+        outside.deleteRecursively()
+    }
+
+    @Test
+    fun aLinkLeavesThroughTheHostsBrowser() {
+        val opened = mutableListOf<String>()
+        val state = BoardState(FileLib(config), host, browser = { url -> opened += url; true })
+        state.createBoard(home, "Links")
+        state.saveLink(null, "https://example.com/wings", "Wings")
+        state.openLink(state.board!!.items.filterIsInstance<LinkItem>().single())
+        assertEquals(listOf("https://example.com/wings"), opened)
     }
 }

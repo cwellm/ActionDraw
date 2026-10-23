@@ -10,8 +10,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Behavioural tests for PracticeState against a real temp folder (empty files pass ImageScanner). */
-class AppStateTest {
+/** Behavioural tests for PracticeState against a real temp folder (an empty .jpg counts as a picture). */
+class PracticeStateTest {
     private val dir: File = Files.createTempDirectory("actiondraw-state").toFile()
 
     /** Isolated config dir, so tests never read or clobber the real ~/.actiondraw. */

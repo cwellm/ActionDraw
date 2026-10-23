@@ -11,6 +11,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.Exercise
@@ -255,5 +256,29 @@ class PracticeTest {
         rule.onNodeWithTag("start-lens-none").performClick()
         rule.waitForIdle()
         assertEquals(Exercise.ACTION, state.exercise)
+    }
+
+    // ---- The host's services ----
+
+    @Test
+    fun theFolderIsChosenWithTheHostsDialogs() {
+        val chosen = Files.createTempDirectory("practice-chosen").toFile()
+        try {
+            File(chosen, "a.png").createNewFile()
+            val dialogs = object : FileDialogs by FileDialogs.None {
+                override fun chooseFolder(start: File?, title: String): File = chosen
+            }
+            val state = PracticeState(FileLib(config), dialogs = dialogs)
+            rule.setContent { ProvideAtelier { PracticeScreen(state) } }
+            rule.waitForIdle()
+            rule.onNodeWithTag("source-folder").assertDoesNotExist()
+            rule.onNode(androidx.compose.ui.test.hasText("folder ▾")).performClick()
+            rule.waitForIdle()
+            rule.onNodeWithTag("source-folder").performClick()
+            rule.waitForIdle()
+            assertEquals(chosen, state.folder, "the room draws from the folder the dialog gave")
+        } finally {
+            chosen.deleteRecursively()
+        }
     }
 }

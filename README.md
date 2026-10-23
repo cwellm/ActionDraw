@@ -546,9 +546,11 @@ In three groups — `lib` for what an application builds on, `device` for the ha
   basics (motion, the chrome that steps back)
 - `lib/design/atelier` — the default design: the atelier of [CONCEPT.md](CONCEPT.md), and its
   fonts
+- `lib/feature/practice`, `board`, `concept`, `sketch` — the rooms: each one's state and logic
+  over the domain, its screens on the design contract; none knows another
 - `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
-- `app/desktop` — the app: the rooms, their state and screens, the desktop's clipboard, dialogs
-  and browser, and the start-up
+- `app/desktop` — the app: the palette, the windows, the rooms put together, the desktop's
+  clipboard, dialogs, browser and pen, and the start-up
 - `build-logic` — the modules' shared Gradle setup: `actiondraw.kotlin-library`,
   `actiondraw.skia` and `actiondraw.compose`
 

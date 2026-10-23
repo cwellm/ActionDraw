@@ -5,25 +5,21 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.cardMenuItems
-import de.creaflect.actiondraw.concept.ConceptHost
-import de.creaflect.actiondraw.concept.ConceptState
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
  * A picture Live Sketch saved has its strokes beside it (`name.sketch.json` next to `name.png`);
- * from its card on a board, or on a concept's page, it can be taken up again where it was left.
+ * from its card on a board it can be taken up again where it was left (a concept's page: ConceptTest).
  */
 class SketchCardTest {
     private val home: File = Files.createTempDirectory("sketch-card").toFile()
-    private val conceptsHome: File = Files.createTempDirectory("sketch-card-concepts").toFile()
     private val config: File = Files.createTempDirectory("sketch-card-cfg").toFile()
     private var opened: File? = null
 
@@ -38,7 +34,7 @@ class SketchCardTest {
 
     @AfterTest
     fun cleanup() {
-        listOf(home, conceptsHome, config).forEach { it.deleteRecursively() }
+        listOf(home, config).forEach { it.deleteRecursively() }
     }
 
     @Test
@@ -60,32 +56,5 @@ class SketchCardTest {
 
         state.openSketch(sketched)
         assertEquals(doc, opened, "handed to Live Sketch through the host")
-    }
-
-    @Test
-    fun aSketchedPictureInAConceptCanBeContinuedToo() {
-        var fromConcept: File? = null
-        val concepts = ConceptState(
-            FileLib(config),
-            object : ConceptHost {
-                override fun showConcepts() = Unit
-                override fun showConcept() = Unit
-                override fun leaveConcepts() = Unit
-                override fun openSketch(file: File) { fromConcept = file }
-            },
-        )
-        concepts.setConceptsHomeDir(conceptsHome)
-        concepts.createConcept("Drache")
-        val dir = concepts.root!!
-        // Live Sketch saves straight into the concept's folder, then hands the picture over.
-        val png = File(dir, "Flügel.png").apply { createNewFile() }
-        val doc = File(dir, "Flügel.sketch.json").apply { writeText("{}") }
-        val added = assertNotNull(concepts.addToConcept(concepts.concept!!.id, listOf(png), emptyList()))
-        val item = added.filterIsInstance<ImageItem>().single()
-
-        assertEquals("Flügel.png", item.path, "referenced where it is, not copied")
-        assertEquals(doc, concepts.sketchOf(item))
-        concepts.openSketch(item)
-        assertEquals(doc, fromConcept)
     }
 }

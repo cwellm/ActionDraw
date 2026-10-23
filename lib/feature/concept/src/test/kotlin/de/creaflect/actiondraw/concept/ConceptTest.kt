@@ -375,4 +375,43 @@ class ConceptTest {
         assertTrue(name.contains("Feuer") && name != "Drache", "Enter is the Save button: $name")
         assertNull(state.editor, "and the dialog closed")
     }
+
+    // ---- A sketch in a concept ----
+
+    @Test
+    fun aSketchedPictureInAConceptCanBeContinuedToo() {
+        var fromConcept: File? = null
+        val concepts = ConceptState(
+            FileLib(config),
+            object : ConceptHost {
+                override fun showConcepts() = Unit
+                override fun showConcept() = Unit
+                override fun leaveConcepts() = Unit
+                override fun openSketch(file: File) { fromConcept = file }
+            },
+        )
+        concepts.setConceptsHomeDir(home)
+        concepts.createConcept("Drache")
+        val dir = concepts.root!!
+        // Live Sketch saves straight into the concept's folder, then hands the picture over.
+        val png = File(dir, "Flügel.png").apply { createNewFile() }
+        val doc = File(dir, "Flügel.sketch.json").apply { writeText("{}") }
+        val added = assertNotNull(concepts.addToConcept(concepts.concept!!.id, listOf(png), emptyList()))
+        val item = added.filterIsInstance<ImageItem>().single()
+
+        assertEquals("Flügel.png", item.path, "referenced where it is, not copied")
+        assertEquals(doc, concepts.sketchOf(item))
+        concepts.openSketch(item)
+        assertEquals(doc, fromConcept)
+    }
+
+    // ---- The host's services ----
+
+    @Test
+    fun aLinkInADocumentLeavesThroughTheHostsBrowser() {
+        val opened = mutableListOf<String>()
+        val state = ConceptState(FileLib(config), host, browser = { url -> opened += url; true })
+        state.openUrl("https://example.com/anatomy")
+        assertEquals(listOf("https://example.com/anatomy"), opened)
+    }
 }

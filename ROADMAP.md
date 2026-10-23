@@ -1234,12 +1234,33 @@ device   pen
   F11.5
 - ✅ Broken on purpose and seen red after a no-op control stayed green: the boards' glow darkened past reading, muted text faded below it, the bloom without its darker rim, the lamp's shadow falling up and to the left, a design theme that gives no design, paper without its tooth, a paper board inked in its own paper, a second light in the atelier's sources (the scan now reads them). The contract reaching the atelier or the bare lib, the atelier reaching the app: none of it compiles
 
-### ⬜ F11.10 `:lib:feature:*` — the four rooms
-- ⬜ `practice`, `board`, `concept` and `sketch`: each with its own domain layer, its state and
-  logic over `domain` and `data`, and its screens on the design contract
-- ⬜ The links between rooms become contracts (`BoardHost`, `ConceptSource`, `SketchHost`,
-  `PinTargets` today), and what the board takes from Practice (`MenuExtras` takes an `AppState`)
-  moves to where the app is assembled
+### ✅ F11.10 `:lib:feature:*` — the four rooms
+- ✅ `practice`, `board`, `concept` and `sketch`, each a module: the room's state and logic over the
+  domain's `Lib`, its screens on the design contract. A room depends on the domain, the design
+  contract and — Live Sketch — the engine. Not on `data`, which the app hands in as `Lib`; not on
+  another room, the atelier or the desktop
+- ✅ The Practice room has a state of its own: `AppState` was the app's way between the rooms and
+  the room itself in one. The app keeps where it is (`Screen`, the palette's well, reduced
+  motion); `PracticeState` is the room, with its pages (menu, picker, session, summary) and the
+  window a board's session runs in
+- ✅ What one room asks of another is a contract the room owns, filled by the app: `BoardHost`,
+  `ConceptHost`, `SketchHost`, `PracticeBoards`, `PinTargets`, and the domain's `ConceptSource`.
+  The settings sheet is the app's, made of the rooms' sections; the hotkey sheet is the kit's,
+  made of each room's list
+- ✅ The desktop's services are the domain's host contracts, handed in: the clipboard, the
+  browser, the file dialogs (`None` where a host has none, which is also what a test gets), and
+  the pen — hooked by the app and delivered on the UI thread, so Live Sketch only listens
+- ✅ What the rooms shared went down a level: Markdown, the notes' paper, the interval selector and
+  the hotkey sheet to the design contract; finding a picture's sketch to the lib
+  (`Sketches.documentOf`)
+- ✅ The tests went with their rooms (now board 231, practice 77, sketch 34, concept 20). Those that
+  wire rooms together stay in the app (`ConceptLinkTest`, `RingMenuTest`, `PaletteTest`,
+  `RoomScreenshotTest`); a board test that needed a concept now meets the domain's
+  `ConceptSource` instead
+- ✅ New tests for the seams: the board's import asks the host's dialogs, a link on a board or in
+  a concept leaves through the host's browser, the Practice room's folder comes from the host's
+  dialogs, Live Sketch listens to the pen it is handed
+- ✅ Broken on purpose and seen red after a no-op control stayed green: a board's or a concept's link ignoring the host's browser, the board's import and the Practice room's folder asking no dialog, the board's own settings sheet showing the app's title, the app's sheet leaving out a board section, a board's session taking the main window, Live Sketch not saying how its pen listens or letting its samples go nowhere. A room reaching another room, the desktop's clipboard, the files, the atelier or the pen's device: none of it compiles
 
 ### ⬜ F11.11 `:app:desktop` — on top
 - ⬜ The windows, navigation and the palette home; the design system chosen; the desktop's

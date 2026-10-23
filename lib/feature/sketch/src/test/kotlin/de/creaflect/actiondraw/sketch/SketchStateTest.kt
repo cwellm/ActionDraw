@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.board.ConceptRef
 import de.creaflect.actiondraw.sketch.input.PenSample
+import de.creaflect.actiondraw.sketch.input.PenSource
 import de.creaflect.actiondraw.sketch.ui.ColorPicker
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
@@ -846,5 +847,40 @@ class SketchStateTest {
         } finally {
             Pencils.reset(Lead.SOFT)
         }
+    }
+
+    // ---- The pen the host hands in ----
+
+    @Test
+    fun thePenTheHostHandsInIsListenedToAndSaysHowItListens() {
+        var deliver: ((PenSample) -> Unit)? = null
+        var stopped = false
+        val pen = object : PenSource {
+            override val name = "Test pen"
+            override val detail = "2 windows hooked"
+            override fun start(onSample: (PenSample) -> Unit): Boolean {
+                deliver = onSample
+                return true
+            }
+            override fun stop() {
+                stopped = true
+            }
+        }
+        val state = newState()
+        state.onEnter(pen)
+        assertEquals("Listening on Test pen, 2 windows hooked.", state.penStatus)
+        assertNotNull(state.session, "and there is a page to draw on at once")
+
+        deliver!!(pen(10f, 10f, contact = false, ms = 1))
+        assertEquals(1, state.sampleCount, "its samples arrive")
+        state.detach()
+        assertTrue(stopped, "and it is let go when the screen is left")
+    }
+
+    @Test
+    fun withoutAPenFromTheHostItIsTheMouseAlone() {
+        val state = newState()
+        state.onEnter(null)
+        assertTrue(state.penStatus.startsWith("Mouse only"), state.penStatus)
     }
 }

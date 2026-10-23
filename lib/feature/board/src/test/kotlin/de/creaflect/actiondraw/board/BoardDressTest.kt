@@ -21,8 +21,6 @@ import de.creaflect.actiondraw.board.paletteCaption
 import de.creaflect.actiondraw.board.paletteColours
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.board.ui.notePaper
-import de.creaflect.actiondraw.concept.ConceptHost
-import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.Notes
@@ -166,21 +164,19 @@ class BoardDressTest {
 
     @Test
     fun aBorrowedCardWearsItsConceptsTab() {
+        // A concept as the board sees it, through the domain's ConceptSource: one picture in it.
         val conceptsHome = Files.createTempDirectory("dress-concepts").toFile()
-        val concepts = ConceptState(
-            FileLib(config),
-            object : ConceptHost {
-                override fun showConcepts() = Unit
-                override fun showConcept() = Unit
-                override fun leaveConcepts() = Unit
-            },
-        ).also { it.setConceptsHomeDir(conceptsHome) }
-        concepts.createConcept("Drache", "creature")
-        concepts.addPictures(listOf(File(conceptsHome, "wing.jpg").apply { createNewFile() }))
+        File(conceptsHome, "wing.jpg").createNewFile()
+        val concepts = object : ConceptSource {
+            override fun available() = listOf(ConceptRef("c1", "Drache", "creature"))
+            override fun snapshot(id: String) =
+                if (id == "c1") ConceptSnapshot("c1", "Drache", conceptsHome, listOf(ImageItem(id = "wing", path = "wing.jpg"))) else null
+            override fun addToConcept(id: String, pictures: List<File>, others: List<BoardItem>): List<BoardItem>? = null
+        }
         val state = BoardState(FileLib(config), host, concepts = concepts)
         state.createBoard(home, "Dress")
         state.importExternal(listOf(File(state.root!!, "own.jpg").apply { createNewFile() }))
-        assertTrue(state.linkConcept(concepts.concept!!.id))
+        assertTrue(state.linkConcept("c1"))
         state.setLayout(BoardLayouts.FREE)
         val (borrowed, own) = state.board!!.items.partition { state.isBorrowed(it) }
         show(state)

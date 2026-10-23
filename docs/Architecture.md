@@ -46,7 +46,6 @@ flowchart TB
   pen --> domain
   features --> contract
   features --> domain
-  features --> data
   atelier --> contract
   data --> domain
   data --> model
@@ -56,8 +55,9 @@ flowchart TB
   data --> engine
 ```
 
-Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `features` also see
-`lifecycle` (and `sketch` the engine), and `atelier` also uses the engine for the paper's grain.
+Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `sketch` also uses
+the engine, and `atelier` the engine for the paper's grain. A feature does not see `data`: it works
+with the domain's `Lib`, which the app makes from `data` and hands in.
 
 ## The layers
 
@@ -86,8 +86,9 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
   `MaterialTheme` is.
 - **`design:atelier`** — the default design system, in Compose: the atelier of
   [CONCEPT.md](../CONCEPT.md). Another design system implements the same contract.
-- **`feature:*`** — a room as a unit: the domain contracts it adds in its own domain layer, its
-  state and logic over `domain` and `data`, and its screens on the design contract.
+- **`feature:*`** — a room as a unit: the contracts it adds in its own domain layer (its host, what
+  it asks of other rooms), its state and logic over the domain's `Lib`, and its screens on the
+  design contract. The desktop's services reach it as the domain's host contracts, handed in.
 - **`app:desktop`** — on top: the windows, navigation between the rooms, the design system chosen,
   the desktop's implementations of the host contracts (AWT clipboard, Swing dialogs, the
   desktop's browser, Windows' animation setting), and the pen wired in from `device:pen`.
@@ -110,8 +111,9 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
    another is a contract, in the domain or in the room's own domain layer, connected by the app.
 8. **Features use the design contract, never `atelier` itself**, so another design system
    restyles them.
-9. **Compose lives in the UI kit and the app**; the OS (Swing, AWT, JNA) only in the app and
-   `device`.
+9. **Compose lives in the UI kit and the app**; the operating system's services — the clipboard,
+   file dialogs, the browser, native hooks (Swing, AWT's desktop services, JNA) — only in the app
+   and `device`, behind the domain's host contracts.
 10. **The files stay the truth.** A board is a folder plus a sidecar; there is no database. An
     index (search across boards, pictures by content) could later sit inside `data` without anyone
     above noticing.
@@ -130,8 +132,8 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 | `:lib:sketch-engine` | `:sketch-engine` |
 | `:lib:design:contract` | new: `DesignSystem`, `Materials` and `Chrome` as contracts, read through `DesignTheme`; and the kit's basics, `ui/Motion.kt` (without the bloom) and `Components.kt` (F11.9) |
 | `:lib:design:atelier` | `ui/Atelier.kt`, `Materials.kt` (now `AtelierMaterials`), `RoomChrome.kt` (now `AtelierChrome`), the bloom out of `Motion.kt`, the fonts (F11.9) |
-| `:lib:feature:practice` | `AppState` and the Practice room's screens (`ui/PracticeScreen`, `SessionScreen`, the glass, …) |
-| `:lib:feature:board` | `BoardState` and `board/ui` |
+| `:lib:feature:practice` | the Practice room out of `AppState` (now `PracticeState`, F11.10), `PinTargets`, and its screens (`ui/PracticeScreen`, `SessionScreen`, the glass, …) |
+| `:lib:feature:board` | `BoardState` and `board/ui`, less the app's settings sheet |
 | `:lib:feature:concept` | `ConceptState` and `concept/ui` |
 | `:lib:feature:sketch` | `SketchState` and `sketch/ui` |
 | `:app:desktop` | `Main`, `App`, the palette home, the windows; the AWT, Swing and JNA sides of `:core:platform` |
@@ -139,27 +141,25 @@ Simplified: `desktop` also sees `domain`, `lifecycle` and the design contract, `
 
 ## Where it stands
 
-After F11.9 the app reaches the disk and the network only through `Lib`, and its screens draw
-only through the design contract; `Main` and `App` choose the atelier:
+After F11.10 the rooms are the lib's features, each knowing the domain, the design contract and
+nothing of another room; the app puts them together:
 
 ```mermaid
 flowchart TB
-  desktop[":app:desktop<br/>rooms · states · screens<br/>clipboard · dialogs · browser"]
+  desktop[":app:desktop<br/>palette · windows · the desktop's services"]
+  desktop --> features[":lib:feature:*<br/>practice · board · concept · sketch"]
   desktop --> atelier[":lib:design:atelier"]
-  atelier --> contract[":lib:design:contract"]
-  atelier --> engine
   desktop --> data[":lib:data<br/>FileLib"]
-  desktop --> domain[":lib:domain"]
-  desktop --> lifecycle[":lib:core:lifecycle"]
-  desktop --> engine[":lib:sketch-engine"]
   desktop --> pen[":device:pen"]
+  features --> contract[":lib:design:contract"]
+  features --> domain[":lib:domain"]
+  atelier --> contract
   data --> domain
   data --> model[":lib:core:model"]
   data --> io[":lib:core:io"]
   data --> network[":lib:network"]
-  data --> lifecycle
-  data --> engine
+  data --> lifecycle[":lib:core:lifecycle"]
   pen --> domain
 ```
 
-The rest comes in this order: the features (F11.10) and the desktop on top (F11.11).
+The rest comes in this order: the desktop on top (F11.11).
