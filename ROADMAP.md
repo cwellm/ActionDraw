@@ -1011,7 +1011,7 @@ one*, *How the rooms hand things over*) and the design canvas.
 
 ---
 
-## 🔄 M10 — Architecture: modules and layers
+## ✅ M10 — Architecture: modules and layers
 
 Asked 2026-10-17, on `dev/architecture-improvements`: the data layer and the UI were not clearly
 apart. The four state holders (`BoardState`, `ConceptState`, `SketchState`, `AppState`) mixed
@@ -1262,10 +1262,22 @@ device   pen
   dialogs, Live Sketch listens to the pen it is handed
 - ✅ Broken on purpose and seen red after a no-op control stayed green: a board's or a concept's link ignoring the host's browser, the board's import and the Practice room's folder asking no dialog, the board's own settings sheet showing the app's title, the app's sheet leaving out a board section, a board's session taking the main window, Live Sketch not saying how its pen listens or letting its samples go nowhere. A room reaching another room, the desktop's clipboard, the files, the atelier or the pen's device: none of it compiles
 
-### ⬜ F11.11 `:app:desktop` — on top
-- ⬜ The windows, navigation and the palette home; the design system chosen; the desktop's
-  implementations of the host contracts; the pen from `device:pen`
-- ⬜ The tests that cross rooms (`RoomScreenshotTest`) live here
+### ✅ F11.11 `:app:desktop` — on top
+- ✅ `Rooms`: the rooms put together — each room's state built over the lib with the host services
+  it asks for, wired to the others through the contracts each room owns. The one place that knows
+  which room answers which question; Main builds it over the person's files and the desktop
+  (`HostServices`: AWT's clipboard, the system's browser, Swing's dialogs, Windows' animation
+  setting), a test over a temp folder and no desktop at all
+- ✅ `Main` is the windows — the main one, the reference strip, a board's session — and the pen
+  hooked to the main one; `Keys` hands each key to the room on screen; `App` is the palette and
+  the room on screen, with the bloom between them; `AppState` the way between the rooms
+- ✅ The tests that cross rooms build the same `Rooms` instead of wiring the rooms themselves
+  (`PaletteTest`, `RoomScreenshotTest`), and `RoomsTest` follows every route between them: a
+  board's session into the Practice room's window, the setup a board remembers, a concept and the
+  boards that link it, a sketch saved onto a board, the Practice room drawing from a board, a
+  sketch from a session and back, and the host's services reaching every room
+- ✅ The links in the docs follow the files to where they live now
+- ✅ Broken on purpose and seen red after a no-op control stayed green: every route of Rooms cut, one at a time — a board's session going nowhere, a board remembering a setup of its own, a concept not told which boards link it, a board unable to open a concept, a sketch saved to a board not pinned, the Practice room knowing no boards, a sketch from a session leaving it running — and each of the host's services withheld: the dialogs, the clipboard, the browser, the system's motion preference
 
 ---
 

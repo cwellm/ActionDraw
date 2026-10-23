@@ -39,7 +39,7 @@ exactly those.**
 | Image source | exactly one flat folder; [ImageScanner](lib/core/io/src/main/kotlin/de/creaflect/actiondraw/image/ImageScanner.kt) scans top-level only, 6 extensions | a board wants subfolders (and maybe several sources) |
 | Selection | the picker's `Set<String>` of file names — in memory only, per folder, lost on folder change | the board is, in essence, a **persistent, structured, annotated picker** |
 | Persistence | per-folder sidecar text files (`.actiondraw_seen.txt`, `.actiondraw_redo.txt`); app-level `~/.actiondraw/settings.properties` | precedent: state lives *with the images*, plain files, best-effort IO |
-| Thumbnails | [Thumbnails.load](app/desktop/src/main/kotlin/de/creaflect/actiondraw/image/Thumbnails.kt) downscales to 192 px on demand — **no cache**, recomputed every time | a board shows hundreds of thumbs → disk cache becomes necessary |
+| Thumbnails | [Thumbnails.load](lib/data/src/main/kotlin/de/creaflect/actiondraw/image/Thumbnails.kt) downscales to 192 px on demand — **no cache**, recomputed every time | a board shows hundreds of thumbs → disk cache becomes necessary |
 | Filters | ColorMatrix + Skia runtime shaders, applied live in the session | sessions started *from a board* inherit all of it for free |
 | Dependencies | none beyond Compose | adding e.g. `kotlinx-serialization-json` is a real (but small) step |
 
@@ -92,7 +92,7 @@ Everything else should stay deliberately lean — the goal is not to rebuild Eag
   (`DataFlavor.javaFileListFlavor` / `imageFlavor`). So Ctrl+V of an image copied in a browser can
   work; a pasted bitmap must be written to disk (PNG) so it has a home.
 - **Grouped grid UI** — `LazyVerticalGrid` with section headers: essentially
-  [PickerScreen](app/desktop/src/main/kotlin/de/creaflect/actiondraw/ui/PickerScreen.kt) plus structure. Cheap
+  [PickerScreen](lib/feature/practice/src/main/kotlin/de/creaflect/actiondraw/ui/PickerScreen.kt) plus structure. Cheap
   and scales well.
 - **Freeform pan/zoom canvas** — `graphicsLayer` (translate/scale) + `pointerInput`; needs manual
   hit-testing, z-order and culling. Feasible, but real work compared to the grid.

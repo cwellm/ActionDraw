@@ -18,12 +18,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.requestFocus
-import de.creaflect.actiondraw.board.BoardHost
-import de.creaflect.actiondraw.board.BoardState
-import de.creaflect.actiondraw.concept.ConceptHost
-import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.practice.PracticePage
-import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.PALETTE_ORDER
 import de.creaflect.actiondraw.ui.PaletteScreen
@@ -57,29 +52,13 @@ class PaletteTest {
         config.deleteRecursively()
     }
 
-    /** The app's states wired to each other as Main wires them, without the windows. */
+    /** The rooms as Main puts them together — the same [Rooms] — without the windows. */
     private inner class Shell {
-        val lib = FileLib(config)
-        val app = AppState(lib)
-        val practice = PracticeState(lib)
-        val boards = BoardState(
-            lib,
-            object : BoardHost {
-                override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = Unit
-                override fun showBoard() = app.showBoard()
-                override fun showBoardList() = app.showBoardList()
-                override fun leaveBoard() = app.leaveBoard()
-                override fun currentSetup() = practice.currentSetup()
-            },
-        )
-        val concepts = ConceptState(
-            lib,
-            object : ConceptHost {
-                override fun showConcepts() = app.showConcepts()
-                override fun showConcept() = app.showConcept()
-                override fun leaveConcepts() = app.leaveConcepts()
-            },
-        )
+        val rooms = Rooms(FileLib(config))
+        val app = rooms.app
+        val practice = rooms.practice
+        val boards = rooms.boards
+        val concepts = rooms.concepts
 
         fun open(room: Room) = openRoom(room, app, boards, concepts)
     }

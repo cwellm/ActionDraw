@@ -19,15 +19,8 @@ import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
-import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardLayouts
-import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.NoteKind
-import de.creaflect.actiondraw.concept.ConceptHost
-import de.creaflect.actiondraw.concept.ConceptState
-import de.creaflect.actiondraw.practice.PracticeState
-import de.creaflect.actiondraw.sketch.SketchHost
-import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.actiondraw.ui.Room
@@ -66,59 +59,24 @@ class RoomScreenshotTest {
         root.deleteRecursively()
     }
 
-    /** The app's states wired as `main` wires them, on folders of their own. */
+    /** The rooms as `main` puts them together — the same [Rooms] — on folders of their own. */
     private inner class World {
-        val config = File(root, "config").apply { mkdirs() }
-        val lib = FileLib(config)
-        val app = AppState(lib)
-        val practice = PracticeState(lib)
-        lateinit var boards: BoardState
-        lateinit var sketch: SketchState
-        val concepts = ConceptState(
-            lib,
-            object : ConceptHost {
-                override fun showConcepts() = app.showConcepts()
-                override fun showConcept() = app.showConcept()
-                override fun leaveConcepts() = app.leaveConcepts()
-            },
-        ).also { it.setConceptsHomeDir(File(root, "concepts")) }
+        val rooms = Rooms(FileLib(File(root, "config").apply { mkdirs() }))
+        val app = rooms.app
+        val practice = rooms.practice
+        val boards = rooms.boards
+        val concepts = rooms.concepts
+        val sketch = rooms.sketch
 
         init {
-            boards = BoardState(
-                lib,
-                object : BoardHost {
-                    override fun startSession(root: File, images: List<File>, setup: SessionSetup?) = practice.startBoardSession(root, images, setup)
-                    override fun showBoard() = app.showBoard()
-                    override fun showBoardList() = app.showBoardList()
-                    override fun leaveBoard() = app.leaveBoard()
-                    override fun currentSetup(): SessionSetup = practice.currentSetup()
-                    override fun showConcept(id: String) {
-                        concepts.openById(id)
-                    }
-                    override fun showConcepts() = concepts.openList()
-                },
-                concepts = concepts,
-            )
+            concepts.setConceptsHomeDir(File(root, "concepts"))
             boards.setBoardsHomeDir(File(root, "boards").apply { mkdirs() })
-            sketch = SketchState(
-                lib,
-                object : SketchHost {
-                    override fun boards() = boards.availableBoards()
-                    override fun addToBoard(dir: File, pictures: List<File>) = boards.pinTo(dir, pictures)
-                    override fun concepts() = concepts.available()
-                    override fun conceptDir(id: String) = concepts.entryById(id)?.dir
-                    override fun addToConcept(id: String, pictures: List<File>) = concepts.addToConcept(id, pictures, emptyList()) != null
-                    override fun leaveSketch() = app.leaveSketch()
-                },
-            ).also { it.setSketchesHomeDir(File(root, "sketches")) }
+            sketch.setSketchesHomeDir(File(root, "sketches"))
         }
-
-        val thumbs = lib.pictures
-        val pinTargets = PinTargets(boards = { boards.availableBoards() }, pin = boards::pinTo)
 
         fun show(test: ComposeUiTest) = test.setContent {
             ProvideAtelier {
-                App(app, practice, boards, concepts, sketch, thumbs, pinTargets, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+                App(rooms, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
             }
         }
     }

@@ -1,8 +1,8 @@
 # ActionDraw's architecture
 
 ActionDraw is built as Gradle modules in three groups. A module can use only what it declares as a
-dependency, so the build — not a convention — holds the boundaries below. The steps that get
-there are M10 in the [roadmap](../ROADMAP.md).
+dependency, so the build — not a convention — holds the boundaries below. M10 in the
+[roadmap](../ROADMAP.md) built it, step by step, each one broken on purpose to see its guards hold.
 
 - **`lib`** — what an application builds on, in two halves:
   - the **bare lib**: `core` (`model`, `io`, `lifecycle`), `network`, `domain`, `data` and the
@@ -12,7 +12,7 @@ there are M10 in the [roadmap](../ROADMAP.md).
 - **`app`** — the applications on top. Today there is one, `desktop`.
 - **`device`** — the hardware the apps talk to natively. Today there is one, `pen`.
 
-## Where it is going
+## The shape
 
 ```mermaid
 flowchart TB
@@ -125,7 +125,7 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 |---|---|
 | `:lib:core:model` | `:core:model` (F11.1) |
 | `:lib:core:io` | `:core:io` (F11.2) |
-| `:lib:core:lifecycle` | new; today each state picks its own `Dispatchers.IO`, and nothing is flushed on close |
+| `:lib:core:lifecycle` | new (F11.6): the run, its writes and its caches; before it each state picked its own `Dispatchers.IO`, and nothing was flushed on close |
 | `:lib:network` | `:core:network` (F11.3) |
 | `:lib:domain` | the types of `:core:model` (F11.7: `Board`, `Concept`, …); `Lib` and its contracts — `Boards`, `Concepts`, `Pictures`, `PracticeHistory`, `Sketches`, `LinkPreviews`, `Preferences`, `Diagnostics` (F11.8); the host contracts `SystemClipboard`, `Browser`, `FileDialogs`, `HostPreferences` and `PenSource` |
 | `:lib:data` | `FileLib`, over `BoardStore`, `ConceptStore`, the registries, `Settings`, `SeenStore`, `RedoStore`, `ThumbCache`, `Importer`, `LinkPreview`, `ContactSheet`, `Palette` — and the storage that was inside `BoardState`, `ConceptState`, `SketchState`, `AppState` (F11.8) |
@@ -136,30 +136,14 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 | `:lib:feature:board` | `BoardState` and `board/ui`, less the app's settings sheet |
 | `:lib:feature:concept` | `ConceptState` and `concept/ui` |
 | `:lib:feature:sketch` | `SketchState` and `sketch/ui` |
-| `:app:desktop` | `Main`, `App`, the palette home, the windows; the AWT, Swing and JNA sides of `:core:platform` |
-| `:device:pen` | `PenSample`, `PenSource`'s Windows side, `WindowsPointerSource` (in `:core:platform`) |
+| `:app:desktop` | `Main` (the windows), `App` (the palette, the room on screen), `Rooms` (the rooms put together, F11.11), `Keys`, `AppState` (the way between the rooms), the settings sheet; the desktop's sides of the host contracts — `AwtClipboard`, `DesktopBrowser`, `SwingFileDialogs`, `SystemPreferences`, the pen delivered on the UI thread |
+| `:device:pen` | `PenSource`'s Windows side, `WindowsPointerSource` (F11.5, F11.7) |
 
-## Where it stands
+## How the app is put together
 
-After F11.10 the rooms are the lib's features, each knowing the domain, the design contract and
-nothing of another room; the app puts them together:
-
-```mermaid
-flowchart TB
-  desktop[":app:desktop<br/>palette · windows · the desktop's services"]
-  desktop --> features[":lib:feature:*<br/>practice · board · concept · sketch"]
-  desktop --> atelier[":lib:design:atelier"]
-  desktop --> data[":lib:data<br/>FileLib"]
-  desktop --> pen[":device:pen"]
-  features --> contract[":lib:design:contract"]
-  features --> domain[":lib:domain"]
-  atelier --> contract
-  data --> domain
-  data --> model[":lib:core:model"]
-  data --> io[":lib:core:io"]
-  data --> network[":lib:network"]
-  data --> lifecycle[":lib:core:lifecycle"]
-  pen --> domain
-```
-
-The rest comes in this order: the desktop on top (F11.11).
+`app:desktop` makes the lib over the person's files (`FileLib`), puts the rooms together over it
+(`Rooms`) with the desktop's own services, and opens the windows. `Rooms` is the one place that
+knows which room answers which question — a board's session runs in the Practice room, a concept
+is told which boards link it, a sketch is saved onto a board — through the contracts each room
+owns. The rooms themselves know none of the others, and a test builds the same `Rooms` over a temp
+folder with no desktop at all.

@@ -19,10 +19,8 @@ import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
-import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
-import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.sketch.ui.SketchDialogs
 import de.creaflect.actiondraw.sketch.ui.SketchScreen
 import de.creaflect.actiondraw.ui.AtelierTheme
@@ -47,19 +45,20 @@ enum class Screen(val room: Room?) {
     Sketch(Room.SKETCH),
 }
 
+/** The main window's content: the palette, or the room on screen, with the bloom between them. */
 @Composable
 fun App(
-    state: AppState,
-    practice: PracticeState,
-    boardState: BoardState,
-    conceptState: ConceptState,
-    sketchState: SketchState,
-    thumbs: Pictures,
-    pinTargets: PinTargets,
+    rooms: Rooms,
     isFullscreen: Boolean,
     onToggleFullscreen: () -> Unit,
     setFullscreen: (Boolean) -> Unit,
 ) {
+    val state = rooms.app
+    val practice = rooms.practice
+    val boardState = rooms.boards
+    val conceptState = rooms.concepts
+    val sketchState = rooms.sketch
+    val thumbs = rooms.lib.pictures
     // Where each well sits on screen, for the pigment to spread from and drain back into.
     val wellCentres = remember { mutableMapOf<Room, Offset>() }
     var bloom by remember { mutableStateOf<Bloom?>(null) }
@@ -70,14 +69,6 @@ fun App(
         previous = state.screen
         if (state.screen == Screen.Palette && from != null && bloom == null) {
             bloom = Bloom(from, wellCentres[from] ?: Offset.Unspecified, opening = false)
-        }
-    }
-
-    // The Practice room can draw from a board: the board side says which there are and what is on them.
-    LaunchedEffect(boardState) {
-        practice.practiceBoards = object : PracticeState.PracticeBoards {
-            override fun boards() = boardState.availableBoards()
-            override fun pictures(dir: java.io.File) = boardState.picturesOf(dir)
         }
     }
 
@@ -101,15 +92,11 @@ fun App(
                     Screen.Practice -> PracticeRoom(
                         practice,
                         thumbs,
-                        pinTargets,
+                        rooms.pinTargets,
                         isFullscreen,
                         onToggleFullscreen,
                         onHome = state::showPalette,
-                        onSketch = { picture ->
-                            sketchState.openFromSession(picture)
-                            practice.pauseForSketch()
-                            state.sketchFromSession()
-                        },
+                        onSketch = rooms::sketchFromSession,
                     )
                     Screen.BoardList -> BoardListScreen(boardState, thumbs, onHome = boardState::leaveList)
                     Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen, onHome = boardState::closeBoard)
