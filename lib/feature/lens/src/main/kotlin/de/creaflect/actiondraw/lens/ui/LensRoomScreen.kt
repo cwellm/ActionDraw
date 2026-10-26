@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.lens.LensLayout
 import de.creaflect.actiondraw.lens.LensRoomState
 import de.creaflect.actiondraw.lens.LensSide
@@ -55,7 +56,6 @@ import de.creaflect.actiondraw.ui.LensControls
 import de.creaflect.actiondraw.ui.LensView
 import de.creaflect.actiondraw.ui.LocalDesign
 import de.creaflect.actiondraw.ui.PigmentDab
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.fitScale
@@ -81,20 +81,16 @@ fun LensRoomScreen(state: LensRoomState, onHome: (() -> Unit)? = null) {
     val shown = remember { mutableStateOf(IntSize.Zero) }
     SaveTheView(state, bitmap, shown)
     val barHeight = remember { mutableStateOf(0) }
-    // Material's own controls — the chips, the sliders — in the room's pigment, not Practice's.
-    val pigment = Room.LENS.pigment
-    MaterialTheme(colors = MaterialTheme.colors.copy(primary = pigment.glow, primaryVariant = pigment.mass)) {
-        Column(Modifier.fillMaxSize()) {
-            Header(state, onHome)
-            Line(state)
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                if (picture == null) {
-                    Invitation(state, Modifier.align(Alignment.Center))
-                } else {
-                    val room = with(LocalDensity.current) { barHeight.value.toDp() }
-                    Views(state, bitmap, shown, Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = room))
-                    LensControls(state.lens, bitmap, Room.LENS, barHeight)
-                }
+    Column(Modifier.fillMaxSize()) {
+        Header(state, onHome)
+        Line(state)
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            if (picture == null) {
+                Invitation(state, Modifier.align(Alignment.Center))
+            } else {
+                val room = with(LocalDensity.current) { barHeight.value.toDp() }
+                Views(state, bitmap, shown, Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = room))
+                LensControls(state.lens, bitmap, Room.LENS, barHeight)
             }
         }
     }
@@ -146,6 +142,10 @@ private fun Header(state: LensRoomState, onHome: (() -> Unit)?) {
                 }
                 Flat("Save…", tag = "lens-save") { state.save() }
                 PinButton(state)
+                // Into the other rooms with the picture: the ways the hand-off seam has.
+                state.routes().forEach { route ->
+                    CrossRoomButton(route.to, route.label, Modifier.testTag("lens-to-" + route.to.name.lowercase())) { state.handOff(route.to) }
+                }
             }
             Flat("Back", tag = "lens-back") { state.leave() }
         },

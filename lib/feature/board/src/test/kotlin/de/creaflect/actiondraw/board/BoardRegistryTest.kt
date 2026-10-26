@@ -65,14 +65,14 @@ class BoardRegistryTest {
         repeat(6) { state.createBoard(newHome, "Later $it") }
 
         // Restarting with the home where the user moved it — the old board is not under it.
-        val listed = newState(newHome).availableBoards()
+        val listed = newState(newHome).available()
         assertTrue(
-            listed.any { it.first == "Drachenbuch" },
+            listed.any { it.name == "Drachenbuch" },
             "the board is still listed although the home now points elsewhere: $listed",
         )
         assertEquals(
             original.absolutePath,
-            listed.first { it.first == "Drachenbuch" }.second.absolutePath,
+            listed.first { it.name == "Drachenbuch" }.dir.absolutePath,
             "and at its own folder",
         )
         assertTrue(original.isDirectory, "which was never moved")
@@ -88,7 +88,7 @@ class BoardRegistryTest {
         repeat(8) { state.createBoard(home, "Filler $it") }
 
         assertTrue(
-            newState().availableBoards().any { it.second.absolutePath == outside.absolutePath },
+            newState().available().any { it.dir.absolutePath == outside.absolutePath },
             "the registry keeps it; the recent list alone would have dropped it",
         )
     }
@@ -106,7 +106,7 @@ class BoardRegistryTest {
 
         assertFalse(dir.exists(), "the recorded folder is the one that went")
         assertNull(newState().entryFor(dir), "and the record went with it")
-        assertTrue(newState().availableBoards().isEmpty())
+        assertTrue(newState().available().isEmpty())
     }
 
     @Test
@@ -119,7 +119,7 @@ class BoardRegistryTest {
         state.createBoard(home, "Drachen")
 
         assertEquals(first.absolutePath, state.root!!.absolutePath, "the existing board is opened, not a second one made")
-        assertEquals(2, state.availableBoards().size)
+        assertEquals(2, state.available().size)
     }
 
     @Test
@@ -173,7 +173,7 @@ class BoardRegistryTest {
         val state = newState()
         assertNull(state.entryFor(old), "unknown to begin with")
 
-        assertEquals(listOf("Legacy"), state.availableBoards().map { it.first })
+        assertEquals(listOf("Legacy"), state.available().map { it.name })
         assertEquals(
             true,
             state.entryFor(old)?.ownsFolder,
@@ -189,7 +189,7 @@ class BoardRegistryTest {
 
         dir.deleteRecursively() // behind the app's back
 
-        assertTrue(state.availableBoards().isEmpty())
+        assertTrue(state.available().isEmpty())
         assertNull(newState().entryFor(dir), "the stale entry is pruned, not kept forever")
     }
 }

@@ -1,6 +1,12 @@
 package de.creaflect.actiondraw.lens
 
 import de.creaflect.actiondraw.FileLib
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.SystemClipboard
 import java.awt.image.BufferedImage
@@ -34,14 +40,26 @@ class LensRoomFixture {
     val pinned = mutableListOf<Pair<File, List<File>>>()
     var left = 0
 
-    val host = object : LensHost {
-        override fun boards() = listOf("Buch" to board)
+    /** What was handed on from the room, and where to. */
+    val sent = mutableListOf<Pair<Handed, Room>>()
+
+    val host = LensHost { left++ }
+
+    val boards = object : BoardSource {
+        override fun available() = listOf(BoardRef("Buch", board))
+        override fun pictures(dir: File) = emptyList<File>()
         override fun pin(dir: File, pictures: List<File>): String {
             pinned += dir to pictures
             return "Pinned ${pictures.size} to Buch."
         }
-        override fun leaveLens() {
-            left++
+    }
+
+    /** The seam as the app has it: a picture on disk goes on into Sketch. */
+    val handoff = object : Handoff {
+        override fun routes(what: Handed, from: Room) =
+            if (what is Handed.Picture && from != Room.SKETCH) listOf(Route(Room.SKETCH, "Sketch over")) else emptyList()
+        override fun send(what: Handed, to: Room) {
+            sent += what to to
         }
     }
 
@@ -57,7 +75,7 @@ class LensRoomFixture {
         override fun paste(): SystemClipboard.Pasted? = pasted
     }
 
-    fun state() = LensRoomState(FileLib(home), host, dialogs, clipboard)
+    fun state() = LensRoomState(FileLib(home), host, dialogs, clipboard, boards, handoff)
 
     /** A [w] × [h] picture, orange on its left half and blue on its right, as PNG bytes. */
     fun pngBytes(w: Int = 40, h: Int = 20): ByteArray {

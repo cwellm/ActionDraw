@@ -52,7 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.creaflect.actiondraw.PinTargets
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.practice.PracticeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -73,9 +73,6 @@ fun SessionScreen(
     state: PracticeState,
     onToggleFullscreen: () -> Unit,
     isFullscreen: Boolean,
-    pinTargets: PinTargets? = null,
-    /** Opens Live Sketch with the picture on screen as the reference; null hides the button. */
-    onSketch: ((File) -> Unit)? = null,
 ) {
     // Per-second countdown. Restarts on navigation (index/pose) and suspends while paused.
     LaunchedEffect(state.index, state.rampPose, state.isPaused) {
@@ -140,7 +137,7 @@ fun SessionScreen(
                     dimmed = receded.value,
                     modifier = Modifier.clickable(role = Role.Button, onClickLabel = if (state.isPaused) "Go on" else "Pause") { state.togglePause() },
                 )
-                SessionPiece(receded, watch, ChromeEdge.RIGHT, "session-side") { SideButtons(state, pinTargets, onSketch) }
+                SessionPiece(receded, watch, ChromeEdge.RIGHT, "session-side") { SideButtons(state) }
             }
             if (state.isPaused) PausePanel(state, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
             // Along the bottom the lens's tray, and the settings above it, stepping back with the rest.
@@ -254,11 +251,13 @@ private fun QuietSwitch(label: String, key: String, on: Boolean, tag: String, on
 
 /**
  * Under the enso: back and on, and what can be done with this picture - flag it to redo, hide it,
- * sketch from it, pin it to a board. The last two lead into other rooms and carry their dabs.
+ * take it into another room (the hand-off seam's ways: Sketch, the Lens…), pin it to a board. Those
+ * that lead into other rooms carry their dabs.
  */
 @Composable
-private fun SideButtons(state: PracticeState, pinTargets: PinTargets?, onSketch: ((File) -> Unit)?) {
+private fun SideButtons(state: PracticeState) {
     val current = state.currentImage
+    val routes = remember(current) { state.routes() }
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RoundButton("Back", PREV_ICON, size = 34.dp, label = false, tag = "session-prev") { state.previous() }
@@ -266,32 +265,43 @@ private fun SideButtons(state: PracticeState, pinTargets: PinTargets?, onSketch:
         }
         RoundButton("Redo", REDO_ICON, on = state.isCurrentRedo, tag = "session-redo") { state.toggleRedoCurrent() }
         RoundButton("Hide", EYE_ICON, on = state.referenceFlipped, tag = "session-hide") { state.toggleReference() }
-        onSketch?.let { open ->
-            RoundButton("Sketch", PENCIL_ICON, room = Room.SKETCH, enabled = current != null, tag = "session-sketch") { current?.let(open) }
+        // Named for the room it leads into, said in full to a screen reader: "Sketch" - Sketch over.
+        routes.forEach { route ->
+            RoundButton(
+                route.to.label, iconOf(route.to), room = route.to, description = route.label,
+                tag = "session-" + route.to.name.lowercase(),
+            ) { state.handOff(route.to) }
         }
-        pinTargets?.let { PinButton(state, it) }
+        PinButton(state)
     }
+}
+
+/** A room's glyph on a round button, in the 18-unit box: a pencil into Sketch, a glass into the Lens. */
+private fun iconOf(room: Room): String = when (room) {
+    Room.SKETCH -> PENCIL_ICON
+    Room.LENS -> LENS_ICON
+    else -> ONWARD_ICON
 }
 
 /**
  * Pin - files the picture on screen away on an Idea Board. The session itself knows nothing
- * about boards; [PinTargets] supplies both the list and the action.
+ * about boards: the domain's `BoardSource` lists them and files the picture.
  */
 @Composable
-private fun PinButton(state: PracticeState, pinTargets: PinTargets) {
+private fun PinButton(state: PracticeState) {
     var open by remember { mutableStateOf(false) }
     val current = state.currentImage
     Box {
         RoundButton("Pin", PIN_ICON, room = Room.BOARDS, enabled = current != null, tag = "session-pin") { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            val boards = pinTargets.boards()
+            val boards = state.boards()
             if (boards.isEmpty()) {
                 DropdownMenuItem(onClick = { open = false }) { Text("No boards yet") }
             }
             boards.forEach { (name, dir) ->
                 DropdownMenuItem(onClick = {
                     open = false
-                    current?.let { state.pinNotice = pinTargets.pin(dir, listOf(it)) }
+                    current?.let { state.pin(dir, listOf(it)) }
                 }) { Text(name) }
             }
         }
@@ -304,6 +314,8 @@ private const val REDO_ICON = "M14.5 9 A5.5 5.5 0 1 1 9 3.5 L13 3.5 M10.5 1 L13 
 private const val EYE_ICON = "M1.5 9 Q9 1.5 16.5 9 Q9 16.5 1.5 9 Z M9 6.5 A2.5 2.5 0 1 1 8.99 6.5"
 private const val PENCIL_ICON = "M3.5 14.5 L4.5 11 L12 3.5 L14.5 6 L7 13.5 Z M10.5 5 L13 7.5"
 private const val PIN_ICON = "M9 2 A3.5 3.5 0 1 1 8.99 2 M9 9 L9 16.5"
+private const val LENS_ICON = "M7.5 2.5 A5 5 0 1 1 7.49 2.5 M11 11 L16 16"
+private const val ONWARD_ICON = "M3 9 H15 M10 4 L15 9 L10 14"
 
 /** A round button with a pencil glyph ([icon], an 18-unit box) and its name; [room]'s dab where it leads elsewhere. */
 @Composable
@@ -315,6 +327,8 @@ private fun RoundButton(
     enabled: Boolean = true,
     size: androidx.compose.ui.unit.Dp = 46.dp,
     label: Boolean = true,
+    /** What a screen reader says it does, where that is more than its [name]. */
+    description: String = name,
     tag: String,
     onClick: () -> Unit,
 ) {
@@ -324,10 +338,10 @@ private fun RoundButton(
         verticalArrangement = Arrangement.spacedBy(3.dp),
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .clickable(enabled = enabled, role = Role.Button, onClickLabel = name, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = description, onClick = onClick)
             .semantics {
                 selected = on
-                contentDescription = name
+                contentDescription = description
             }
             .testTag(tag),
     ) {

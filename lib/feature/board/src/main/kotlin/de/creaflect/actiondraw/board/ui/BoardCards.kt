@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardGroup
 import de.creaflect.actiondraw.board.BoardItem
@@ -74,7 +75,6 @@ import de.creaflect.actiondraw.ui.CrossRoomButton
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Notes
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.paperTooth
@@ -175,9 +175,8 @@ internal fun cardMenuItems(state: BoardState, item: BoardItem): List<ContextMenu
             menu += ContextMenuItem("Tags…") { state.openEditor(BoardEditor.EditTags(ids)) }
             menu += ContextMenuItem(if (item.starred) "Unstar" else "Star") { state.toggleStar(ids) }
             menu += ContextMenuItem("Use as wallpaper") { state.fileOf(item)?.let { state.setWallpaper(it) } }
-            menu += ContextMenuItem("Check the values") { state.checkValues(item) }
-            // A picture Live Sketch saved can be taken up again where it was left.
-            if (state.sketchOf(item) != null) menu += ContextMenuItem("Continue in Live Sketch") { state.openSketch(item) }
+            // Into the other rooms, the ways the hand-off seam has: Sketch over it or on with its sketch, the Lens…
+            state.routes(item).forEach { route -> menu += ContextMenuItem(route.label) { state.handOff(item, route.to) } }
         }
 
         is NoteItem -> {

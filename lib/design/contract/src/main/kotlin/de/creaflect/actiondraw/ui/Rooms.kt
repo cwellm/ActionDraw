@@ -4,20 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
-
-/**
- * The six rooms of the palette (CONCEPT.md, *Home: the palette*). Each has a pigment, which the
- * design system chooses: it marks what is held, selected or running in the room — sprinkled,
- * never a whole surface — and a button leading into a room carries its dab.
- */
-enum class Room(val label: String) {
-    PRACTICE("Practice"),
-    LENS("Lens"),
-    BOARDS("Boards"),
-    CONCEPTS("Concepts"),
-    SKETCH("Sketch"),
-    COLLAGE("Collage"),
-}
+import de.creaflect.actiondraw.Room
 
 /**
  * A pigment: [mass] is the paint on paper and porcelain, [glow] the same pigment on the dark
@@ -27,7 +14,10 @@ enum class Room(val label: String) {
 @Immutable
 data class Pigment(val name: String, val mass: Color, val glow: Color, val onMass: Color)
 
-/** The room's pigment in the design system in use. */
+/**
+ * The room's pigment in the design system in use. It marks what is held, selected or running in the
+ * room — sprinkled, never a whole surface — and a button leading into a room carries its dab.
+ */
 val Room.pigment: Pigment
     @Composable
     @ReadOnlyComposable

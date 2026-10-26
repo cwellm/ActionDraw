@@ -4,7 +4,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.Lib
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Receiver
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.SystemClipboard
@@ -15,23 +22,16 @@ import org.jetbrains.skia.Image
 import java.io.File
 
 /**
- * What the Lens room asks of the rooms around it: the boards a view can be pinned to, and the way
- * out. The app fills it; the room knows no board.
+ * What the Lens room asks of the app itself: the way out, back to where it was entered from. The
+ * boards a view is pinned to are the domain's `BoardSource`; the rooms a picture goes on to, the
+ * hand-off seam's (`Handoff`).
  */
-interface LensHost {
-    /** Every board: name and folder. */
-    fun boards(): List<Pair<String, File>>
-
-    /** Puts [pictures] — inside the board's folder already, or to be copied in — onto the board in [dir]; a line to show. */
-    fun pin(dir: File, pictures: List<File>): String
-
+fun interface LensHost {
     /** Back to where the room was entered from. */
     fun leaveLens()
 
-    /** No boards and nowhere to go: the room on its own, as a test has it. */
+    /** Nowhere to go: the room on its own, as a test has it. */
     object None : LensHost {
-        override fun boards(): List<Pair<String, File>> = emptyList()
-        override fun pin(dir: File, pictures: List<File>) = ""
         override fun leaveLens() = Unit
     }
 }
@@ -72,7 +72,9 @@ sealed class LensExport {
  * backed by Compose state, so the screen recomposes on change.
  *
  * [lib] is where pictures are decoded and written and the glass is kept from one run to the next;
- * [host] the boards and the way out; [dialogs] and [clipboard] the host's, for opening and pasting.
+ * [host] the way out; [dialogs] and [clipboard] the host's, for opening and pasting; [boards] what
+ * a view is pinned to; [handoff] the rooms a picture is taken into from here, and that hand
+ * pictures here.
  */
 class LensRoomState(
     private val lib: Lib,
@@ -80,7 +82,9 @@ class LensRoomState(
     /** The host's file dialogs, for opening a picture and saving the view. */
     val dialogs: FileDialogs = FileDialogs.None,
     private val clipboard: SystemClipboard = SystemClipboard.None,
-) {
+    private val boards: BoardSource = BoardSource.None,
+    private val handoff: Handoff = Handoff.None,
+) : Receiver {
     /** Where the room's pictures are decoded and written. */
     val pictures: Pictures get() = lib.pictures
 
@@ -158,6 +162,32 @@ class LensRoomState(
         is LensPicture.Pasted -> runCatching { Image.makeFromEncoded(picture.png) }.getOrNull()
     }
 
+    // ---- Taken from the other rooms (the hand-off seam) ----
+
+    override val room: Room get() = Room.LENS
+
+    /** Any picture, a file or a page, is looked at here. */
+    override fun offer(what: Handed): String = "Check the values"
+
+    override fun take(what: Handed) = when (what) {
+        is Handed.Picture -> open(what.file)
+        is Handed.Drawn -> openPng(what.png(), what.name)
+    }
+
+    /** The picture as it is handed on from here: the file, or the bytes it came as. */
+    private fun handed(picture: LensPicture): Handed = when (picture) {
+        is LensPicture.OnDisk -> Handed.Picture(picture.file)
+        is LensPicture.Pasted -> Handed.Drawn(picture.name) { picture.png }
+    }
+
+    /** Where the picture can be taken from here: into Sketch, to draw over it… */
+    fun routes(): List<Route> = picture?.let { handoff.routes(handed(it), Room.LENS) }.orEmpty()
+
+    /** Takes the picture into [to]'s room. */
+    fun handOff(to: Room) {
+        picture?.let { handoff.send(handed(it), to) }
+    }
+
     // ---- How it is laid out ----
 
     /**
@@ -187,7 +217,7 @@ class LensRoomState(
     // ---- Out of the room ----
 
     /** The boards a view can be pinned to. */
-    fun boards(): List<Pair<String, File>> = host.boards()
+    fun boards(): List<BoardRef> = boards.available()
 
     /** What the view is called: the picture's name and the lens it is seen through — "pose - notan". */
     fun viewName(): String {
@@ -224,7 +254,7 @@ class LensRoomState(
             is LensExport.Save -> lib.pictures.writePng(png, pending.target)?.let { "Saved as ${it.name}" } ?: "Could not save ${pending.target.name}"
             is LensExport.Pin -> {
                 val written = lib.pictures.writePng(png, File(pending.dir, viewName() + ".png"), beside = true)
-                if (written == null) "Could not write into the board" else host.pin(pending.dir, listOfNotNull(file, written))
+                if (written == null) "Could not write into the board" else boards.pin(pending.dir, listOfNotNull(file, written))
             }
         }
     }

@@ -58,22 +58,23 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.window.rememberPopupPositionProviderAtPosition
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.LocalDesign
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.drawRoomDab
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * The ring menu (CONCEPT.md, *Boards*): a right click on a card opens seven porcelain buttons round
- * it, each a way out of the board into a room, marked with that room's pigment — Draw these,
- * Sketch over, Check the values, To a collage, To a concept, Tag, Group. The middle one opens the full menu, which
+ * The ring menu (CONCEPT.md, *Boards*): a right click on a card opens porcelain buttons round it,
+ * each a way out of the board into a room, marked with that room's pigment — Draw these; the ways
+ * the hand-off seam has for the picture (Sketch over, Check the values, …); To a collage, To a
+ * concept, Tag, Group. The middle one opens the full menu, which
  * keeps every other command. A context menu's *representation*, so `ContextMenuArea` still decides
  * when it opens and what the full menu holds; [list] is how that full menu is shown.
  */
@@ -118,20 +119,20 @@ private fun Ring(board: BoardState, close: () -> Unit, onConcepts: () -> Unit, o
     val pictures = board.selectedItems.filterIsInstance<ImageItem>()
     val single = pictures.singleOrNull()?.takeIf { board.selection.size == 1 }
     val own = board.selection.any { !board.isBorrowed(it) }
-    val actions = listOf(
-        RingAction("ring-draw", Room.PRACTICE, "Draw these", board.selectedImageFiles.isNotEmpty()) { board.drawSelection() },
-        RingAction(
-            "ring-sketch", Room.SKETCH,
-            if (single != null && board.sketchOf(single) != null) "Continue sketch" else "Sketch over",
-            single != null,
-        ) { single?.let(board::sketchOver) },
-        RingAction("ring-lens", Room.LENS, "Check the values", single != null) { single?.let(board::checkValues) },
-        // Collage is a dry well until it is built (M9).
-        RingAction("ring-collage", Room.COLLAGE, "To a collage", false) {},
-        RingAction("ring-concept", Room.CONCEPTS, "To a concept", own && board.conceptsAvailable().isNotEmpty()) { onConcepts() },
-        RingAction("ring-tag", Room.BOARDS, "Tag", board.selection.isNotEmpty()) { board.openEditor(BoardEditor.EditTags(board.selection)) },
-        RingAction("ring-group", Room.BOARDS, "Group", own) { board.startGrouping() },
-    )
+    // The ways a picture leaves for another room are the hand-off seam's: one for every room that
+    // takes it, taken with the one picture right-clicked.
+    val routes = remember(pictures) { (single ?: pictures.firstOrNull())?.let(board::routes).orEmpty() }
+    val actions = listOf(RingAction("ring-draw", Room.PRACTICE, "Draw these", board.selectedImageFiles.isNotEmpty()) { board.drawSelection() }) +
+        routes.map { route ->
+            RingAction("ring-" + route.to.name.lowercase(), route.to, route.label, single != null) { single?.let { board.handOff(it, route.to) } }
+        } +
+        listOfNotNull(
+            // Collage is a dry well until it takes pictures (M9).
+            RingAction("ring-collage", Room.COLLAGE, "To a collage", false) {}.takeIf { routes.none { it.to == Room.COLLAGE } },
+            RingAction("ring-concept", Room.CONCEPTS, "To a concept", own && board.conceptsAvailable().isNotEmpty()) { onConcepts() },
+            RingAction("ring-tag", Room.BOARDS, "Tag", board.selection.isNotEmpty()) { board.openEditor(BoardEditor.EditTags(board.selection)) },
+            RingAction("ring-group", Room.BOARDS, "Group", own) { board.startGrouping() },
+        )
     val focus = LocalFocusManager.current
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { first.requestFocus() } }

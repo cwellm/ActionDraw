@@ -72,6 +72,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
@@ -82,7 +83,6 @@ import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.actiondraw.ui.PointerWatch
 import de.creaflect.actiondraw.ui.RecedingChrome
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.pigment
@@ -217,7 +217,10 @@ private fun Header(state: SketchState, onHome: (() -> Unit)?) {
                 Flat("Save", tag = "sketch-save") { state.save() }
                 CrossRoomButton(Room.BOARDS, "To a board", Modifier.testTag("sketch-to-board")) { state.openEditor(SketchEditor.ToBoard) }
                 CrossRoomButton(Room.CONCEPTS, "To a concept", Modifier.testTag("sketch-to-concept")) { state.openEditor(SketchEditor.ToConcept) }
-                CrossRoomButton(Room.LENS, "Check the values", Modifier.testTag("sketch-to-lens"), enabled = state.session != null) { state.checkValues() }
+                // Into the other rooms with the page as it is: the ways the hand-off seam has.
+                state.routes().forEach { route ->
+                    CrossRoomButton(route.to, route.label, Modifier.testTag("sketch-to-" + route.to.name.lowercase())) { state.handOff(route.to) }
+                }
                 Flat("Back", tag = "sketch-back") { state.leave() }
             },
         )

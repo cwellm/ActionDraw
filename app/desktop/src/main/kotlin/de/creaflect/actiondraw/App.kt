@@ -30,8 +30,8 @@ import de.creaflect.actiondraw.ui.BloomLayer
 import de.creaflect.actiondraw.ui.PaletteScreen
 import de.creaflect.actiondraw.ui.PaletteWell
 import de.creaflect.actiondraw.ui.PracticeRoom
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomLine
+import de.creaflect.actiondraw.ui.RoomTheme
 
 /**
  * Every screen belongs to a [Room] of the palette, except the palette itself, which is home. The
@@ -77,39 +77,34 @@ fun App(
     AtelierTheme(reducedMotion = state.reducedMotion) {
         Surface {
             Box {
-                when (state.screen) {
-                    Screen.Palette -> {
-                        // Read when the palette shows, not on every frame: it looks at the disk.
-                        val wells = remember(state.screen) { paletteWells(boardState.lastBoard(), sketchState.session != null, rooms.lens.picture?.name) }
-                        PaletteScreen(
-                            wells,
-                            selected = state.paletteRoom,
-                            onSelect = state::selectRoom,
-                            // The room opens under its pigment, once that covers the palette.
-                            onOpen = { room -> if (bloom == null) bloom = Bloom(room, wellCentres[room] ?: Offset.Unspecified, opening = true) },
-                            corner = { MenuExtras(state, practice, boardState) },
-                            onWellPlaced = { room, centre -> wellCentres[room] = centre },
-                        )
+                // The room on screen, its controls in its own pigment (RoomTheme).
+                RoomTheme(state.screen.room) {
+                    when (state.screen) {
+                        Screen.Palette -> {
+                            // Read when the palette shows, not on every frame: it looks at the disk.
+                            val wells = remember(state.screen) { paletteWells(boardState.lastBoard(), sketchState.session != null, rooms.lens.picture?.name) }
+                            PaletteScreen(
+                                wells,
+                                selected = state.paletteRoom,
+                                onSelect = state::selectRoom,
+                                // The room opens under its pigment, once that covers the palette.
+                                onOpen = { room -> if (bloom == null) bloom = Bloom(room, wellCentres[room] ?: Offset.Unspecified, opening = true) },
+                                corner = { MenuExtras(state, practice, boardState) },
+                                onWellPlaced = { room, centre -> wellCentres[room] = centre },
+                            )
+                        }
+                        Screen.Practice -> PracticeRoom(practice, thumbs, isFullscreen, onToggleFullscreen, onHome = state::showPalette)
+                        Screen.BoardList -> BoardListScreen(boardState, thumbs, onHome = boardState::leaveList)
+                        Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen, onHome = boardState::closeBoard)
+                        Screen.Concepts -> ConceptListScreen(conceptState, thumbs, onHome = conceptState::leaveList)
+                        Screen.Concept -> ConceptScreen(conceptState, thumbs, onHome = {
+                            conceptState.closeConcept()
+                            conceptState.leaveList()
+                        })
+                        // Leaving the screen lets go of the pen and the mouse, as Back does (see Main).
+                        Screen.Sketch -> SketchScreen(sketchState, thumbs, onHome = { state.home(Screen.Sketch) })
+                        Screen.Lens -> LensRoomScreen(rooms.lens, onHome = { state.home(Screen.Lens) })
                     }
-                    Screen.Practice -> PracticeRoom(
-                        practice,
-                        thumbs,
-                        rooms.pinTargets,
-                        isFullscreen,
-                        onToggleFullscreen,
-                        onHome = state::showPalette,
-                        onSketch = rooms::sketchFromSession,
-                    )
-                    Screen.BoardList -> BoardListScreen(boardState, thumbs, onHome = boardState::leaveList)
-                    Screen.Board -> BoardScreen(boardState, thumbs, isFullscreen, setFullscreen, onHome = boardState::closeBoard)
-                    Screen.Concepts -> ConceptListScreen(conceptState, thumbs, onHome = conceptState::leaveList)
-                    Screen.Concept -> ConceptScreen(conceptState, thumbs, onHome = {
-                        conceptState.closeConcept()
-                        conceptState.leaveList()
-                    })
-                    // Leaving the screen lets go of the pen and the mouse, as Back does (see Main).
-                    Screen.Sketch -> SketchScreen(sketchState, thumbs, onHome = state::sketchHome)
-                    Screen.Lens -> LensRoomScreen(rooms.lens, onHome = state::lensHome)
                 }
                 // The room's pigment, settled into a line along the top — not over a running pose.
                 state.screen.room?.takeIf { !(state.screen == Screen.Practice && practice.page == PracticePage.Session) }?.let {
@@ -121,9 +116,9 @@ fun App(
                     onDone = { bloom = null },
                 )
                 // Board and concept dialogs float above every screen (the pickers open from the menu).
-                BoardDialogs(boardState)
-                ConceptDialogs(conceptState)
-                SketchDialogs(sketchState)
+                RoomTheme(Room.BOARDS) { BoardDialogs(boardState) }
+                RoomTheme(Room.CONCEPTS) { ConceptDialogs(conceptState) }
+                RoomTheme(Room.SKETCH) { SketchDialogs(sketchState) }
             }
         }
     }
@@ -177,8 +172,8 @@ internal fun openRoom(room: Room, state: AppState, boards: BoardState, concepts:
             }
         }
         Room.CONCEPTS -> concepts.openList()
-        Room.SKETCH -> state.showSketch(from = Screen.Palette)
-        Room.LENS -> state.showLens(from = Screen.Palette)
+        Room.SKETCH -> state.enter(Screen.Sketch, from = Screen.Palette)
+        Room.LENS -> state.enter(Screen.Lens, from = Screen.Palette)
         Room.COLLAGE -> Unit
     }
 }

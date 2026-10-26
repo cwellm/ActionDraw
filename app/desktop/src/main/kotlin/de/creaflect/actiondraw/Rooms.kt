@@ -4,6 +4,10 @@ import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Receiver
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.lens.LensHost
 import de.creaflect.actiondraw.lens.LensRoomState
 import de.creaflect.actiondraw.platform.Browser
@@ -25,7 +29,25 @@ class Rooms(val lib: Lib, host: HostServices = HostServices.None) {
     /** Where the app is: the palette, or a room. */
     val app = AppState(lib, host.preferences)
 
-    val practice = PracticeState(lib, dialogs = host.dialogs)
+    /** What the host does once a hand-off has opened a room in the main window: brings it forward. */
+    var onEntered: () -> Unit = {}
+
+    /**
+     * The hand-offs between the rooms (F10.7): the rooms that take what others hand them, and the
+     * way into each. A room handed something opens with it, and Back there returns to where it came
+     * from — a board, a sketch, a session waiting, paused.
+     */
+    val handoff: Handoff = object : Handoff {
+        override fun routes(what: Handed, from: Room): List<Route> =
+            receivers().filter { it.room != from }.mapNotNull { receiver -> receiver.offer(what)?.let { Route(receiver.room, it) } }
+
+        override fun send(what: Handed, to: Room) {
+            val receiver = receivers().firstOrNull { it.room == to } ?: return
+            receiver.take(what)
+            app.enter(Screen.entries.first { it.room == to })
+            onEntered()
+        }
+    }
 
     val concepts: ConceptState = ConceptState(
         lib,
@@ -38,15 +60,13 @@ class Rooms(val lib: Lib, host: HostServices = HostServices.None) {
                 boards.setLinked(conceptId, board, linked)
             }
             override fun unlinkEverywhere(conceptId: String) = boards.unlinkEverywhere(conceptId)
-            override fun openSketch(file: File) {
-                sketch.open(file)
-                app.showSketch(from = Screen.Concept)
-            }
         },
         browser = host.browser,
         dialogs = host.dialogs,
+        handoff = handoff,
     )
 
+    /** The boards — and, as the domain's BoardSource, what every other room draws from and pins to. */
     val boards: BoardState = BoardState(
         lib,
         object : BoardHost {
@@ -59,72 +79,38 @@ class Rooms(val lib: Lib, host: HostServices = HostServices.None) {
                 concepts.openById(id)
             }
             override fun showConcepts() = concepts.openList()
-            override fun openSketch(file: File) {
-                sketch.open(file)
-                app.showSketch(from = Screen.Board)
-            }
-            override fun sketchOver(picture: File) {
-                sketch.openFromSession(picture)
-                app.showSketch(from = Screen.Board)
-            }
-            override fun checkValues(picture: File) {
-                lens.open(picture)
-                app.showLens(from = Screen.Board)
-            }
         },
         concepts = concepts,
         clipboard = host.clipboard,
         browser = host.browser,
         dialogs = host.dialogs,
+        handoff = handoff,
     )
 
-    /** Lets a running session file pictures away on a board, without the session knowing what a board is. */
-    val pinTargets = PinTargets(boards = { boards.availableBoards() }, pin = boards::pinTo)
+    val practice = PracticeState(lib, dialogs = host.dialogs, boards = boards, handoff = handoff)
 
-    /** Live Sketch saves into boards and concepts through its host, and never reaches past it. */
+    /** Live Sketch saves into the boards and the concepts, and takes pictures handed to it. */
     val sketch: SketchState = SketchState(
         lib,
-        object : SketchHost {
-            override fun boards() = boards.availableBoards()
-            override fun addToBoard(dir: File, pictures: List<File>) = boards.pinTo(dir, pictures)
-            override fun concepts() = concepts.available()
-            override fun conceptDir(id: String) = concepts.entryById(id)?.dir
-            override fun addToConcept(id: String, pictures: List<File>) = concepts.addToConcept(id, pictures, emptyList()) != null
-            override fun leaveSketch() = app.leaveSketch()
-            override fun checkValues(png: ByteArray, name: String) {
-                lens.openPng(png, name)
-                app.showLens(from = Screen.Sketch)
-            }
-        },
+        SketchHost { app.back(Screen.Sketch) },
         dialogs = host.dialogs,
+        boards = boards,
+        concepts = concepts,
+        handoff = handoff,
     )
 
-    /** The Lens room pins its views to the boards, and goes back to where it was entered from. */
+    /** The Lens room pins its views to the boards, and takes pictures handed to it. */
     val lens: LensRoomState = LensRoomState(
         lib,
-        object : LensHost {
-            override fun boards() = boards.availableBoards()
-            override fun pin(dir: File, pictures: List<File>) = boards.pinTo(dir, pictures)
-            override fun leaveLens() = app.leaveLens()
-        },
+        LensHost { app.back(Screen.Lens) },
         dialogs = host.dialogs,
         clipboard = host.clipboard,
+        boards = boards,
+        handoff = handoff,
     )
 
-    init {
-        // The Practice room can draw from a board: the boards say which there are and what is on them.
-        practice.practiceBoards = object : PracticeState.PracticeBoards {
-            override fun boards() = boards.availableBoards()
-            override fun pictures(dir: File) = boards.picturesOf(dir)
-        }
-    }
-
-    /** A picture on screen in a session goes into Live Sketch; the session waits. */
-    fun sketchFromSession(picture: File) {
-        sketch.openFromSession(picture)
-        practice.pauseForSketch()
-        app.sketchFromSession()
-    }
+    /** The rooms that take what others hand them, drawing first, then looking. */
+    private fun receivers(): List<Receiver> = listOf(sketch, lens)
 }
 
 /**

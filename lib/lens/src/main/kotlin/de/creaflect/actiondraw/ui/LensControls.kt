@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.lens.LensState
 import kotlin.math.roundToInt
 

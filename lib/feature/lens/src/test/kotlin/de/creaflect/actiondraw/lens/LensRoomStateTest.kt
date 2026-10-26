@@ -1,7 +1,10 @@
 package de.creaflect.actiondraw.lens
 
 import de.creaflect.actiondraw.FileLib
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.platform.SystemClipboard
 import de.creaflect.actiondraw.ui.Optic
 import java.io.File
@@ -60,6 +63,32 @@ class LensRoomStateTest {
         state.first.glass.setDown(pose, 0.3f, 0.3f)
         state.open(fixture.picture("other"))
         assertNull(state.first.glass.focus)
+    }
+
+    // ---- The hand-off seam ----
+
+    @Test
+    fun anyPictureHandedHereIsLookedAt() {
+        val state = fixture.state()
+        val pose = fixture.picture("pose")
+        assertEquals("Check the values", state.offer(Handed.Picture(pose)))
+        state.take(Handed.Picture(pose))
+        assertEquals(pose, state.file)
+        state.take(Handed.Drawn("Sketch 1") { fixture.pngBytes(30, 10) })
+        val page = assertIs<LensPicture.Pasted>(state.picture)
+        assertEquals("Sketch 1", page.name, "a sketch's page, under the sketch's name")
+        assertEquals(30, assertNotNull(state.decode(page)).width)
+    }
+
+    @Test
+    fun thePictureGoesOnFromHereAlongTheSeam() {
+        val state = fixture.state()
+        assertTrue(state.routes().isEmpty(), "nothing open, nothing to hand on")
+        val pose = fixture.picture("pose")
+        state.open(pose)
+        assertEquals(listOf(Route(Room.SKETCH, "Sketch over")), state.routes())
+        state.handOff(Room.SKETCH)
+        assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(pose) to Room.SKETCH), fixture.sent, "the picture's own file")
     }
 
     // ---- How it is laid out ----

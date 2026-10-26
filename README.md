@@ -528,8 +528,10 @@ In three groups — `lib` for what an application builds on, `device` for the ha
 `app` for the applications on top:
 
 - `lib/domain` — the API: boards and their cards, concepts, the session's vocabulary and the
-  rules on them; `Lib`, through which everything is got and kept; and what the lib needs from its
-  host (clipboard, file dialogs, browser, pen)
+  rules on them; `Lib`, through which everything is got and kept; what the lib needs from its
+  host (clipboard, file dialogs, browser, pen); and the rooms and the seams between them — the
+  boards and the concepts as the other rooms reach them, and the hand-off seam along which a
+  picture goes into another room
 - `lib/data` — `FileLib`, the domain over the files: boards' and concepts' folders and their
   sidecars, the registries, settings, thumbnails, practice history, link previews — writing off
   the UI thread, and the only module that reaches the files or the network
@@ -542,8 +544,8 @@ In three groups — `lib` for what an application builds on, `device` for the ha
 - `lib/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
 - `lib/sketch-engine` — the drawing engine: pen samples in, pixels out
 - `lib/design/contract` — the design system's contract: what a screen may ask of the design it is
-  drawn in (colours, pigments, type, materials, chrome), read through the theme; and the UI kit's
-  basics (motion, the chrome that steps back)
+  drawn in (colours, pigments, type, materials, chrome), read through the theme; each room in its
+  colours (`RoomTheme`); and the UI kit's basics (motion, the chrome that steps back)
 - `lib/design/atelier` — the default design: the atelier of [CONCEPT.md](CONCEPT.md), and its
   fonts
 - `lib/lens` — how a picture is seen: the lenses, the knobs, the grids and the glass, with the

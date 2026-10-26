@@ -11,11 +11,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.handoff.Handed
 import de.creaflect.actiondraw.lens.ui.LensRoomScreen
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.ProvideAtelier
-import de.creaflect.actiondraw.ui.Room
 import org.jetbrains.skia.Image
 import org.junit.After
 import org.junit.Rule
@@ -93,7 +94,7 @@ class LensRoomScreenTest {
     }
 
     @Test
-    fun theRoomIsLitInItsOwnPigment() {
+    fun theRoomsTrayIsLitInItsOwnPigment() {
         val state = fixture.state()
         state.open(fixture.picture("pose"))
         state.first.blur = true
@@ -105,9 +106,17 @@ class LensRoomScreenTest {
         // The blur knob is on: its round, beside the glyph in its middle.
         val knob = rule.onNodeWithTag("knob-b").captureToImage().toPixelMap()
         assertTrue(lit(knob[(9 * d).toInt(), (20 * d).toInt()]), "the tray's knob in Payne's grey")
-        // The layout chosen is a Material button: Material's colours are the room's too.
-        val chip = rule.onNodeWithTag("lens-layout-alone").captureToImage().toPixelMap()
-        assertTrue(lit(chip[(6 * d).toInt(), chip.height / 2]), "and the layout chosen")
+    }
+
+    @Test
+    fun thePictureGoesOnIntoSketchFromTheHeader() {
+        val state = fixture.state()
+        val pose = fixture.picture("pose")
+        state.open(pose)
+        show(state)
+        rule.onNodeWithTag("lens-to-sketch").performClick()
+        rule.waitForIdle()
+        assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(pose) to Room.SKETCH), fixture.sent)
     }
 
     @Test

@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.lens.LensState
 import kotlin.math.roundToInt

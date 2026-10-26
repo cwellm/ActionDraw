@@ -2,6 +2,7 @@ package de.creaflect.actiondraw.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import de.creaflect.actiondraw.Room
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.RuntimeEffect

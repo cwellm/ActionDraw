@@ -1,6 +1,8 @@
 package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.lens.LensPicture
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.HostPreferences
@@ -82,7 +84,7 @@ class RoomsTest {
     fun theSketchIsSavedIntoABoard() {
         val rooms = rooms()
         val board = rooms.boardWithPictures()
-        assertTrue(rooms.sketch.boards().any { it.second.absolutePath == board.absolutePath }, "Live Sketch is told which boards there are")
+        assertTrue(rooms.sketch.boards().any { it.dir.absolutePath == board.absolutePath }, "Live Sketch is told which boards there are")
         rooms.sketch.newSketch()
         rooms.sketch.saveToBoard(board)
         assertTrue(rooms.boards.board!!.items.filterIsInstance<ImageItem>().any { it.path.endsWith(".png") }, "and the board takes the picture")
@@ -92,21 +94,59 @@ class RoomsTest {
     fun thePracticeRoomDrawsFromABoard() {
         val rooms = rooms()
         val board = rooms.boardWithPictures()
-        val boards = rooms.practice.practiceBoards!!
-        assertEquals(listOf(board.absolutePath), boards.boards().map { it.second.absolutePath })
-        assertEquals(2, boards.pictures(board).size)
+        val listed = rooms.practice.boards().single()
+        assertEquals(board.absolutePath, listed.dir.absolutePath, "the boards are the board room's")
+        rooms.practice.selectBoard(listed)
+        assertEquals(2, rooms.practice.totalCount, "and so are the pictures on one")
     }
 
     @Test
     fun aSketchFromASessionWaitsForItAndReturnsToIt() {
         val rooms = rooms()
+        val poses = File(root, "poses").apply { mkdirs() }
+        File(poses, "pose.png").createNewFile()
+        rooms.practice.selectFolder(poses)
+        rooms.practice.start()
         rooms.app.showPractice()
-        val picture = File(root, "pose.png").apply { createNewFile() }
-        rooms.sketchFromSession(picture)
+        rooms.practice.handOff(Room.SKETCH)
         assertEquals(Screen.Sketch, rooms.app.screen)
+        assertEquals(File(poses, "pose.png"), rooms.sketch.reference, "the picture on screen beside the page")
         assertTrue(rooms.practice.isPaused, "the session waits, paused")
-        rooms.app.sketchHome()
+        rooms.app.home(Screen.Sketch)
         assertEquals(Screen.Practice, rooms.app.screen, "and home from the sketch is the session")
+    }
+
+    @Test
+    fun theSeamKnowsWhichRoomTakesWhat() {
+        val rooms = rooms()
+        val board = rooms.boardWithPictures()
+        val photo = File(board, "a.jpg")
+        assertEquals(
+            listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values")),
+            rooms.handoff.routes(Handed.Picture(photo), Room.BOARDS),
+            "a picture: drawn over, looked at",
+        )
+        assertEquals(listOf(Route(Room.SKETCH, "Sketch over")), rooms.handoff.routes(Handed.Picture(photo), Room.LENS), "never into the room it comes from")
+        assertEquals(listOf(Route(Room.LENS, "Check the values")), rooms.handoff.routes(Handed.Drawn("page") { png() }, Room.SKETCH), "a page that is no file: looked at")
+        File(board, "a.sketch.json").writeText("{}")
+        assertEquals("Continue sketch", rooms.handoff.routes(Handed.Picture(photo), Room.BOARDS).first().label, "a sketched picture is gone on with")
+    }
+
+    @Test
+    fun aPictureGoesFromTheLensRoomIntoSketchAndBackRetracesTheWay() {
+        val rooms = rooms()
+        val board = rooms.boardWithPictures()
+        rooms.app.showBoard()
+        val card = rooms.boards.board!!.items.filterIsInstance<ImageItem>().first()
+        rooms.boards.handOff(card, Room.LENS)
+        rooms.lens.handOff(Room.SKETCH)
+        assertEquals(Screen.Sketch, rooms.app.screen)
+        assertEquals(rooms.boards.fileOf(card), rooms.sketch.reference)
+        rooms.sketch.leave()
+        assertEquals(Screen.Lens, rooms.app.screen, "Back: the Lens room it came from")
+        rooms.lens.leave()
+        assertEquals(Screen.Board, rooms.app.screen, "and the board before it")
+        assertTrue(board.isDirectory)
     }
 
     /** A small picture, as PNG bytes. */
@@ -119,7 +159,7 @@ class RoomsTest {
         rooms.boardWithPictures()
         rooms.app.showBoard()
         val card = rooms.boards.board!!.items.filterIsInstance<ImageItem>().first()
-        rooms.boards.checkValues(card)
+        rooms.boards.handOff(card, Room.LENS)
         assertEquals(Screen.Lens, rooms.app.screen)
         assertEquals(rooms.boards.fileOf(card), rooms.lens.file, "the card's picture")
         rooms.lens.leave()
@@ -129,9 +169,9 @@ class RoomsTest {
     @Test
     fun aSketchsPageIsCheckedInTheLensRoomAndBackIsTheSketch() {
         val rooms = rooms()
-        rooms.app.showSketch()
+        rooms.app.enter(Screen.Sketch)
         rooms.sketch.newSketch()
-        rooms.sketch.checkValues()
+        rooms.sketch.handOff(Room.LENS)
         assertEquals(Screen.Lens, rooms.app.screen)
         assertIs<LensPicture.Pasted>(rooms.lens.picture, "the page as it is now")
         rooms.lens.leave()
@@ -142,7 +182,7 @@ class RoomsTest {
     fun theLensRoomPinsItsViewToABoard() {
         val rooms = rooms()
         val board = rooms.boardWithPictures()
-        assertEquals(listOf(board.absolutePath), rooms.lens.boards().map { it.second.absolutePath }, "it is told which boards there are")
+        assertEquals(listOf(board.absolutePath), rooms.lens.boards().map { it.dir.absolutePath }, "it is told which boards there are")
         rooms.lens.open(File(board, "a.jpg"))
         rooms.lens.pinTo(board)
         rooms.lens.finish(png())

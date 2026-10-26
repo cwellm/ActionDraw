@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.PathParser
+import de.creaflect.actiondraw.Room
 
 /**
  * The ink drawings on the Practice room's index cards, in the design's own lines (the canvas's

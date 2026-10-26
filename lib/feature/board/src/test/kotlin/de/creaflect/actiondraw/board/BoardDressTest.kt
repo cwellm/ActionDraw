@@ -169,6 +169,7 @@ class BoardDressTest {
         File(conceptsHome, "wing.jpg").createNewFile()
         val concepts = object : ConceptSource {
             override fun available() = listOf(ConceptRef("c1", "Drache", "creature"))
+            override fun folderOf(id: String) = if (id == "c1") conceptsHome else null
             override fun snapshot(id: String) =
                 if (id == "c1") ConceptSnapshot("c1", "Drache", conceptsHome, listOf(ImageItem(id = "wing", path = "wing.jpg"))) else null
             override fun addToConcept(id: String, pictures: List<File>, others: List<BoardItem>): List<BoardItem>? = null

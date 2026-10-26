@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.Lib
 import de.creaflect.actiondraw.LoadResult
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
@@ -14,6 +15,9 @@ import de.creaflect.actiondraw.board.CardLayout.PALETTE_ASPECT
 import de.creaflect.actiondraw.board.CardLayout.STRIP_ASPECT
 import de.creaflect.actiondraw.board.CardLayout.naturalTilt
 import de.creaflect.actiondraw.board.CardLayout.placeMissing
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.image.SheetCell
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.isInside
@@ -111,7 +115,9 @@ class BoardState(
     private val browser: Browser = Browser.None,
     /** The host's file dialogs, for the board's screens to ask with. */
     val dialogs: FileDialogs = FileDialogs.None,
-) {
+    /** Where a card's picture can be taken into the other rooms: Sketch, the Lens. */
+    private val handoff: Handoff = Handoff.None,
+) : BoardSource {
     var root by mutableStateOf<File?>(null)
         private set
     var board by mutableStateOf<Board?>(null)
@@ -252,7 +258,7 @@ class BoardState(
      * Boards for the picker: every board recorded, wherever it lives, and any board folder found
      * under the boards home or among the recent ones — recorded as it is found.
      */
-    fun availableBoards(): List<Pair<String, File>> = boards.available().map { it.name to it.dir }
+    override fun available(): List<BoardRef> = boards.available()
 
     /** Every board, depth first, so sub-boards follow the board they belong to. */
     fun boardTree(): List<BoardNode> = boards.tree()
@@ -443,23 +449,12 @@ class BoardState(
      */
     fun sketchOf(item: ImageItem): File? = fileOf(item)?.let { lib.sketches.documentOf(it) }
 
-    /** Continues the picture's sketch in Live Sketch. */
-    fun openSketch(item: ImageItem) {
-        sketchOf(item)?.let(host::openSketch)
-    }
+    /** Where [item]'s picture can be taken: into Sketch to draw over or go on with, into the Lens… */
+    fun routes(item: ImageItem): List<Route> = fileOf(item)?.let { handoff.routes(Handed.Picture(it), Room.BOARDS) }.orEmpty()
 
-    /**
-     * Into Live Sketch with [item]: its own sketch again, if Live Sketch made it; otherwise a page
-     * with the picture beside it as the reference.
-     */
-    fun sketchOver(item: ImageItem) {
-        val sketch = sketchOf(item)
-        if (sketch != null) host.openSketch(sketch) else fileOf(item)?.let(host::sketchOver)
-    }
-
-    /** Into the Lens room with [item]'s picture, to see its values. */
-    fun checkValues(item: ImageItem) {
-        fileOf(item)?.let(host::checkValues)
+    /** Takes [item]'s picture into [to]'s room. */
+    fun handOff(item: ImageItem, to: Room) {
+        fileOf(item)?.let { handoff.send(Handed.Picture(it), to) }
     }
 
     val selectedItems: List<BoardItem> get() = board?.items.orEmpty().filter { it.id in selection }
@@ -703,7 +698,7 @@ class BoardState(
 
     /** Every board, with whether it links [conceptId]: the open one from memory, the rest from disk. */
     fun boardsFor(conceptId: String): List<BoardLink> =
-        availableBoards().map { (name, dir) ->
+        available().map { (name, dir) ->
             val file = if (root?.samePathAs(dir) == true) board else boards.peek(dir)
             BoardLink(name, dir, conceptId in file?.concepts.orEmpty())
         }
@@ -1113,7 +1108,7 @@ class BoardState(
      * The pictures on the board in [dir] - its own and its linked concepts' - read from its file
      * without opening it: what the Practice room draws from a board.
      */
-    fun picturesOf(dir: File): List<File> {
+    override fun pictures(dir: File): List<File> {
         val file = boards.peek(dir) ?: return emptyList()
         return file.items.filterIsInstance<ImageItem>().mapNotNull { item ->
             val borrowed = ConceptLink.splitBorrowed(item.path)
@@ -1935,20 +1930,20 @@ class BoardState(
         )
     }
 
-    // ---- Pinning from a session ----
+    // ---- Pinning from the other rooms ----
 
     /**
-     * Files a picture away on another board without opening it: the file is copied into that
-     * board's folder and a card is appended. Returns a line to show the user.
+     * Files pictures away on a board without opening it: a picture from outside is copied into that
+     * board's folder, and a card is appended for each. Returns a line to show the user.
      */
-    fun pinTo(dir: File, files: List<File>): String {
+    override fun pin(dir: File, pictures: List<File>): String {
         val target = when (val loaded = boards.load(dir)) {
             is LoadResult.Loaded -> loaded.value
             LoadResult.None -> Board(name = dir.name)
             LoadResult.Failed -> return "Couldn't read the board in ${dir.name}."
         }
         val existing = target.items.filterIsInstance<ImageItem>().map { it.path }.toSet()
-        val outcome = lib.pictures.importInto(dir, files, null, existing)
+        val outcome = lib.pictures.importInto(dir, pictures, null, existing)
         if (outcome.items.isEmpty()) {
             return if (outcome.duplicates > 0) "Already on ${target.name}." else "Nothing to pin."
         }

@@ -14,7 +14,7 @@ import kotlin.random.Random
  * How a picture is seen (CONCEPT.md, *Lens*): the lens it is seen through, the knobs over it — the
  * light, blur, mirror, flip, invert, shards — the proportion grid, and the glass. Plain class backed
  * by Compose state, so whatever shows the picture recomposes on change. A session in the Practice
- * room holds one, and so will the Lens room: the tray, the picture and the keys over it are one
+ * room holds one, and so does the Lens room: the tray, the picture and the keys over it are one
  * code path for both.
  */
 class LensState {

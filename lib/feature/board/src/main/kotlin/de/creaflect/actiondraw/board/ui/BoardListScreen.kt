@@ -41,13 +41,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.paperTooth

@@ -568,7 +568,7 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
 
 ---
 
-## 🔄 M7 — Concepts
+## ✅ M7 — Concepts
 
 Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (§8 records what was built and
 the answers taken to its open questions). A thing that lives once and is linked onto many boards.
@@ -607,8 +607,8 @@ the answers taken to its open questions). A thing that lives once and is linked 
 - ✅ Deleting a concept names the boards it is linked on and takes it off them first
 - ✅ Covered by `ConceptTest` (14) and `ConceptLinkTest` (15); eleven guards checked by breaking them
 
-### 🔄 F8.4 Sketches and per-board opinions
-- ⬜ Live Sketch saves into a concept (needs M6)
+### ✅ F8.4 Sketches and per-board opinions
+- ✅ Live Sketch saves into a concept (with M6; through the domain's `ConceptSource` since F11.12)
 - ✅ Stars, tags and place of a borrowed card live on the board (matched by the card's id; the
   content id is carried along for recovery)
 - ✅ Practice memory of a borrowed card is the board's, keyed the way a session started there
@@ -996,15 +996,34 @@ one*, *How the rooms hand things over*) and the design canvas.
 - Skia clip paths over cached images; the cut outline is the hit-tested path — the board's rule
   again
 
-### ⬜ F10.7 One seam for hand-offs
-- A `Handoff`, as `BoardHost` is for the board: each room says what it can send (a picture, a
-  selection, a document) and what it takes; the ring menu and every `CrossRoomButton` ask it, so a
-  new room joins every route at once
-- Back returns to where a hand-off came from, as *Sketch* from a session does today
+### ✅ F10.7 One seam for hand-offs
+- ✅ The hand-off seam in the domain: `Handed` (a picture on disk, or a page drawn as PNG when it
+  is taken), `Route` (the room, and what its button says), `Receiver` (a room that takes things:
+  what taking one is called there, and taking it) and `Handoff` (the routes there are, and sending
+  along one). `Rooms` builds it from the rooms that take pictures — Sketch (*Sketch over*, or
+  *Continue sketch* for a picture Live Sketch saved) and the Lens (*Check the values*, a file or a
+  page) — so a new room joins every route at once
+- ✅ Every way into another room asks it: the board's ring and card menu, a concept's picture, a
+  pose's side buttons, Sketch's header, the Lens's header. New routes it gave for free: a pose's
+  picture into the Lens, a concept's picture into Sketch and the Lens, the Lens's picture into
+  Sketch. `BoardHost`, `ConceptHost` and `SketchHost` lose their hand-offs; `Rooms.sketchFromSession`
+  goes
+- ✅ Back returns to where a hand-off came from, through every room on the way: `AppState.enter`,
+  `back` and `home` keep one origin per room (Sketch's and the Lens's own origins gave way), and
+  home from a room entered from a paused session is that session
+- ✅ What a board sends a session (*Draw these*: a pool, a folder for its memory, a setup) stays
+  `BoardHost`'s: one room, one window of its own
+- ✅ Tested: `RoomsTest` (which room takes what, a picture from the board into the Lens and on into
+  Sketch with Back through both, a pose's picture into Sketch with the session waiting), the
+  rooms' own hand-off tests (`SketchCardTest`, `ConceptTest`, `PracticeStateTest`,
+  `SketchStateTest`, `LensRoomStateTest`), `RingMenuTest`, `PaletteTest` (Back retracing the way,
+  home to a waiting session)
 
-### ⬜ F10.8 Concepts across the rooms
-- A concept's pictures as a Practice source — a warm-up on the thing you are about to draw
-- A concept as a Collage source and as a Sketch underlay
+### 🔄 F10.8 Concepts across the rooms
+- ✅ A concept's picture into Sketch (over it, or on with its sketch) and into the Lens, along the
+  hand-off seam (F10.7)
+- ⬜ A concept's pictures as a Practice source — a warm-up on the thing you are about to draw
+- ⬜ A concept as a Collage source and as a Sketch underlay
 - F8.4's open question settled: does practice on a concept's picture belong to the concept or to
   the board
 
@@ -1309,6 +1328,26 @@ device   pen
   sketch from a session and back, and the host's services reaching every room
 - ✅ The links in the docs follow the files to where they live now
 - ✅ Broken on purpose and seen red after a no-op control stayed green: every route of Rooms cut, one at a time — a board's session going nowhere, a board remembering a setup of its own, a concept not told which boards link it, a board unable to open a concept, a sketch saved to a board not pinned, the Practice room knowing no boards, a sketch from a session leaving it running — and each of the host's services withheld: the dialogs, the clipboard, the browser, the system's motion preference
+
+
+### ✅ F11.12 One contract per seam, every room in its colours
+- ✅ `BoardSource` in the domain — which boards there are, the pictures on one, pinning onto one —
+  answered by the board room (`BoardState`) and used by every room that draws from a board or
+  files a picture away on one: it replaces Practice's `PinTargets` and `PracticeBoards`, and the
+  board halves of `SketchHost` and `LensHost`. `BoardRef` is the board as they list it
+- ✅ `ConceptSource` grows `folderOf`, so Live Sketch saves into a concept through it, not its host;
+  `SketchHost` and `LensHost` are down to the way out
+- ✅ `Room` moves into the domain — the rooms are the product's vocabulary, which the hand-off
+  seam needs; their pigments stay the design's — and the design contract depends on the domain
+  alone, for it
+- ✅ `RoomTheme` in the design contract: Material's own controls — chips, sliders, switches,
+  filled buttons — in the room's pigment. The app shows the room on screen in it, each room's
+  dialogs in theirs, the reference strip and a board's session window in theirs; the atelier's
+  Material palette still leads with Practice's cadmium, now only on the palette. The Lens room's
+  own tint gave way to it
+- ✅ Two docs set straight: `LensState`'s note that the Lens room "will" use it, and F8.4's
+  "Live Sketch saves into a concept", long done
+- ✅ Broken on purpose and seen red after a no-op control stayed green: 31 guards — the board room listing and pinning, a concept's folder, a sketch saved onto a board and into a concept, the Practice room's board and pin, the Lens room's pin; the seam offering a picture back to its own room, not opening the room or not handing over, a receiver left out; Sketch going on with a sketched picture, refusing a page, the Lens taking one; the routes a card, the card's menu, the ring, a concept, a pose, Sketch's and the Lens's headers ask for and send along, a session waiting while its picture is away; Back, home to a waiting session, entering again; the room on screen in its colours, RoomTheme's colour — and the build refuses the domain the design, and the rooms each other
 
 ---
 

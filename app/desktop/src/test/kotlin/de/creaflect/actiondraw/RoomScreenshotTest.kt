@@ -2,6 +2,7 @@ package de.creaflect.actiondraw
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -22,9 +23,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.lens.LensLayout
+import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
 import org.jetbrains.skia.EncodedImageFormat
@@ -35,6 +36,7 @@ import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.file.Files
 import javax.imageio.ImageIO
+import kotlin.math.abs
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -239,7 +241,7 @@ class RoomScreenshotTest {
     fun sketchAtRestAndDrawing() = window {
         val world = World()
         world.sketch.newSketch(PageSize.pixels(1200, 850))
-        world.app.showSketch()
+        world.app.enter(Screen.Sketch)
         world.show(this)
         mainClock.advanceTimeBy(500)
         world.sketch.fit()
@@ -270,7 +272,7 @@ class RoomScreenshotTest {
     fun theLensRoomEmptyAloneBesideAndThroughTwoLenses() = window {
         val world = World()
         val lens = world.rooms.lens
-        world.app.showLens()
+        world.app.enter(Screen.Lens)
         world.show(this)
         mainClock.advanceTimeBy(500)
         shoot("15-lens-empty", Room.LENS)
@@ -287,6 +289,11 @@ class RoomScreenshotTest {
         lens.arrange(LensLayout.BESIDE)
         mainClock.advanceTimeBy(500)
         shoot("17-lens-beside", Room.LENS)
+        // The layout chosen is one of Material's buttons: in the app, Material's colours are the room's.
+        val glow = Atelier.pigmentOf(Room.LENS).glow
+        val chip = onNodeWithTag("lens-layout-beside").captureToImage().toPixelMap()
+        val lit = chip[(6 * density.density).toInt(), chip.height / 2]
+        assertTrue(abs(lit.red - glow.red) < 0.04f && abs(lit.green - glow.green) < 0.04f && abs(lit.blue - glow.blue) < 0.04f, "Payne's grey, not Practice's orange: $lit")
         lens.arrange(LensLayout.TWO)
         lens.choose(de.creaflect.actiondraw.lens.LensSide.SECOND)
         mainClock.advanceTimeBy(500)

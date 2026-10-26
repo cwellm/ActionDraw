@@ -79,6 +79,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardState
@@ -97,7 +98,6 @@ import de.creaflect.actiondraw.ui.LocalReducedMotion
 import de.creaflect.actiondraw.ui.Motion
 import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.Pigment
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.leanFor

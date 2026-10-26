@@ -7,6 +7,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.ProvideAtelier
@@ -145,5 +149,28 @@ class SessionChromeTest {
         step()
         assertFalse(state.lens.glass.inHand)
         rule.onNodeWithTag("settings-glass").assertDoesNotExist()
+    }
+
+    @Test
+    fun thePictureGoesIntoTheOtherRoomsFromTheSideButtons() {
+        val sent = mutableListOf<Pair<Handed, Room>>()
+        val handoff = object : Handoff {
+            override fun routes(what: Handed, from: Room) = listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values"))
+            override fun send(what: Handed, to: Room) {
+                sent += what to to
+            }
+        }
+        val image = BufferedImage(40, 30, BufferedImage.TYPE_INT_RGB)
+        ImageIO.write(image, "png", File(pictures, "pose.png"))
+        val state = PracticeState(FileLib(config), handoff = handoff).also { it.selectFolder(pictures) }
+        state.start()
+        rule.mainClock.autoAdvance = false // a running pose ticks for ever
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
+        rule.mainClock.advanceTimeBy(300)
+        rule.onNodeWithTag("session-sketch").assertExists()
+        rule.onNodeWithTag("session-lens").performClick()
+        rule.mainClock.advanceTimeBy(200)
+        assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(File(pictures, "pose.png")) to Room.LENS), sent, "the picture on screen, into the Lens room")
+        assertTrue(state.isPaused, "the session waiting for it")
     }
 }

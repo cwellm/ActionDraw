@@ -5,8 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.Lib
 import de.creaflect.actiondraw.RampStep
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.SessionPlan
 import de.creaflect.actiondraw.SessionSetup
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.image.relKey
 import de.creaflect.actiondraw.lens.LensState
@@ -23,11 +29,15 @@ import java.io.File
  *
  * [lib] is where the pictures, what has been drawn of them, and the preferences (the last opened
  * folder) come from; a test hands in one over a temp folder, so it never touches the real user's.
+ * [boards] are what the room draws from and pins to besides folders, [handoff] where a pose's
+ * picture is taken into the other rooms.
  */
 class PracticeState(
     private val lib: Lib,
     /** The host's file dialogs, for the room's screens to ask with. */
     val dialogs: FileDialogs = FileDialogs.None,
+    private val boards: BoardSource = BoardSource.None,
+    private val handoff: Handoff = Handoff.None,
 ) {
     /** Where the room's pictures come from, decoded for the session. */
     val pictures: Pictures get() = lib.pictures
@@ -225,47 +235,38 @@ class PracticeState(
     /** Practice state to restore once a board session is over. */
     private var practiceSnapshot: Triple<File?, List<File>, Set<String>?>? = null
 
-    // Reopen the folder from the previous run. Declared after the state above so those properties
-    // are initialised before this runs.
-    init {
-        lib.preferences.lastFolder()?.let { loadFolder(it) }
-    }
-
     // ---- A board as the source (F9.10) ----
 
-    /** The boards there are and the pictures on one: the board side's, handed over by the app shell. */
-    interface PracticeBoards {
-        fun boards(): List<Pair<String, File>>
-        fun pictures(dir: File): List<File>
-    }
-
     /**
-     * The board the Practice room draws from - name and folder - or null while a folder is the
-     * source. Its pictures are the board's own and its concepts'; seen and redo live in the
-     * board's folder, as for a session started on the board.
+     * The board the Practice room draws from, or null while a folder is the source. Its pictures
+     * are the board's own and its concepts'; seen and redo live in the board's folder, as for a
+     * session started on the board.
      */
-    var practiceBoard by mutableStateOf<Pair<String, File>?>(null)
+    var practiceBoard by mutableStateOf<BoardRef?>(null)
         private set
 
-    /** Set by the app shell; a board remembered from the last run is taken up again once it is. */
-    var practiceBoards: PracticeBoards? = null
-        set(value) {
-            field = value
-            val remembered = lib.preferences.practiceBoard() ?: return
-            if (practiceBoard != null || value == null) return
-            value.boards().firstOrNull { it.second.absolutePath == remembered.absolutePath }?.let { (name, dir) -> loadBoard(name, dir) }
+    // Reopen the folder from the previous run — or the board, where one was the source. Declared
+    // after the state above so those properties are initialised before this runs.
+    init {
+        lib.preferences.lastFolder()?.let { loadFolder(it) }
+        lib.preferences.practiceBoard()?.let { remembered ->
+            boards.available().firstOrNull { it.dir.absolutePath == remembered.absolutePath }?.let(::loadBoard)
         }
-
-    /** Draws from the board [name] in [dir] from now on, and next time. */
-    fun selectBoard(name: String, dir: File) {
-        if (practiceBoards == null) return
-        loadBoard(name, dir)
-        lib.preferences.setPracticeBoard(dir)
     }
 
-    private fun loadBoard(name: String, dir: File) {
-        val pictures = practiceBoards?.pictures(dir) ?: return
-        practiceBoard = name to dir
+    /** The boards the room can draw from, and pin to. */
+    fun boards(): List<BoardRef> = boards.available()
+
+    /** Draws from [board] from now on, and next time. */
+    fun selectBoard(board: BoardRef) {
+        loadBoard(board)
+        lib.preferences.setPracticeBoard(board.dir)
+    }
+
+    private fun loadBoard(board: BoardRef) {
+        val dir = board.dir
+        val pictures = boards.pictures(dir)
+        practiceBoard = board
         folder = dir
         allImages = pictures
         selection = null
@@ -334,7 +335,7 @@ class PracticeState(
         val dir = folder ?: return
         sessionFromBoard = false
         // Re-read in case the folder - or the board - changed since it was chosen.
-        allImages = practiceBoard?.let { practiceBoards?.pictures(it.second) } ?: lib.pictures.scan(dir)
+        allImages = practiceBoard?.let { boards.pictures(it.dir) } ?: lib.pictures.scan(dir)
         seen = lib.practice.seen(dir).toMutableSet()
         redo = lib.practice.redo(dir).toMutableSet()
         beginSession()
@@ -470,12 +471,22 @@ class PracticeState(
         windowPage = null
     }
 
+    /** Pins [pictures] onto the board in [dir]; what came of it shows in the session's chrome. */
+    fun pin(dir: File, pictures: List<File>) {
+        pinNotice = boards.pin(dir, pictures)
+    }
+
+    /** Where the picture on screen can be taken: into Sketch, into the Lens… */
+    fun routes(): List<Route> = currentImage?.let { handoff.routes(Handed.Picture(it), Room.PRACTICE) }.orEmpty()
+
     /**
-     * The session waits, paused, while the picture on screen is sketched; the app takes the
-     * sketch, and Back returns to the session.
+     * Takes the picture on screen into [to]'s room; the session waits, paused, and Back from there
+     * returns to it.
      */
-    fun pauseForSketch() {
+    fun handOff(to: Room) {
+        val picture = currentImage ?: return
         isPaused = true
+        handoff.send(Handed.Picture(picture), to)
     }
 
     /** Undo what [startBoardSession] borrowed, so the menu shows the practice folder again. */

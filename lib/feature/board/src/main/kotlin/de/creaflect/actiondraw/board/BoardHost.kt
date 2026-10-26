@@ -4,8 +4,10 @@ import de.creaflect.actiondraw.SessionSetup
 import java.io.File
 
 /**
- * Everything the board is allowed to ask of the rest of the app — the whole "plugin" boundary
- * (shaping §4). The practice side knows nothing about boards; the app shell implements this.
+ * What the board asks of the rest of the app — a session drawn from it, the way between its own
+ * screens, a concept opened — through one boundary (shaping §4) the app fills; the practice side
+ * knows nothing about boards. A picture taken into another room goes through the hand-off seam
+ * (the domain's `Handoff`), and the other rooms reach the boards through `BoardSource`.
  */
 interface BoardHost {
     /**
@@ -31,13 +33,4 @@ interface BoardHost {
 
     /** Show the list of concepts. */
     fun showConcepts() {}
-
-    /** Continue the sketch saved in [file] (a `.sketch.json`) in Live Sketch. */
-    fun openSketch(file: File) {}
-
-    /** Open Live Sketch on a page with [picture] beside it as the reference, to draw over or from. */
-    fun sketchOver(picture: File) {}
-
-    /** Open [picture] in the Lens room, to see its values — a card's *Check the values*. */
-    fun checkValues(picture: File) {}
 }

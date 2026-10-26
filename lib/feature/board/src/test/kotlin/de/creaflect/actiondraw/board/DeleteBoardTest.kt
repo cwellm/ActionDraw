@@ -58,7 +58,7 @@ class DeleteBoardTest {
         assertTrue(root.isDirectory, "but the folder stays")
         assertTrue(File(root, "a.jpg").isFile, "and so does the picture")
         assertTrue(message.contains("still in"), "the message says the pictures are safe: $message")
-        assertTrue(state.availableBoards().none { it.second.absolutePath == root.absolutePath })
+        assertTrue(state.available().none { it.dir.absolutePath == root.absolutePath })
     }
 
     @Test

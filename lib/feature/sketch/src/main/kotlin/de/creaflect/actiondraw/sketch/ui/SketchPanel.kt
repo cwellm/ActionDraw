@@ -51,11 +51,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.Lift
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.lampShadow
 import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.sketch.Paper

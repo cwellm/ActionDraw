@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ImageItem
@@ -83,7 +84,6 @@ import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.Markdown
 import de.creaflect.actiondraw.ui.Notes
 import de.creaflect.actiondraw.ui.PigmentDab
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.RuleRed
 import de.creaflect.actiondraw.ui.SelectChip
@@ -448,16 +448,23 @@ internal fun PictureCard(state: ConceptState, thumbs: Pictures, item: ImageItem,
                 "Remove", style = MaterialTheme.typography.caption, color = Color.White,
                 modifier = Modifier.align(Alignment.BottomEnd).background(Color(0xAA000000)).clickable { state.removeItems(setOf(item.id)) }.padding(4.dp),
             )
-            // A picture Live Sketch saved can be taken up again where it was left: into Sketch, so madder's dab.
-            val sketch = remember(item.id) { state.sketchOf(item) }
-            if (sketch != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.align(Alignment.BottomStart).background(Color(0xAA000000)).clickable { state.openSketch(item) }.padding(4.dp).testTag("continue-sketch-" + item.id),
-                ) {
-                    PigmentDab(Room.SKETCH.pigment, size = 9.dp, seed = Room.SKETCH.seed)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Continue sketch", style = MaterialTheme.typography.caption, color = Color.White)
+            // Where the picture can be taken — Sketch over it or on with its sketch, the Lens — each way
+            // marked with the dab of the room it leads into.
+            val routes = remember(item.id) { state.routes(item) }
+            Column(Modifier.align(Alignment.BottomStart)) {
+                routes.forEach { route ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(Color(0xAA000000))
+                            .clickable { state.handOff(item, route.to) }
+                            .padding(4.dp)
+                            .testTag("to-" + route.to.name.lowercase() + "-" + item.id),
+                    ) {
+                        PigmentDab(route.to.pigment, size = 9.dp, seed = route.to.seed)
+                        Spacer(Modifier.width(4.dp))
+                        Text(route.label, style = MaterialTheme.typography.caption, color = Color.White)
+                    }
                 }
             }
         }

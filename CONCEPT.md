@@ -68,18 +68,22 @@ material to the others in one step:
 | From | To | Hand-off | Today |
 |---|---|---|---|
 | Board selection or group | Practice | *Draw from this board / these* | ✅ |
-| Practice (a pose) | Sketch | *Sketch* pauses the session; the picture comes along | ✅ (corner reference; underlay new) |
-| Board card / concept | Sketch | *Continue in Live Sketch*; new: *Sketch over* with the card as underlay | ✅ / ⬜ |
+| Practice (a pose) | Sketch, Lens | *Sketch* / *Check the values* pause the session; the picture comes along | ✅ (corner reference; underlay new) |
+| Board card / concept | Sketch | *Sketch over* — *Continue sketch* for a picture Live Sketch saved; new: with the card as underlay | ✅ / ⬜ |
 | Sketch | Board / Concept | *To a board* / *To a concept* | ✅ |
 | Practice | Board | *Pin* | ✅ |
 | Board / Concept | Collage | *To a collage*; the Collage's source drawer lists boards and concepts | ⬜ |
 | Collage | Sketch | *Sketch over it*: the composition becomes the underlay | ⬜ |
-| Collage, Board, Sketch | Lens | *Check the values*: the current picture seen through a lens | ✅ board, sketch / ⬜ collage |
+| Collage, Board, Concept, Sketch | Lens | *Check the values*: the current picture seen through a lens | ✅ board, concept, sketch / ⬜ collage |
+| Lens | Sketch | *Sketch over*: the picture looked at, beside the page | ✅ |
 | Anything | Compare | Your drawing laid over its reference | ⬜ (F+.3) |
 
 The rule that makes this readable: **a button that leads into another room carries that room's
 dab of pigment.** *Draw from this board* has a cadmium dab, *To a board* an ultramarine one. You
-can see where a button goes before you read it.
+can see where a button goes before you read it. Every such button is one route of the same seam
+(F10.7): a room that starts taking pictures — Collage, next — appears on every one of them at once,
+and Back from it returns the way the picture came. And inside a room, what is chosen wears that
+room's pigment, down to Material's own chips and sliders.
 
 ## The design language: the atelier
 

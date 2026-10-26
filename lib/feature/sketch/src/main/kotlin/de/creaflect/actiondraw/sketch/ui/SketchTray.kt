@@ -56,12 +56,12 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.sketch.SketchEditor
 import de.creaflect.actiondraw.sketch.SketchState
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.LocalReducedMotion
 import de.creaflect.actiondraw.ui.Materials
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.SelectChip
 import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.sketch.Lead

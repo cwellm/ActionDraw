@@ -1,5 +1,11 @@
 package de.creaflect.actiondraw
 
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.Optic
@@ -107,6 +113,46 @@ class PracticeStateTest {
     fun theSessionsGlassIsAsItWasLeftInTheLastRun() {
         newState().lens.glass.choose(Optic.CYLINDER)
         assertEquals(Optic.CYLINDER, newState().lens.glass.optic)
+    }
+
+    @Test
+    fun aPosesPictureGoesIntoTheOtherRoomsAndTheSessionWaits() {
+        makeImages("a.jpg")
+        val sent = mutableListOf<Pair<Handed, Room>>()
+        val handoff = object : Handoff {
+            override fun routes(what: Handed, from: Room) =
+                if (from == Room.PRACTICE) listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values")) else emptyList()
+            override fun send(what: Handed, to: Room) {
+                sent += what to to
+            }
+        }
+        val state = PracticeState(FileLib(settingsDir), handoff = handoff)
+        assertEquals(emptyList(), state.routes(), "no pose, nothing to hand on")
+        state.selectFolder(dir)
+        state.start()
+        assertEquals(listOf(Room.SKETCH, Room.LENS), state.routes().map { it.to })
+        state.handOff(Room.LENS)
+        assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(File(dir, "a.jpg")) to Room.LENS), sent, "the picture on screen")
+        assertTrue(state.isPaused, "and the session waits for it")
+    }
+
+    @Test
+    fun aPictureIsPinnedThroughTheBoardsAndWhatCameOfItIsShown() {
+        makeImages("a.jpg")
+        val pinned = mutableListOf<Pair<File, List<File>>>()
+        val boards = object : BoardSource {
+            override fun available() = listOf(BoardRef("Buch", dir))
+            override fun pictures(dir: File) = emptyList<File>()
+            override fun pin(dir: File, pictures: List<File>): String {
+                pinned += dir to pictures
+                return "Pinned 1 to Buch."
+            }
+        }
+        val state = PracticeState(FileLib(settingsDir), boards = boards)
+        assertEquals(listOf(BoardRef("Buch", dir)), state.boards())
+        state.pin(dir, listOf(File(dir, "a.jpg")))
+        assertEquals(listOf(dir to listOf(File(dir, "a.jpg"))), pinned)
+        assertEquals("Pinned 1 to Buch.", state.pinNotice)
     }
 
     @Test

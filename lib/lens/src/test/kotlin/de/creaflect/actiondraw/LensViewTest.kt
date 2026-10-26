@@ -27,7 +27,6 @@ import de.creaflect.actiondraw.ui.LensSettings
 import de.creaflect.actiondraw.ui.LensTray
 import de.creaflect.actiondraw.ui.LensView
 import de.creaflect.actiondraw.ui.ProvideAtelier
-import de.creaflect.actiondraw.ui.Room
 import org.junit.Rule
 import org.junit.Test
 import java.awt.image.BufferedImage

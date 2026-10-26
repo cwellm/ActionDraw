@@ -3,12 +3,16 @@ package de.creaflect.actiondraw.board
 import java.io.File
 
 /**
- * Where the board reads concepts from. The concept module stands behind this seam, so the board
- * knows nothing of concept files or the Concepts screens — only that a concept has an id, a
- * folder and items. [None] is a board without concepts, which is what the tests mostly use.
+ * The concepts as the other rooms reach them: the board reads them, Live Sketch saves into them.
+ * The concept room stands behind this seam, so the others know nothing of concept files or the
+ * Concepts screens — only that a concept has an id, a folder and items; the same kind of seam as
+ * [BoardSource]. [None] is a room without concepts, which is what the tests mostly use.
  */
 interface ConceptSource {
     fun available(): List<ConceptRef>
+
+    /** The concept's folder, where a picture made for it is written first; null if it cannot be found. */
+    fun folderOf(id: String): File?
 
     fun snapshot(id: String): ConceptSnapshot?
 
@@ -21,6 +25,7 @@ interface ConceptSource {
 
     object None : ConceptSource {
         override fun available(): List<ConceptRef> = emptyList()
+        override fun folderOf(id: String): File? = null
         override fun snapshot(id: String): ConceptSnapshot? = null
         override fun addToConcept(id: String, pictures: List<File>, others: List<BoardItem>): List<BoardItem>? = null
     }
