@@ -7,6 +7,8 @@ import de.creaflect.actiondraw.ui.handleLensKey
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -119,5 +121,16 @@ class LensKeysTest {
         press(Key.L, lens)
         assertFalse(lens.glass.inHand)
         assertFalse(press(Key.Plus, lens), "without the glass, + is nobody's")
+    }
+
+    @Test
+    fun wLaysTheGlassOverTheWholePictureAndTakesItBack() {
+        val lens = LensState()
+        assertTrue(press(Key.W, lens))
+        assertNotNull(lens.glass.spread)
+        assertTrue(lens.glass.inHand)
+        assertTrue(press(Key.W, lens))
+        assertNull(lens.glass.spread)
+        assertTrue(lens.glass.inHand, "back in the hand")
     }
 }

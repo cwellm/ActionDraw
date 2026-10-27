@@ -39,8 +39,8 @@ class FileLibTest {
     @Test
     fun theGlassIsKeptFromOneRunToTheNext() {
         assertNull(FileLib(home).preferences.glass(), "nothing kept until it is first settled")
-        FileLib(home).preferences.setGlass(GlassSetting("CONVEX", 4f, 150f))
-        assertEquals(GlassSetting("CONVEX", 4f, 150f), FileLib(home).preferences.glass())
+        FileLib(home).preferences.setGlass(GlassSetting("CONVEX", 4f, 150f, bend = 0.4f))
+        assertEquals(GlassSetting("CONVEX", 4f, 150f, bend = 0.4f), FileLib(home).preferences.glass())
     }
 
     @Test

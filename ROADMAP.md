@@ -1058,6 +1058,22 @@ one*, *How the rooms hand things over*) and the design canvas.
 - ✅ Kept between runs: the optic, the magnification and the size, as they were when the glass
   was last settled — an optic chosen, or the glass put away (`GlassState.keptIn`,
   `Preferences.glass`) — in a session and in the Lens room alike
+- ✅ Its size in its settings, beside the magnification (Shift+wheel as before), the person's wish
+  after trying the Lens room
+- ✅ **Over the whole picture** (`W`, or *Over the whole picture* in its settings): the optic bends
+  all of the picture about a centre a click or a drag moves — anywhere, not only the middle — and
+  makes none of it larger. Its reach is the picture's farthest corner, which stays the corner
+  (`spreadZoom`: the optic's rim brought back to itself), so the bending happens inside the
+  picture. The wheel bends it more or less (*Bend*, 10–100 %, kept between runs); Esc or a right
+  click takes it back into the hand. A ring and a dot mark the centre on screen; a saved view keeps
+  the bending and leaves the mark — and the grid, the glass in hand — behind (`LensView(marks =
+  false)`). In a session and in the Lens room alike
+- ✅ Tested: `GlassTest` (laid over, moved, set down, gathered, put away; its size and bend in their
+  limits and kept; the far rim kept for every optic and bend), `LensStateTest` (Esc gathers first;
+  a saved view takes it along), `LensKeysTest` (`W`), `LensViewTest` (the picture bent about the
+  middle, a drag moving the centre, a right click; the settings), `LensExportTest` (saved with the
+  view, without its mark), `FileLibTest` (the bend kept), and the Lens room's screenshots. Broken on
+  purpose and seen red after a no-op control stayed green: 21 guards — laid over the whole in hand, off any part, given up when set down or put away, its centre on the picture; the size and the bend in their limits and kept, in the glass and on disk; the far rim kept, and the bend softening it; the picture bent, a drag moving the centre, a right click and Esc gathering it; a saved view taking it along and leaving the mark and the grid; W; the settings' size and placing
 
 ---
 

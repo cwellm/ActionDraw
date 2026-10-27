@@ -298,5 +298,12 @@ class RoomScreenshotTest {
         lens.choose(de.creaflect.actiondraw.lens.LensSide.SECOND)
         mainClock.advanceTimeBy(500)
         shoot("18-lens-two", Room.LENS)
+        // The glass laid over the whole picture, bending it about a point off the middle.
+        lens.arrange(LensLayout.ALONE)
+        lens.first.viewMode = de.creaflect.actiondraw.ViewMode.NONE
+        lens.first.glass.choose(Optic.FISHEYE)
+        lens.first.glass.spreadOver(0.4f, 0.35f)
+        mainClock.advanceTimeBy(500)
+        shoot("19-lens-glass-over-whole", Room.LENS)
     }
 }

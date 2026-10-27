@@ -1,6 +1,7 @@
 package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.lens.LensState
+import de.creaflect.actiondraw.ui.GlassSpread
 import de.creaflect.actiondraw.ui.GlassState
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.keptIn
@@ -81,6 +82,33 @@ class LensStateTest {
         assertEquals(20, copy.pixelateBlock, "a block as large on the larger picture")
         assertEquals(240, copy.defractionBlock)
         assertFalse(copy.glass.inHand, "and the glass stays behind")
+    }
+
+    @Test
+    fun steppingBackTakesTheGlassOffTheWholePictureBeforePuttingItAway() {
+        val lens = LensState()
+        lens.glass.spreadOver(0.3f, 0.3f)
+        assertTrue(lens.stepBack(File("pose.png")))
+        assertNull(lens.glass.spread, "first back into the hand")
+        assertTrue(lens.glass.inHand)
+        assertTrue(lens.stepBack(File("pose.png")))
+        assertFalse(lens.glass.inHand, "then put away")
+    }
+
+    @Test
+    fun aCopyTakesTheGlassOverTheWholeAlongAndLeavesTheGlassInHandBehind() {
+        val laid = LensState().apply {
+            glass.choose(Optic.FISHEYE)
+            glass.bendTo(0.6f)
+            glass.spreadOver(0.2f, 0.7f)
+        }
+        val copy = laid.copy()
+        assertEquals(GlassSpread(0.2f, 0.7f), copy.glass.spread, "how the whole picture is seen")
+        assertEquals(Optic.FISHEYE, copy.glass.optic)
+        assertEquals(0.6f, copy.glass.bend)
+        val down = LensState().apply { glass.setDown(File("pose.png"), 0.4f, 0.4f) }.copy()
+        assertNull(down.glass.focus, "a glass down on a part stays behind")
+        assertFalse(down.glass.inHand)
     }
 
     @Test

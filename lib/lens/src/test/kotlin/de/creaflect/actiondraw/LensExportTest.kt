@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import de.creaflect.actiondraw.lens.LensState
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.lensedPng
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Image
@@ -59,6 +60,16 @@ class LensExportTest {
         assertEquals(saved.grey(0, 0), saved.grey(0, 15), "and 16 down")
         assertEquals(saved.grey(16, 0), saved.grey(31, 0))
         assertNotEquals(saved.grey(15, 0), saved.grey(16, 0), "and the next one beside it")
+    }
+
+    @Test
+    fun theGlassOverTheWholePictureIsSavedWithTheView() {
+        val ramp = picture(200, 100) { x, _ -> x * 255 / 199 }
+        val plain = save(ramp, LensState())
+        val laid = save(ramp, LensState().apply { glass.choose(Optic.CONVEX); glass.spreadOver(0.5f, 0.5f) })
+        assertTrue(laid.grey(50, 50) > plain.grey(50, 50) + 10, "bent about the middle: ${plain.grey(50, 50)} -> ${laid.grey(50, 50)}")
+        assertTrue(kotlin.math.abs(plain.grey(100, 50) - laid.grey(100, 50)) <= 6, "and the middle itself where it was, with no mark on it")
+        assertTrue(kotlin.math.abs(plain.grey(91, 50) - laid.grey(91, 50)) <= 12, "nor a ring round it")
     }
 
     @Test

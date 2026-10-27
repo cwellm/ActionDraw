@@ -6,7 +6,6 @@ import androidx.compose.ui.ImageComposeScene
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.Density
-import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.lens.LensState
 import org.jetbrains.skia.EncodedImageFormat
 
@@ -14,15 +13,16 @@ import org.jetbrains.skia.EncodedImageFormat
  * [bitmap] seen through [lens], whole and at its own size, as PNG bytes — as it looks on screen,
  * where it is shown [shownScale] times its size at [density]: the lens's sizes in pixels and its
  * blur grow with the picture, so a pixelate's blocks and a blur look as they did. Drawn by the same
- * [LensView] the screen draws with, in [design]; the grid and the glass stay behind. Null when it
+ * [LensView] the screen draws with, in [design], without its marks: the grid, the glass in hand and
+ * the centre's mark stay behind; the glass laid over the whole picture comes along. Null when it
  * could not be drawn. A large picture takes a while: call it off the UI thread.
  */
 fun lensedPng(bitmap: ImageBitmap, lens: LensState, shownScale: Float, density: Float, design: DesignSystem): ByteArray? = runCatching {
     val scale = if (shownScale > 0f) 1f / shownScale else 1f
-    val seen = lens.copy(scale).apply { gridMode = GridMode.OFF }
+    val seen = lens.copy(scale)
     val scene = ImageComposeScene(bitmap.width, bitmap.height, Density(density * scale)) {
         CompositionLocalProvider(LocalDesign provides design) {
-            LensView(seen, bitmap, picture = null, modifier = Modifier.fillMaxSize())
+            LensView(seen, bitmap, picture = null, modifier = Modifier.fillMaxSize(), marks = false)
         }
     }
     try {

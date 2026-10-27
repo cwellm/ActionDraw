@@ -2,6 +2,7 @@ package de.creaflect.actiondraw
 
 import androidx.compose.ui.geometry.Offset
 import de.creaflect.actiondraw.ui.GlassFocus
+import de.creaflect.actiondraw.ui.GlassSpread
 import de.creaflect.actiondraw.ui.GlassState
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.PictureView
@@ -9,6 +10,7 @@ import de.creaflect.actiondraw.ui.magnificationFor
 import de.creaflect.actiondraw.ui.opticShader
 import de.creaflect.actiondraw.ui.opticSource
 import de.creaflect.actiondraw.ui.pictureView
+import de.creaflect.actiondraw.ui.spreadZoom
 import de.creaflect.actiondraw.ui.toLayer
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Color
@@ -33,6 +35,75 @@ import kotlin.test.assertTrue
 /** The glass: its state, where the picture lies under it, and its optics as the shader draws them. */
 class GlassTest {
     // ---- The state ----
+
+    @Test
+    fun theGlassLaidOverTheWholePictureBendsItAboutAPointThatMoves() {
+        val glass = GlassState()
+        glass.spreadOver()
+        assertEquals(GlassSpread(0.5f, 0.5f), glass.spread, "the middle, unless said")
+        assertTrue(glass.inHand, "and the glass is in hand")
+        glass.spreadOver(0.2f, 1.4f)
+        assertEquals(GlassSpread(0.2f, 1f), glass.spread, "laid there again, it moves — never off the picture")
+
+        glass.setDown(null, 0.3f, 0.3f)
+        assertNull(glass.spread, "set down on a part, it no longer lies over the whole")
+        glass.spreadOver(0.6f, 0.4f)
+        assertNull(glass.focus, "and laid over the whole, it is on no part")
+
+        glass.gather()
+        assertNull(glass.spread)
+        assertTrue(glass.inHand, "gathered back into the hand, not put away")
+        glass.toggleSpread()
+        assertEquals(GlassSpread(0.5f, 0.5f), glass.spread, "W: over the whole")
+        glass.toggleSpread()
+        assertNull(glass.spread, "and back")
+        glass.spreadOver()
+        glass.putAway()
+        assertNull(glass.spread, "put away, the picture is as it is")
+    }
+
+    @Test
+    fun theGlassIsAsLargeAndBendsAsMuchAsItIsMadeWithinItsLimits() {
+        val glass = GlassState()
+        glass.resize(180f)
+        assertEquals(180f, glass.radius)
+        glass.resize(1000f)
+        assertEquals(GlassState.MAX_RADIUS, glass.radius)
+        glass.resize(0f)
+        assertEquals(GlassState.MIN_RADIUS, glass.radius)
+        glass.bendTo(0.4f)
+        assertEquals(0.4f, glass.bend)
+        glass.bendBy(-10f)
+        assertEquals(GlassState.MIN_BEND, glass.bend, "never no bend at all")
+        glass.bendBy(20f)
+        assertEquals(1f, glass.bend, "never more than the glass's own")
+    }
+
+    @Test
+    fun theBendIsKeptWithTheRestOfTheGlass() {
+        val glass = GlassState().apply {
+            choose(Optic.FISHEYE)
+            bendTo(0.3f)
+            resize(200f)
+        }
+        val next = GlassState().apply { restore(glass.setting()) }
+        assertEquals(0.3f, next.bend)
+        assertEquals(200f, next.radius)
+    }
+
+    @Test
+    fun aGlassOverTheWholeKeepsTheFarRimOfItsReachWhereItIs() {
+        for (optic in listOf(Optic.CONVEX, Optic.CONCAVE, Optic.FISHEYE)) {
+            for (bend in listOf(1f, 0.5f, 0.1f)) {
+                val rim = opticSource(optic, 100f, 0f, 100f, zoom = spreadZoom(optic, bend), strength = bend)
+                assertEquals(100f, rim.x, 0.01f, "$optic at $bend: the farthest corner stays the corner")
+            }
+        }
+        val convex = spreadZoom(Optic.CONVEX, 1f)
+        assertTrue(opticSource(Optic.CONVEX, 10f, 0f, 100f, convex, 1f).x < 10f * 0.5f, "a convex glass over the whole still swells its middle")
+        assertEquals(1f, spreadZoom(Optic.CYLINDER, 1f), "a glass rod bends one way only: no further out")
+        assertEquals(1f, spreadZoom(Optic.PRISM, 1f))
+    }
 
     @Test
     fun theGlassIsSetDownOnOnePictureAndANewPoseStartsWhole() {

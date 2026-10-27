@@ -103,7 +103,12 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
     override fun glass(): GlassSetting? = runCatching {
         val props = read()
         val optic = props.getProperty(KEY_GLASS_OPTIC)?.takeIf { it.isNotBlank() } ?: return null
-        GlassSetting(optic, props.getProperty(KEY_GLASS_MAGNIFICATION).toFloat(), props.getProperty(KEY_GLASS_RADIUS).toFloat())
+        GlassSetting(
+            optic,
+            props.getProperty(KEY_GLASS_MAGNIFICATION).toFloat(),
+            props.getProperty(KEY_GLASS_RADIUS).toFloat(),
+            props.getProperty(KEY_GLASS_BEND)?.toFloatOrNull() ?: 1f,
+        )
     }.getOrNull()
 
     override fun setGlass(setting: GlassSetting) {
@@ -111,6 +116,7 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
         props.setProperty(KEY_GLASS_OPTIC, setting.optic)
         props.setProperty(KEY_GLASS_MAGNIFICATION, setting.magnification.toString())
         props.setProperty(KEY_GLASS_RADIUS, setting.radius.toString())
+        props.setProperty(KEY_GLASS_BEND, setting.bend.toString())
         write(props)
     }
 
@@ -152,5 +158,6 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
         private const val KEY_GLASS_OPTIC = "glassOptic"
         private const val KEY_GLASS_MAGNIFICATION = "glassMagnification"
         private const val KEY_GLASS_RADIUS = "glassRadius"
+        private const val KEY_GLASS_BEND = "glassBend"
     }
 }

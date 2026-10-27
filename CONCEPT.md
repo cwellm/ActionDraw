@@ -198,8 +198,9 @@ exercise*, *Open Drachenbuch* or *New sketch*.
   or pin it to a board beside its original. It is the vision's "schnelle Filter zum Ausprobieren".
   And a real lens: **the glass**, a reading glass held over the picture — plain, or bending what
   it shows (convex, concave, fisheye, a glass rod, a prism) — and set down on a part, which then
-  fills the view, the whole picture one click back in the corner. Drawing what the glass shows
-  rather than what one knows is there. It is the same glass in a session and in the Lens room
+  fills the view, the whole picture one click back in the corner — or laid over the whole picture,
+  bending all of it about a point you place anywhere. Drawing what the glass shows rather than
+  what one knows is there. It is the same glass in a session and in the Lens room
   (F10.9), and it is kept as it was left.
 
 ## What stays true

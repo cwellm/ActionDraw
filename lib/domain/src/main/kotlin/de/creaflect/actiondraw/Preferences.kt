@@ -77,5 +77,8 @@ interface Preferences {
     fun setGlass(setting: GlassSetting)
 }
 
-/** The glass held over a picture, as it is kept between runs: its optic by name, how much larger it shows, its radius in dp. */
-data class GlassSetting(val optic: String, val magnification: Float, val radius: Float)
+/**
+ * The glass held over a picture, as it is kept between runs: its optic by name, how much larger it
+ * shows, its radius in dp, and how much it bends laid over the whole picture.
+ */
+data class GlassSetting(val optic: String, val magnification: Float, val radius: Float, val bend: Float = 1f)

@@ -150,12 +150,28 @@ internal fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose:
                     }
                     LensSettings.GLASS -> {
                         OpticChoices(lens)
-                        ParamSlider(
-                            label = "×" + "%.1f".format(lens.glass.magnification),
-                            value = lens.glass.magnification,
-                            range = GlassState.MIN_MAGNIFICATION..GlassState.MAX_MAGNIFICATION,
-                            steps = 0,
-                        ) { lens.glass.magnify(it) }
+                        GlassPlacing(lens)
+                        if (lens.glass.spread != null) {
+                            ParamSlider(
+                                label = "Bend: " + "%.0f%%".format(lens.glass.bend * 100),
+                                value = lens.glass.bend,
+                                range = GlassState.MIN_BEND..1f,
+                                steps = 8,
+                            ) { lens.glass.bendTo(it) }
+                        } else {
+                            ParamSlider(
+                                label = "×" + "%.1f".format(lens.glass.magnification),
+                                value = lens.glass.magnification,
+                                range = GlassState.MIN_MAGNIFICATION..GlassState.MAX_MAGNIFICATION,
+                                steps = 0,
+                            ) { lens.glass.magnify(it) }
+                            ParamSlider(
+                                label = "Size: ${lens.glass.radius.roundToInt()} dp",
+                                value = lens.glass.radius,
+                                range = GlassState.MIN_RADIUS..GlassState.MAX_RADIUS,
+                                steps = 0,
+                            ) { lens.glass.resize(it) }
+                        }
                     }
                 }
             }
@@ -171,6 +187,18 @@ internal fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose:
                     .padding(horizontal = 6.dp)
                     .testTag("settings-close"),
             )
+        }
+    }
+}
+
+/** Where the glass is: in the hand, over a part — or laid over the whole picture, bending all of it. */
+@Composable
+private fun GlassPlacing(lens: LensState) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        SelectChip("In hand", lens.glass.spread == null, tag = "glass-in-hand") { lens.glass.gather() }
+        Spacer(Modifier.width(4.dp))
+        SelectChip("Over the whole picture", lens.glass.spread != null, tag = "glass-over-whole") {
+            if (lens.glass.spread == null) lens.glass.spreadOver()
         }
     }
 }

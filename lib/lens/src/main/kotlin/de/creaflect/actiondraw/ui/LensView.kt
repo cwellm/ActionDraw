@@ -70,7 +70,9 @@ private fun LastFocus(glass: GlassState, current: File?, lastFocus: MutableState
  * The picture seen through [lens] — its lens, every knob, the grid — and the glass (F10.9) over
  * it: taken up, it shows the picture larger under the pointer; set down, the part it is on fills
  * the area — zooming there and back over [Motion.GLASS_MS] — and the whole picture waits in the
- * corner. While there is a [veil], it stands in the picture's place, and the glass takes nothing.
+ * corner; laid over the whole picture, it bends all of it about a mark that shows where. While
+ * there is a [veil], it stands in the picture's place, and the glass takes nothing. Without
+ * [marks], only the picture is drawn: no grid, no rim, no mark, no print — what a view saved is.
  */
 @Composable
 fun LensView(
@@ -79,6 +81,7 @@ fun LensView(
     picture: File?,
     modifier: Modifier = Modifier,
     veil: (@Composable () -> Unit)? = null,
+    marks: Boolean = true,
 ) {
     val glass = lens.glass
     val pointer = remember { GlassPointer() }
@@ -141,10 +144,10 @@ fun LensView(
             )
             // Proportion overlay sits above the image and is unaffected by its filters/rotation;
             // it measures the whole picture, so it waits while the glass is down on a part.
-            if (lens.gridMode != GridMode.OFF && !focused) {
+            if (marks && lens.gridMode != GridMode.OFF && !focused) {
                 ProportionOverlay(bmp, lens.gridMode, Modifier.fillMaxSize())
             }
-            GlassOverlay(bmp, lens, picture, pointer, progress, focused)
+            if (marks) GlassOverlay(bmp, lens, picture, pointer, progress, focused)
         } else {
             Text(if (picture == null) "No image" else "Loading…", color = Color.White)
         }

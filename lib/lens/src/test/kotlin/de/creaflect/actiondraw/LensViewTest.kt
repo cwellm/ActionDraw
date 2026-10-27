@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
@@ -16,16 +17,20 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.lens.LensState
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.LensControls
 import de.creaflect.actiondraw.ui.LensSettings
 import de.creaflect.actiondraw.ui.LensTray
 import de.creaflect.actiondraw.ui.LensView
+import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.Rule
 import org.junit.Test
@@ -34,6 +39,7 @@ import java.io.File
 import kotlin.math.abs
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -124,5 +130,52 @@ class LensViewTest {
         rule.onNodeWithTag("lens-notan").performClick()
         rule.waitForIdle()
         assertEquals(ViewMode.NOTAN, lens.viewMode, "and a slide chooses its lens")
+    }
+
+    @Test
+    fun theGlassOverTheWholePictureBendsItAboutItsCentreWhichADragMoves() {
+        val lens = LensState()
+        show(lens)
+        val plain = middleRow()
+        lens.glass.choose(Optic.CONVEX)
+        lens.glass.spreadOver(0.5f, 0.5f)
+        val bent = middleRow()
+        // A convex glass swells its middle: left of the centre, the ramp is seen nearer the middle — lighter.
+        val left = plain.size / 4
+        assertTrue(bent[left].red > plain[left].red + 0.05f, "bent about the middle: ${plain[left]} -> ${bent[left]}")
+
+        val area = rule.onNodeWithTag("reference").fetchSemanticsNode().size
+        rule.onNodeWithTag("reference").performMouseInput {
+            moveTo(Offset(area.width * 0.5f, area.height * 0.5f))
+            press()
+            repeat(20) { moveBy(Offset(-area.width * 0.25f / 20f, 0f)) }
+            release()
+        }
+        rule.waitForIdle()
+        assertEquals(0.25f, assertNotNull(lens.glass.spread).x, 0.02f, "dragged, its centre follows")
+        rule.onNodeWithTag("reference").performMouseInput { rightClick(Offset(10f, 10f)) }
+        rule.waitForIdle()
+        assertNull(lens.glass.spread, "a right click takes it back into the hand")
+        assertNull(lens.glass.focus, "and sets it down nowhere")
+    }
+
+    @Test
+    fun theGlassSettingsSayWhereItIsHowLargeAndHowMuchItBends() {
+        val lens = LensState()
+        rule.setContent {
+            ProvideAtelier { Box(Modifier.size(1100.dp, 600.dp)) { LensControls(lens, null, Room.LENS, remember { mutableStateOf(0) }) } }
+        }
+        rule.onNodeWithTag("glass").performClick()
+        rule.waitForIdle()
+        rule.onNodeWithTag("settings-glass").assertExists()
+        rule.onNode(hasText("Size: 110 dp")).assertExists()
+        rule.onNodeWithTag("glass-over-whole").performClick()
+        rule.waitForIdle()
+        assertNotNull(lens.glass.spread, "over the whole picture")
+        rule.onNode(hasText("Bend: 100%")).assertExists()
+        rule.onNode(hasText("Size: 110 dp")).assertDoesNotExist()
+        rule.onNodeWithTag("glass-in-hand").performClick()
+        rule.waitForIdle()
+        assertNull(lens.glass.spread, "and back in hand")
     }
 }
