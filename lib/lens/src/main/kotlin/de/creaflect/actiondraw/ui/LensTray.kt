@@ -59,8 +59,8 @@ import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.lens.LensState
 import kotlin.math.roundToInt
 
-/** What the settings above the tray can show: the chosen lens's, the light, blur, shards, the glass. */
-internal enum class LensSettings { LENS, LIGHT, BLUR, SHARDS, GLASS }
+/** What the settings above the tray can show: the chosen lens's, the light, blur, shards, the form, the glass. */
+internal enum class LensSettings { LENS, LIGHT, BLUR, SHARDS, FORM, GLASS }
 
 private fun ViewMode.hasSettings(): Boolean =
     this == ViewMode.POSTERIZE || this == ViewMode.PIXELATE || this == ViewMode.SILHOUETTE || this == ViewMode.NOTAN
@@ -71,10 +71,11 @@ internal fun LensSettings.isOn(lens: LensState): Boolean = when (this) {
     LensSettings.LIGHT -> true
     LensSettings.BLUR -> lens.blur
     LensSettings.SHARDS -> lens.defraction
+    LensSettings.FORM -> lens.form.form != null
     LensSettings.GLASS -> lens.glass.inHand
 }
 
-/** Choosing a lens with settings, or turning blur, shards or the glass on - by click or key - opens its settings. */
+/** Choosing a lens with settings, or turning blur, shards, a form or the glass on - by click or key - opens its settings. */
 @Composable
 internal fun OpenSettingsWithTheirControls(lens: LensState, settings: MutableState<LensSettings?>) {
     fun follow(target: LensSettings, on: Boolean) {
@@ -83,12 +84,13 @@ internal fun OpenSettingsWithTheirControls(lens: LensState, settings: MutableSta
     LaunchedEffect(lens.viewMode) { follow(LensSettings.LENS, lens.viewMode.hasSettings()) }
     LaunchedEffect(lens.blur) { if (lens.blur || settings.value == LensSettings.BLUR) follow(LensSettings.BLUR, lens.blur) }
     LaunchedEffect(lens.defraction) { if (lens.defraction || settings.value == LensSettings.SHARDS) follow(LensSettings.SHARDS, lens.defraction) }
+    LaunchedEffect(lens.form.form != null) { if (lens.form.form != null || settings.value == LensSettings.FORM) follow(LensSettings.FORM, lens.form.form != null) }
     LaunchedEffect(lens.glass.inHand) { if (lens.glass.inHand || settings.value == LensSettings.GLASS) follow(LensSettings.GLASS, lens.glass.inHand) }
 }
 
 /**
  * The tray: the lenses as glass slides, then the knobs - light, blur, mirror, flip, invert, shards,
- * grid, the glass - lit in the pigment of the [room] it lies in. It wraps onto two lines in a narrow
+ * grid, the form, the glass - lit in the pigment of the [room] it lies in. It wraps onto two lines in a narrow
  * window. [settings] are the settings open above it, which [LensControls] places
  * ([LensSettingsPopover]); [onAnchor] says where each control with settings sits, in the root's x.
  */
@@ -128,6 +130,7 @@ internal fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose:
         LensSettings.LIGHT -> "Light"
         LensSettings.BLUR -> "Blur"
         LensSettings.SHARDS -> "Shards"
+        LensSettings.FORM -> "The form"
         LensSettings.GLASS -> "The glass"
     }
     Surface(color = Design.colors.raised, shape = shape, modifier = Modifier.lampShadow(Lift.LIFTED, shape).testTag("settings-" + target.name.lowercase())) {
@@ -147,6 +150,15 @@ internal fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose:
                     LensSettings.SHARDS -> {
                         ParamSlider(label = "Size: ${lens.defractionBlock} px", value = lens.defractionBlock.toFloat(), range = 32f..192f, steps = 9) { lens.defractionBlock = it.roundToInt() }
                         ParamSlider(label = "Strength: " + "%.0f%%".format(lens.defractionStrength * 100), value = lens.defractionStrength, range = 0.1f..1f, steps = 8) { lens.defractionStrength = it }
+                    }
+                    LensSettings.FORM -> {
+                        FormChoices(lens)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SelectChip("Lit by the lamp", lens.form.lit, tag = "form-lit") { lens.form.lit = !lens.form.lit }
+                            Spacer(Modifier.width(4.dp))
+                            SelectChip("Straighten", false, tag = "form-straighten") { lens.form.straighten() }
+                        }
+                        Text("Drag the picture to turn it.", fontSize = 11.sp, color = Design.colors.muted)
                     }
                     LensSettings.GLASS -> {
                         OpticChoices(lens)
@@ -299,6 +311,11 @@ private fun Knobs(lens: LensState, settings: MutableState<LensSettings?>, room: 
             if (lens.gridMode == GridMode.OFF) "Grid" else lens.gridMode.name.lowercase().replaceFirstChar { it.uppercase() },
             "G", "M6.5 2 V16 M11.5 2 V16 M2 6.5 H16 M2 11.5 H16", on = lens.gridMode != GridMode.OFF, room = room,
         ) { lens.cycleGrid() }
+        // The form (F10.10): the picture wrapped round one; which, and its light, in its settings.
+        Knob(
+            "Form", "P", "M9 2.5 A6.5 6.5 0 1 1 8.99 2.5 M2.5 9 A6.5 2.6 0 1 0 15.5 9", on = lens.form.form != null, room = room,
+            modifier = anchor(LensSettings.FORM),
+        ) { on -> lens.form.choose(if (on) Form.SPHERE else null) }
         // The glass (F10.9): taken up and put away; its optics and magnification in its settings.
         Knob("Glass", "L", "M7.5 2.5 A5 5 0 1 1 7.49 2.5 M11 11 L16 16", on = lens.glass.inHand, room = room, tag = "glass", modifier = anchor(LensSettings.GLASS)) { lens.glass.toggle() }
     }

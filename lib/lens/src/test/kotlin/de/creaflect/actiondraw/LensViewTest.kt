@@ -26,6 +26,7 @@ import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.lens.LensState
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Form
 import de.creaflect.actiondraw.ui.LensControls
 import de.creaflect.actiondraw.ui.LensSettings
 import de.creaflect.actiondraw.ui.LensTray
@@ -38,6 +39,7 @@ import java.awt.image.BufferedImage
 import java.io.File
 import kotlin.math.abs
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -177,5 +179,55 @@ class LensViewTest {
         rule.onNodeWithTag("glass-in-hand").performClick()
         rule.waitForIdle()
         assertNull(lens.glass.spread, "and back in hand")
+    }
+
+    @Test
+    fun thePictureOnAFormIsDrawnOnItAndADragTurnsIt() {
+        val lens = LensState()
+        show(lens)
+        lens.form.choose(Form.SPHERE)
+        lens.form.lit = false
+        rule.waitForIdle()
+        val shot = rule.onNodeWithTag("reference").captureToImage().toPixelMap()
+        // The top right corner: the ramp at its lightest, flat — round the ball, nothing.
+        assertEquals(0f, shot[shot.width - 4, 3].red, 0.02f, "round the ball, nothing: the view's own black")
+        assertTrue(shot[shot.width / 2, shot.height / 2].red > 0.05f, "on it, the picture")
+        val yaw = lens.form.yaw
+        val area = rule.onNodeWithTag("reference").fetchSemanticsNode().size
+        rule.onNodeWithTag("reference").performMouseInput {
+            moveTo(Offset(area.width * 0.4f, area.height * 0.5f))
+            press()
+            repeat(20) { moveBy(Offset(2f, 0f)) }
+            release()
+        }
+        rule.waitForIdle()
+        assertTrue(lens.form.yaw < yaw - 0.2f, "dragged right, its front turns right: $yaw -> ${lens.form.yaw}")
+        assertNull(lens.glass.focus, "and no glass is set down by it")
+    }
+
+    @Test
+    fun theFormSettingsChooseTheFormItsLightAndStraightenIt() {
+        val lens = LensState()
+        rule.setContent {
+            ProvideAtelier { Box(Modifier.size(1100.dp, 600.dp)) { LensControls(lens, null, Room.LENS, remember { mutableStateOf(0) }) } }
+        }
+        rule.onNodeWithTag("knob-p").performClick()
+        rule.waitForIdle()
+        assertEquals(Form.SPHERE, lens.form.form, "the knob puts the picture on a ball")
+        rule.onNodeWithTag("settings-form").assertExists()
+        rule.onNodeWithTag("form-cone").performClick()
+        rule.waitForIdle()
+        assertEquals(Form.CONE, lens.form.form)
+        rule.onNodeWithTag("form-lit").performClick()
+        rule.waitForIdle()
+        assertFalse(lens.form.lit, "the lamp off")
+        val straight = lens.form.yaw to lens.form.pitch
+        lens.form.turn(0.7f, 0.3f)
+        rule.onNodeWithTag("form-straighten").performClick()
+        rule.waitForIdle()
+        assertEquals(straight, lens.form.yaw to lens.form.pitch, "and straight again")
+        rule.onNodeWithTag("knob-p").performClick()
+        rule.waitForIdle()
+        assertNull(lens.form.form, "the knob again: the picture flat")
     }
 }

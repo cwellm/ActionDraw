@@ -90,8 +90,12 @@ class GlassState {
     /** Told when the glass is settled — an optic chosen, or the glass put away: when it is worth keeping. */
     var onSettle: (() -> Unit)? = null
 
+    /** Told when the glass is taken up, however: a form the picture is on gives way to it. */
+    var onTakeUp: (() -> Unit)? = null
+
     fun takeUp() {
         inHand = true
+        onTakeUp?.invoke()
     }
 
     /** Puts the glass away — and so whatever it was set down on, or laid over, is seen as it is again. */
@@ -107,6 +111,7 @@ class GlassState {
     fun choose(optic: Optic) {
         this.optic = optic
         inHand = true
+        onTakeUp?.invoke()
         onSettle?.invoke()
     }
 
@@ -132,6 +137,7 @@ class GlassState {
     /** Sets the glass down on [picture] at ([x], [y]), fractions of its size; that part fills the view. */
     fun setDown(picture: File?, x: Float, y: Float, magnification: Float = this.magnification) {
         inHand = true
+        onTakeUp?.invoke()
         spread = null
         this.magnification = magnification.coerceIn(MIN_MAGNIFICATION, MAX_MAGNIFICATION)
         focus = GlassFocus(picture, x.coerceIn(0f, 1f), y.coerceIn(0f, 1f), this.magnification)
@@ -144,6 +150,7 @@ class GlassState {
      */
     fun spreadOver(x: Float = 0.5f, y: Float = 0.5f) {
         inHand = true
+        onTakeUp?.invoke()
         focus = null
         spread = GlassSpread(x.coerceIn(0f, 1f), y.coerceIn(0f, 1f))
     }

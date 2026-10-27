@@ -14,6 +14,8 @@ object LensHotkeys {
         "G" to "cycle the proportion grid",
         "L · O · + / −" to "the glass: take up / put away · next optic · nearer / further",
         "W" to "the glass over the whole picture, or back in hand",
+        "P" to "the picture on a form: sphere · cylinder · cone · torus · plane · chrome ball · none",
+        "drag (on a form)" to "turn it",
         "click · drag · right click (glass in hand)" to "set it down on a point · on a part · lift it off",
         "click · drag · right click (over the whole)" to "move its centre · move it along · back in hand",
         "wheel · Shift+wheel (glass in hand)" to "magnify · a larger glass (set down: nearer about the pointer; over the whole: bend more or less)",
@@ -32,6 +34,7 @@ fun handleLensKey(key: Key, lens: LensState): Boolean =
         Key.L -> { lens.glass.toggle(); true }
         Key.O -> { lens.glass.nextOptic(); true }
         Key.W -> { lens.glass.toggleSpread(); true }
+        Key.P -> { lens.form.next(); true }
         Key.Plus, Key.Equals, Key.NumPadAdd -> lens.glass.inHand.also { if (it) lens.glass.magnifyBy(1f) }
         Key.Minus, Key.NumPadSubtract -> lens.glass.inHand.also { if (it) lens.glass.magnifyBy(-1f) }
         Key.G -> { lens.cycleGrid(); true }

@@ -26,7 +26,7 @@ flowchart TB
   subgraph LIB["lib"]
     subgraph UI["UI kit"]
       features[":lib:feature:*<br/>practice · board · concept · sketch · lens"]
-      lens[":lib:lens<br/>lenses · knobs · grids · the glass"]
+      lens[":lib:lens<br/>lenses · knobs · grids · the glass · forms"]
       atelier[":lib:design:atelier<br/>the default design system"]
       contract[":lib:design:contract<br/>tokens · materials · chrome · RoomTheme"]
     end
@@ -96,8 +96,9 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
   of the room they are in. It depends on the domain alone, for the rooms it colours.
 - **`design:atelier`** — the default design system, in Compose: the atelier of
   [CONCEPT.md](../CONCEPT.md). Another design system implements the same contract.
-- **`lens`** — how a picture is seen: the lenses and the knobs over them, the proportion grids and
-  the glass, with the tray that holds them, the picture they work on and their keys, over one
+- **`lens`** — how a picture is seen: the lenses and the knobs over them, the proportion grids, the
+  glass and the forms a picture is wrapped onto, with the tray that holds them, the picture they
+  work on and their keys, over one
   `LensState`, and a view drawn off screen to be kept. Part of the UI kit and no room of its own:
   a session in the Practice room sees its picture through it, and so does the Lens room.
 - **`feature:*`** — a room as a unit: its state and logic over the domain's `Lib`, its screens on
@@ -156,7 +157,7 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 | `:lib:sketch-engine` | `:sketch-engine` |
 | `:lib:design:contract` | new: `DesignSystem`, `Materials` and `Chrome` as contracts, read through `DesignTheme`; and the kit's basics, `ui/Motion.kt` (without the bloom) and `Components.kt` (F11.9); `RoomTheme` (F11.12) |
 | `:lib:design:atelier` | `ui/Atelier.kt`, `Materials.kt` (now `AtelierMaterials`), `RoomChrome.kt` (now `AtelierChrome`), the bloom out of `Motion.kt`, the fonts (F11.9) |
-| `:lib:lens` | the lens out of the Practice room (F10.1): `Filters.kt`, the glass (`Glass.kt`, `GlassView.kt`), `Grids.kt`; out of `SessionScreen` the tray and its settings (`LensControls`) and the picture (`LensView`), out of `SessionKeys` the lens's keys; the session's lens settings as one `LensState`; new, `lensedPng` |
+| `:lib:lens` | the lens out of the Practice room (F10.1): `Filters.kt`, the glass (`Glass.kt`, `GlassView.kt`), `Grids.kt`; out of `SessionScreen` the tray and its settings (`LensControls`) and the picture (`LensView`), out of `SessionKeys` the lens's keys; the session's lens settings as one `LensState`; new, `lensedPng`, and the forms (`Form.kt`, `FormView.kt`, F10.10) |
 | `:lib:feature:practice` | the Practice room out of `AppState` (now `PracticeState`, F11.10) and its screens (`ui/PracticeScreen`, `SessionScreen`, …); its `PinTargets` and `PracticeBoards` gave way to the domain's `BoardSource` (F11.12) |
 | `:lib:feature:board` | `BoardState` — the domain's `BoardSource` for the other rooms — and `board/ui`, less the app's settings sheet |
 | `:lib:feature:concept` | `ConceptState` — the domain's `ConceptSource` — and `concept/ui` |

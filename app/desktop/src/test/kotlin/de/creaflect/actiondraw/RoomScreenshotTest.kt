@@ -24,6 +24,7 @@ import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.lens.LensLayout
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Form
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.sketch.Lead
@@ -305,5 +306,29 @@ class RoomScreenshotTest {
         lens.first.glass.spreadOver(0.4f, 0.35f)
         mainClock.advanceTimeBy(500)
         shoot("19-lens-glass-over-whole", Room.LENS)
+    }
+
+    /**
+     * The picture on a form (F10.10), in a lower window: in a test every frame is drawn on the
+     * processor, four rays a pixel, and the full window takes minutes a form. As wide as the app
+     * opens, so the header and the form's settings still have to fit without a label cut off.
+     */
+    @Test
+    fun theLensRoomsForms() = runDesktopComposeUiTest(width = 1120, height = 560) {
+        val world = World()
+        val lens = world.rooms.lens
+        world.app.enter(Screen.Lens)
+        lens.open(picture(File(root, "pose.png")))
+        world.show(this)
+        for (i in 0 until 50) {
+            if (onAllNodesWithTag("reference").fetchSemanticsNodes().isNotEmpty()) break
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        listOf(Form.SPHERE, Form.CHROME).forEachIndexed { i, form ->
+            lens.first.form.choose(form)
+            repeat(3) { mainClock.advanceTimeByFrame() }
+            shoot("2$i-lens-form-" + form.name.lowercase(), Room.LENS)
+        }
     }
 }

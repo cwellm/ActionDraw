@@ -165,3 +165,27 @@ should make the creative process better, not just add a feature.
   it in line with the "never a streak" decision above.
 - ⬜ **Studio hours.** One switch that makes every room full-screen, mutes the app's own
   notifications and starts a gentle ensō for the whole sitting.
+
+### The Lens, further out (2026-10-27)
+The forms — a picture on a sphere, a cylinder, a cone, a torus, a tilted plane, in a chrome ball —
+are built (F10.10). These came up with them and wait.
+- ⬜ **Forms with a few sliders.** One formula family (superquadrics) covers ball, cushion, rounded
+  cube and cylinder with two sliders, so a form can be tuned to the thing being drawn.
+- ⬜ **A relief.** A greyscale picture as a height field, the picture draped over it: cloth over a
+  knee, a pattern over a face.
+- ⬜ **Your own surfaces.** A typed formula — `x(u, v)`, `y(u, v)`, `z(u, v)` — turned into a
+  shader while the app runs (Skia compiles SkSL at runtime; mistakes and slow formulas have to be
+  caught). Further still, a 3D model (OBJ) drawn as textured triangles with Skia's `drawVertices`,
+  no 3D engine needed.
+- ⬜ **The other way round.** The picture taken as a panorama and projected: a "little planet"
+  (stereographic), an equirectangular unrolling — the same kind of shader as the optics.
+- ⬜ **Near light speed (Minkowski).** What a picture looks like when moving towards it at a good
+  fraction of the speed of light: the view crowds towards the direction of travel (relativistic
+  aberration, `cos θ′ = (cos θ + β) / (1 + β cos θ)`) and colours shift blue ahead, red behind
+  (Doppler). One more optic in the glass's family, with a speed slider. A curiosity rather than
+  practice; a narrow photo pulls in empty space at the edges at high speeds.
+- ⬜ **Diffraction of a picture.** The picture's shape as the slit: its far-field diffraction
+  pattern, the squared magnitude of its Fourier transform. Well defined and striking, but
+  generative art, not drawing practice.
+- ⬜ **A double-slit sandbox.** Waves running through slits you draw, live. A physics toy, not a
+  way of seeing a picture: if ever, an experimental room of its own, never part of the Lens.

@@ -1075,6 +1075,40 @@ one*, *How the rooms hand things over*) and the design canvas.
   view, without its mark), `FileLibTest` (the bend kept), and the Lens room's screenshots. Broken on
   purpose and seen red after a no-op control stayed green: 21 guards — laid over the whole in hand, off any part, given up when set down or put away, its centre on the picture; the size and the bend in their limits and kept, in the glass and on disk; the far rim kept, and the bend softening it; the picture bent, a drag moving the centre, a right click and Esc gathering it; a saved view taking it along and leaving the mark and the grid; W; the settings' size and placing
 
+### ✅ F10.10 Forms — the picture on a surface
+The person's wish after the glass (2026-10-27): projections onto a sphere and other figures, one
+day one's own. This is step 1; the rest — forms with sliders, a relief, one's own surfaces and
+models, panoramas, light speed, diffraction — waits in [IDEAS.md](IDEAS.md).
+- ✅ The picture on a form, in the lens kit beside the glass (`Form`, `FormState`): a sphere
+  (wrapped once round), a cylinder (as tall as the picture is for its width), a cone, a torus
+  (along the ring and round its tube), a plane tilted away (foreshortened, in the picture's
+  proportions) and a chrome ball (the picture as the world all round, reflected, the lamp shining
+  in it and its rim darker)
+- ✅ Turned by a drag, as a globe under the hand — mirrored or upside down as it is seen — and
+  tipped no further than its edge; each form first seen from where it reads (a solid from a little
+  above, a page tilted well back), and *Straighten* returns there. Lit by the lamp from above to
+  the left, or not, to see the picture's own values on the form
+- ✅ The *Form* knob and its settings (the forms as small drawings, the lamp, Straighten), `P` for
+  the next form; the lenses and the knobs work on the form as on the picture — a sphere in notan.
+  The picture is on a form or under the glass, never both: taking one up puts the other away
+  (`GlassState.onTakeUp`, `FormState.onShow`). Esc takes the picture off its form. In a session
+  and in the Lens room alike
+- ✅ One shader for every form (`FORM_SKSL`): a ray from a camera five radii away through each
+  pixel, turned into the form's frame, meeting it exactly (a sphere, a can, a cone, a page) or
+  marching to it (the ring, stopping where it lands); four rays a pixel for a smooth edge.
+  `formRay` is its arithmetic in Kotlin; a test draws a picture whose colours are its own
+  coordinates on every form and holds the two together, and another holds the turn to a turn
+- ✅ A saved view keeps the form; drawn rather than resampled, it is saved no larger than 1600
+  pixels on its long side (`FORM_SAVED`)
+- ✅ Tested: `FormTest` (`P` round every form; turned, tipped, straightened, copied; a turn that is
+  a turn, and the right way round; the form and the glass taking turns; Esc; every form drawn
+  where its twin says and clear around it; the lamp), `LensViewTest` (on screen, a drag turning
+  it; the settings), `LensKeysTest` (`P`), `LensExportTest` (saved on it, no larger), and the Lens
+  room's forms in `RoomScreenshotTest` — in a smaller window, since in a test every frame is drawn
+  on the processor: the first, full-size try took fourteen minutes, and caught *Chrome ball* cut
+  off in the settings. Broken on purpose and seen red after a no-op control stayed green:
+  24 guards — the ball and the can read upside down, the cone's near side, the ring never reached, the page without an edge, the chrome ball reflecting nothing, the lamp, a skewed turn, tipping past the edge, Straighten, P stopping; the form and the glass not taking turns (chosen, taken up, laid over the whole), Esc, a saved view flat or at full size; a drag the wrong way or turning nothing, the picture drawn flat (caught only once the screen test looked at the corner where the flat picture is light), P, the knob, the settings, the lamp switch
+
 ---
 
 ## ✅ M10 — Architecture: modules and layers

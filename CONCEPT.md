@@ -201,7 +201,9 @@ exercise*, *Open Drachenbuch* or *New sketch*.
   fills the view, the whole picture one click back in the corner — or laid over the whole picture,
   bending all of it about a point you place anywhere. Drawing what the glass shows rather than
   what one knows is there. It is the same glass in a session and in the Lens room
-  (F10.9), and it is kept as it was left.
+  (F10.9), and it is kept as it was left. And **forms** (F10.10): the picture wrapped round a
+  sphere, a can, a cone or a ring, laid on a page tilted away, or reflected in a chrome ball —
+  turned under the hand and lit by the lamp, to see how a flat picture bends over form.
 
 ## What stays true
 

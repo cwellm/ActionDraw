@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.ViewMode
+import de.creaflect.actiondraw.ui.FormState
 import de.creaflect.actiondraw.ui.GlassState
 import java.io.File
 import kotlin.math.roundToInt
@@ -26,6 +27,14 @@ class LensState {
 
     /** The glass held over the picture (F10.9): kept as long as the lens, so its optic carries over. */
     val glass = GlassState()
+
+    /** The form the picture is wrapped onto, if any (F10.10). The picture is on a form or under the glass, not both. */
+    val form = FormState()
+
+    init {
+        glass.onTakeUp = { form.choose(null) }
+        form.onShow = { glass.putAway() }
+    }
 
     /**
      * White balance from -1 (cool) through 0 (neutral) to +1 (warm). Independent of the view
@@ -82,7 +91,8 @@ class LensState {
      * This lens as it shows the picture [scale] times as large: the same lens, knobs and grid, with
      * the sizes counted in pixels — pixelate's block, the shards' — scaled along. The glass in the
      * hand or set down on a part stays behind; laid over the whole picture it comes along, as it is
-     * how the whole picture is seen. What a picture is saved through, at its own size.
+     * how the whole picture is seen — and so does the form the picture is on. What a picture is
+     * saved through, at its own size.
      */
     fun copy(scale: Float = 1f): LensState = LensState().also { c ->
         c.viewMode = viewMode
@@ -103,17 +113,19 @@ class LensState {
         c.defractionBlock = (defractionBlock * scale).roundToInt().coerceAtLeast(1)
         c.defractionStrength = defractionStrength
         c.glass.spreadLike(glass)
+        c.form.copyFrom(form)
     }
 
     /**
      * Esc, as far as the lens goes: the glass lifted off [picture], or off the whole picture back
-     * into the hand, or else put away. False when the lens has nothing to step back from, so
-     * whatever shows the picture takes the next step.
+     * into the hand, or else put away; or the picture taken off its form. False when the lens has
+     * nothing to step back from, so whatever shows the picture takes the next step.
      */
     fun stepBack(picture: File?): Boolean = when {
         glass.focusOn(picture) != null -> { glass.wholePicture(); true }
         glass.spread != null -> { glass.gather(); true }
         glass.inHand -> { glass.putAway(); true }
+        form.form != null -> { form.choose(null); true }
         else -> false
     }
 }

@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import de.creaflect.actiondraw.lens.LensState
 import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.FORM_SAVED
+import de.creaflect.actiondraw.ui.Form
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.lensedPng
 import org.jetbrains.skia.Bitmap
@@ -70,6 +72,15 @@ class LensExportTest {
         assertTrue(laid.grey(50, 50) > plain.grey(50, 50) + 10, "bent about the middle: ${plain.grey(50, 50)} -> ${laid.grey(50, 50)}")
         assertTrue(kotlin.math.abs(plain.grey(100, 50) - laid.grey(100, 50)) <= 6, "and the middle itself where it was, with no mark on it")
         assertTrue(kotlin.math.abs(plain.grey(91, 50) - laid.grey(91, 50)) <= 12, "nor a ring round it")
+    }
+
+    @Test
+    fun aPictureOnAFormIsSavedOnItNoLargerThanAFormIsDrawn() {
+        val wide = picture(2000, 1000) { x, _ -> 60 + x * 180 / 1999 }
+        val saved = save(wide, LensState().apply { form.choose(Form.SPHERE) })
+        assertEquals(FORM_SAVED.toInt() to (FORM_SAVED / 2).toInt(), saved.image.width to saved.image.height, "drawn, not resampled: no larger than this")
+        assertEquals(0, saved.grey(4, 4), "round the ball, nothing")
+        assertTrue(saved.grey(800, 400) > 20, "on it, the picture")
     }
 
     @Test

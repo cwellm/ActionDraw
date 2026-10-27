@@ -70,9 +70,10 @@ private fun LastFocus(glass: GlassState, current: File?, lastFocus: MutableState
  * The picture seen through [lens] — its lens, every knob, the grid — and the glass (F10.9) over
  * it: taken up, it shows the picture larger under the pointer; set down, the part it is on fills
  * the area — zooming there and back over [Motion.GLASS_MS] — and the whole picture waits in the
- * corner; laid over the whole picture, it bends all of it about a mark that shows where. While
- * there is a [veil], it stands in the picture's place, and the glass takes nothing. Without
- * [marks], only the picture is drawn: no grid, no rim, no mark, no print — what a view saved is.
+ * corner; laid over the whole picture, it bends all of it about a mark that shows where. Or the
+ * picture is on a form (F10.10), turned by a drag. While there is a [veil], it stands in the
+ * picture's place, and nothing is taken. Without [marks], only the picture is drawn: no grid, no
+ * rim, no mark, no print — what a view saved is.
  */
 @Composable
 fun LensView(
@@ -96,11 +97,18 @@ fun LensView(
     LastFocus(glass, picture, lastFocus)
     val bmp = bitmap
     val usable = bmp != null && veil == null
+    val shaped = lens.form.form != null
     Box(
         modifier = modifier
             .background(Color.Black)
             .onSizeChanged { pointer.area = Size(it.width.toFloat(), it.height.toFloat()) }
-            .then(if (usable) Modifier.glassInput(lens, pointer, picture, bmp!!.width.toFloat(), bmp.height.toFloat(), focused) else Modifier),
+            .then(
+                when {
+                    !usable -> Modifier
+                    shaped -> Modifier.formInput(lens)
+                    else -> Modifier.glassInput(lens, pointer, picture, bmp!!.width.toFloat(), bmp.height.toFloat(), focused)
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
         if (veil != null) {
@@ -114,40 +122,46 @@ fun LensView(
             val defractionEffect = remember(lens.defractionSeed, lens.defractionBlock, lens.defractionStrength) {
                 defractionRenderEffect(lens.defractionSeed, lens.defractionBlock, lens.defractionStrength)
             }
-            GlassPicture(
-                bitmap = bmp,
-                lens = lens,
-                picture = picture,
-                pointer = pointer,
-                progress = progress,
-                lastFocus = lastFocus,
-                colorFilter = colorFilter,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .testTag("reference")
-                    .semantics { contentDescription = picture?.name ?: "" }
-                    .graphicsLayer { // outermost: colour inversion of the final result
-                        this.renderEffect = if (lens.invert) invertEffect else null
-                    }
-                    .graphicsLayer { // white balance, over whatever the view mode produced
-                        this.renderEffect = if (lens.temperature != 0f) temperatureEffect else null
-                    }
-                    .graphicsLayer { // orientation
-                        if (lens.upsideDown) rotationZ = 180f
-                        if (lens.mirror) scaleX = -1f
-                    }
-                    .blur(if (lens.blur) lens.blurRadius.dp else 0.dp)
-                    .graphicsLayer { this.renderEffect = renderEffect } // view mode
-                    .graphicsLayer { // innermost: shards cut from the raw image
-                        this.renderEffect = if (lens.defraction) defractionEffect else null
-                    },
-            )
+            val layers = Modifier
+                .fillMaxSize()
+                .testTag("reference")
+                .semantics { contentDescription = picture?.name ?: "" }
+                .graphicsLayer { // outermost: colour inversion of the final result
+                    this.renderEffect = if (lens.invert) invertEffect else null
+                }
+                .graphicsLayer { // white balance, over whatever the view mode produced
+                    this.renderEffect = if (lens.temperature != 0f) temperatureEffect else null
+                }
+                .graphicsLayer { // orientation
+                    if (lens.upsideDown) rotationZ = 180f
+                    if (lens.mirror) scaleX = -1f
+                }
+                .blur(if (lens.blur) lens.blurRadius.dp else 0.dp)
+                .graphicsLayer { this.renderEffect = renderEffect } // view mode
+                .graphicsLayer { // innermost: shards cut from the raw image
+                    this.renderEffect = if (lens.defraction) defractionEffect else null
+                }
+            if (shaped) {
+                FormPicture(bmp, lens, colorFilter, layers)
+            } else {
+                GlassPicture(
+                    bitmap = bmp,
+                    lens = lens,
+                    picture = picture,
+                    pointer = pointer,
+                    progress = progress,
+                    lastFocus = lastFocus,
+                    colorFilter = colorFilter,
+                    modifier = layers,
+                )
+            }
             // Proportion overlay sits above the image and is unaffected by its filters/rotation;
-            // it measures the whole picture, so it waits while the glass is down on a part.
-            if (marks && lens.gridMode != GridMode.OFF && !focused) {
+            // it measures the flat picture, so it waits while the glass is down on a part, or the
+            // picture is on a form.
+            if (marks && !shaped && lens.gridMode != GridMode.OFF && !focused) {
                 ProportionOverlay(bmp, lens.gridMode, Modifier.fillMaxSize())
             }
-            if (marks) GlassOverlay(bmp, lens, picture, pointer, progress, focused)
+            if (marks && !shaped) GlassOverlay(bmp, lens, picture, pointer, progress, focused)
         } else {
             Text(if (picture == null) "No image" else "Loading…", color = Color.White)
         }

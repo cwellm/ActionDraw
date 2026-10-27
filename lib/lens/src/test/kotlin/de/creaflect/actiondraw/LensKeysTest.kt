@@ -2,6 +2,7 @@ package de.creaflect.actiondraw
 
 import androidx.compose.ui.input.key.Key
 import de.creaflect.actiondraw.lens.LensState
+import de.creaflect.actiondraw.ui.Form
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.handleLensKey
 import kotlin.test.Test
@@ -121,6 +122,15 @@ class LensKeysTest {
         press(Key.L, lens)
         assertFalse(lens.glass.inHand)
         assertFalse(press(Key.Plus, lens), "without the glass, + is nobody's")
+    }
+
+    @Test
+    fun pPutsThePictureOnTheNextForm() {
+        val lens = LensState()
+        assertTrue(press(Key.P, lens))
+        assertEquals(Form.SPHERE, lens.form.form)
+        repeat(Form.entries.size) { press(Key.P, lens) }
+        assertNull(lens.form.form, "after the last, flat again")
     }
 
     @Test

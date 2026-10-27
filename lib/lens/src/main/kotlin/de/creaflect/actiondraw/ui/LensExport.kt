@@ -8,6 +8,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.Density
 import de.creaflect.actiondraw.lens.LensState
 import org.jetbrains.skia.EncodedImageFormat
+import kotlin.math.roundToInt
+
+/** The long side a view of a picture on a form is saved at, at most. */
+const val FORM_SAVED = 1600f
 
 /**
  * [bitmap] seen through [lens], whole and at its own size, as PNG bytes — as it looks on screen,
@@ -18,9 +22,14 @@ import org.jetbrains.skia.EncodedImageFormat
  * could not be drawn. A large picture takes a while: call it off the UI thread.
  */
 fun lensedPng(bitmap: ImageBitmap, lens: LensState, shownScale: Float, density: Float, design: DesignSystem): ByteArray? = runCatching {
-    val scale = if (shownScale > 0f) 1f / shownScale else 1f
+    // A form is drawn — four rays a pixel, on the processor — not resampled: a large picture on one
+    // is saved no larger than FORM_SAVED on its long side.
+    val out = if (lens.form.form != null) minOf(1f, FORM_SAVED / maxOf(bitmap.width, bitmap.height)) else 1f
+    val scale = (if (shownScale > 0f) 1f / shownScale else 1f) * out
     val seen = lens.copy(scale)
-    val scene = ImageComposeScene(bitmap.width, bitmap.height, Density(density * scale)) {
+    val width = (bitmap.width * out).roundToInt().coerceAtLeast(1)
+    val height = (bitmap.height * out).roundToInt().coerceAtLeast(1)
+    val scene = ImageComposeScene(width, height, Density(density * scale)) {
         CompositionLocalProvider(LocalDesign provides design) {
             LensView(seen, bitmap, picture = null, modifier = Modifier.fillMaxSize(), marks = false)
         }
