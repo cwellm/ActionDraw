@@ -450,8 +450,19 @@ through; every part lies where it lay, the largest keeps the name, and the part 
 **Tear** parts a piece along a drag with a ragged edge instead. **Tape** lays a strip of masking
 tape along a drag, or a short one with a click; the pictures it lies across are held together and
 move, turn, grow and flip as one, until the tape is taken away.
-The source drawer and the ways out — saving, pinning, *Sketch over it*, *Check the values* — come
-next.
+Turn on **All layers** (`L`) and the scissors and the tear go through every picture under the cut
+at once — each parted as it would be on its own, as one change to undo.
+
+Under the mat is the **source drawer**: a board or a concept to draw from on its left (each a menu
+of the others), its pictures beside it as small prints. Click a print to lay it on the mat, or drag
+it out and let go where it should lie — as often as you like, each time a new piece to cut from.
+
+The ways out are in the header. **Sketch over** and **Check the values** take the collage into Live
+Sketch as the picture to draw over, or into the Lens; **Pin to a board** pins it to the board
+chosen; *Collage ▾ → Save as picture* (`Ctrl+S`) just saves it. Each draws the collage flat — its
+pieces as they lie, without their shadows, on paper, cut to the space they cover — and saves it as
+`<name>.png` beside the collage, again as it is now each time. *Add a picture…* and *Paste* are in
+*Collage ▾* too.
 
 ## Keyboard shortcuts
 
@@ -521,12 +532,14 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 |---|---|
 | `M` / `S` / `R` / `T` | Move · scissors · tear · tape |
 | `Enter` | cut along the corners clicked so far |
+| `L` | cut and tear through every layer, or one alone |
 | `←` `↑` `→` `↓` | move the chosen piece (`Shift`: further) |
 | `Q` / `E` | turn it (`Shift`: by 15°) |
 | `F` | flip it over |
 | `PgUp` / `PgDn` or `]` / `[` | bring it forward · send it backward |
 | `Del` | take it away |
 | `Ctrl+N` / `Ctrl+O` / `Ctrl+V` | a new collage · add a picture · paste one |
+| `Ctrl+S` | save the collage as a picture beside it |
 | `Ctrl+Z` / `Ctrl+Y` | undo · redo |
 | `Esc` | drop the cut · let go of the piece · Move again · back |
 

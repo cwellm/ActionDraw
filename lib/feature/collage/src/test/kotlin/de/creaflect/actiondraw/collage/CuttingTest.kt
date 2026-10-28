@@ -116,6 +116,33 @@ class CuttingTest {
     }
 
     @Test
+    fun throughAllLayersEveryPictureUnderTheCutIsCutAsOneChange() {
+        val state = fixture.state()
+        val under = state.lay("under", Spot(800f, 650f))
+        state.lay("over", Spot(1100f, 650f))
+        state.lay("loose", Spot(1500f, 1100f))
+        val tape = state.layTape(Spot(900f, 700f), Spot(1000f, 700f))
+        state.cutThroughAll(true)
+        // Chosen or not, every picture under the cut is cut; the one on top is the one gone on with.
+        state.select(under.id)
+        val across = listOf(Spot(950f, 400f), Spot(950f, 900f))
+        assertTrue(state.cut(across, closed = false))
+        assertEquals(listOf("under", "under, cut", "over", "over, cut", "loose", "Tape"), state.collage.pieces.map { it.name }, "both it went through, each part above its piece")
+        assertEquals("over, cut", state.selectedPiece?.name, "the topmost one's part cut off chosen")
+        assertEquals(tape.outline, state.collage.pieces.last().outline, "tape is not cut")
+        assertEquals(4, state.collage.pieces.last().holds.size, "and holds the parts of both under it")
+        state.undo()
+        assertEquals(listOf("under", "over", "loose", "Tape"), state.collage.pieces.map { it.name }, "one change to undo")
+
+        assertTrue(state.tear(across))
+        assertEquals(listOf("under", "under, torn", "over", "over, torn", "loose", "Tape"), state.collage.pieces.map { it.name }, "torn through all of them too")
+        state.undo()
+        state.cutThroughAll(false)
+        assertTrue(state.cut(across, closed = false))
+        assertEquals(5, state.collage.pieces.size, "and through one alone again")
+    }
+
+    @Test
     fun aPartCutAgainIsCalledAfterThePiece() {
         val state = fixture.state()
         val piece = state.lay("cliff", Spot(950f, 650f))

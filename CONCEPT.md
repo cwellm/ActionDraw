@@ -55,7 +55,7 @@ pigment of its own. It marks the room's things and nothing else (see *Colour is 
 | **Practice** | Cadmium orange | Train: timed poses, filtered studies, memory drawing, and the new *Flicker*, *Staged* and *Compare* exercises | ✅ M0, M+ (new exercises open) |
 | **Lens** | Payne's grey | See: any picture through notan, edge, squint, mirror or upside down, with no session around it | ✅ F10.1 |
 | **Sketch** | Madder rose | Draw: the drawing board with real-feeling leads, paper tooth, and a picture laid underneath to compare | ✅ M6 (the underlay is new) |
-| **Collage** | Naples yellow | Compose: scissors on a cutting mat. Cut pictures and concepts apart and test whether a scene holds | ⬜ new |
+| **Collage** | Naples yellow | Compose: scissors on a cutting mat. Cut pictures and concepts apart and test whether a scene holds | ✅ F10.6 |
 
 The order is a cycle, not a hierarchy: **collect → keep → train → see → draw → compose**, and
 back to collecting with whatever came out.
@@ -72,9 +72,10 @@ material to the others in one step:
 | Board card / concept | Sketch | *Sketch over* — *Continue sketch* for a picture Live Sketch saved; new: with the card as underlay | ✅ / ⬜ |
 | Sketch | Board / Concept | *To a board* / *To a concept* | ✅ |
 | Practice | Board | *Pin* | ✅ |
-| Board / Concept, Practice, Sketch, Lens | Collage | *To a collage*: the picture laid on the collage as a piece to cut from; the Collage's source drawer lists boards and concepts | ✅ / ⬜ drawer |
-| Collage | Sketch | *Sketch over it*: the composition becomes the underlay | ⬜ |
-| Collage, Board, Concept, Sketch | Lens | *Check the values*: the current picture seen through a lens | ✅ board, concept, sketch / ⬜ collage |
+| Board / Concept, Practice, Sketch, Lens | Collage | *To a collage*: the picture laid on the collage as a piece to cut from; the Collage's source drawer lists boards and concepts | ✅ |
+| Collage | Sketch | *Sketch over*: the composition, saved as a picture beside the collage, becomes Sketch's reference — beside the page, or under it | ✅ |
+| Collage | Board | *Pin to a board*: the composition, saved as a picture, pinned | ✅ |
+| Collage, Board, Concept, Sketch | Lens | *Check the values*: the current picture seen through a lens | ✅ |
 | Lens | Sketch | *Sketch over*: the picture looked at, beside the page | ✅ |
 | Anything | Compare | Your drawing laid over its reference | ⬜ (F+.3) |
 

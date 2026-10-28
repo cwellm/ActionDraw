@@ -34,11 +34,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -50,34 +55,76 @@ import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.collage.CollageState
 import de.creaflect.actiondraw.collage.Collages
 import de.creaflect.actiondraw.collage.Tool
+import de.creaflect.actiondraw.ui.CrossRoomButton
 import de.creaflect.actiondraw.ui.Design
+import de.creaflect.actiondraw.ui.LocalDesign
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.pigment
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The Collage room (CONCEPT.md, *Collage*; F10.6), as the design has it: the header — the collage's
- * name, its menu, a picture to add, the way back — the cutting mat in the middle with the tools on
- * its left, and the pieces on its right. With nothing on the mat, it says how pictures come onto it.
+ * name and its menu, the ways out into the other rooms and onto a board, the way back — the cutting
+ * mat in the middle with the tools on its left and the source drawer under it, and the pieces on its
+ * right. With nothing on the mat, it says how pictures come onto it.
  */
 @Composable
 fun CollageScreen(state: CollageState, onHome: (() -> Unit)? = null) {
-    // Into the room: the collage last kept, unless one is open.
+    // Into the room: the collage last kept, unless one is open, and the drawer as its source is now.
     LaunchedEffect(state) { state.onEnter() }
     val images = rememberPieceImages(state)
-    Column(Modifier.fillMaxSize()) {
-        Header(state, onHome)
-        Line(state)
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-        ) {
-            Rail(state)
-            Box(Modifier.weight(1f).fillMaxHeight()) {
-                CollageMat(state, images, Modifier.fillMaxSize())
-                if (state.collage.pieces.isEmpty()) Invitation(state, Modifier.align(Alignment.Center))
+    val pad = with(LocalDensity.current) { MAT_PAD.toPx() }
+    var room by remember { mutableStateOf(Offset.Zero) }
+    var mat by remember { mutableStateOf<Rect?>(null) }
+    var carry by remember { mutableStateOf<Carry?>(null) }
+    DrawForExport(state)
+    Box(Modifier.fillMaxSize().onGloballyPositioned { room = it.positionInRoot() }) {
+        Column(Modifier.fillMaxSize()) {
+            Header(state, onHome)
+            Line(state)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            ) {
+                Rail(state)
+                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f).fillMaxWidth().onGloballyPositioned { mat = it.boundsInRoot().translate(-room) }) {
+                        CollageMat(state, images, Modifier.fillMaxSize())
+                        if (state.collage.pieces.isEmpty()) Invitation(state, Modifier.align(Alignment.Center))
+                    }
+                    SourceDrawer(
+                        state,
+                        origin = { room },
+                        onCarry = { carry = it },
+                        onDrop = { dropped ->
+                            // Let go over the mat: laid where it was let go.
+                            mat?.takeIf { dropped.at in it }?.let { area ->
+                                state.addPicture(dropped.file, MatView.fit(area.size, pad).toMat(dropped.at - area.topLeft))
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                PieceList(state, images, Modifier.width(240.dp).fillMaxHeight())
             }
-            PieceList(state, images, Modifier.width(240.dp).fillMaxHeight())
         }
+        carry?.let { CarriedPrint(it) }
+    }
+}
+
+/**
+ * A way out asked for — saved, pinned, taken into another room — is drawn here, where the design is,
+ * off the UI thread, and handed back to the room.
+ */
+@Composable
+private fun DrawForExport(state: CollageState) {
+    val design = LocalDesign.current
+    LaunchedEffect(state.export) {
+        if (state.export == null) return@LaunchedEffect
+        val collage = state.collage
+        val png = withContext(Dispatchers.Default) { runCatching { drawCollage(collage, state.pictures, design) }.getOrNull() }
+        state.finish(png)
     }
 }
 
@@ -102,8 +149,8 @@ private fun Header(state: CollageState, onHome: (() -> Unit)?) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
-                        .weight(1f, fill = false)
-                        .widthIn(max = 320.dp)
+                        // As wide as its name, up to a point — a share of the header's spare room would cut it short as wide as the app opens.
+                        .widthIn(max = 220.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .clickable(role = Role.Button, onClickLabel = "Rename the collage") { renaming = true }
                         .padding(horizontal = 4.dp)
@@ -113,13 +160,19 @@ private fun Header(state: CollageState, onHome: (() -> Unit)?) {
         },
         actions = {
             CollageMenu(state)
-            Flat("Add a picture…", tag = "collage-add") { state.chooseFile() }
+            if (state.collage.pieces.isNotEmpty()) {
+                // The ways out, as the design has them: into the rooms that take the collage as a picture, and onto a board.
+                state.routes().forEach { route ->
+                    CrossRoomButton(route.to, route.label, Modifier.testTag("collage-to-" + route.to.name.lowercase())) { state.handOff(route.to) }
+                }
+                PinButton(state)
+            }
             Flat("Back", tag = "collage-back") { state.leave() }
         },
     )
 }
 
-/** *Collage ▾*: a new collage, and the ones kept lately to open again. */
+/** *Collage ▾*: a new collage, a picture to add or paste, the collage saved as a picture, and the ones kept lately to open again. */
 @Composable
 private fun CollageMenu(state: CollageState) {
     var open by remember { mutableStateOf(false) }
@@ -130,6 +183,18 @@ private fun CollageMenu(state: CollageState) {
                 open = false
                 state.newCollage()
             }, modifier = Modifier.testTag("collage-new")) { Text("New collage") }
+            DropdownMenuItem(onClick = {
+                open = false
+                state.chooseFile()
+            }, modifier = Modifier.testTag("collage-add")) { Text("Add a picture…") }
+            DropdownMenuItem(onClick = {
+                open = false
+                state.paste()
+            }, modifier = Modifier.testTag("collage-paste")) { Text("Paste") }
+            DropdownMenuItem(onClick = {
+                open = false
+                state.saveAsPicture()
+            }, enabled = state.collage.pieces.isNotEmpty(), modifier = Modifier.testTag("collage-save")) { Text("Save as picture") }
             val recent = state.recent().filter { it != state.file }.take(8)
             if (recent.isNotEmpty()) Divider()
             recent.forEach { file ->
@@ -143,18 +208,38 @@ private fun CollageMenu(state: CollageState) {
     }
 }
 
-/** What the last opening, adding or renaming came to. */
+/** *Pin to a board ▾*: the collage, saved as a picture, onto the board chosen. */
+@Composable
+private fun PinButton(state: CollageState) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        CrossRoomButton(Room.BOARDS, "Pin to a board ▾", Modifier.testTag("collage-pin")) { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            val boards = state.boards()
+            if (boards.isEmpty()) DropdownMenuItem(onClick = { open = false }, enabled = false) { Text("No boards yet") }
+            boards.forEach { (name, dir) ->
+                DropdownMenuItem(onClick = {
+                    open = false
+                    state.pinTo(dir)
+                }, modifier = Modifier.testTag("collage-pin-$name")) { Text(name) }
+            }
+        }
+    }
+}
+
+/** What the last opening, adding, renaming, saving or pinning came to — or that the collage is being drawn. */
 @Composable
 private fun Line(state: CollageState) {
+    val line = if (state.export != null) "Drawing the collage…" else state.notice
     Box(Modifier.fillMaxWidth().height(22.dp).padding(horizontal = 24.dp)) {
-        state.notice?.let { Text(it, fontSize = 12.sp, color = Room.COLLAGE.pigment.glow, modifier = Modifier.testTag("collage-notice")) }
+        line?.let { Text(it, fontSize = 12.sp, color = Room.COLLAGE.pigment.glow, modifier = Modifier.testTag("collage-notice")) }
     }
 }
 
 /**
  * The tools down the mat's left, as the design has them — *Move*, the scissors, the tear and the
- * tape, one in hand at a time — and what is done to the chosen piece at once: flip it over, bring
- * it forward, send it back.
+ * tape, one in hand at a time, and whether a cut goes through every layer — and what is done to the
+ * chosen piece at once: flip it over, bring it forward, send it back.
  */
 @Composable
 private fun Rail(state: CollageState) {
@@ -174,6 +259,7 @@ private fun Rail(state: CollageState) {
         RailButton("Scissors", SCISSORS, on = tool == Tool.SCISSORS, enabled = true, tag = "rail-scissors") { state.choose(Tool.SCISSORS) }
         RailButton("Tear", TEAR, on = tool == Tool.TEAR, enabled = true, tag = "rail-tear") { state.choose(Tool.TEAR) }
         RailButton("Tape", TAPE, on = tool == Tool.TAPE, enabled = true, tag = "rail-tape") { state.choose(Tool.TAPE) }
+        RailButton("All layers", LAYERS, on = state.throughAll, enabled = true, tag = "rail-all-layers") { state.cutThroughAll(!state.throughAll) }
         Box(Modifier.padding(vertical = 2.dp).width(40.dp).height(1.dp).background(Design.colors.muted.copy(alpha = 0.3f)))
         RailButton("Flip", FLIP, on = false, enabled = chosen, tag = "rail-flip") { state.flip() }
         RailButton("Forward", FORWARD, on = false, enabled = chosen, tag = "rail-forward") { state.forward() }
@@ -182,11 +268,13 @@ private fun Rail(state: CollageState) {
 }
 
 // The rail's glyphs, in an 18 × 18 box: the pointer, open scissors, a sheet torn in two, a strip
-// of tape, a figure and its mirror, a piece over the stack and one under it.
+// of tape, three sheets one over another, a figure and its mirror, a piece over the stack and one
+// under it.
 private const val MOVE = "M4 2 L4 15 L7.6 11.6 L10 16.4 L12 15.4 L9.7 10.7 L14.6 10.7 Z"
 private const val SCISSORS = "M3 13.5 A2.5 2.5 0 1 0 8 13.5 A2.5 2.5 0 1 0 3 13.5 Z M10 13.5 A2.5 2.5 0 1 0 15 13.5 A2.5 2.5 0 1 0 10 13.5 Z M7 11.6 L12.5 2 M11 11.6 L5.5 2"
 private const val TEAR = "M2.5 3 H9.5 L8 5.5 L10 8 L8 10.5 L10 13 L8.5 15 H2.5 Z M12 3 H15.5 V15 H12.5 L11 13 L13 10.5 L11 8 L13 5.5 Z"
 private const val TAPE = "M2.5 7.5 L14.5 4.5 L14 5.9 L15.3 7 L15.5 8.5 L3.5 11.5 L4 10.1 L2.8 9 Z"
+private const val LAYERS = "M2 7 H11 V16 H2 Z M5 4.5 H14 V13.5 M8 2 H16.5 V11"
 private const val FLIP = "M9 2 V16 M7 4 L2 14 H7 Z M11 4 L16 14 H11 Z"
 private const val FORWARD = "M3 16 H15 M3 13 H15 M9 10 V2 M5.5 5.5 L9 2 L12.5 5.5"
 private const val BACKWARD = "M3 2 H15 M3 5 H15 M9 8 V16 M5.5 12.5 L9 16 L12.5 12.5"
@@ -235,7 +323,7 @@ private fun Invitation(state: CollageState, modifier: Modifier) {
     ) {
         Text("Cut pictures, test a scene", style = Design.hand.copy(fontSize = 30.sp), color = Design.colors.text)
         Text(
-            "Send a picture here with To a collage — from a board's card, a concept, a sketch or the Lens — or add one from a file, or paste one. Then cut, tear, tape, move and stack the pieces.",
+            "Take a picture from the drawer below, or send one here with To a collage — from a board's card, a concept, a sketch or the Lens — or add one from a file, or paste one. Then cut, tear, tape, move and stack the pieces.",
             style = MaterialTheme.typography.body2,
             color = Design.colors.textSoft,
             textAlign = TextAlign.Center,

@@ -111,12 +111,15 @@ class Rooms(val lib: Lib, host: HostServices = HostServices.None) {
         handoff = handoff,
     )
 
-    /** The Collage room cuts the pictures handed to it apart. */
+    /** The Collage room cuts the pictures handed to it apart, draws from the boards and concepts, and pins to the boards. */
     val collage: CollageState = CollageState(
         lib,
         CollageHost { app.back(Screen.Collage) },
         dialogs = host.dialogs,
         clipboard = host.clipboard,
+        boards = boards,
+        concepts = concepts,
+        handoff = handoff,
     )
 
     /** The rooms that take what others hand them: drawing first, then composing, then looking. */

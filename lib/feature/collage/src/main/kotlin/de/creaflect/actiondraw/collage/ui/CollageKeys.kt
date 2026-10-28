@@ -11,10 +11,12 @@ object CollageHotkeys {
         "Ctrl+N" to "a new collage",
         "Ctrl+O" to "add a picture",
         "Ctrl+V" to "add the picture on the clipboard",
+        "Ctrl+S" to "save the collage as a picture beside it",
         "Ctrl+Z / Ctrl+Y" to "undo · redo",
         "M / S / R / T" to "Move · the scissors · tear · tape",
         "click, drag" to "with the scissors: a corner, a freehand cut (Shift: straight); a click on the first corner cuts round",
         "Enter" to "cut along the corners so far",
+        "L" to "cut and tear through every layer, or one alone",
         "Arrows" to "move the chosen piece (Shift: further)",
         "Q / E" to "turn it (Shift: by 15°)",
         "F" to "flip it over",
@@ -39,6 +41,7 @@ fun handleCollageKey(key: Key, ctrl: Boolean, shift: Boolean, state: CollageStat
             Key.N -> { state.newCollage(); true }
             Key.O -> { state.chooseFile(); true }
             Key.V -> { state.paste(); true }
+            Key.S -> { state.saveAsPicture(); true }
             Key.Z -> { if (shift) state.redo() else state.undo(); true }
             Key.Y -> { state.redo(); true }
             else -> false
@@ -52,6 +55,7 @@ fun handleCollageKey(key: Key, ctrl: Boolean, shift: Boolean, state: CollageStat
         Key.S -> { state.choose(Tool.SCISSORS); true }
         Key.R -> { state.choose(Tool.TEAR); true }
         Key.T -> { state.choose(Tool.TAPE); true }
+        Key.L -> { state.cutThroughAll(!state.throughAll); true }
         Key.Enter, Key.NumPadEnter -> if (state.path.size < 2) false else { state.cutAlongPath(closed = false); true }
         Key.DirectionLeft -> { state.nudge(-step, 0f); true }
         Key.DirectionRight -> { state.nudge(step, 0f); true }

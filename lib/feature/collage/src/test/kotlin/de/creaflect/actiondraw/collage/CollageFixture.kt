@@ -1,6 +1,16 @@
 package de.creaflect.actiondraw.collage
 
 import de.creaflect.actiondraw.FileLib
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
+import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptSnapshot
+import de.creaflect.actiondraw.board.ConceptSource
+import de.creaflect.actiondraw.board.ImageItem
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.SystemClipboard
 import java.awt.image.BufferedImage
@@ -10,8 +20,9 @@ import java.nio.file.Files
 import javax.imageio.ImageIO
 
 /**
- * The Collage room over a temp folder, with dialogs and a clipboard whose answers a test sets — and
- * how often the room was left, to look at afterwards.
+ * The Collage room over a temp folder, with dialogs and a clipboard whose answers a test sets, a
+ * board and a concept to draw from, and the other rooms as a list of what was sent there — and how
+ * often the room was left, what was pinned and sent, to look at afterwards.
  */
 class CollageFixture {
     val root: File = Files.createTempDirectory("collage-room").toFile()
@@ -35,7 +46,43 @@ class CollageFixture {
         override fun paste(): SystemClipboard.Pasted? = pasted
     }
 
-    fun state() = CollageState(lib, { left++ }, dialogs, clipboard)
+    /** The one board there is, and the pictures on it. */
+    val board = File(root, "boards/Drachenbuch").apply { mkdirs() }
+    var boardPictures: List<File> = emptyList()
+
+    /** What was pinned, onto which board. */
+    val pinned = ArrayList<Pair<File, List<File>>>()
+
+    val boards = object : BoardSource {
+        override fun available() = listOf(BoardRef("Drachenbuch", board))
+        override fun pictures(dir: File) = if (dir == board) boardPictures else emptyList()
+        override fun pin(dir: File, pictures: List<File>): String {
+            pinned += dir to pictures
+            return "Pinned to Drachenbuch"
+        }
+    }
+
+    /** The one concept there is, its folder and the pictures in it, by their names there. */
+    val concept = File(root, "concepts/wing").apply { mkdirs() }
+    var conceptPictures: List<String> = emptyList()
+
+    val concepts = object : ConceptSource by ConceptSource.None {
+        override fun available() = listOf(ConceptRef("wing", "Wing"))
+        override fun snapshot(id: String) =
+            if (id == "wing") ConceptSnapshot("wing", "Wing", concept, conceptPictures.mapIndexed { i, path -> ImageItem("c$i", path) }) else null
+    }
+
+    /** What was sent into which room. */
+    val sent = ArrayList<Pair<Handed, Room>>()
+
+    val handoff = object : Handoff {
+        override fun routes(what: Handed, from: Room) = listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values"))
+        override fun send(what: Handed, to: Room) {
+            sent += what to to
+        }
+    }
+
+    fun state() = CollageState(lib, { left++ }, dialogs, clipboard, boards, concepts, handoff)
 
     /** A [w] × [h] picture, orange on its left half and blue on its right, as PNG bytes. */
     fun pngBytes(w: Int = 400, h: Int = 200): ByteArray {

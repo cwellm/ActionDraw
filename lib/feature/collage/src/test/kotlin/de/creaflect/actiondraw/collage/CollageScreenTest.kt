@@ -20,11 +20,14 @@ import androidx.compose.ui.test.performMultiModalInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runDesktopComposeUiTest
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.collage.ui.CollageScreen
 import de.creaflect.actiondraw.collage.ui.MatView
+import de.creaflect.actiondraw.handoff.Handed
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Test
+import javax.imageio.ImageIO
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -246,6 +249,92 @@ class CollageScreenTest {
         assertTrue(b.id in strip.holds)
         // Between the two pieces it lies on the bare mat.
         waitFor("the tape drawn") { tape(pixelAt(Spot(1000f, 650f))) }
+    }
+
+    @Test
+    fun allLayersOnTheRailCutsThroughEveryPictureUnderTheCut() = room {
+        val state = fixture.state()
+        assertNotNull(state.addPicture(fixture.picture("under"), Spot(800f, 650f)))
+        assertNotNull(state.addPicture(fixture.picture("over"), Spot(1100f, 650f)))
+        show(state)
+        onNodeWithTag("rail-all-layers").performClick()
+        onNodeWithTag("rail-scissors").performClick()
+        waitForIdle()
+        assertTrue(state.throughAll)
+        val top = at(Spot(950f, 400f))
+        drag(top, at(Spot(950f, 900f)) - top)
+        assertEquals(listOf("under", "under, cut", "over", "over, cut"), state.collage.pieces.map { it.name })
+    }
+
+    @Test
+    fun theDrawerLaysAPictureWithAClickAndWhereverItIsDraggedOnto() = room {
+        fixture.boardPictures = listOf(fixture.picture("sea"), fixture.picture("rock"))
+        val state = fixture.state()
+        show(state)
+        onNodeWithTag("drawer-boards").assertIsDisplayed()
+        onNodeWithTag("drawer-picture-1").performClick()
+        waitForIdle()
+        assertEquals(listOf("rock"), state.collage.pieces.map { it.name }, "a click lays it on the mat")
+
+        // Dragged from the drawer and let go over the mat, it lies where it was let go.
+        val spot = Spot(450f, 350f)
+        val print = onNodeWithTag("drawer-picture-0").fetchSemanticsNode()
+        val mat = onNodeWithTag("collage-mat").fetchSemanticsNode()
+        val from = Offset(print.size.width / 2f, print.size.height / 2f)
+        val to = mat.positionInRoot + at(spot) - print.positionInRoot
+        onNodeWithTag("drawer-picture-0").performMouseInput {
+            moveTo(from)
+            press()
+            repeat(40) { moveBy((to - from) / 40f) }
+            release()
+        }
+        waitForIdle()
+        val laid = state.collage.pieces.last()
+        assertEquals("sea", laid.name)
+        val scale = view().scale
+        assertEquals(spot.x, laid.x, 2f / scale)
+        assertEquals(spot.y, laid.y, 2f / scale)
+
+        onNodeWithTag("drawer-concepts").performClick()
+        waitForIdle()
+        onNodeWithTag("drawer-concepts-Wing").performClick()
+        waitForIdle()
+        assertEquals("Wing", state.source?.name)
+    }
+
+    @Test
+    fun theWaysOutDrawTheCollageAndTakeItOnSaveItAndPinIt() = room {
+        val state = fixture.state()
+        assertNotNull(state.addPicture(fixture.picture("cliff")))
+        show(state)
+        onNodeWithTag("collage-to-lens").performClick()
+        waitFor("drawn and taken into the Lens") { fixture.sent.isNotEmpty() }
+        val (what, to) = fixture.sent.single()
+        assertEquals(Room.LENS, to)
+        val picture = (what as Handed.Picture).file
+        assertEquals(state.pictureFile(), picture)
+        // The picture, 400 × 200 laid 760 × 380 on the mat, drawn a pixel to a mat unit with a margin round it.
+        val png = ImageIO.read(picture)
+        assertEquals(806, png.width, "the pieces and a little margin: ${png.width}")
+        assertEquals(426, png.height)
+        fun at(fx: Float) = java.awt.Color(png.getRGB((png.width * fx).toInt(), png.height / 2)).let { Color(it.red / 255f, it.green / 255f, it.blue / 255f) }
+        assertTrue(orange(at(0.25f)) && blue(at(0.75f)), "the picture drawn as it lies")
+        val margin = java.awt.Color(png.getRGB(3, 3))
+        assertTrue(margin.red > 200 && margin.green > 190, "on paper round it")
+
+        onNodeWithTag("collage-pin").performClick()
+        waitForIdle()
+        onNodeWithTag("collage-pin-Drachenbuch").performClick()
+        waitFor("pinned") { fixture.pinned.isNotEmpty() }
+        assertEquals(listOf(fixture.board to listOf(picture)), fixture.pinned)
+
+        picture.delete()
+        onNodeWithTag("collage-menu").performClick()
+        waitForIdle()
+        onNodeWithTag("collage-save").performClick()
+        waitFor("saved") { picture.isFile }
+        waitForIdle()
+        assertEquals("Saved as Untitled collage.png, beside the collage", state.notice)
     }
 
     @Test

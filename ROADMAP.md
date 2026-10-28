@@ -992,14 +992,15 @@ one*, *How the rooms hand things over*) and the design canvas.
 ### 🔄 F10.5 Sketch — the picture underneath
 - 🔄 Any picture under the page (from a session, a card, a concept, a collage, a file) at a chosen
   strength, moved, scaled and turned to fit, never part of the saved PNG — a session's reference
-  can lie under the page, fitted whole, at a strength (F9.10); the other sources, and moving,
-  scaling and turning it, remain
+  can lie under the page, fitted whole, at a strength (F9.10); a collage comes into Sketch as its
+  reference with *Sketch over* (F10.6); the other sources, and moving, scaling and turning it,
+  remain
 - ✅ *Lay it over instead*: the reference over the strokes, for checking at the end (F9.10)
 - ⬜ In `.sketch.json` by path and placement, so a continued sketch has it again; the reference
   beside the page stays as the other option
 
-### 🔄 F10.6 Collage — scissors on a cutting mat
-Built on `dev/concept-feature` in steps; the first four are done (2026-10-28).
+### ✅ F10.6 Collage — scissors on a cutting mat
+Built on `dev/concept-feature` in steps (2026-10-28).
 - ✅ **The file and the room.** `name.collage.json`, its pieces from the bottom of the stack up,
   each with the picture it is cut from — relative to the collage's folder where it lies inside it,
   absolute where it lies on a board or in a concept — its outline in that picture's pixels, its
@@ -1080,9 +1081,45 @@ Built on `dev/concept-feature` in steps; the first four are done (2026-10-28).
   hand taking hold instead, the tape laid nowhere, the path or the tape's paper not drawn; the
   rail's Scissors and Tape, R and Enter doing nothing; tape read back as a picture, or without what
   it holds
-- ⬜ **The source drawer**: boards and concepts as tabs; drag a picture onto the mat to cut from
-  it, as often as you like
-- ⬜ **Out**: save as PNG, *Pin to a board*, *Sketch over it* (F10.5), *Check the values* (F10.1)
+- ✅ **Through every layer**, as the user asked: *All layers* on the rail (L) sends the scissors and
+  the tear through every picture under the cut, not the chosen or the topmost one alone — each
+  parted as one would be, its parts above it, the topmost one's part cut off chosen, all of it one
+  change to undo; tape still not cut. The mat says so while it is on
+- ✅ **The source drawer** under the mat, as the design has it: on its left what it draws from — a
+  board or a concept, each with its room's dab and a menu of the others; the first board to begin
+  with, kept while the room is left and read again on coming back — and that source's pictures
+  beside as small prints on their paper (a concept's pictures only, not its notes). A click lays a
+  print on the mat; dragged out, it follows the pointer and lies where it is let go over the mat. As
+  often as you like, each a new piece to cut from. The room is given the domain's `BoardSource` and
+  `ConceptSource`, as the other rooms are
+- ✅ **Out.** The collage drawn flat as one picture (`drawCollage`): its pieces as they lie, without
+  their shadows, cut to the space they cover with a margin, on the design's paper, as sharp as its
+  sharpest picture allows (at most 4000 px along), drawn off the UI thread where the design is and
+  handed back to the room, as the Lens's views are. It is saved as `<name>.png` beside the collage,
+  where `Collages` always meant it to be (renamed with it); *Collage ▾ → Save as picture* (Ctrl+S)
+  just saves it; *Pin to a board ▾* saves it and pins it; the ways on in the header — the rooms the
+  hand-off seam has for a picture, *Sketch over* and *Check the values* — save it and take it there,
+  Back returning to the collage. Each saves it again as it is now. *Add a picture…* and *Paste*
+  moved into *Collage ▾*, so the header holds the ways out
+- ✅ Tested: `CuttingTest` (through every layer, the chosen piece or not, as one change; torn so;
+  and one alone again), `WaysInAndOutTest` (new: the drawer from the first board, a concept's
+  pictures, as often as you like, read again; saved beside it, pinned, taken on once drawn, saved
+  over, renamed with it, nothing on the mat), `CollageKeysTest` (L, Ctrl+S), `CollageScreenTest`
+  (All layers on the rail; a print clicked and dragged onto the mat, where it is let go; the
+  concepts' tab; the header's way into the Lens drawing the collage — its size, the picture where it
+  lies, the paper round it — Pin to a board and Save as picture), `RoomsTest` (the drawer over the
+  real boards, into Sketch as its reference and back, into the Lens, pinned onto the board) and the
+  drawer in `RoomScreenshotTest`. Broken on purpose and seen red after a no-op control stayed green:
+  29 guards — through all layers cutting one alone or stopping at the chosen piece, the parts of
+  every piece but the first lost, the lowest piece's part chosen; the drawer starting on nothing,
+  showing a concept's notes, never reading a board again; a bare mat asking to be drawn, the picture
+  saved under a new name each time, pinned without the picture, taken on before it is drawn or into
+  no room, ways out offered from a bare mat; the collage drawn without its margin, flipped or on no
+  paper, a way out never drawn; a print let go of over the mat laid nowhere or where the drag began,
+  a print clicked laying nothing, the concepts' tab choosing nothing; the header's way into the
+  Lens, Pin to a board, Save as picture, the rail's All layers, L and Ctrl+S doing nothing; the room
+  given no boards, or no hand-offs. The first of them survived at first — the test had chosen
+  nothing before cutting — and was seen red once it chose the piece underneath
 
 ### ✅ F10.7 One seam for hand-offs
 - ✅ The hand-off seam in the domain: `Handed` (a picture on disk, or a page drawn as PNG when it
@@ -1111,7 +1148,7 @@ Built on `dev/concept-feature` in steps; the first four are done (2026-10-28).
 - ✅ A concept's picture into Sketch (over it, or on with its sketch) and into the Lens, along the
   hand-off seam (F10.7)
 - ⬜ A concept's pictures as a Practice source — a warm-up on the thing you are about to draw
-- ⬜ A concept as a Collage source and as a Sketch underlay
+- 🔄 A concept as a Collage source ✅ (the source drawer, F10.6) and as a Sketch underlay ⬜
 - F8.4's open question settled: does practice on a concept's picture belong to the concept or to
   the board
 

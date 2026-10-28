@@ -94,16 +94,22 @@ private val MatLine = Color(0x1FE8F0E4)
 private val MatRule = Color(0x47E8F0E4)
 private val MatFigure = Color(0x99E8F0E4)
 
+/** How much room is left round the mat in its place. */
+internal val MAT_PAD = 14.dp
+
 /** How far a piece lies off the mat, in mat units: its lamp shadow; tape lies almost flat. */
 private const val LIFT = 14f
 private const val TAPE_LIFT = 2.5f
 
-/** What the mat says the tool in hand does, in the hand of the design — Move says nothing. */
-private fun hintOf(tool: Tool): String? = when (tool) {
-    Tool.MOVE -> null
-    Tool.SCISSORS -> "click corners · drag freehand · shift to cut straight"
-    Tool.TEAR -> "drag across a piece to tear it · shift tears straight"
-    Tool.TAPE -> "drag to lay a strip · shift lays it level"
+/** What the mat says the tool in hand does, in the hand of the design — Move says nothing; a cut [throughAll] says so. */
+private fun hintOf(tool: Tool, throughAll: Boolean): String? {
+    val all = if (throughAll) " · through every layer" else ""
+    return when (tool) {
+        Tool.MOVE -> null
+        Tool.SCISSORS -> "click corners · drag freehand · shift to cut straight$all"
+        Tool.TEAR -> "drag across a piece to tear it · shift tears straight$all"
+        Tool.TAPE -> "drag to lay a strip · shift lays it level"
+    }
 }
 
 /** How large a picture is kept to draw pieces from, on its long side: enough for the mat, few enough pixels to hold several. */
@@ -359,7 +365,7 @@ internal fun CollageMat(state: CollageState, images: PieceImages, modifier: Modi
     val hand = Design.hand
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val pad = with(density) { 14.dp.toPx() }
+    val pad = with(density) { MAT_PAD.toPx() }
     val reach = with(density) { 12.dp.toPx() }
     val out = with(density) { 26.dp.toPx() }
     var view by remember { mutableStateOf<MatView?>(null) }
@@ -422,7 +428,7 @@ internal fun CollageMat(state: CollageState, images: PieceImages, modifier: Modi
             drawCut(state.path, toward, v, design.pigmentOf(Room.COLLAGE).glow, ants?.value ?: 0f)
         }
         if (state.tool == Tool.SCISSORS) hover?.let { drawScissors(it + Offset(8.dp.toPx(), -16.dp.toPx()), design.colors.paper) }
-        hintOf(state.tool)?.let { hint ->
+        hintOf(state.tool, state.throughAll)?.let { hint ->
             val text = measurer.measure(hint, hand.copy(color = design.colors.paper.copy(alpha = 0.85f), fontSize = 20.sp))
             val corner = v.toScreen(Spot(Collage.MAT_WIDTH, Collage.MAT_HEIGHT))
             drawText(text, topLeft = corner - Offset(text.size.width + 18.dp.toPx(), text.size.height + 10.dp.toPx()))

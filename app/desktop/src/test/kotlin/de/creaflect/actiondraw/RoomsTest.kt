@@ -218,6 +218,35 @@ class RoomsTest {
     }
 
     @Test
+    fun theCollageDrawsFromTheBoardsAndIsTakenOnAsItsPicture() {
+        val rooms = rooms()
+        val board = rooms.boardWithPictures()
+        val collage = rooms.collage
+        rooms.app.enter(Screen.Collage)
+        collage.onEnter()
+        assertEquals("Wings", collage.source?.name, "the drawer draws from the board there is")
+        assertEquals(listOf("a.jpg", "b.jpg"), collage.sourcePictures.map { it.name })
+
+        collage.addPicture(File(root, "cliff.png").apply { writeBytes(png()) })
+        assertEquals(listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values")), collage.routes(), "its ways out are the rooms that take a picture")
+        collage.handOff(Room.SKETCH)
+        collage.finish(png())
+        assertEquals(Screen.Sketch, rooms.app.screen)
+        assertEquals(collage.pictureFile(), rooms.sketch.reference, "drawn over in Sketch, the collage saved as a picture")
+        rooms.sketch.leave()
+        assertEquals(Screen.Collage, rooms.app.screen, "and Back is the collage")
+
+        collage.handOff(Room.LENS)
+        collage.finish(png())
+        assertEquals(Screen.Lens, rooms.app.screen)
+        assertEquals(collage.pictureFile()?.name, rooms.lens.picture?.name + ".png")
+
+        collage.pinTo(board)
+        collage.finish(png())
+        assertTrue(rooms.boards.pictures(board).any { it.name == collage.pictureFile()?.name }, "pinned onto the board: ${collage.notice}")
+    }
+
+    @Test
     fun theLensRoomPinsItsViewToABoard() {
         val rooms = rooms()
         val board = rooms.boardWithPictures()

@@ -64,6 +64,12 @@ class CollageKeysTest {
         key(Key.Enter)
         assertEquals(listOf("cliff", "cliff, cut"), state.collage.pieces.map { it.name }, "Enter cuts along the corners so far")
         assertTrue(state.path.isEmpty())
+        key(Key.L)
+        assertTrue(state.throughAll, "L: through every layer")
+        key(Key.L)
+        assertFalse(state.throughAll, "and through one again")
+        assertTrue(handleCollageKey(Key.S, true, false, state))
+        assertEquals(CollageExport.Save, state.export, "Ctrl+S: saved as a picture, once drawn")
     }
 
     @Test

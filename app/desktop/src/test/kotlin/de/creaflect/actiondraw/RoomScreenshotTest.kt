@@ -342,16 +342,23 @@ class RoomScreenshotTest {
 
     /**
      * The Collage room (F10.6): the bare mat inviting a picture, then pieces on it — one turned, one
-     * flipped, the chosen one outlined with its handles — and the pieces list beside it; then one torn,
-     * two taped, and the scissors on their way across the sky.
+     * flipped, the chosen one outlined with its handles — the pieces list beside it and a board's
+     * pictures in the drawer under it; then one torn, two taped, and the scissors on their way across
+     * the sky.
      */
     @Test
     fun theCollageRoom() = window {
         val world = World()
         val collage = world.rooms.collage
+        // A board to draw from, in the drawer under the mat.
+        world.boards.createBoard(File(root, "boards"), "Drachenbuch")
+        world.boards.importExternal(listOf(0xB8C8D8, 0xE8DCC8, 0x9C8B74, 0xC9D8C0).mapIndexed { i, tint -> picture(File(world.boards.root!!, "p$i.png"), tint) })
         world.app.enter(Screen.Collage)
         world.show(this)
-        mainClock.advanceTimeBy(500)
+        repeat(5) {
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
         shoot("25-collage-empty", Room.COLLAGE)
         val sky = collage.addPicture(picture(File(root, "sky.png"), 0xB8C8D8), Spot(700f, 480f))!!
         val pose = collage.addPicture(picture(File(root, "pose.png")), Spot(1180f, 700f))!!

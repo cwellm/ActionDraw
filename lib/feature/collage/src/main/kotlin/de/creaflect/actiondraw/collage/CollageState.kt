@@ -5,8 +5,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.Lib
 import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
+import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptSource
+import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
 import de.creaflect.actiondraw.handoff.Receiver
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.newId
 import de.creaflect.actiondraw.platform.FileDialogs
@@ -36,6 +43,31 @@ fun interface CollageHost {
 /** What a press on the mat does (F10.6): take hold of a piece, cut, tear, or lay a strip of tape. */
 enum class Tool { MOVE, SCISSORS, TEAR, TAPE }
 
+/** Where the source drawer draws pictures from (F10.6): a board, or a concept. */
+sealed interface DrawerSource {
+    val name: String
+
+    data class Board(val ref: BoardRef) : DrawerSource {
+        override val name: String get() = ref.name
+    }
+
+    data class Concept(val ref: ConceptRef) : DrawerSource {
+        override val name: String get() = ref.name
+    }
+}
+
+/** A way out of the room asked for (F10.6), waiting for the screen to draw the collage as a picture. */
+sealed interface CollageExport {
+    /** Saved as `<name>.png` beside the collage. */
+    data object Save : CollageExport
+
+    /** Saved, and pinned to the board in [dir]. */
+    data class Pin(val dir: File) : CollageExport
+
+    /** Saved, and taken into [to]'s room. */
+    data class Send(val to: Room) : CollageExport
+}
+
 /**
  * The Collage room (CONCEPT.md, *Collage*; F10.6): pictures cut apart and laid on a cutting mat,
  * to test whether a scene holds. One collage is open at a time; it is kept as it changes — every
@@ -48,7 +80,9 @@ enum class Tool { MOVE, SCISSORS, TEAR, TAPE }
  *
  * [lib] keeps the collages and reads the pictures; [host] is the way out; [dialogs] and [clipboard]
  * the host's, for adding a picture and pasting one. Pictures handed from the other rooms — a board's
- * card, a concept's picture, a sketch's page, a view in the Lens — come in as pieces.
+ * card, a concept's picture, a sketch's page, a view in the Lens — come in as pieces; [boards] and
+ * [concepts] fill the source drawer, and a collage is pinned to the boards; [handoff] takes it, saved
+ * as a picture, into the other rooms.
  */
 class CollageState(
     private val lib: Lib,
@@ -56,6 +90,9 @@ class CollageState(
     /** The host's file dialogs, for adding a picture. */
     val dialogs: FileDialogs = FileDialogs.None,
     private val clipboard: SystemClipboard = SystemClipboard.None,
+    private val boards: BoardSource = BoardSource.None,
+    private val concepts: ConceptSource = ConceptSource.None,
+    private val handoff: Handoff = Handoff.None,
 ) : Receiver {
     /** Where the pieces' pictures are read. */
     val pictures: Pictures get() = lib.pictures
@@ -87,6 +124,22 @@ class CollageState(
     var path by mutableStateOf(emptyList<Spot>())
         private set
 
+    /** Whether the scissors and the tear go through every picture under them, not one alone. */
+    var throughAll by mutableStateOf(false)
+        private set
+
+    /** What the source drawer draws from; null where there is no board or concept to draw from. */
+    var source by mutableStateOf<DrawerSource?>(null)
+        private set
+
+    /** The pictures in the drawer's [source], as they were when it was chosen or the room entered. */
+    var sourcePictures by mutableStateOf(emptyList<File>())
+        private set
+
+    /** A way out asked for, until the screen has drawn the collage for it. */
+    var export by mutableStateOf<CollageExport?>(null)
+        private set
+
     private var undos by mutableStateOf(emptyList<Collage>())
     private var redos by mutableStateOf(emptyList<Collage>())
 
@@ -101,9 +154,10 @@ class CollageState(
 
     // ---- The collage ----
 
-    /** Coming into the room: the collage last kept, unless one is open already. */
+    /** Coming into the room: the collage last kept, unless one is open already, and the drawer's pictures as they are now. */
     fun onEnter() {
         if (file == null && collage.pieces.isEmpty()) recent().firstOrNull()?.let(::open)
+        drawFrom(source ?: boards().firstOrNull()?.let(DrawerSource::Board) ?: concepts().firstOrNull()?.let(DrawerSource::Concept))
     }
 
     /** The collages kept or opened lately, newest first. */
@@ -374,25 +428,37 @@ class CollageState(
         return if (tool == Tool.TEAR) tear(along, closed) else cut(along, closed)
     }
 
+    /** The scissors and the tear through every picture under them — [on] — or through one alone. */
+    fun cutThroughAll(on: Boolean) {
+        throughAll = on
+    }
+
     /**
      * Cuts along [along], on the mat — [closed]: all the way round — through the chosen piece, where
-     * the cut goes through it, else through the topmost picture it does; tape is not cut. Every part
-     * the piece falls into is a piece of its own, lying where it lay: the largest keeps its name and
-     * its place in the stack, the others lie just above it called after it, and the one cut off —
-     * or cut out — is chosen. [torn]: a tear, and the parts called so. False, and said, where the
-     * cut went through nothing.
+     * the cut goes through it, else through the topmost picture it does; or, [throughAll], through
+     * every picture it goes through. Tape is not cut. Every part a piece falls into is a piece of
+     * its own, lying where it lay: the largest keeps its name and its place in the stack, the others
+     * lie just above it called after it, and the one cut off — or cut out — of the first piece cut
+     * is chosen. [torn]: a tear, and the parts called so. One change, however many pieces it
+     * parted. False, and said, where the cut went through nothing.
      */
     fun cut(along: List<Spot>, closed: Boolean, torn: Boolean = false): Boolean {
-        val order = (listOfNotNull(selectedPiece) + collage.pieces.asReversed()).filter { !it.isTape }.distinct()
+        val pictures = collage.pieces.asReversed().filter { !it.isTape }
+        val order = if (throughAll) pictures else (listOfNotNull(selectedPiece?.takeIf { !it.isTape }) + pictures).distinct()
+        val partings = ArrayList<Parting>()
         for (piece in order) {
             val onIt = along.map(piece::toPicture)
             val parts = divide(piece.outline, onIt, closed)
             if (parts.size < 2) continue
-            apart(piece, parts, onIt.takeIf { closed }, if (torn) "torn" else "cut")
-            return true
+            partings += Parting(piece, parts, onIt.takeIf { closed })
+            if (!throughAll) break
         }
-        notice = if (torn) "Tear across a piece, from edge to edge" else "Cut across a piece from edge to edge, or all the way round a part of it"
-        return false
+        if (partings.isEmpty()) {
+            notice = if (torn) "Tear across a piece, from edge to edge" else "Cut across a piece from edge to edge, or all the way round a part of it"
+            return false
+        }
+        apart(partings, if (torn) "torn" else "cut")
+        return true
     }
 
     /** Tears along [along], on the mat, as paper tears: the path made ragged, then parted along like a cut — [closed]: all the way round. */
@@ -403,37 +469,44 @@ class CollageState(
         return cut(ragged, closed, torn = true)
     }
 
-    private fun apart(piece: Piece, parts: List<List<Spot>>, round: List<Spot>?, how: String) {
-        // Cut out: what lies inside a path that went all the way round.
-        val out = parts.map { round != null && insideOf(round, insidePoint(it)) }
-        val keep = parts.indices.filter { !out[it] }.maxByOrNull { areaOf(parts[it]) } ?: parts.indices.maxBy { areaOf(parts[it]) }
-        val base = piece.name.replace(TRAIL, "")
+    /** A piece a cut went through, the [parts] it falls into, and — for a cut all the way round — the path [round] it, on its picture. */
+    private class Parting(val piece: Piece, val parts: List<List<Spot>>, val round: List<Spot>?)
+
+    /** Each piece parted, as one change: its parts in its place in the stack, the tape across it holding those under it. */
+    private fun apart(partings: List<Parting>, how: String) {
         val names = collage.pieces.map { it.name }.toMutableSet()
-        val others = parts.indices.filter { it != keep }.sortedByDescending { areaOf(parts[it]) }
-        val made = others.map { i ->
-            val name = generateSequence(1) { it + 1 }.map { n -> if (n == 1) "$base, $how" else "$base, $how $n" }.first { it !in names }
-            names += name
-            piece.recut(parts[i]).copy(id = newId(), name = name)
-        }
-        val kept = piece.recut(parts[keep])
-        val all = listOf(kept) + made
-        change { c ->
-            val at = c.pieces.indexOfFirst { it.id == piece.id }
-            val stacked = c.pieces.toMutableList().apply {
-                set(at, kept)
-                addAll(at + 1, made)
+        val parted = LinkedHashMap<String, List<Piece>>()
+        var chosen: String? = null
+        for (parting in partings) {
+            val parts = parting.parts
+            val piece = parting.piece
+            // Cut out: what lies inside a path that went all the way round.
+            val out = parts.map { parting.round != null && insideOf(parting.round, insidePoint(it)) }
+            val keep = parts.indices.filter { !out[it] }.maxByOrNull { areaOf(parts[it]) } ?: parts.indices.maxBy { areaOf(parts[it]) }
+            val base = piece.name.replace(TRAIL, "")
+            val others = parts.indices.filter { it != keep }.sortedByDescending { areaOf(parts[it]) }
+            val made = others.map { i ->
+                val name = generateSequence(1) { it + 1 }.map { n -> if (n == 1) "$base, $how" else "$base, $how $n" }.first { it !in names }
+                names += name
+                piece.recut(parts[i]).copy(id = newId(), name = name)
             }
-            // Tape across the piece holds whichever of its parts lie under it.
+            val kept = piece.recut(parts[keep])
+            parted[piece.id] = listOf(kept) + made
+            if (chosen == null) chosen = made.getOrNull(others.indices.firstOrNull { out[others[it]] } ?: 0)?.id ?: kept.id
+        }
+        change { c ->
+            val stacked = c.pieces.flatMap { parted[it.id] ?: listOf(it) }
+            // Tape across a piece cut holds whichever of its parts lie under it.
             c.copy(
                 pieces = stacked.map { t ->
-                    if (!t.isTape || piece.id !in t.holds) return@map t
+                    if (!t.isTape || t.holds.none { it in parted }) return@map t
                     val strip = t.onMat()
-                    t.copy(holds = (t.holds - piece.id + all.filter { overlaps(strip, it.onMat()) }.map { it.id }).distinct())
+                    val under = t.holds.flatMap { parted[it].orEmpty() }.filter { overlaps(strip, it.onMat()) }.map { it.id }
+                    t.copy(holds = (t.holds.filter { it !in parted } + under).distinct())
                 },
             )
         }
-        val cutOff = others.indices.firstOrNull { out[others[it]] } ?: 0
-        selected = made.getOrNull(cutOff)?.id ?: kept.id
+        selected = chosen
         notice = null
     }
 
@@ -471,6 +544,77 @@ class CollageState(
 
     /** The pieces that move as one with the piece [id]: itself, the tape that holds it, what that tape holds, and so on. */
     fun heldWith(id: String): Set<String> = collage.heldWith(id)
+
+    // ---- The source drawer ----
+
+    /** The boards the drawer can draw from, and the collage can be pinned to. */
+    fun boards(): List<BoardRef> = boards.available()
+
+    /** The concepts the drawer can draw from. */
+    fun concepts(): List<ConceptRef> = concepts.available()
+
+    /** The drawer drawing from [next] — its pictures read now — or from nothing. */
+    fun drawFrom(next: DrawerSource?) {
+        source = next
+        sourcePictures = when (next) {
+            null -> emptyList()
+            is DrawerSource.Board -> boards.pictures(next.ref.dir)
+            is DrawerSource.Concept -> concepts.snapshot(next.ref.id)?.let { s -> s.items.filterIsInstance<ImageItem>().map { File(s.root, it.path) } }.orEmpty()
+        }.filter(lib.pictures::isPicture)
+    }
+
+    // ---- Out of the room ----
+
+    /** The picture the collage is saved as: `<name>.png` beside its document; null before it has one. */
+    fun pictureFile(): File? = file?.let { File(it.absoluteFile.parentFile, Collages.nameOf(it) + ".png") }
+
+    /** Where the collage can be taken from here, saved as a picture: into Sketch to draw over it, into the Lens… None while the mat is bare. */
+    fun routes(): List<Route> {
+        val picture = pictureFile()?.takeIf { collage.pieces.isNotEmpty() } ?: return emptyList()
+        return handoff.routes(Handed.Picture(picture), Room.COLLAGE)
+    }
+
+    /** Saves the collage as a picture beside it, once the screen has drawn it. */
+    fun saveAsPicture() = ask(CollageExport.Save)
+
+    /** Saves the collage as a picture and pins it to the board in [dir], once the screen has drawn it. */
+    fun pinTo(dir: File) = ask(CollageExport.Pin(dir))
+
+    /** Saves the collage as a picture and takes it into [to]'s room, once the screen has drawn it. */
+    fun handOff(to: Room) = ask(CollageExport.Send(to))
+
+    private fun ask(what: CollageExport) {
+        if (collage.pieces.isEmpty() || file == null) {
+            notice = "There is nothing on the mat yet"
+            return
+        }
+        export = what
+    }
+
+    /**
+     * The collage the screen drew for [export] — [png], or null when it could not be drawn — saved
+     * as `<name>.png` beside it, replacing the one saved before; then pinned or taken on.
+     */
+    fun finish(png: ByteArray?) {
+        val pending = export ?: return
+        export = null
+        val target = pictureFile()
+        if (png == null || target == null) {
+            notice = "The collage could not be drawn"
+            return
+        }
+        val written = lib.pictures.writePng(png, target)
+        if (written == null) {
+            notice = "Could not save ${target.name}"
+            return
+        }
+        notice = when (pending) {
+            CollageExport.Save -> "Saved as ${written.name}, beside the collage"
+            is CollageExport.Pin -> boards.pin(pending.dir, listOf(written))
+            is CollageExport.Send -> null
+        }
+        if (pending is CollageExport.Send) handoff.send(Handed.Picture(written), pending.to)
+    }
 
     // ---- Taken from the other rooms (the hand-off seam) ----
 
