@@ -1145,6 +1145,15 @@ The next two of the forms' ideas (2026-10-28); the rest wait in [IDEAS.md](IDEAS
   screenshots from nearly four minutes to twelve seconds
 - ✅ A picture's far edge read short of its repeat, so a relief's side wall at the page's right
   edge does not read the left one
+- ✅ **The first form hung the window** (found by hand, 2026-10-28): the first *Form* clicked in
+  the Lens room left the window still for half a minute. On the graphics card (Direct3D) the one
+  shader for every form — the block's Newton steps, the relief's steps reading its heights, a copy
+  of the ray for each of four rays and one more — was compiled before the first frame: 27 to 38
+  seconds, measured in a real window on this machine. Now each form's shader is compiled alone,
+  its kind set in the source (`formSource`), and the ray is cast from one place in a loop: the
+  first frame of any form comes in 0.2 to 0.4 seconds, and switching to a form not yet shown costs
+  40 to 240 ms. `FormTest` holds both — every form's own source, and the ray cast from one place —
+  and each, broken on purpose, was seen red after a no-op control stayed green
 - ✅ Tested: `FormTest` (every form, a shaped block and a relief among them, drawn where its twin
   says; a round block of even measures the sphere; a can and a cushion told apart from the front
   and from above, a tall block narrower; a flat relief the page, a raised one nearer, its back
