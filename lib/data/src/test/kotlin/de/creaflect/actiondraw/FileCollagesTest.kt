@@ -14,7 +14,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** The collages as files: `<name>.collage.json`, its pieces' pictures kept where they belong, renamed with its picture. */
+/** The collages as files: `<name>.collage.json`, its pieces' pictures kept where they belong and its tape, renamed with its picture. */
 class FileCollagesTest {
     private val home: File = Files.createTempDirectory("collages").toFile()
 
@@ -42,12 +42,13 @@ class FileCollagesTest {
         assertEquals(File(home, "ActionDraw Collages"), collagesHome, "the collages start out beside the boards")
         val beside = File(collagesHome, "cut/sky.png")
         val board = File(home, "ActionDraw Boards/Drachen/cliff.jpg")
-        val collage = Collage(listOf(piece("a", beside), piece("b", board)))
+        val tape = Piece("t", "Tape", null, listOf(Spot(0f, 0f), Spot(120f, 0f), Spot(118f, 17f), Spot(120f, 34f), Spot(0f, 34f)), 900f, 600f, turn = 8f, holds = listOf("a", "b"))
+        val collage = Collage(listOf(piece("a", beside), piece("b", board), tape))
 
         val file = lib.collages.freeFile(collagesHome, "Cliff at dusk")
         assertEquals(File(collagesHome, "Cliff at dusk.collage.json"), file)
         assertTrue(lib.collages.write(file, collage))
-        assertEquals(collage, lib.collages.read(file), "read back as it was laid out, piece for piece")
+        assertEquals(collage, lib.collages.read(file), "read back as it was laid out, piece for piece — the tape a strip, holding what it held")
 
         val text = file.readText()
         assertTrue("\"cut/sky.png\"" in text, "a picture beside the collage kept relative to it: it moves with it")

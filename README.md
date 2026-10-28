@@ -439,8 +439,19 @@ on the right shows the pieces from the top of the stack down — a click chooses
 renames it, a drag restacks it, × takes it away. Every change is kept at once in
 `<name>.collage.json` (in `~/ActionDraw Collages` unless it was opened from elsewhere) and can be
 undone. *Collage ▾* starts a new one and opens the recent ones; click the name to rename it.
-Scissors, tearing, tape, the source drawer and the ways out — saving, pinning, *Sketch over it*,
-*Check the values* — come next.
+
+The tools are down the left. **Scissors** cut a piece the way paper is cut: a drag across it cuts
+freehand as you let go, `Shift` keeps the cut straight, and clicks lay corners for straight cuts —
+click the first corner again to cut all the way round a part, the last one (or `Enter`) to stop
+there. The path marches in Naples yellow while you make it. A cut from edge to edge parts the
+piece, as often as it goes through; a cut round a part cuts it out and leaves a hole, the scissors
+coming in from the nearest edge. The scissors cut the chosen piece, else the topmost the cut goes
+through; every part lies where it lay, the largest keeps the name, and the part cut off is chosen.
+**Tear** parts a piece along a drag with a ragged edge instead. **Tape** lays a strip of masking
+tape along a drag, or a short one with a click; the pictures it lies across are held together and
+move, turn, grow and flip as one, until the tape is taken away.
+The source drawer and the ways out — saving, pinning, *Sketch over it*, *Check the values* — come
+next.
 
 ## Keyboard shortcuts
 
@@ -503,6 +514,21 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 | `Ctrl`+`Z` / `Ctrl`+`Y` | undo / redo |
 | `Ctrl`+`S` · `Ctrl`+`N` · `Ctrl`+`O` | save · new sketch · open a sketch |
 | `Esc` | close a dialog · back (the sketch stays) |
+
+### Collage
+
+| Key | Action |
+|---|---|
+| `M` / `S` / `R` / `T` | Move · scissors · tear · tape |
+| `Enter` | cut along the corners clicked so far |
+| `←` `↑` `→` `↓` | move the chosen piece (`Shift`: further) |
+| `Q` / `E` | turn it (`Shift`: by 15°) |
+| `F` | flip it over |
+| `PgUp` / `PgDn` or `]` / `[` | bring it forward · send it backward |
+| `Del` | take it away |
+| `Ctrl+N` / `Ctrl+O` / `Ctrl+V` | a new collage · add a picture · paste one |
+| `Ctrl+Z` / `Ctrl+Y` | undo · redo |
+| `Esc` | drop the cut · let go of the piece · Move again · back |
 
 ## Going online
 

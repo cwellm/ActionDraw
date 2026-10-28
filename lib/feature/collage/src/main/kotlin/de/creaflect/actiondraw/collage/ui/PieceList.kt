@@ -138,7 +138,7 @@ private fun PieceRow(state: CollageState, images: PieceImages, piece: Piece, ind
             .testTag("piece-${piece.id}"),
     ) {
         Canvas(Modifier.size(36.dp).clip(RoundedCornerShape(4.dp))) {
-            drawPiece(piece, images[piece.source], MatView.around(piece, size), design, lifted = false)
+            drawPiece(piece, piece.source?.let(images::get), MatView.around(piece, size), design, lifted = false)
         }
         if (editing) {
             NameField(piece.name, "piece-name-field", fontSize = 13.sp, modifier = Modifier.weight(1f)) { next ->

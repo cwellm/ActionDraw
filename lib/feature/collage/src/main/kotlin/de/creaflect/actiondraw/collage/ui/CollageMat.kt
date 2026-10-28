@@ -1,7 +1,13 @@
 package de.creaflect.actiondraw.collage.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -15,19 +21,29 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -42,13 +58,17 @@ import de.creaflect.actiondraw.collage.Collage
 import de.creaflect.actiondraw.collage.CollageState
 import de.creaflect.actiondraw.collage.Piece
 import de.creaflect.actiondraw.collage.Spot
+import de.creaflect.actiondraw.collage.Tool
 import de.creaflect.actiondraw.collage.bounds
 import de.creaflect.actiondraw.collage.middle
 import de.creaflect.actiondraw.collage.onMat
 import de.creaflect.actiondraw.collage.toMat
 import de.creaflect.actiondraw.image.Pictures
+import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.DesignSystem
 import de.creaflect.actiondraw.ui.LocalDesign
+import de.creaflect.actiondraw.ui.LocalReducedMotion
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.skia.FilterMipmap
@@ -60,9 +80,12 @@ import org.jetbrains.skia.SamplingMode
 import org.jetbrains.skia.Surface
 import java.io.File
 import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import org.jetbrains.skia.Rect as SkRect
 
 /** The cutting mat's green, its fine grid and its ruled one. */
@@ -71,8 +94,17 @@ private val MatLine = Color(0x1FE8F0E4)
 private val MatRule = Color(0x47E8F0E4)
 private val MatFigure = Color(0x99E8F0E4)
 
-/** How far a piece lies off the mat, in mat units: its lamp shadow. */
+/** How far a piece lies off the mat, in mat units: its lamp shadow; tape lies almost flat. */
 private const val LIFT = 14f
+private const val TAPE_LIFT = 2.5f
+
+/** What the mat says the tool in hand does, in the hand of the design — Move says nothing. */
+private fun hintOf(tool: Tool): String? = when (tool) {
+    Tool.MOVE -> null
+    Tool.SCISSORS -> "click corners · drag freehand · shift to cut straight"
+    Tool.TEAR -> "drag across a piece to tear it · shift tears straight"
+    Tool.TAPE -> "drag to lay a strip · shift lays it level"
+}
 
 /** How large a picture is kept to draw pieces from, on its long side: enough for the mat, few enough pixels to hold several. */
 private const val DRAWN_SIZE = 2048
@@ -150,7 +182,7 @@ internal class PieceImages {
 internal fun rememberPieceImages(state: CollageState): PieceImages {
     val images = remember { PieceImages() }
     DisposableEffect(images) { onDispose { images.close() } }
-    val sources = state.collage.pieces.map { it.source }.toSet()
+    val sources = state.collage.pieces.mapNotNull { it.source }.toSet()
     LaunchedEffect(sources) { images.load(sources, state.pictures) }
     return images
 }
@@ -186,6 +218,120 @@ private sealed class Grab(val id: String) {
 
 private fun angle(centre: Offset, p: Offset): Float = Math.toDegrees(atan2((p.y - centre.y).toDouble(), (p.x - centre.x).toDouble())).toFloat()
 
+/** What a press on the mat begins, by the tool in hand: followed as the pointer drags, ended as it lets go. */
+private interface Gesture {
+    fun drag(view: MatView, at: Offset, straight: Boolean)
+
+    fun release(view: MatView, at: Offset, dragged: Boolean, straight: Boolean)
+
+    fun cancel()
+}
+
+/** Move: the piece or handle [grab] took moved by the drag, as one change. */
+private class Take(private val state: CollageState, private val grab: Grab?) : Gesture {
+    private var began = false
+
+    override fun drag(view: MatView, at: Offset, straight: Boolean) {
+        if (!began) {
+            state.beginDrag()
+            began = true
+        }
+        grab?.drag(state, view, at, straight)
+    }
+
+    override fun release(view: MatView, at: Offset, dragged: Boolean, straight: Boolean) = cancel()
+
+    override fun cancel() {
+        if (began) state.endDrag()
+        began = false
+    }
+}
+
+/**
+ * The scissors, or — [tearing] — the tear. With the scissors a press lays a corner, straight on from
+ * the last one, and a drag cuts on from it freehand (Shift: straight); a drag on its own is a cut as
+ * it lets go. A click on the first corner cuts all the way round, a click on the last one ends the
+ * cut there. The tear is only dragged, and torn as it lets go. [reach] is how near a click is to a
+ * corner, in pixels.
+ */
+private class Snip(private val state: CollageState, view: MatView, press: Offset, private val reach: Float, private val tearing: Boolean) : Gesture {
+    private val trail = ArrayList<Spot>()
+    private var base = emptyList<Spot>()
+    private val fresh = tearing || state.path.isEmpty()
+    private var done = false
+
+    init {
+        val at = view.toMat(press)
+        val path = state.path
+        val near = reach / view.scale
+        when {
+            !tearing && path.size >= 3 && close(at, path.first(), near) -> finish(closed = true)
+            !tearing && path.size >= 2 && close(at, path.last(), near) -> finish(closed = false)
+            else -> {
+                base = (if (tearing) emptyList() else path) + at
+                state.trace(base)
+            }
+        }
+    }
+
+    private fun finish(closed: Boolean) {
+        state.cutAlongPath(closed)
+        done = true
+    }
+
+    override fun drag(view: MatView, at: Offset, straight: Boolean) {
+        if (done) return
+        val m = view.toMat(at)
+        // A place every couple of pixels the pointer goes.
+        if (trail.isEmpty() || hypot(m.x - trail.last().x, m.y - trail.last().y) * view.scale >= 2f) trail += m
+        state.trace(if (straight) base + m else base + trail)
+    }
+
+    override fun release(view: MatView, at: Offset, dragged: Boolean, straight: Boolean) {
+        if (done) return
+        if (!dragged) {
+            // A click lays a corner — the tear has none.
+            if (tearing) state.trace(emptyList())
+            return
+        }
+        drag(view, at, straight)
+        val path = state.path
+        val near = reach / view.scale
+        // Back where it began, all the way round — and not a twitch on the spot.
+        val wide = path.maxOf { it.x } - path.minOf { it.x } + path.maxOf { it.y } - path.minOf { it.y } > 4 * near
+        val round = path.size >= 3 && wide && close(path.last(), path.first(), near)
+        if (fresh || round) finish(round)
+    }
+
+    override fun cancel() {
+        if (!done && fresh) state.trace(emptyList())
+    }
+
+    private fun close(a: Spot, b: Spot, near: Float) = hypot(a.x - b.x, a.y - b.y) <= near
+}
+
+/** The tape: a strip from where the press was to where the pointer lets go — Shift: level, or in steps of 15° — shown to [laying] as it is dragged. */
+private class Lay(private val state: CollageState, view: MatView, press: Offset, private val laying: (Pair<Spot, Spot>?) -> Unit) : Gesture {
+    private val from = view.toMat(press)
+
+    private fun to(view: MatView, at: Offset, straight: Boolean): Spot {
+        val m = view.toMat(at)
+        if (!straight) return m
+        val long = hypot(m.x - from.x, m.y - from.y)
+        val a = Math.toRadians((angle(Offset(from.x, from.y), Offset(m.x, m.y)) / 15f).roundToInt() * 15.0)
+        return Spot(from.x + long * cos(a).toFloat(), from.y + long * sin(a).toFloat())
+    }
+
+    override fun drag(view: MatView, at: Offset, straight: Boolean) = laying(from to to(view, at, straight))
+
+    override fun release(view: MatView, at: Offset, dragged: Boolean, straight: Boolean) {
+        laying(null)
+        state.layTape(from, if (dragged) to(view, at, straight) else from)
+    }
+
+    override fun cancel() = laying(null)
+}
+
 /** Where the chosen piece's handles are on screen: the one that turns it, out from its top edge, and the one that grows it, at its corner. */
 private class Handles(val centre: Offset, val edge: Offset, val turn: Offset, val grow: Offset)
 
@@ -200,52 +346,100 @@ private fun handlesOf(piece: Piece, view: MatView, out: Float): Handles {
 /**
  * The cutting mat (F10.6): green, with a fine grid, a ruled one and a ruler along its top, the
  * pieces on it from the bottom of the stack up, each lifted a little off it, and the chosen one
- * outlined with its handles. A press takes the chosen piece's handle, or the topmost piece under
- * it — or lets go of the chosen one on the bare mat; a drag then moves it, turns it (Shift: in
- * steps of 15°) or grows it, and lets go as one change.
+ * outlined — with its handles, while Move is in hand. What a press does is the tool's: with Move it
+ * takes the chosen piece's handle, or the topmost piece under it — or lets go of the chosen one on
+ * the bare mat — and a drag moves it, turns it (Shift: in steps of 15°) or grows it, as one change.
+ * The scissors and the tear draw their path in Naples yellow, dashed and marching; the tape lays a
+ * strip.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun CollageMat(state: CollageState, images: PieceImages, modifier: Modifier = Modifier) {
     val design = LocalDesign.current
+    val hand = Design.hand
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val pad = with(density) { 14.dp.toPx() }
     val reach = with(density) { 12.dp.toPx() }
     val out = with(density) { 26.dp.toPx() }
     var view by remember { mutableStateOf<MatView?>(null) }
-    var grab by remember { mutableStateOf<Grab?>(null) }
-    var straight by remember { mutableStateOf(false) }
+    var hover by remember { mutableStateOf<Offset?>(null) }
+    var laying by remember { mutableStateOf<Pair<Spot, Spot>?>(null) }
     val current by rememberUpdatedState(view)
+    // The path being cut moves like marching ants — unless motion is reduced. Read only while drawing.
+    val ants = if (LocalReducedMotion.current || state.path.isEmpty()) {
+        null
+    } else {
+        rememberInfiniteTransition().animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing)))
+    }
     Canvas(
         modifier
             .onSizeChanged { view = MatView.fit(it.toSize(), pad) }
-            .onPointerEvent(PointerEventType.Move) { straight = it.keyboardModifiers.isShiftPressed }
-            .onPointerEvent(PointerEventType.Press) { event ->
-                val v = current ?: return@onPointerEvent
-                val at = event.changes.first().position
-                straight = event.keyboardModifiers.isShiftPressed
-                grab = grabAt(state, v, at, reach, out)
-                state.select(grab?.id)
-            }
+            .pointerHoverIcon(if (state.tool == Tool.MOVE) PointerIcon.Default else PointerIcon.Crosshair)
+            .onPointerEvent(PointerEventType.Move) { hover = it.changes.first().position }
+            .onPointerEvent(PointerEventType.Exit) { hover = null }
             .pointerInput(state) {
-                detectDragGestures(
-                    onDragStart = { state.beginDrag() },
-                    onDragEnd = { state.endDrag() },
-                    onDragCancel = { state.endDrag() },
-                ) { change, _ ->
-                    change.consume()
-                    val v = current ?: return@detectDragGestures
-                    grab?.drag(state, v, change.position, straight)
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    if (currentEvent.buttons.isSecondaryPressed) return@awaitEachGesture
+                    val v = current ?: return@awaitEachGesture
+                    val gesture = begin(state, v, down.position, reach, out) { laying = it }
+                    var dragged = false
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id }
+                            if (change == null) {
+                                gesture.cancel()
+                                return@awaitEachGesture
+                            }
+                            val straight = event.keyboardModifiers.isShiftPressed
+                            if (!change.pressed) {
+                                gesture.release(current ?: v, change.position, dragged, straight)
+                                return@awaitEachGesture
+                            }
+                            if (!dragged && (change.position - down.position).getDistance() > viewConfiguration.touchSlop) dragged = true
+                            if (dragged && change.positionChanged()) {
+                                change.consume()
+                                gesture.drag(current ?: v, change.position, straight)
+                            }
+                        }
+                    } catch (e: CancellationException) {
+                        gesture.cancel()
+                        throw e
+                    }
                 }
             }
             .testTag("collage-mat"),
     ) {
         val v = view ?: MatView.fit(size, pad)
         drawMat(v, measurer)
-        state.collage.pieces.forEach { drawPiece(it, images[it.source], v, design, lifted = true) }
-        state.selectedPiece?.let { drawChosen(it, v, out, design) }
+        state.collage.pieces.forEach { drawPiece(it, it.source?.let(images::get), v, design, lifted = true) }
+        state.selectedPiece?.let { drawChosen(it, v, out, design, handles = state.tool == Tool.MOVE) }
+        laying?.let { (from, to) -> drawPiece(state.strip(from, to), null, v, design, lifted = true) }
+        if (state.path.isNotEmpty()) {
+            val toward = hover.takeIf { state.tool == Tool.SCISSORS }
+            drawCut(state.path, toward, v, design.pigmentOf(Room.COLLAGE).glow, ants?.value ?: 0f)
+        }
+        if (state.tool == Tool.SCISSORS) hover?.let { drawScissors(it + Offset(8.dp.toPx(), -16.dp.toPx()), design.colors.paper) }
+        hintOf(state.tool)?.let { hint ->
+            val text = measurer.measure(hint, hand.copy(color = design.colors.paper.copy(alpha = 0.85f), fontSize = 20.sp))
+            val corner = v.toScreen(Spot(Collage.MAT_WIDTH, Collage.MAT_HEIGHT))
+            drawText(text, topLeft = corner - Offset(text.size.width + 18.dp.toPx(), text.size.height + 10.dp.toPx()))
+        }
     }
+}
+
+/** The gesture a press at [press] begins, by the tool in hand. */
+private fun begin(state: CollageState, view: MatView, press: Offset, reach: Float, out: Float, laying: (Pair<Spot, Spot>?) -> Unit): Gesture = when (state.tool) {
+    Tool.MOVE -> {
+        val grab = grabAt(state, view, press, reach, out)
+        state.select(grab?.id)
+        Take(state, grab)
+    }
+    Tool.SCISSORS -> Snip(state, view, press, reach, tearing = false)
+    Tool.TEAR -> Snip(state, view, press, reach, tearing = true)
+    Tool.TAPE -> Lay(state, view, press, laying)
 }
 
 private fun grabAt(state: CollageState, view: MatView, at: Offset, reach: Float, out: Float): Grab? {
@@ -291,10 +485,21 @@ private fun DrawScope.drawMat(view: MatView, measurer: androidx.compose.ui.text.
 /**
  * [piece] as it lies, through [view]: its picture clipped to its outline — paper where the picture
  * cannot be read — and, [lifted], the lamp's shadow under it, cast to the bottom right however the
- * piece is turned. The outline drawn is the outline a click hits.
+ * piece is turned. A strip of tape is the design's masking tape, lying almost flat. The outline
+ * drawn is the outline a click hits.
  */
 internal fun DrawScope.drawPiece(piece: Piece, image: PieceImage?, view: MatView, design: DesignSystem, lifted: Boolean) {
     val outline = outlinePath(piece, view)
+    if (piece.isTape) {
+        with(design.materials) {
+            if (lifted) drawLampShadow(outline, TAPE_LIFT * view.scale, alpha = 0.3f)
+            drawPath(outline, tape)
+        }
+        // A warm shade over the tape's paper, so it reads on a light picture as well as on the mat.
+        drawPath(outline, Color(0x1A6B5A3A))
+        drawPath(outline, Color(0x30000000), style = Stroke(width = 0.8f))
+        return
+    }
     if (lifted) with(design.materials) { drawLampShadow(outline, LIFT * view.scale) }
     clipPath(outline) {
         val picture = image?.image
@@ -336,15 +541,62 @@ internal fun outlinePath(piece: Piece, view: MatView): Path = Path().apply {
     close()
 }
 
-/** The chosen piece: outlined in Naples yellow, with the handle that turns it out from its top edge and the one that grows it at its corner. */
-private fun DrawScope.drawChosen(piece: Piece, view: MatView, out: Float, design: DesignSystem) {
+/** The chosen piece: outlined in Naples yellow — with [handles], the one that turns it out from its top edge and the one that grows it at its corner. */
+private fun DrawScope.drawChosen(piece: Piece, view: MatView, out: Float, design: DesignSystem, handles: Boolean) {
     val glow = design.pigmentOf(Room.COLLAGE).glow
-    val h = handlesOf(piece, view, out)
     drawPath(outlinePath(piece, view), glow, style = Stroke(2.dp.toPx()))
+    if (!handles) return
+    val h = handlesOf(piece, view, out)
     drawLine(glow, h.edge, h.turn, 1.5.dp.toPx())
     drawCircle(Color(0xFF1C1A17), 7.dp.toPx(), h.turn)
     drawCircle(glow, 5.5.dp.toPx(), h.turn)
     val half = 5.dp.toPx()
     drawRect(Color(0xFF1C1A17), h.grow - Offset(half + 1.5f, half + 1.5f), Size(2 * half + 3f, 2 * half + 3f))
     drawRect(glow, h.grow - Offset(half, half), Size(2 * half, 2 * half))
+}
+
+/**
+ * The path being cut, through [view]: dashed in Naples yellow over a shadow line, the dashes marching
+ * on by [phase]; a fainter line on [toward] the pointer, where the next corner would go; and a ring
+ * at its first corner, where a click cuts all the way round.
+ */
+private fun DrawScope.drawCut(path: List<Spot>, toward: Offset?, view: MatView, glow: Color, phase: Float) {
+    val dash = 8.dp.toPx()
+    val gap = 6.dp.toPx()
+    val marching = PathEffect.dashPathEffect(floatArrayOf(dash, gap), -phase * (dash + gap))
+    val line = Path().apply {
+        path.forEachIndexed { i, m ->
+            val p = view.toScreen(m)
+            if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+        }
+    }
+    val under = Color(0x8C000000)
+    drawPath(line, under, style = Stroke(3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    drawPath(line, glow, style = Stroke(1.8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = marching))
+    val last = view.toScreen(path.last())
+    toward?.let { drawLine(glow.copy(alpha = 0.55f), last, it, 1.2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(dash / 2, gap / 2))) }
+    if (path.size >= 2) {
+        val first = view.toScreen(path.first())
+        drawCircle(under, 5.dp.toPx(), first)
+        drawCircle(glow, 5.dp.toPx(), first, style = Stroke(1.5.dp.toPx()))
+    }
+}
+
+/** A pair of open scissors, their points at [at], drawn in [ink] over a shadow line — what the pointer cuts with. */
+private fun DrawScope.drawScissors(at: Offset, ink: Color) {
+    val s = 1.dp.toPx()
+    val glyph = Path().apply {
+        moveTo(0f, -3f * s)
+        lineTo(12f * s, 3.5f * s)
+        moveTo(0f, 3f * s)
+        lineTo(12f * s, -3.5f * s)
+        addOval(Rect(Offset(15.5f * s, 5.5f * s), 3.5f * s))
+        addOval(Rect(Offset(15.5f * s, -5.5f * s), 3.5f * s))
+    }
+    translate(at.x, at.y) {
+        rotate(-35f, Offset.Zero) {
+            drawPath(glyph, Color(0x99000000), style = Stroke(3f * s, cap = StrokeCap.Round))
+            drawPath(glyph, ink, style = Stroke(1.5f * s, cap = StrokeCap.Round))
+        }
+    }
 }

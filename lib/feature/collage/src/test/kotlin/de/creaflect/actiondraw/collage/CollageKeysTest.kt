@@ -46,6 +46,27 @@ class CollageKeysTest {
     }
 
     @Test
+    fun theToolsAndTheCutBeingMadeAreOnKeys() {
+        val state = fixture.state()
+        val piece = assertNotNull(state.addPicture(fixture.picture("cliff"), Spot(950f, 650f)))
+        fun key(k: Key) = assertTrue(handleCollageKey(k, false, false, state), "$k is the room's")
+        key(Key.S)
+        assertEquals(Tool.SCISSORS, state.tool)
+        key(Key.R)
+        assertEquals(Tool.TEAR, state.tool)
+        key(Key.T)
+        assertEquals(Tool.TAPE, state.tool)
+        key(Key.M)
+        assertEquals(Tool.MOVE, state.tool)
+        key(Key.S)
+        assertFalse(handleCollageKey(Key.Enter, false, false, state), "no cut being made: Enter is not the room's")
+        state.trace(listOf(piece.toMat(Spot(300f, -20f)), piece.toMat(Spot(300f, 220f))))
+        key(Key.Enter)
+        assertEquals(listOf("cliff", "cliff, cut"), state.collage.pieces.map { it.name }, "Enter cuts along the corners so far")
+        assertTrue(state.path.isEmpty())
+    }
+
+    @Test
     fun ctrlKeysAddAndBeginAndEscLetsGoThenLeaves() {
         val state = fixture.state()
         fixture.chosen = fixture.picture("wing")

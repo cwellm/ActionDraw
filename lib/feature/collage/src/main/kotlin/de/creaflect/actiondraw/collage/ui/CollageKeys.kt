@@ -2,6 +2,7 @@ package de.creaflect.actiondraw.collage.ui
 
 import androidx.compose.ui.input.key.Key
 import de.creaflect.actiondraw.collage.CollageState
+import de.creaflect.actiondraw.collage.Tool
 
 /** The Collage room's hotkeys, as the hotkey sheet lists them. */
 object CollageHotkeys {
@@ -11,13 +12,16 @@ object CollageHotkeys {
         "Ctrl+O" to "add a picture",
         "Ctrl+V" to "add the picture on the clipboard",
         "Ctrl+Z / Ctrl+Y" to "undo · redo",
+        "M / S / R / T" to "Move · the scissors · tear · tape",
+        "click, drag" to "with the scissors: a corner, a freehand cut (Shift: straight); a click on the first corner cuts round",
+        "Enter" to "cut along the corners so far",
         "Arrows" to "move the chosen piece (Shift: further)",
         "Q / E" to "turn it (Shift: by 15°)",
         "F" to "flip it over",
         "PgUp / PgDn  or  ] / [" to "bring it forward · send it backward",
         "Del" to "take it away",
-        "drag" to "a piece to move it; its round handle to turn it, its corner to grow it (Shift: in 15° steps)",
-        "Esc" to "let go of the piece · back where you came from",
+        "drag" to "a piece to move it — and what is taped to it; its round handle to turn it, its corner to grow it (Shift: in 15° steps)",
+        "Esc" to "drop the cut · let go of the piece · Move again · back where you came from",
     )
 }
 
@@ -27,7 +31,7 @@ private const val NUDGE_FAR = 25f
 
 /**
  * The Collage room's keys as a plain function of the key pressed, so they can be tested: the
- * collage's own — new, add, paste, undo, redo — and the chosen piece's.
+ * collage's own — new, add, paste, undo, redo — the tools, the cut being made, and the chosen piece's.
  */
 fun handleCollageKey(key: Key, ctrl: Boolean, shift: Boolean, state: CollageState): Boolean {
     if (ctrl) {
@@ -44,6 +48,11 @@ fun handleCollageKey(key: Key, ctrl: Boolean, shift: Boolean, state: CollageStat
     val turn = if (shift) 15f else 1f
     return when (key) {
         Key.Escape -> { state.stepBack(); true }
+        Key.M -> { state.choose(Tool.MOVE); true }
+        Key.S -> { state.choose(Tool.SCISSORS); true }
+        Key.R -> { state.choose(Tool.TEAR); true }
+        Key.T -> { state.choose(Tool.TAPE); true }
+        Key.Enter, Key.NumPadEnter -> if (state.path.size < 2) false else { state.cutAlongPath(closed = false); true }
         Key.DirectionLeft -> { state.nudge(-step, 0f); true }
         Key.DirectionRight -> { state.nudge(step, 0f); true }
         Key.DirectionUp -> { state.nudge(0f, -step); true }

@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.collage.CollageState
 import de.creaflect.actiondraw.collage.Collages
+import de.creaflect.actiondraw.collage.Tool
 import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.RoomHeader
 import de.creaflect.actiondraw.ui.pigment
@@ -151,13 +152,14 @@ private fun Line(state: CollageState) {
 }
 
 /**
- * The tools down the mat's left, as the design has them: *Move* — the pointer's tool for now; the
- * scissors, the tear and the tape come next — and what is done to the chosen piece at once: flip it
- * over, bring it forward, send it back.
+ * The tools down the mat's left, as the design has them — *Move*, the scissors, the tear and the
+ * tape, one in hand at a time — and what is done to the chosen piece at once: flip it over, bring
+ * it forward, send it back.
  */
 @Composable
 private fun Rail(state: CollageState) {
     val chosen = state.selectedPiece != null
+    val tool = state.tool
     Column(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -168,16 +170,23 @@ private fun Rail(state: CollageState) {
             .padding(vertical = 10.dp)
             .testTag("collage-rail"),
     ) {
-        RailButton("Move", MOVE, on = true, enabled = true, tag = "rail-move") {}
+        RailButton("Move", MOVE, on = tool == Tool.MOVE, enabled = true, tag = "rail-move") { state.choose(Tool.MOVE) }
+        RailButton("Scissors", SCISSORS, on = tool == Tool.SCISSORS, enabled = true, tag = "rail-scissors") { state.choose(Tool.SCISSORS) }
+        RailButton("Tear", TEAR, on = tool == Tool.TEAR, enabled = true, tag = "rail-tear") { state.choose(Tool.TEAR) }
+        RailButton("Tape", TAPE, on = tool == Tool.TAPE, enabled = true, tag = "rail-tape") { state.choose(Tool.TAPE) }
+        Box(Modifier.padding(vertical = 2.dp).width(40.dp).height(1.dp).background(Design.colors.muted.copy(alpha = 0.3f)))
         RailButton("Flip", FLIP, on = false, enabled = chosen, tag = "rail-flip") { state.flip() }
         RailButton("Forward", FORWARD, on = false, enabled = chosen, tag = "rail-forward") { state.forward() }
         RailButton("Backward", BACKWARD, on = false, enabled = chosen, tag = "rail-backward") { state.backward() }
     }
 }
 
-// The rail's glyphs, in an 18 × 18 box: the pointer, a figure and its mirror, a piece over the
-// stack and one under it.
+// The rail's glyphs, in an 18 × 18 box: the pointer, open scissors, a sheet torn in two, a strip
+// of tape, a figure and its mirror, a piece over the stack and one under it.
 private const val MOVE = "M4 2 L4 15 L7.6 11.6 L10 16.4 L12 15.4 L9.7 10.7 L14.6 10.7 Z"
+private const val SCISSORS = "M3 13.5 A2.5 2.5 0 1 0 8 13.5 A2.5 2.5 0 1 0 3 13.5 Z M10 13.5 A2.5 2.5 0 1 0 15 13.5 A2.5 2.5 0 1 0 10 13.5 Z M7 11.6 L12.5 2 M11 11.6 L5.5 2"
+private const val TEAR = "M2.5 3 H9.5 L8 5.5 L10 8 L8 10.5 L10 13 L8.5 15 H2.5 Z M12 3 H15.5 V15 H12.5 L11 13 L13 10.5 L11 8 L13 5.5 Z"
+private const val TAPE = "M2.5 7.5 L14.5 4.5 L14 5.9 L15.3 7 L15.5 8.5 L3.5 11.5 L4 10.1 L2.8 9 Z"
 private const val FLIP = "M9 2 V16 M7 4 L2 14 H7 Z M11 4 L16 14 H11 Z"
 private const val FORWARD = "M3 16 H15 M3 13 H15 M9 10 V2 M5.5 5.5 L9 2 L12.5 5.5"
 private const val BACKWARD = "M3 2 H15 M3 5 H15 M9 8 V16 M5.5 12.5 L9 16 L12.5 12.5"
@@ -226,7 +235,7 @@ private fun Invitation(state: CollageState, modifier: Modifier) {
     ) {
         Text("Cut pictures, test a scene", style = Design.hand.copy(fontSize = 30.sp), color = Design.colors.text)
         Text(
-            "Send a picture here with To a collage — from a board's card, a concept, a sketch or the Lens — or add one from a file, or paste one. Then move, turn, flip and stack the pieces.",
+            "Send a picture here with To a collage — from a board's card, a concept, a sketch or the Lens — or add one from a file, or paste one. Then cut, tear, tape, move and stack the pieces.",
             style = MaterialTheme.typography.body2,
             color = Design.colors.textSoft,
             textAlign = TextAlign.Center,

@@ -16,6 +16,7 @@ data class CollageJson(
  * One piece: the picture it is cut from — relative to the collage's folder where it lies inside it,
  * absolute otherwise — the cut's corners in that picture's pixels as x, y pairs, and where it lies on
  * the mat: its middle, its turn in degrees, mat units to a picture pixel, and whether it is flipped.
+ * A strip of [tape] has no picture; it [holds] the pieces it was laid across, by their ids.
  */
 @Serializable
 data class PieceJson(
@@ -28,4 +29,6 @@ data class PieceJson(
     val turn: Float = 0f,
     val scale: Float = 1f,
     val flipped: Boolean = false,
+    val tape: Boolean = false,
+    val holds: List<String> = emptyList(),
 )

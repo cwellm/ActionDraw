@@ -24,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.collage.Spot
+import de.creaflect.actiondraw.collage.Tool
 import de.creaflect.actiondraw.lens.LensLayout
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Form
@@ -341,7 +342,8 @@ class RoomScreenshotTest {
 
     /**
      * The Collage room (F10.6): the bare mat inviting a picture, then pieces on it — one turned, one
-     * flipped, the chosen one outlined with its handles — and the pieces list beside it.
+     * flipped, the chosen one outlined with its handles — and the pieces list beside it; then one torn,
+     * two taped, and the scissors on their way across the sky.
      */
     @Test
     fun theCollageRoom() = window {
@@ -365,6 +367,19 @@ class RoomScreenshotTest {
         }
         shoot("26-collage-pieces", Room.COLLAGE)
         assertEquals(sky.id, collage.collage.pieces.first().id)
+
+        collage.select(null)
+        collage.tear(listOf(Spot(150f, 760f), Spot(1050f, 800f)))
+        collage.layTape(Spot(1000f, 520f), Spot(1160f, 490f))
+        collage.choose(Tool.SCISSORS)
+        collage.select(sky.id)
+        collage.trace(listOf(Spot(450f, 300f), Spot(700f, 250f), Spot(760f, 330f), Spot(830f, 400f)))
+        repeat(3) {
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        shoot("27-collage-cutting", Room.COLLAGE)
+        assertEquals(listOf("sky", "pose", "cliff", "cliff, torn", "Tape"), collage.collage.pieces.map { it.name })
     }
 
     /**

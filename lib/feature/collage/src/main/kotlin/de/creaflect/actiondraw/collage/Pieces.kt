@@ -60,6 +60,13 @@ operator fun Piece.contains(m: Spot): Boolean = insideOf(outline, toPicture(m))
 /** The outline's corners as they lie on the mat. */
 fun Piece.onMat(): List<Spot> = outline.map(::toMat)
 
+/** The piece cut down to [part] of its picture: lying just where that part lay. */
+fun Piece.recut(part: List<Spot>): Piece {
+    val cut = copy(outline = part)
+    val at = toMat(cut.middle())
+    return cut.copy(x = at.x, y = at.y)
+}
+
 /** Whether [p] is inside the polygon [corners] — an odd number of its edges crossed on the way out to the right. */
 fun insideOf(corners: List<Spot>, p: Spot): Boolean {
     var inside = false

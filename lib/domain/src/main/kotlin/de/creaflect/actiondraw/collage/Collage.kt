@@ -9,18 +9,25 @@ data class Spot(val x: Float, val y: Float)
  * A piece of a collage (F10.6): [source] cut along [outline] — its corners, in the source picture's
  * pixels — lying on the mat with the middle of its outline at ([x], [y]), turned [turn] degrees
  * clockwise, [scale] mat units to a picture pixel, and [flipped] over left to right.
+ *
+ * A piece with no [source] is a strip of masking tape, its outline in its own units; it [holds] the
+ * pieces it was laid across, and they move as one with it.
  */
 data class Piece(
     val id: String,
     val name: String,
-    val source: File,
+    val source: File?,
     val outline: List<Spot>,
     val x: Float,
     val y: Float,
     val turn: Float = 0f,
     val scale: Float = 1f,
     val flipped: Boolean = false,
-)
+    val holds: List<String> = emptyList(),
+) {
+    /** Whether this is a strip of tape rather than a cut picture. */
+    val isTape: Boolean get() = source == null
+}
 
 /**
  * A collage: pictures cut apart and laid on a cutting mat to test whether a scene holds — its

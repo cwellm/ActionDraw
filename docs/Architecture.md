@@ -163,7 +163,7 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 | `:lib:feature:concept` | `ConceptState` — the domain's `ConceptSource` — and `concept/ui` |
 | `:lib:feature:sketch` | `SketchState` — a `Receiver` of the hand-off seam — and `sketch/ui` |
 | `:lib:feature:lens` | new (F10.1): the Lens room — `LensRoomState`, a `Receiver` of the hand-off seam, its host `LensHost`, and `lens/ui` |
-| `:lib:feature:collage` | new (F10.6): the Collage room — `CollageState`, a `Receiver` of the hand-off seam, its host `CollageHost`, the pieces' geometry (`Pieces.kt`), and `collage/ui` |
+| `:lib:feature:collage` | new (F10.6): the Collage room — `CollageState`, a `Receiver` of the hand-off seam, its host `CollageHost`, the pieces' geometry (`Pieces.kt`), cutting, tearing and tape's strips (`Cuts.kt`: an outline divided along a path, in plain Kotlin), and `collage/ui` |
 | `:app:desktop` | `Main` (the windows), `App` (the palette, the room on screen in its `RoomTheme`), `Rooms` (the rooms put together, F11.11, and the hand-off seam built from them, F10.7), `Keys`, `AppState` (the way between the rooms, and Back through every hand-off), the settings sheet; the desktop's sides of the host contracts — `AwtClipboard`, `DesktopBrowser`, `SwingFileDialogs`, `SystemPreferences`, the pen delivered on the UI thread |
 | `:device:pen` | `PenSource`'s Windows side, `WindowsPointerSource` (F11.5, F11.7) |
 

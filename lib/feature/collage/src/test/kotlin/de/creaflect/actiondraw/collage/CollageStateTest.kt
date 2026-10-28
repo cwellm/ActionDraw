@@ -57,8 +57,8 @@ class CollageStateTest {
         fixture.pasted = SystemClipboard.Pasted.Bitmap(fixture.pngBytes())
         assertTrue(state.paste())
         val pasted = state.collage.pieces.last()
-        assertEquals(assertNotNull(state.file).parentFile, pasted.source.parentFile, "a pasted picture kept beside the collage")
-        assertTrue(pasted.source.isFile)
+        assertEquals(assertNotNull(state.file).parentFile, pasted.source?.parentFile, "a pasted picture kept beside the collage")
+        assertTrue(pasted.source?.isFile == true)
 
         fixture.pasted = null
         assertFalse(state.paste())
@@ -83,7 +83,7 @@ class CollageStateTest {
         state.take(Handed.Drawn("Sketch 3") { fixture.pngBytes() })
         val drawn = state.collage.pieces.last()
         assertEquals("Sketch 3", drawn.name, "a sketch's page, written beside the collage and laid on it")
-        assertEquals(keptAs.parentFile, drawn.source.parentFile)
+        assertEquals(keptAs.parentFile, drawn.source?.parentFile)
     }
 
     // ---- Pieces moved ----
@@ -126,7 +126,7 @@ class CollageStateTest {
         state.flip()
         val moved = state.selectedPiece!!
         assertEquals(Spot(a.x + 5f, a.y - 2f), Spot(moved.x, moved.y))
-        assertEquals(15f, moved.turn)
+        assertEquals(345f, moved.turn, "turned over, a piece turned one way lies turned the other")
         assertTrue(moved.flipped)
 
         state.forward()

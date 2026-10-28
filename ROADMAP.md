@@ -999,7 +999,7 @@ one*, *How the rooms hand things over*) and the design canvas.
   beside the page stays as the other option
 
 ### 🔄 F10.6 Collage — scissors on a cutting mat
-Built on `dev/concept-feature` in steps; the first two are done (2026-10-28).
+Built on `dev/concept-feature` in steps; the first four are done (2026-10-28).
 - ✅ **The file and the room.** `name.collage.json`, its pieces from the bottom of the stack up,
   each with the picture it is cut from — relative to the collage's folder where it lies inside it,
   absolute where it lies on a board or in a concept — its outline in that picture's pixels, its
@@ -1038,9 +1038,48 @@ Built on `dev/concept-feature` in steps; the first two are done (2026-10-28).
   collage, Back to where they came from, the host's dialogs and clipboard), `RingMenuTest`,
   `PaletteTest` and the room in `RoomScreenshotTest`. Broken on purpose and seen red after a no-op
   control stayed green: 40 guards — a picture beside the collage kept absolute, a relative one read back from nowhere, a new collage named over another, renamed without its picture or over a name that is taken, one kept elsewhere not among the recent; a piece's flip forgotten on the mat, back from the mat turned the wrong way, a click hitting a piece's box rather than its cut, every crossing counted as inside; nothing kept as it changes, a drag not one change to undo, a click taking the piece underneath, a picture laid as large as itself or over the last, a picture handed here onto a new collage, Esc leaving with a piece chosen, a collage opened with the last one's undo, restacking past the top, a paste never laid on the mat; a drag, the round handle or the corner doing nothing, a press on the bare mat keeping the piece, a piece drawn as plain paper or unflipped; the list choosing, renaming or taking away nothing, the rail's Forward, the header's rename, the menu and the invitation doing nothing; Q turning the wrong way, PgUp doing nothing; the Collage room taking no pictures or without the host's dialogs, its well opening nothing; and the Lens's ways on never folding under Send. One I tried was no defect: counting a ray's crossings to the left instead of the right gives the same answer
-- ⬜ **Scissors**: clicks for straight cuts, a drag for freehand, Shift for straight; a dashed
-  Naples-yellow path that moves like marching ants; the cut a new piece
-- ⬜ **Tear and tape**: a noisy edge along a drag; tape across pieces
+- ✅ **Scissors.** The tools on the rail: *Move*, *Scissors*, *Tear*, *Tape* (M, S, R, T), one in
+  hand at a time, the mat saying in the hand of the design what the one in hand does. A drag on its
+  own cuts freehand as it lets go, Shift straight; clicks lay corners, a click on the first cuts all
+  the way round, on the last — or Enter — ends the cut there; Esc drops it. The path is dashed in
+  Naples yellow and marches (not with reduced motion), the next corner's line follows the pointer,
+  and a pair of scissors goes with it. A cut is paper's (`Cuts.kt`, in plain Kotlin and doubles):
+  from edge to edge it parts the piece, as often as it goes through; round a part inside, it cuts
+  it out and leaves a hole, the scissors coming in from the nearest edge so what is left is still
+  one outline — and that way in parts too when it is cut across later. The chosen piece is cut, else
+  the topmost picture the cut goes through; tape is not cut. Every part lies where it lay, the
+  largest keeps the piece's name and place in the stack, the others lie just above it as
+  *‹name›, cut* (*cut 2*, …), and the part cut off — or out — is chosen. One change to undo
+- ✅ **Tear and tape.** *Tear* parts a piece the same way along a drag made ragged — a long wander,
+  a shorter one and a fine fray, a few mat units either side — as *‹name›, torn*. *Tape* lays a
+  strip of the design's masking tape, torn at its ends, along a drag (Shift: in steps of 15°), or a
+  short one with a click; it lies over everything and holds the pictures it lies across, kept in
+  the file (`tape`, `holds`). What is held moves as one: moved, turned, grown and flipped about the
+  piece taken hold of, by hand, by the keys and by the rail; a cut piece is held by whichever of its
+  parts lie under the tape, and a piece taken away is held no more. *Flip* turns a piece over as a
+  sheet on the table is: one turned one way lies turned the other
+- ✅ Tested: `CutsTest` (across, in and out again, freehand, round a part inside and over an edge,
+  begun inside, across the scissors' way in, either way round; a tear's reach, a strip of tape,
+  overlaps, a place inside an L), `CuttingTest` (a cut's parts where they lay, named and chosen; cut
+  round, the larger part cut out; through nothing; the chosen piece first; cut again; torn; tape
+  holding, moving, turning, flipping and letting go; tape not cut; Esc's order), `CollageKeysTest`,
+  `CollageScreenTest` (the scissors by a drag and by clicks round a part, the path drawn in Naples
+  yellow, Shift straight however the pointer wanders, the tear and the tape by the mouse, the tape
+  drawn), `FileCollagesTest` (tape read back) and the cutting in `RoomScreenshotTest`. Broken on
+  purpose and seen red after a no-op control stayed green: 38 guards — a cut parting only once, a
+  cut round a part inside cutting nothing out, crossings at one place taken as they come, the hole
+  round the same way as the outline, a ring begun inside cut from there, a stretch outside cut as if
+  inside, a tear as straight as a cut, tape cut square, outlines across each other not
+  overlapping; a part moved from where it lay, the part cut off not chosen, the smaller part the
+  piece still, what a cut went round not cut out, the chosen piece not cut first, tape cut like a
+  picture, tape holding the larger part rather than the one under it, tape laid holding nothing,
+  taped pieces moving alone or turned about themselves, flipped with its turn kept, a piece taken
+  away still held; Esc leaving with a tool in hand, a tool taken up keeping the path, the tear's
+  path cut, not torn; a drag on its own waiting for more, the first corner clicked cutting no
+  further, each click starting the path again, Shift cutting freehand all the same, the tear in
+  hand taking hold instead, the tape laid nowhere, the path or the tape's paper not drawn; the
+  rail's Scissors and Tape, R and Enter doing nothing; tape read back as a picture, or without what
+  it holds
 - ⬜ **The source drawer**: boards and concepts as tabs; drag a picture onto the mat to cut from
   it, as often as you like
 - ⬜ **Out**: save as PNG, *Pin to a board*, *Sketch over it* (F10.5), *Check the values* (F10.1)
@@ -1220,7 +1259,8 @@ The shape, revised with the user on 2026-10-22, is in
 
 ```
 lib      bare:   core (model · io · lifecycle) · network · domain · data · sketch-engine
-         UI kit: design (contract · atelier) · feature (practice · board · concept · sketch)
+         UI kit: design (contract · atelier) · lens · feature (practice · board · concept ·
+                 sketch · lens · collage)
 app      desktop
 device   pen
 ```

@@ -212,7 +212,7 @@ class RoomsTest {
         rooms.sketch.handOff(Room.COLLAGE)
         assertEquals(Screen.Collage, rooms.app.screen)
         val piece = rooms.collage.collage.pieces.single()
-        assertTrue(piece.source.isFile, "the page as it is now, written beside the collage")
+        assertTrue(piece.source?.isFile == true, "the page as it is now, written beside the collage")
         rooms.collage.leave()
         assertEquals(Screen.Sketch, rooms.app.screen)
     }

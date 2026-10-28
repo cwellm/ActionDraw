@@ -62,13 +62,14 @@ internal class FileCollages(private val settings: Settings) : Collages {
             Piece(
                 id = p.id,
                 name = p.name,
-                source = File(p.source).let { if (it.isAbsolute) it else File(dir, p.source) },
+                source = if (p.tape) null else File(p.source).let { if (it.isAbsolute) it else File(dir, p.source) },
                 outline = p.outline.chunked(2).filter { it.size == 2 }.map { (x, y) -> Spot(x, y) },
                 x = p.x,
                 y = p.y,
                 turn = p.turn,
                 scale = p.scale,
                 flipped = p.flipped,
+                holds = p.holds,
             )
         },
     )
@@ -78,13 +79,15 @@ internal class FileCollages(private val settings: Settings) : Collages {
             PieceJson(
                 id = p.id,
                 name = p.name,
-                source = relativeTo(dir, p.source),
+                source = p.source?.let { relativeTo(dir, it) }.orEmpty(),
                 outline = p.outline.flatMap { listOf(it.x, it.y) },
                 x = p.x,
                 y = p.y,
                 turn = p.turn,
                 scale = p.scale,
                 flipped = p.flipped,
+                tape = p.isTape,
+                holds = p.holds,
             )
         },
     )
