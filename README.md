@@ -17,10 +17,11 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 ## The palette — home
 
 ActionDraw opens on a porcelain mixing palette. Each of its six wells is a room — **Practice**
-(the timed sessions below), **Boards**, **Concepts**, **Sketch** (Live Sketch), and **Lens** and
-**Collage**, whose wells stay dry until they are built. The centre well says what the chosen room
-is for and offers its next step: *Set up a session*, *Open* the board you had open last, *All
-concepts*, *New sketch* or *Continue the sketch*.
+(the timed sessions below), **Boards**, **Concepts**, **Sketch** (Live Sketch), **Lens** (any
+picture seen through a lens, with no clock running) and **Collage** (pictures cut apart on a
+cutting mat). The centre well says what the chosen room is for and offers its next step: *Set up a
+session*, *Open* the board you had open last, *All concepts*, *New sketch* or *Continue the
+sketch*, *Open a picture*, *New collage* or *Continue* the one kept last.
 
 - A click chooses a well, a second click (or the centre's button) opens it. The arrow keys and
   `Tab` turn the palette, `Enter` opens. The well you chose is remembered for the next start.
@@ -129,11 +130,12 @@ the concept's green tab. A group is drawn round its cards in graphite, its name 
 paper tag pinned in the group's colour; what is selected is marked in ultramarine. *Plain* is the
 graphite table, *cork* and *papyrus* stay.
 
-**The ring.** Right-click a card and six porcelain buttons open round it, each leading into a
-room and carrying its pigment: **Draw these** (Practice), **Sketch over** — Live Sketch with the
-picture beside the page, or *Continue sketch* for one Live Sketch made — **To a collage** (a dry
-well until Collage is built), **To a concept** (any concept; linked onto the board if it is not
-yet, and the cards become the concept's), **Tag** and **Group**. The middle button, *More…*,
+**The ring.** Right-click a card and porcelain buttons open round it, each leading into a room and
+carrying its pigment: **Draw these** (Practice), **Sketch over** — Live Sketch with the picture
+beside the page, or *Continue sketch* for one Live Sketch made — **To a collage** (laid on the
+collage as a piece to cut from), **Check the values** (the Lens), **To a concept** (any concept;
+linked onto the board if it is not yet, and the cards become the concept's), **Tag** and
+**Group**. The middle button, *More…*,
 opens the full menu with every other command. The arrows or `Tab` go round the ring, `Enter`
 takes a button, `Esc` closes it.
 
@@ -426,6 +428,20 @@ step back; come up to any of them and they are there.
   page, **Put away** to put it away); **Back**
   returns to the paused session. The paper beside the monitor, digitised.
 
+## Collage — cut and compose
+
+Pictures laid on a green cutting mat, to test whether a scene holds. A picture comes onto the mat
+with **To a collage** — on a board's card and its ring, a concept's picture, a pose, Sketch's and
+the Lens's headers — or with *Add a picture…* and *Paste*; it lies whole in the middle, to cut
+from. Drag a piece to move it, its round handle to turn it (`Shift`: in steps of 15°), its corner
+to grow it; **Flip**, **Forward** and **Backward** on the left work the chosen piece, and the list
+on the right shows the pieces from the top of the stack down — a click chooses one, a double click
+renames it, a drag restacks it, × takes it away. Every change is kept at once in
+`<name>.collage.json` (in `~/ActionDraw Collages` unless it was opened from elsewhere) and can be
+undone. *Collage ▾* starts a new one and opens the recent ones; click the name to rename it.
+Scissors, tearing, tape, the source drawer and the ways out — saving, pinning, *Sketch over it*,
+*Check the values* — come next.
+
 ## Keyboard shortcuts
 
 ### Session
@@ -550,7 +566,7 @@ In three groups — `lib` for what an application builds on, `device` for the ha
   fonts
 - `lib/lens` — how a picture is seen: the lenses, the knobs, the grids and the glass, with the
   tray, the picture and the keys that work them — shared by every room that shows a picture
-- `lib/feature/practice`, `board`, `concept`, `sketch`, `lens` — the rooms: each one's state and
+- `lib/feature/practice`, `board`, `concept`, `sketch`, `lens`, `collage` — the rooms: each one's state and
   logic over the domain, its screens on the design contract; none knows another
 - `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
 - `app/desktop` — the app: the palette, the windows, the rooms put together, the desktop's

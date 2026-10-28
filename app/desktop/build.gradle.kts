@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":lib:feature:concept"))
     implementation(project(":lib:feature:sketch"))
     implementation(project(":lib:feature:lens"))
+    implementation(project(":lib:feature:collage"))
     // The API: boards, cards, concepts, the session's vocabulary, the contracts for getting and
     // keeping them (Lib), and the host contracts the desktop fills.
     implementation(project(":lib:domain"))

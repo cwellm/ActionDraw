@@ -23,6 +23,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.collage.Spot
 import de.creaflect.actiondraw.lens.LensLayout
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Form
@@ -336,6 +337,34 @@ class RoomScreenshotTest {
             repeat(3) { mainClock.advanceTimeByFrame() }
             shoot("2$i-lens-form-" + form.name.lowercase(), Room.LENS)
         }
+    }
+
+    /**
+     * The Collage room (F10.6): the bare mat inviting a picture, then pieces on it — one turned, one
+     * flipped, the chosen one outlined with its handles — and the pieces list beside it.
+     */
+    @Test
+    fun theCollageRoom() = window {
+        val world = World()
+        val collage = world.rooms.collage
+        world.app.enter(Screen.Collage)
+        world.show(this)
+        mainClock.advanceTimeBy(500)
+        shoot("25-collage-empty", Room.COLLAGE)
+        val sky = collage.addPicture(picture(File(root, "sky.png"), 0xB8C8D8), Spot(700f, 480f))!!
+        val pose = collage.addPicture(picture(File(root, "pose.png")), Spot(1180f, 700f))!!
+        collage.select(pose.id)
+        collage.turnBy(-12f)
+        collage.addPicture(picture(File(root, "cliff.png"), 0x9C8B74), Spot(600f, 900f))
+        collage.flip()
+        collage.select(pose.id)
+        // The pictures are read off the UI thread: real time, and the clock stepped with it.
+        repeat(10) {
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        shoot("26-collage-pieces", Room.COLLAGE)
+        assertEquals(sky.id, collage.collage.pieces.first().id)
     }
 
     /**

@@ -51,6 +51,10 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
 
     override fun setSketchesHome(dir: File) = set(KEY_SKETCHES_HOME, dir.absolutePath)
 
+    override fun collagesHome(): File = folder(KEY_COLLAGES_HOME) ?: dirs.defaultCollagesHome
+
+    override fun setCollagesHome(dir: File) = set(KEY_COLLAGES_HOME, dir.absolutePath)
+
     override fun snapByDefault(): Boolean = runCatching { read().getProperty(KEY_SNAP)?.toBoolean() }.getOrNull() ?: false
 
     override fun setSnapByDefault(on: Boolean) = set(KEY_SNAP, on.toString())
@@ -93,6 +97,22 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
         val props = read()
         (0 until MAX_RECENT_SKETCHES).forEach { props.remove("$KEY_RECENT_SKETCH.$it") }
         next.forEachIndexed { i, f -> props.setProperty("$KEY_RECENT_SKETCH.$i", f.absolutePath) }
+        write(props)
+    }
+
+    override fun recentCollages(): List<File> = runCatching {
+        val props = read()
+        (0 until MAX_RECENT_COLLAGES)
+            .mapNotNull { props.getProperty("$KEY_RECENT_COLLAGE.$it")?.takeIf { p -> p.isNotBlank() } }
+            .map(::File)
+            .filter { it.isFile }
+    }.getOrDefault(emptyList())
+
+    override fun addRecentCollage(file: File) {
+        val next = (listOf(file.absoluteFile) + recentCollages().filter { !it.samePathAs(file) }).take(MAX_RECENT_COLLAGES)
+        val props = read()
+        (0 until MAX_RECENT_COLLAGES).forEach { props.remove("$KEY_RECENT_COLLAGE.$it") }
+        next.forEachIndexed { i, f -> props.setProperty("$KEY_RECENT_COLLAGE.$i", f.absolutePath) }
         write(props)
     }
 
@@ -152,6 +172,9 @@ internal class Settings(private val dirs: AppDirs = AppDirs.current) : Preferenc
         private const val KEY_SKETCHES_HOME = "sketchesHome"
         private const val KEY_RECENT_SKETCH = "recentSketch"
         private const val MAX_RECENT_SKETCHES = 12
+        private const val KEY_COLLAGES_HOME = "collagesHome"
+        private const val KEY_RECENT_COLLAGE = "recentCollage"
+        private const val MAX_RECENT_COLLAGES = 12
         private const val KEY_LEAD_PRESETS = "leadPresets"
         private const val KEY_RECENT_BOARD = "recentBoard"
         private const val MAX_RECENT_BOARDS = 5

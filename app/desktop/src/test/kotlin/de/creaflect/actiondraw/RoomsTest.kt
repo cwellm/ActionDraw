@@ -122,12 +122,20 @@ class RoomsTest {
         val board = rooms.boardWithPictures()
         val photo = File(board, "a.jpg")
         assertEquals(
-            listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values")),
+            listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.COLLAGE, "To a collage"), Route(Room.LENS, "Check the values")),
             rooms.handoff.routes(Handed.Picture(photo), Room.BOARDS),
-            "a picture: drawn over, looked at",
+            "a picture: drawn over, cut apart, looked at",
         )
-        assertEquals(listOf(Route(Room.SKETCH, "Sketch over")), rooms.handoff.routes(Handed.Picture(photo), Room.LENS), "never into the room it comes from")
-        assertEquals(listOf(Route(Room.LENS, "Check the values")), rooms.handoff.routes(Handed.Drawn("page") { png() }, Room.SKETCH), "a page that is no file: looked at")
+        assertEquals(
+            listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.COLLAGE, "To a collage")),
+            rooms.handoff.routes(Handed.Picture(photo), Room.LENS),
+            "never into the room it comes from",
+        )
+        assertEquals(
+            listOf(Route(Room.COLLAGE, "To a collage"), Route(Room.LENS, "Check the values")),
+            rooms.handoff.routes(Handed.Drawn("page") { png() }, Room.SKETCH),
+            "a page that is no file: cut apart, looked at",
+        )
         File(board, "a.sketch.json").writeText("{}")
         assertEquals("Continue sketch", rooms.handoff.routes(Handed.Picture(photo), Room.BOARDS).first().label, "a sketched picture is gone on with")
     }
@@ -179,6 +187,37 @@ class RoomsTest {
     }
 
     @Test
+    fun aCardIsLaidOnTheCollageAndBackIsTheBoard() {
+        val rooms = rooms()
+        rooms.boards.createBoard(boardsHome, "Wings")
+        val dir = rooms.boards.root!!
+        rooms.boards.importExternal(listOf(File(root, "cliff.png").apply { writeBytes(png()) }))
+        rooms.app.showBoard()
+        val card = rooms.boards.board!!.items.filterIsInstance<ImageItem>().single()
+        rooms.boards.handOff(card, Room.COLLAGE)
+        assertEquals(Screen.Collage, rooms.app.screen)
+        val piece = rooms.collage.collage.pieces.single()
+        assertEquals(rooms.boards.fileOf(card)?.absoluteFile, piece.source, "cut from the card's picture, where it is on the board")
+        assertTrue(rooms.collage.file!!.isFile, "the collage kept")
+        rooms.collage.leave()
+        assertEquals(Screen.Board, rooms.app.screen, "and Back is the board it came from")
+        assertTrue(dir.isDirectory)
+    }
+
+    @Test
+    fun aSketchsPageIsLaidOnTheCollageAndBackIsTheSketch() {
+        val rooms = rooms()
+        rooms.app.enter(Screen.Sketch)
+        rooms.sketch.newSketch()
+        rooms.sketch.handOff(Room.COLLAGE)
+        assertEquals(Screen.Collage, rooms.app.screen)
+        val piece = rooms.collage.collage.pieces.single()
+        assertTrue(piece.source.isFile, "the page as it is now, written beside the collage")
+        rooms.collage.leave()
+        assertEquals(Screen.Sketch, rooms.app.screen)
+    }
+
+    @Test
     fun theLensRoomPinsItsViewToABoard() {
         val rooms = rooms()
         val board = rooms.boardWithPictures()
@@ -204,8 +243,12 @@ class RoomsTest {
         val rooms = Rooms(FileLib(File(root, "home")), host)
 
         assertTrue(rooms.app.reducedMotion, "the system's preference, until the person chooses")
-        assertTrue(listOf(rooms.practice.dialogs, rooms.boards.dialogs, rooms.concepts.dialogs, rooms.sketch.dialogs, rooms.lens.dialogs).all { it === dialogs }, "the host's dialogs, in every room")
+        assertTrue(
+            listOf(rooms.practice.dialogs, rooms.boards.dialogs, rooms.concepts.dialogs, rooms.sketch.dialogs, rooms.lens.dialogs, rooms.collage.dialogs).all { it === dialogs },
+            "the host's dialogs, in every room",
+        )
         assertTrue(rooms.lens.paste(), "the Lens room looks at the host's clipboard")
+        assertTrue(rooms.collage.paste(), "and so does the Collage room")
 
         rooms.boards.setBoardsHomeDir(boardsHome)
         rooms.boards.createBoard(boardsHome, "Notes")

@@ -12,6 +12,7 @@ import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import de.creaflect.actiondraw.board.ui.handleBoardKey
+import de.creaflect.actiondraw.collage.ui.handleCollageKey
 import de.creaflect.actiondraw.lens.ui.handleLensRoomKey
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
@@ -110,6 +111,8 @@ internal fun handleKey(event: KeyEvent, rooms: Rooms, windowState: WindowState):
         Screen.BoardList -> event.key == Key.Escape && escapeToPalette(state, practice, boardState)
 
         Screen.Lens -> handleLensRoomKey(event.key, event.isCtrlPressed, rooms.lens)
+
+        Screen.Collage -> handleCollageKey(event.key, event.isCtrlPressed, event.isShiftPressed, rooms.collage)
 
         Screen.Board -> handleBoardKey(
             event,

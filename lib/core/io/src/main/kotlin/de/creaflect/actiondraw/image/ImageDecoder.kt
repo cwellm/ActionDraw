@@ -23,6 +23,27 @@ object ImageDecoder {
         }.getOrNull()
     }
 
+    /**
+     * How many pixels wide and high [file] is, as [decode] would give it — turned upright as its
+     * camera says — without decoding it: Skia reads only the header until the pixels are drawn.
+     * What Skia rejects, ImageIO's reader measures from its header. Null when neither can read it.
+     */
+    fun size(file: File): Pair<Int, Int>? {
+        val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
+        runCatching { Image.makeFromEncoded(bytes).use { it.width to it.height } }.getOrNull()?.let { return it }
+        return runCatching {
+            ImageIO.createImageInputStream(file).use { stream ->
+                val reader = ImageIO.getImageReaders(stream).next()
+                try {
+                    reader.input = stream
+                    reader.getWidth(0) to reader.getHeight(0)
+                } finally {
+                    reader.dispose()
+                }
+            }
+        }.getOrNull()
+    }
+
     /** Whether an ImageIO reader for [extension] is installed in this runtime. */
     fun imageIoCanRead(extension: String): Boolean =
         runCatching { ImageIO.getImageReadersBySuffix(extension).hasNext() }.getOrDefault(false)

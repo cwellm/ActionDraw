@@ -72,7 +72,7 @@ material to the others in one step:
 | Board card / concept | Sketch | *Sketch over* — *Continue sketch* for a picture Live Sketch saved; new: with the card as underlay | ✅ / ⬜ |
 | Sketch | Board / Concept | *To a board* / *To a concept* | ✅ |
 | Practice | Board | *Pin* | ✅ |
-| Board / Concept | Collage | *To a collage*; the Collage's source drawer lists boards and concepts | ⬜ |
+| Board / Concept, Practice, Sketch, Lens | Collage | *To a collage*: the picture laid on the collage as a piece to cut from; the Collage's source drawer lists boards and concepts | ✅ / ⬜ drawer |
 | Collage | Sketch | *Sketch over it*: the composition becomes the underlay | ⬜ |
 | Collage, Board, Concept, Sketch | Lens | *Check the values*: the current picture seen through a lens | ✅ board, concept, sketch / ⬜ collage |
 | Lens | Sketch | *Sketch over*: the picture looked at, beside the page | ✅ |

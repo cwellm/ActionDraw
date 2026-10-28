@@ -1,0 +1,59 @@
+package de.creaflect.actiondraw.collage.ui
+
+import androidx.compose.ui.input.key.Key
+import de.creaflect.actiondraw.collage.CollageState
+
+/** The Collage room's hotkeys, as the hotkey sheet lists them. */
+object CollageHotkeys {
+    const val TITLE = "Collage"
+    val ROWS: List<Pair<String, String>> = listOf(
+        "Ctrl+N" to "a new collage",
+        "Ctrl+O" to "add a picture",
+        "Ctrl+V" to "add the picture on the clipboard",
+        "Ctrl+Z / Ctrl+Y" to "undo · redo",
+        "Arrows" to "move the chosen piece (Shift: further)",
+        "Q / E" to "turn it (Shift: by 15°)",
+        "F" to "flip it over",
+        "PgUp / PgDn  or  ] / [" to "bring it forward · send it backward",
+        "Del" to "take it away",
+        "drag" to "a piece to move it; its round handle to turn it, its corner to grow it (Shift: in 15° steps)",
+        "Esc" to "let go of the piece · back where you came from",
+    )
+}
+
+/** How far the arrow keys move a piece, in mat units: a little, or with Shift a quarter of a mark. */
+private const val NUDGE = 2f
+private const val NUDGE_FAR = 25f
+
+/**
+ * The Collage room's keys as a plain function of the key pressed, so they can be tested: the
+ * collage's own — new, add, paste, undo, redo — and the chosen piece's.
+ */
+fun handleCollageKey(key: Key, ctrl: Boolean, shift: Boolean, state: CollageState): Boolean {
+    if (ctrl) {
+        return when (key) {
+            Key.N -> { state.newCollage(); true }
+            Key.O -> { state.chooseFile(); true }
+            Key.V -> { state.paste(); true }
+            Key.Z -> { if (shift) state.redo() else state.undo(); true }
+            Key.Y -> { state.redo(); true }
+            else -> false
+        }
+    }
+    val step = if (shift) NUDGE_FAR else NUDGE
+    val turn = if (shift) 15f else 1f
+    return when (key) {
+        Key.Escape -> { state.stepBack(); true }
+        Key.DirectionLeft -> { state.nudge(-step, 0f); true }
+        Key.DirectionRight -> { state.nudge(step, 0f); true }
+        Key.DirectionUp -> { state.nudge(0f, -step); true }
+        Key.DirectionDown -> { state.nudge(0f, step); true }
+        Key.Q -> { state.turnBy(-turn); true }
+        Key.E -> { state.turnBy(turn); true }
+        Key.F -> { state.flip(); true }
+        Key.RightBracket, Key.PageUp -> { state.forward(); true }
+        Key.LeftBracket, Key.PageDown -> { state.backward(); true }
+        Key.Delete, Key.Backspace -> { state.remove(); true }
+        else -> false
+    }
+}

@@ -24,6 +24,9 @@ interface Pictures {
     /** [file] decoded whole, or null when it cannot be. Call it off the UI thread. */
     fun decode(file: File): Image?
 
+    /** How many pixels wide and high [file] is, as [decode] gives it, read without decoding it; null when it cannot be read. */
+    fun sizeOf(file: File): Pair<Int, Int>?
+
     /**
      * [file] at most [maxSize] on its long edge. Kept on disk, so a board of large photos opens
      * fast the second time; a picture changed since is decoded again. Call it off the UI thread.

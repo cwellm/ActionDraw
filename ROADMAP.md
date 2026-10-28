@@ -960,7 +960,9 @@ one*, *How the rooms hand things over*) and the design canvas.
   labels were cut. Now the header measures, rather than guesses, which of four arrangements fits
   (`FirstThatFits`), keeping 120 dp for the picture's name: all out; as wide as the app opens,
   *Open ▾* (open, paste); narrower, *Picture ▾* (open, paste, save, pin to each board) and the
-  layout's menu (*Two lenses ▾*); narrowest, everything under *More ▾* but Back. The layouts' chips
+  layout's menu (*Two lenses ▾*); narrowest, everything under *More ▾* but Back. With more ways on
+  than fit — *Sketch over* and *To a collage*, once the Collage room took pictures (F10.6) — they
+  fold under *Send ▾* first, before anything else does. The layouts' chips
   read *Alone · Beside · Two lenses*. The arrangements only measured are kept out of the
   semantics, so what a test or a screen reader finds is what is shown. Tested in
   `LensRoomScreenTest` at 1400, 1120, 1000, 720 and 480 dp — each action reached through its menu,
@@ -996,16 +998,52 @@ one*, *How the rooms hand things over*) and the design canvas.
 - ⬜ In `.sketch.json` by path and placement, so a continued sketch has it again; the reference
   beside the page stays as the other option
 
-### ⬜ F10.6 Collage — scissors on a cutting mat
-- `name.collage.json` beside `name.png`: pieces with a source (file, board card, concept item,
-  sketch), a cut outline (polygon or freehand), a torn-edge seed, a transform, the order, tape
-- Tools: move, scissors (clicks for straight cuts, a drag for freehand, Shift for straight),
-  tear (a noisy edge along a drag), tape, flip, order; undo throughout
-- The source drawer: boards and concepts as tabs; drag a picture onto the mat to cut from it, as
-  often as you like
-- Out: save as PNG, *Pin to a board*, *Sketch over it* (F10.5), *Check the values* (F10.1)
-- Skia clip paths over cached images; the cut outline is the hit-tested path — the board's rule
-  again
+### 🔄 F10.6 Collage — scissors on a cutting mat
+Built on `dev/concept-feature` in steps; the first two are done (2026-10-28).
+- ✅ **The file and the room.** `name.collage.json`, its pieces from the bottom of the stack up,
+  each with the picture it is cut from — relative to the collage's folder where it lies inside it,
+  absolute where it lies on a board or in a concept — its outline in that picture's pixels, its
+  middle on the mat, its turn, scale and flip (`CollageJson` in the core's model). In the domain
+  `Collage`, `Piece`, `Spot` and the contract `Collages` — the recent ones, read, write, a name no
+  other collage there has, a rename that takes the picture along, opened — kept by `FileCollages`
+  whole or not at all (`SafeFile`); the collages home beside the boards (`ActionDraw Collages`).
+  New in `Pictures`: `sizeOf`, a picture's size from its header, so a big photo laid on the mat is
+  not decoded on the UI thread for it. The room, `:lib:feature:collage`: `CollageState` opens the
+  collage kept last on coming in, makes a new one's document with its first piece, keeps every
+  change at once and undoes any of them; the name is renamed in the header, *Collage ▾* starts a
+  new one and opens the recent ones again. It is a receiver of the hand-off seam, so *To a
+  collage* is on every board card and its ring, a concept's picture, a session's pose and the
+  headers of Sketch and the Lens at once; a page that is no file — a sketch's, a Lens view — is
+  written beside the collage and laid on it. The palette's well is wet: *New collage*, or
+  *Continue* the one kept last
+- ✅ **The mat and the pieces.** A green cutting mat, 1900 × 1300 units, with a grid, a ruled one
+  and a ruler along its top; each piece its picture clipped to its outline and lifted off the mat
+  in the lamp's shadow. The outline drawn is the outline a click hits — the board's rule again
+  (`Pieces.kt`: a piece's place, turn, scale and flip about its middle, and back). *Move*: a press
+  takes the chosen piece's handle or the topmost piece under it, a drag moves it, its round handle
+  turns it (Shift: in 15° steps), its corner grows it — one change a drag; a press on the bare mat
+  lets go. The rail: *Move*, *Flip*, *Forward*, *Backward*. The pieces list on the right, the top
+  of the stack first: a click chooses, a double click renames, a drag up or down restacks, × takes
+  away. Keys: the arrows (Shift: further), Q and E turn, F flips, PgUp/PgDn or ] and [ restack,
+  Del, Ctrl+Z/Y, Ctrl+N/O/V, Esc lets go and then leaves. The pictures are decoded off the UI thread
+  and drawn from no more than 2048 pixels
+- ✅ Tested: `FileCollagesTest` (kept and read back as laid out, its pictures where they are, a free
+  name, renamed with its picture, a broken document), `PiecesTest`, `CollageStateTest` (a picture in
+  whole, fitted, apart from the last, kept from the first piece; from a file, the clipboard, a
+  paste; handed here onto the collage kept last; a drag one change; nudged, turned, flipped,
+  restacked, renamed, taken away and undone; the topmost under a click; renamed, new and opened
+  again; coming in and Esc), `CollageKeysTest`, `CollageScreenTest` (the picture's halves where it
+  lies and swapped when flipped; dragged, turned by its handle, grown by its corner; the bare mat
+  letting go; the list, the rail and the header), `RoomsTest` (a card and a sketch's page onto the
+  collage, Back to where they came from, the host's dialogs and clipboard), `RingMenuTest`,
+  `PaletteTest` and the room in `RoomScreenshotTest`. Broken on purpose and seen red after a no-op
+  control stayed green: 40 guards — a picture beside the collage kept absolute, a relative one read back from nowhere, a new collage named over another, renamed without its picture or over a name that is taken, one kept elsewhere not among the recent; a piece's flip forgotten on the mat, back from the mat turned the wrong way, a click hitting a piece's box rather than its cut, every crossing counted as inside; nothing kept as it changes, a drag not one change to undo, a click taking the piece underneath, a picture laid as large as itself or over the last, a picture handed here onto a new collage, Esc leaving with a piece chosen, a collage opened with the last one's undo, restacking past the top, a paste never laid on the mat; a drag, the round handle or the corner doing nothing, a press on the bare mat keeping the piece, a piece drawn as plain paper or unflipped; the list choosing, renaming or taking away nothing, the rail's Forward, the header's rename, the menu and the invitation doing nothing; Q turning the wrong way, PgUp doing nothing; the Collage room taking no pictures or without the host's dialogs, its well opening nothing; and the Lens's ways on never folding under Send. One I tried was no defect: counting a ray's crossings to the left instead of the right gives the same answer
+- ⬜ **Scissors**: clicks for straight cuts, a drag for freehand, Shift for straight; a dashed
+  Naples-yellow path that moves like marching ants; the cut a new piece
+- ⬜ **Tear and tape**: a noisy edge along a drag; tape across pieces
+- ⬜ **The source drawer**: boards and concepts as tabs; drag a picture onto the mat to cut from
+  it, as often as you like
+- ⬜ **Out**: save as PNG, *Pin to a board*, *Sketch over it* (F10.5), *Check the values* (F10.1)
 
 ### ✅ F10.7 One seam for hand-offs
 - ✅ The hand-off seam in the domain: `Handed` (a picture on disk, or a page drawn as PNG when it
