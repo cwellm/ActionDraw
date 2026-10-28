@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.Dp
+import de.creaflect.actiondraw.Room
 
 /**
  * How far a thing stands off the table. One lamp casts every shadow (CONCEPT.md, *Materials*): the

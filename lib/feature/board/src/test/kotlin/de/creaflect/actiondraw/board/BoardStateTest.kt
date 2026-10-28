@@ -550,7 +550,7 @@ class BoardStateTest {
         state.closeBoard()
         val loose = File(outside, "pinned.jpg").apply { writeText("x") }
 
-        val message = state.pinTo(target, listOf(loose))
+        val message = state.pin(target, listOf(loose))
 
         assertTrue(message.startsWith("Pinned 1"), "got: $message")
         assertTrue(File(target, "_imported/pinned.jpg").isFile)
@@ -566,8 +566,8 @@ class BoardStateTest {
         val target = state.root!!
         val loose = File(outside, "pinned.jpg").apply { writeText("x") }
 
-        state.pinTo(target, listOf(loose))
-        val second = state.pinTo(target, listOf(loose))
+        state.pin(target, listOf(loose))
+        val second = state.pin(target, listOf(loose))
         // The copy lands under a fresh name, so this is a second card rather than a duplicate.
         assertTrue(second.startsWith("Pinned 1"), "got: $second")
         assertEquals(2, files.boards.peek(target)!!.items.size)
@@ -1041,7 +1041,7 @@ class BoardStateTest {
     }
 
     @Test
-    fun availableBoardsListsTheHomeAndRecentOnes() {
+    fun theBoardsAvailableAreTheHomesAndTheRecentOnes() {
         val state = newState()
         state.createBoard(home, "Alpha")
         state.closeBoard()
@@ -1052,7 +1052,7 @@ class BoardStateTest {
         state.openBoard(elsewhere)
         state.closeBoard()
 
-        val names = state.availableBoards().map { it.first }.toSet()
+        val names = state.available().map { it.name }.toSet()
         assertEquals(setOf("Alpha", "Beta", "Gamma"), names)
     }
 

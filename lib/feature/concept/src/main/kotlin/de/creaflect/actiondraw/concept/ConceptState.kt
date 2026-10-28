@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.Lib
 import de.creaflect.actiondraw.LoadResult
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.Board
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
@@ -18,6 +19,9 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.LinkItem
 import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.newId
 import de.creaflect.actiondraw.platform.Browser
 import de.creaflect.actiondraw.platform.FileDialogs
@@ -41,9 +45,6 @@ interface ConceptHost {
 
     /** Takes the concept off every board that links it; returns their names. */
     fun unlinkEverywhere(conceptId: String): List<String> = emptyList()
-
-    /** Continue the sketch saved in [file] (a `.sketch.json`) in Live Sketch. */
-    fun openSketch(file: File) {}
 }
 
 /** Which dialog is open over the concept screens. */
@@ -75,6 +76,8 @@ class ConceptState(
     private val browser: Browser = Browser.None,
     /** The host's file dialogs, for the concept's screens to ask with. */
     val dialogs: FileDialogs = FileDialogs.None,
+    /** Where a picture of the concept can be taken into the other rooms: Sketch, the Lens. */
+    private val handoff: Handoff = Handoff.None,
 ) : ConceptSource {
     private val concepts get() = lib.concepts
 
@@ -256,6 +259,8 @@ class ConceptState(
 
     override fun available(): List<ConceptRef> = availableConcepts().map { ConceptRef(it.id, it.name, it.kind) }
 
+    override fun folderOf(id: String): File? = entryById(id)?.dir
+
     override fun snapshot(id: String): ConceptSnapshot? {
         val open = concept
         val dir = root
@@ -366,11 +371,12 @@ class ConceptState(
 
     fun fileOf(item: ImageItem): File? = root?.let { File(it, item.path) }
 
-    /** The sketch a picture came from, when Live Sketch saved it: `name.sketch.json` beside `name.png`. */
-    fun sketchOf(item: ImageItem): File? = fileOf(item)?.let { lib.sketches.documentOf(it) }
+    /** Where [item]'s picture can be taken: into Sketch to draw over or go on with, into the Lens… */
+    fun routes(item: ImageItem): List<Route> = fileOf(item)?.let { handoff.routes(Handed.Picture(it), Room.CONCEPTS) }.orEmpty()
 
-    fun openSketch(item: ImageItem) {
-        sketchOf(item)?.let(host::openSketch)
+    /** Takes [item]'s picture into [to]'s room. */
+    fun handOff(item: ImageItem, to: Room) {
+        fileOf(item)?.let { handoff.send(Handed.Picture(it), to) }
     }
 
     /** Opens an address — a `[text](url)` inside a document — in the host's browser. */

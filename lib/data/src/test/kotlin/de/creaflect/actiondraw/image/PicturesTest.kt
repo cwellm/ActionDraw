@@ -38,6 +38,20 @@ class PicturesTest {
         file.writeBytes(surface.makeImageSnapshot().encodeToData(EncodedImageFormat.PNG)!!.bytes)
     }
 
+    // ---- Writing ----
+
+    @Test
+    fun aPngIsWrittenWholeOrBesideAnotherUnderAFreeName() {
+        val png = File(dir, "source.png").also { twoColourPng(it, 0xFF202020.toInt(), 0xFFE0E0E0.toInt()) }.readBytes()
+        val target = File(dir, "views/pose - notan.png")
+        assertEquals(target, pictures.writePng(png, target), "into a folder made for it")
+        assertTrue(png.contentEquals(target.readBytes()))
+        assertEquals(File(dir, "views/pose - notan (2).png"), pictures.writePng(png, target, beside = true), "beside the one already there")
+        assertEquals(target, pictures.writePng(byteArrayOf(1, 2, 3), target), "or over it, where asked")
+        assertEquals(3L, target.length())
+        assertFalse(File(dir, "views").listFiles()!!.any { it.name.endsWith(".tmp") }, "and nothing half-written left behind")
+    }
+
     // ---- Decoding ----
 
     @Test

@@ -74,7 +74,7 @@ class GlassSessionTest {
         val state = pose()
         rule.onNodeWithTag("reference").performMouseInput { click(onScreen(0.25f, 0.5f)) }
         rule.mainClock.advanceTimeBy(100)
-        assertNull(state.glass.focus)
+        assertNull(state.lens.glass.focus)
     }
 
     @Test
@@ -86,12 +86,12 @@ class GlassSessionTest {
         // Just inside the rim's radius, to the left of the pointer: the picture's orange — then the rim's grey.
         fun rimPixel(): Color {
             val shot = rule.onNodeWithTag("reference").captureToImage().toPixelMap()
-            val r = state.glass.radius * rule.density.density
+            val r = state.lens.glass.radius * rule.density.density
             return shot[(at.x - r - 4f * rule.density.density).toInt(), at.y.toInt()]
         }
         fun orange(c: Color) = c.red > 0.8f && c.green in 0.55f..0.85f && c.blue < 0.3f
         assertTrue(orange(rimPixel()), "no glass yet: the picture")
-        state.glass.takeUp()
+        state.lens.glass.takeUp()
         rule.mainClock.advanceTimeBy(100)
         val rim = rimPixel()
         assertTrue(!orange(rim) && abs(rim.red - rim.blue) < 0.25f, "the glass's rim, a grey: $rim")
@@ -102,33 +102,33 @@ class GlassSessionTest {
         val state = pose()
         rule.onNodeWithTag("glass").performClick()
         rule.mainClock.advanceTimeBy(100)
-        assertTrue(state.glass.inHand, "the glass taken up from the tray")
+        assertTrue(state.lens.glass.inHand, "the glass taken up from the tray")
         rule.onNodeWithTag("reference").performMouseInput { click(onScreen(0.25f, 0.75f)) }
         rule.mainClock.advanceTimeBy(600)
-        val focus = assertNotNull(state.glass.focusOn(state.currentImage))
+        val focus = assertNotNull(state.lens.glass.focusOn(state.currentImage))
         assertEquals(0.25f, focus.x, 0.01f)
         assertEquals(0.75f, focus.y, 0.01f)
         rule.onNodeWithTag("glass-whole").assertIsDisplayed().performClick()
         rule.mainClock.advanceTimeBy(600)
-        assertNull(state.glass.focus, "the print in the corner: the whole picture again")
-        assertTrue(state.glass.inHand, "with the glass still in hand")
+        assertNull(state.lens.glass.focus, "the print in the corner: the whole picture again")
+        assertTrue(state.lens.glass.inHand, "with the glass still in hand")
     }
 
     @Test
     fun aMirroredPictureIsSetDownWhereItIsSeen() {
         val state = pose()
-        state.mirror = true
-        state.glass.takeUp()
+        state.lens.mirror = true
+        state.lens.glass.takeUp()
         rule.mainClock.advanceTimeBy(100)
         rule.onNodeWithTag("reference").performMouseInput { click(onScreen(0.25f, 0.5f)) }
         rule.mainClock.advanceTimeBy(600)
-        assertEquals(0.75f, assertNotNull(state.glass.focus).x, 0.01f, "the left of the screen is the picture's right")
+        assertEquals(0.75f, assertNotNull(state.lens.glass.focus).x, 0.01f, "the left of the screen is the picture's right")
     }
 
     @Test
     fun aPartDraggedOutFillsTheViewAndARightClickLiftsTheGlass() {
         val state = pose()
-        state.glass.choose(Optic.CONVEX)
+        state.lens.glass.choose(Optic.CONVEX)
         rule.mainClock.advanceTimeBy(100)
         val from = onScreen(0.1f, 0.2f)
         val to = onScreen(0.3f, 0.4f)
@@ -141,7 +141,7 @@ class GlassSessionTest {
             release()
         }
         rule.mainClock.advanceTimeBy(600)
-        val focus = assertNotNull(state.glass.focus)
+        val focus = assertNotNull(state.lens.glass.focus)
         assertEquals(0.2f, focus.x, 0.01f)
         assertEquals(0.3f, focus.y, 0.01f)
         val area = rule.onNodeWithTag("reference").fetchSemanticsNode().size
@@ -149,6 +149,6 @@ class GlassSessionTest {
         assertEquals(expected, focus.magnification, expected * 0.03f)
         rule.onNodeWithTag("reference").performMouseInput { rightClick(Offset(10f, 10f)) }
         rule.mainClock.advanceTimeBy(600)
-        assertNull(state.glass.focus)
+        assertNull(state.lens.glass.focus)
     }
 }

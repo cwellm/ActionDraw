@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import de.creaflect.actiondraw.FileLib
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.BoardLink
 import de.creaflect.actiondraw.board.ImageItem
@@ -22,6 +23,9 @@ import de.creaflect.actiondraw.board.NoteItem
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
 import de.creaflect.actiondraw.concept.ui.ConceptScreen
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import org.junit.After
 import org.junit.Rule
@@ -379,30 +383,28 @@ class ConceptTest {
     // ---- A sketch in a concept ----
 
     @Test
-    fun aSketchedPictureInAConceptCanBeContinuedToo() {
-        var fromConcept: File? = null
-        val concepts = ConceptState(
-            FileLib(config),
-            object : ConceptHost {
-                override fun showConcepts() = Unit
-                override fun showConcept() = Unit
-                override fun leaveConcepts() = Unit
-                override fun openSketch(file: File) { fromConcept = file }
-            },
-        )
+    fun aPictureSketchedIntoAConceptIsHandedOnFromIt() {
+        val sent = mutableListOf<Pair<Handed, Room>>()
+        val handoff = object : Handoff {
+            override fun routes(what: Handed, from: Room) =
+                if (from == Room.CONCEPTS && what is Handed.Picture) listOf(Route(Room.SKETCH, "Continue sketch")) else emptyList()
+            override fun send(what: Handed, to: Room) {
+                sent += what to to
+            }
+        }
+        val concepts = ConceptState(FileLib(config), host, handoff = handoff)
         concepts.setConceptsHomeDir(home)
         concepts.createConcept("Drache")
         val dir = concepts.root!!
-        // Live Sketch saves straight into the concept's folder, then hands the picture over.
+        assertEquals(dir, concepts.folderOf(concepts.concept!!.id), "Live Sketch saves straight into the concept's folder")
         val png = File(dir, "Flügel.png").apply { createNewFile() }
-        val doc = File(dir, "Flügel.sketch.json").apply { writeText("{}") }
         val added = assertNotNull(concepts.addToConcept(concepts.concept!!.id, listOf(png), emptyList()))
         val item = added.filterIsInstance<ImageItem>().single()
+        assertEquals("Flügel.png", item.path, "and the picture is referenced where it is, not copied")
 
-        assertEquals("Flügel.png", item.path, "referenced where it is, not copied")
-        assertEquals(doc, concepts.sketchOf(item))
-        concepts.openSketch(item)
-        assertEquals(doc, fromConcept)
+        assertEquals(listOf(Route(Room.SKETCH, "Continue sketch")), concepts.routes(item), "the ways on are the seam's")
+        concepts.handOff(item, Room.SKETCH)
+        assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(png) to Room.SKETCH), sent)
     }
 
     // ---- The host's services ----

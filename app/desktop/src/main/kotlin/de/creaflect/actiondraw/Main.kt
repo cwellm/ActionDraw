@@ -1,9 +1,11 @@
 package de.creaflect.actiondraw
 
 import androidx.compose.material.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -21,8 +23,11 @@ import de.creaflect.actiondraw.platform.onUiThread
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.sketch.input.PenSources
 import de.creaflect.actiondraw.ui.AtelierTheme
+import de.creaflect.actiondraw.ui.LocalDrawnOnProcessor
+import de.creaflect.actiondraw.ui.RoomTheme
 import de.creaflect.actiondraw.ui.SessionScreen
 import de.creaflect.actiondraw.ui.SummaryScreen
+import org.jetbrains.skiko.GraphicsApi
 
 /**
  * The desktop application: the lib over the person's files, the rooms put together over it with
@@ -48,8 +53,9 @@ fun main() = application {
     val app = rooms.app
     // Roomy enough for a board, small enough to fit a 1080p screen at 125% scaling.
     val windowState = rememberWindowState(size = DpSize(1120.dp, 800.dp))
-    // The main window, so a sketch started from a session's own window can come to the front.
+    // The main window, so a room a session's own window hands a picture to comes to the front.
     val mainWindow = remember { mutableStateOf<java.awt.Window?>(null) }
+    LaunchedEffect(rooms) { rooms.onEntered = { mainWindow.value?.toFront() } }
     // Everything above is built: the lib is loaded.
     LaunchedEffect(run) { run.loaded() }
 
@@ -77,14 +83,16 @@ fun main() = application {
             if (app.screen == Screen.Sketch) rooms.sketch.onEnter(PenSources.forWindow(window)?.let(::onUiThread)) else rooms.sketch.detach()
         }
         LaunchedEffect(Unit) { mainWindow.value = window }
-        App(
-            rooms,
-            isFullscreen = windowState.placement == WindowPlacement.Fullscreen,
-            onToggleFullscreen = { toggleFullscreen(windowState) },
-            setFullscreen = { on ->
-                windowState.placement = if (on) WindowPlacement.Fullscreen else WindowPlacement.Floating
-            },
-        )
+        CompositionLocalProvider(LocalDrawnOnProcessor provides window.drawnOnProcessor) {
+            App(
+                rooms,
+                isFullscreen = windowState.placement == WindowPlacement.Fullscreen,
+                onToggleFullscreen = { toggleFullscreen(windowState) },
+                setFullscreen = { on ->
+                    windowState.placement = if (on) WindowPlacement.Fullscreen else WindowPlacement.Floating
+                },
+            )
+        }
     }
 
     // The reference strip floats above every other application, so a board can sit in the corner
@@ -98,7 +106,7 @@ fun main() = application {
             alwaysOnTop = true,
         ) {
             AtelierTheme(reducedMotion = app.reducedMotion) {
-                Surface { ReferenceStrip(rooms.boards, rooms.lib.pictures) }
+                Surface { RoomTheme(Room.BOARDS) { ReferenceStrip(rooms.boards, rooms.lib.pictures) } }
             }
         }
     }
@@ -116,21 +124,24 @@ fun main() = application {
         ) {
             AtelierTheme(reducedMotion = app.reducedMotion) {
                 Surface {
-                    when (boardWindow) {
-                        PracticePage.Summary -> SummaryScreen(rooms.practice, rooms.pinTargets, rooms.lib.pictures)
-                        else -> SessionScreen(
-                            rooms.practice,
-                            onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
-                            isFullscreen = sessionWindowState.placement == WindowPlacement.Fullscreen,
-                            pinTargets = rooms.pinTargets,
-                            onSketch = { picture ->
-                                rooms.sketchFromSession(picture)
-                                mainWindow.value?.toFront()
-                            },
-                        )
+                    RoomTheme(Room.PRACTICE) {
+                        CompositionLocalProvider(LocalDrawnOnProcessor provides window.drawnOnProcessor) {
+                            when (boardWindow) {
+                                PracticePage.Summary -> SummaryScreen(rooms.practice, rooms.lib.pictures)
+                                else -> SessionScreen(
+                                    rooms.practice,
+                                    onToggleFullscreen = { toggleFullscreen(sessionWindowState) },
+                                    isFullscreen = sessionWindowState.placement == WindowPlacement.Fullscreen,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
 }
+
+/** Whether Skia draws this window on the processor — in software, as over a remote desktop — rather than on the graphics card. */
+private val ComposeWindow.drawnOnProcessor: Boolean
+    get() = renderApi == GraphicsApi.SOFTWARE_FAST || renderApi == GraphicsApi.SOFTWARE_COMPAT

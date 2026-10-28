@@ -7,6 +7,10 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.ProvideAtelier
@@ -120,7 +124,7 @@ class SessionChromeTest {
         rule.onNodeWithTag("settings-close").performClick()
         step()
         rule.onNodeWithTag("settings-lens").assertDoesNotExist()
-        assertEquals(ViewMode.NOTAN, state.viewMode, "the lens stays on")
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode, "the lens stays on")
     }
 
     @Test
@@ -131,19 +135,42 @@ class SessionChromeTest {
         rule.onNodeWithTag("settings-light").assertExists()
         rule.onNodeWithTag("knob-b").performClick()
         step()
-        assertTrue(state.blur)
+        assertTrue(state.lens.blur)
         rule.onNodeWithTag("settings-blur").assertExists()
         rule.onNodeWithTag("settings-light").assertDoesNotExist()
         rule.onNodeWithTag("glass").performClick()
         step()
-        assertTrue(state.glass.inHand)
+        assertTrue(state.lens.glass.inHand)
         rule.onNodeWithTag("settings-glass").assertExists()
         rule.onNodeWithTag("glass-optic-fisheye").performClick()
         step()
-        assertEquals(de.creaflect.actiondraw.ui.Optic.FISHEYE, state.glass.optic)
+        assertEquals(de.creaflect.actiondraw.ui.Optic.FISHEYE, state.lens.glass.optic)
         rule.onNodeWithTag("glass").performClick()
         step()
-        assertFalse(state.glass.inHand)
+        assertFalse(state.lens.glass.inHand)
         rule.onNodeWithTag("settings-glass").assertDoesNotExist()
+    }
+
+    @Test
+    fun thePictureGoesIntoTheOtherRoomsFromTheSideButtons() {
+        val sent = mutableListOf<Pair<Handed, Room>>()
+        val handoff = object : Handoff {
+            override fun routes(what: Handed, from: Room) = listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values"))
+            override fun send(what: Handed, to: Room) {
+                sent += what to to
+            }
+        }
+        val image = BufferedImage(40, 30, BufferedImage.TYPE_INT_RGB)
+        ImageIO.write(image, "png", File(pictures, "pose.png"))
+        val state = PracticeState(FileLib(config), handoff = handoff).also { it.selectFolder(pictures) }
+        state.start()
+        rule.mainClock.autoAdvance = false // a running pose ticks for ever
+        rule.setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
+        rule.mainClock.advanceTimeBy(300)
+        rule.onNodeWithTag("session-sketch").assertExists()
+        rule.onNodeWithTag("session-lens").performClick()
+        rule.mainClock.advanceTimeBy(200)
+        assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(File(pictures, "pose.png")) to Room.LENS), sent, "the picture on screen, into the Lens room")
+        assertTrue(state.isPaused, "the session waiting for it")
     }
 }

@@ -13,14 +13,16 @@ include(":lib:domain")
 include(":lib:data")
 include(":lib:sketch-engine")
 
-// The UI kit: the design system's contract and the default design, the atelier, and the features —
-// one per room, none knowing another.
+// The UI kit: the design system's contract and the default design, the atelier; the lens kit that
+// every room showing a picture shares; and the features — one per room, none knowing another.
 include(":lib:design:contract")
 include(":lib:design:atelier")
+include(":lib:lens")
 include(":lib:feature:practice")
 include(":lib:feature:board")
 include(":lib:feature:concept")
 include(":lib:feature:sketch")
+include(":lib:feature:lens")
 
 // device — the hardware the apps talk to natively.
 include(":device:pen")

@@ -4,6 +4,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
+import de.creaflect.actiondraw.GlassSetting
+import de.creaflect.actiondraw.Preferences
 import org.jetbrains.skia.FilterMipmap
 import org.jetbrains.skia.FilterMode
 import org.jetbrains.skia.FilterTileMode
@@ -51,7 +53,16 @@ enum class Optic(val label: String) {
 /** Where the glass was set down: on [picture], at a point given as fractions of its width and height, [magnification] times larger than the whole picture is shown. */
 data class GlassFocus(val picture: File?, val x: Float, val y: Float, val magnification: Float)
 
-/** The glass and what it is doing; it lives as long as the app, so the optic is kept between sessions. */
+/**
+ * The glass laid over the whole picture: its optic bends all of it, no larger, about ([x], [y]) —
+ * fractions of the picture's size, so the same point of any picture.
+ */
+data class GlassSpread(val x: Float, val y: Float)
+
+/**
+ * The glass and what it is doing. It lives as long as the lens it belongs to, so the optic carries
+ * over from picture to picture; kept in the preferences ([keptIn]), it is the same in the next run.
+ */
 class GlassState {
     /** The glass is taken up: it follows the pointer over the picture. */
     var inHand by mutableStateOf(false)
@@ -68,14 +79,31 @@ class GlassState {
     var focus by mutableStateOf<GlassFocus?>(null)
         private set
 
+    /** Laid over the whole picture, if it is: where its optic bends the picture about. */
+    var spread by mutableStateOf<GlassSpread?>(null)
+        private set
+
+    /** How much the optic bends laid over the whole picture: from [MIN_BEND], barely, to 1, as the glass does. */
+    var bend by mutableStateOf(1f)
+        private set
+
+    /** Told when the glass is settled — an optic chosen, or the glass put away: when it is worth keeping. */
+    var onSettle: (() -> Unit)? = null
+
+    /** Told when the glass is taken up, however: a form the picture is on gives way to it. */
+    var onTakeUp: (() -> Unit)? = null
+
     fun takeUp() {
         inHand = true
+        onTakeUp?.invoke()
     }
 
-    /** Puts the glass away — and so whatever it was set down on goes back to the whole picture. */
+    /** Puts the glass away — and so whatever it was set down on, or laid over, is seen as it is again. */
     fun putAway() {
         inHand = false
         focus = null
+        spread = null
+        onSettle?.invoke()
     }
 
     fun toggle() = if (inHand) putAway() else takeUp()
@@ -83,6 +111,8 @@ class GlassState {
     fun choose(optic: Optic) {
         this.optic = optic
         inHand = true
+        onTakeUp?.invoke()
+        onSettle?.invoke()
     }
 
     fun nextOptic() = choose(Optic.entries[(optic.ordinal + 1) % Optic.entries.size])
@@ -96,15 +126,57 @@ class GlassState {
     /** A step of the wheel or the + − keys: [steps] up or down by an eighth or so. */
     fun magnifyBy(steps: Float) = magnify(magnification * STEP.pow(steps))
 
-    fun resizeBy(steps: Float) {
-        radius = (radius * STEP.pow(steps)).coerceIn(MIN_RADIUS, MAX_RADIUS)
+    /** How large the glass is: its radius in dp. */
+    fun resize(r: Float) {
+        radius = r.coerceIn(MIN_RADIUS, MAX_RADIUS)
     }
+
+    /** A step of Shift+wheel: [steps] larger or smaller by an eighth or so. */
+    fun resizeBy(steps: Float) = resize(radius * STEP.pow(steps))
 
     /** Sets the glass down on [picture] at ([x], [y]), fractions of its size; that part fills the view. */
     fun setDown(picture: File?, x: Float, y: Float, magnification: Float = this.magnification) {
         inHand = true
+        onTakeUp?.invoke()
+        spread = null
         this.magnification = magnification.coerceIn(MIN_MAGNIFICATION, MAX_MAGNIFICATION)
         focus = GlassFocus(picture, x.coerceIn(0f, 1f), y.coerceIn(0f, 1f), this.magnification)
+    }
+
+    /**
+     * Lays the glass over the whole picture, its centre at ([x], [y]) — fractions of the picture's
+     * size, the middle unless said: its optic bends all of the picture about that point, and makes
+     * none of it larger. Laid there again, it moves.
+     */
+    fun spreadOver(x: Float = 0.5f, y: Float = 0.5f) {
+        inHand = true
+        onTakeUp?.invoke()
+        focus = null
+        spread = GlassSpread(x.coerceIn(0f, 1f), y.coerceIn(0f, 1f))
+    }
+
+    /** Takes the glass off the whole picture, back into the hand. */
+    fun gather() {
+        spread = null
+    }
+
+    /** W: laid over the whole picture, or back into the hand. */
+    fun toggleSpread() = if (spread != null) gather() else spreadOver()
+
+    /** How much the glass bends laid over the whole picture. */
+    fun bendTo(b: Float) {
+        bend = b.coerceIn(MIN_BEND, 1f)
+    }
+
+    /** A step of the wheel over the whole picture: [steps] tenths more or less. */
+    fun bendBy(steps: Float) = bendTo(bend + steps * 0.1f)
+
+    /** Lays this glass over the whole picture as [other] lies there — its optic, its centre, its bend — or not at all. */
+    fun spreadLike(other: GlassState) {
+        val laid = other.spread ?: return
+        optic = other.optic
+        bend = other.bend
+        spreadOver(laid.x, laid.y)
     }
 
     /** Slides the glass over the picture while it is down, by fractions of the picture's size. */
@@ -121,6 +193,17 @@ class GlassState {
     /** Where the glass is down on [picture] — none on another picture: a new pose starts whole. */
     fun focusOn(picture: File?): GlassFocus? = focus?.takeIf { it.picture == picture }
 
+    /** The glass as it is kept between runs. */
+    fun setting(): GlassSetting = GlassSetting(optic.name, magnification, radius, bend)
+
+    /** Takes up what was kept — the optic, the magnification, the size, the bend — neither in hand nor down. */
+    fun restore(setting: GlassSetting) {
+        Optic.entries.firstOrNull { it.name == setting.optic }?.let { optic = it }
+        magnification = setting.magnification.coerceIn(MIN_MAGNIFICATION, MAX_MAGNIFICATION)
+        radius = setting.radius.coerceIn(MIN_RADIUS, MAX_RADIUS)
+        bend = setting.bend.coerceIn(MIN_BEND, 1f)
+    }
+
     companion object {
         const val MIN_MAGNIFICATION = 1.25f
         const val MAX_MAGNIFICATION = 12f
@@ -128,8 +211,15 @@ class GlassState {
         const val MIN_RADIUS = 50f
         const val MAX_RADIUS = 260f
         const val DEFAULT_RADIUS = 110f
+        const val MIN_BEND = 0.1f
         private const val STEP = 1.15f
     }
+}
+
+/** The glass as [preferences] kept it, and kept there again whenever it is settled. */
+fun GlassState.keptIn(preferences: Preferences): GlassState = apply {
+    preferences.glass()?.let(::restore)
+    onSettle = { preferences.setGlass(setting()) }
 }
 
 // ---------------- The optics ----------------
@@ -205,6 +295,23 @@ fun opticSource(optic: Optic, dx: Float, dy: Float, radius: Float, zoom: Float, 
         }
     }
     return Offset(mix(dx, bx, strength) * zoom, mix(dy, by, strength) * zoom)
+}
+
+/**
+ * How far a glass laid over the whole picture looks out, so the far rim of its reach stays where
+ * it is: one over what [optic], bending [strength] of its way, does at its rim. Without it a convex
+ * glass would draw the picture's farthest corner in from beyond the picture; with it, the corner
+ * stays the corner and the bending happens inside. A glass rod bends one way only, and a prism
+ * bends no picture at all: they look out as far as they are.
+ */
+fun spreadZoom(optic: Optic, strength: Float): Float {
+    val rim = when (optic) {
+        Optic.CONVEX -> 1.3f
+        Optic.CONCAVE -> 0.85f
+        Optic.FISHEYE -> 1.8f
+        Optic.PLAIN, Optic.CYLINDER, Optic.PRISM -> 1f
+    }
+    return 1f / (1f + (rim - 1f) * strength)
 }
 
 /** The sampling for a picture seen larger or smaller: mipmaps when shrunk, smooth when enlarged. */

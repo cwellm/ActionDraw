@@ -121,7 +121,7 @@ class SubBoardTest {
         assertFalse(child.exists(), "the nested folder went with its parent")
         val fresh = newState()
         assertNull(fresh.entryFor(child), "and its record went too, rather than lingering")
-        assertTrue(fresh.availableBoards().isEmpty())
+        assertTrue(fresh.available().isEmpty())
     }
 
     @Test

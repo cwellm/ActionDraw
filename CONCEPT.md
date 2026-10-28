@@ -53,7 +53,7 @@ pigment of its own. It marks the room's things and nothing else (see *Colour is 
 | **Boards** | Ultramarine | Collect: the mood board, with pictures, notes, links, groups and frames, on cork, papyrus or plain | ✅ M1–M5 |
 | **Concepts** | Viridian | Keep: a creature, a place, a character, collected once and linked onto every board that needs it | ✅ M7 |
 | **Practice** | Cadmium orange | Train: timed poses, filtered studies, memory drawing, and the new *Flicker*, *Staged* and *Compare* exercises | ✅ M0, M+ (new exercises open) |
-| **Lens** | Payne's grey | See: any picture through notan, edge, squint, mirror or upside down, with no session around it | ⬜ new; filters exist inside sessions |
+| **Lens** | Payne's grey | See: any picture through notan, edge, squint, mirror or upside down, with no session around it | ✅ F10.1 |
 | **Sketch** | Madder rose | Draw: the drawing board with real-feeling leads, paper tooth, and a picture laid underneath to compare | ✅ M6 (the underlay is new) |
 | **Collage** | Naples yellow | Compose: scissors on a cutting mat. Cut pictures and concepts apart and test whether a scene holds | ⬜ new |
 
@@ -68,18 +68,22 @@ material to the others in one step:
 | From | To | Hand-off | Today |
 |---|---|---|---|
 | Board selection or group | Practice | *Draw from this board / these* | ✅ |
-| Practice (a pose) | Sketch | *Sketch* pauses the session; the picture comes along | ✅ (corner reference; underlay new) |
-| Board card / concept | Sketch | *Continue in Live Sketch*; new: *Sketch over* with the card as underlay | ✅ / ⬜ |
+| Practice (a pose) | Sketch, Lens | *Sketch* / *Check the values* pause the session; the picture comes along | ✅ (corner reference; underlay new) |
+| Board card / concept | Sketch | *Sketch over* — *Continue sketch* for a picture Live Sketch saved; new: with the card as underlay | ✅ / ⬜ |
 | Sketch | Board / Concept | *To a board* / *To a concept* | ✅ |
 | Practice | Board | *Pin* | ✅ |
 | Board / Concept | Collage | *To a collage*; the Collage's source drawer lists boards and concepts | ⬜ |
 | Collage | Sketch | *Sketch over it*: the composition becomes the underlay | ⬜ |
-| Collage, Board, Sketch | Lens | *Check the values*: the current picture seen through a lens | ⬜ |
+| Collage, Board, Concept, Sketch | Lens | *Check the values*: the current picture seen through a lens | ✅ board, concept, sketch / ⬜ collage |
+| Lens | Sketch | *Sketch over*: the picture looked at, beside the page | ✅ |
 | Anything | Compare | Your drawing laid over its reference | ⬜ (F+.3) |
 
 The rule that makes this readable: **a button that leads into another room carries that room's
 dab of pigment.** *Draw from this board* has a cadmium dab, *To a board* an ultramarine one. You
-can see where a button goes before you read it.
+can see where a button goes before you read it. Every such button is one route of the same seam
+(F10.7): a room that starts taking pictures — Collage, next — appears on every one of them at once,
+and Back from it returns the way the picture came. And inside a room, what is chosen wears that
+room's pigment, down to Material's own chips and sliders.
 
 ## The design language: the atelier
 
@@ -188,14 +192,20 @@ exercise*, *Open Drachenbuch* or *New sketch*.
   cuts straight. On the right is a pieces list (top to bottom); at the bottom, a source drawer for
   boards and concepts. *Check the values* sends the composition to the Lens, and *Sketch over it*
   sends it to Sketch as the underlay.
-- **Lens** (designed in the Practice session's tray; no screen of its own yet). Open any picture
-  (a file, the clipboard, a board card, the current collage) and look at it through the same
-  tray, with no clock running. It is the vision's "schnelle Filter zum Ausprobieren".
+- **Lens** (F10.1). Open any picture (a file, the clipboard, a board card, a sketch's page, the
+  current collage) and look at it through the same tray as a session's, with no clock running —
+  alone, beside the original, or through two lenses at once — and keep what you saw as a picture
+  or pin it to a board beside its original. It is the vision's "schnelle Filter zum Ausprobieren".
   And a real lens: **the glass**, a reading glass held over the picture — plain, or bending what
   it shows (convex, concave, fisheye, a glass rod, a prism) — and set down on a part, which then
-  fills the view, the whole picture one click back in the corner. Drawing what the glass shows
-  rather than what one knows is there. It lives in the session for now (F10.9) and comes into the
-  Lens room with it.
+  fills the view, the whole picture one click back in the corner — or laid over the whole picture,
+  bending all of it about a point you place anywhere. Drawing what the glass shows rather than
+  what one knows is there. It is the same glass in a session and in the Lens room
+  (F10.9), and it is kept as it was left. And **forms** (F10.10): the picture wrapped round a
+  sphere, a can, a cone or a ring, laid on a page tilted away, or reflected in a chrome ball —
+  turned under the hand and lit by the lamp, to see how a flat picture bends over form. A block is
+  shaped on its sliders into the thing being drawn, from ball to box to spinning top (F10.11); a
+  relief raises the page by a picture's values, its own or another's — cloth over a knee (F10.12).
 
 ## What stays true
 

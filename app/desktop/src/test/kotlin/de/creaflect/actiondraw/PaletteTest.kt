@@ -22,7 +22,6 @@ import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.ui.AtelierTheme
 import de.creaflect.actiondraw.ui.PALETTE_ORDER
 import de.creaflect.actiondraw.ui.PaletteScreen
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.paletteStep
 import de.creaflect.actiondraw.ui.stepRoom
 import org.junit.After
@@ -85,12 +84,20 @@ class PaletteTest {
 
         shell.open(Room.SKETCH)
         assertEquals(Screen.Sketch, app.screen)
-        assertEquals(Screen.Palette, app.sketchOrigin, "Back from the sketch leads home")
-        app.leaveSketch()
+        assertEquals(Screen.Palette, app.originOf(Screen.Sketch), "Back from the sketch leads home")
+        app.back(Screen.Sketch)
 
         shell.open(Room.CONCEPTS)
         assertEquals(Screen.Concepts, app.screen)
         shell.concepts.leaveList()
+
+        // The Lens room, with nothing to look at yet; once it has a picture, the well says which.
+        assertEquals("Open a picture", paletteWells(null, false).single { it.room == Room.LENS }.action)
+        shell.open(Room.LENS)
+        assertEquals(Screen.Lens, app.screen)
+        assertEquals(Screen.Palette, app.originOf(Screen.Lens), "Back from the Lens room leads home")
+        app.back(Screen.Lens)
+        assertEquals("Look at pose", paletteWells(null, false, lensPicture = "pose").single { it.room == Room.LENS }.action)
 
         // No board opened yet: the list.
         shell.open(Room.BOARDS)
@@ -109,7 +116,6 @@ class PaletteTest {
 
         // A dry well does nothing.
         shell.boards.closeBoard()
-        shell.open(Room.LENS)
         shell.open(Room.COLLAGE)
         assertEquals(Screen.Palette, app.screen)
     }
@@ -140,28 +146,49 @@ class PaletteTest {
         assertEquals(Screen.Palette, app.screen, "the concept list")
 
         // Live Sketch's Esc goes back where it came from — home, when it came from home.
-        app.showSketch(from = Screen.Palette)
-        app.leaveSketch()
+        app.enter(Screen.Sketch, from = Screen.Palette)
+        app.back(Screen.Sketch)
         assertEquals(Screen.Palette, app.screen, "a sketch begun on the palette")
     }
 
     @Test
-    fun homeFromASketchDoesNotLeaveAPausedSessionBehind() {
+    fun homeFromARoomDoesNotLeaveAPausedSessionBehind() {
         val app = Shell().app
-        app.showSketch(from = Screen.Board)
-        app.sketchHome()
+        app.enter(Screen.Sketch, from = Screen.Board)
+        app.home(Screen.Sketch)
         assertEquals(Screen.Palette, app.screen)
 
-        app.showSketch(from = Screen.Practice)
-        app.sketchHome()
+        app.enter(Screen.Sketch, from = Screen.Practice)
+        app.home(Screen.Sketch)
         assertEquals(Screen.Practice, app.screen, "a sketch made from a pose returns to the pose")
+
+        app.enter(Screen.Lens, from = Screen.Practice)
+        app.home(Screen.Lens)
+        assertEquals(Screen.Practice, app.screen, "and so does a pose's picture checked in the Lens room")
+    }
+
+    @Test
+    fun backRetracesTheWayThroughEveryRoomEntered() {
+        val app = Shell().app
+        app.showBoard()
+        app.enter(Screen.Lens)
+        app.enter(Screen.Sketch)
+        assertEquals(Screen.Lens, app.originOf(Screen.Sketch))
+        app.back(Screen.Sketch)
+        assertEquals(Screen.Lens, app.screen, "from the sketch back to the Lens room")
+        app.back(Screen.Lens)
+        assertEquals(Screen.Board, app.screen, "and from there back to the board")
+        app.enter(Screen.Lens)
+        app.enter(Screen.Lens, from = Screen.Sketch)
+        assertEquals(Screen.Board, app.originOf(Screen.Lens), "entering where it is keeps the way back it had")
     }
 
     @Test
     fun theKeysTurnThePalettePastTheDryWells() {
         val wells = paletteWells(lastBoard = null, sketchOpen = false)
         assertEquals(PALETTE_ORDER, wells.map { it.room }, "the wells are listed in their order round the rim")
-        assertEquals(Room.SKETCH, stepRoom(wells, Room.PRACTICE, 1), "Lens is dry")
+        assertEquals(Room.LENS, stepRoom(wells, Room.PRACTICE, 1), "Lens is a room now")
+        assertEquals(Room.SKETCH, stepRoom(wells, Room.LENS, 1))
         assertEquals(Room.CONCEPTS, stepRoom(wells, Room.SKETCH, 1), "Collage is dry")
         assertEquals(Room.PRACTICE, stepRoom(wells, Room.BOARDS, 1), "round the rim")
         assertEquals(Room.BOARDS, stepRoom(wells, Room.PRACTICE, -1))
@@ -183,7 +210,7 @@ class PaletteTest {
         }
         rule.waitForIdle()
         for (room in PALETTE_ORDER) rule.onNodeWithTag("well-${room.name.lowercase()}").assertIsDisplayed()
-        rule.onNodeWithTag("well-lens").assertIsNotEnabled()
+        rule.onNodeWithTag("well-lens").assertIsEnabled()
         rule.onNodeWithTag("well-collage").assertIsNotEnabled()
         rule.onNodeWithTag("well-sketch").assertIsEnabled()
 
@@ -195,7 +222,7 @@ class PaletteTest {
         assertEquals(emptyList(), opened)
 
         // A dry well cannot be chosen.
-        rule.onNodeWithTag("well-lens").performClick()
+        rule.onNodeWithTag("well-collage").performClick()
         rule.waitForIdle()
         assertEquals(emptyList(), opened)
 

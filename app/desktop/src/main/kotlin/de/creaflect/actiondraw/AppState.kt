@@ -4,7 +4,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import de.creaflect.actiondraw.platform.HostPreferences
-import de.creaflect.actiondraw.ui.Room
 
 /**
  * Where the app is: the palette, its home, or one of the rooms (its [screen]), the well selected
@@ -78,38 +77,39 @@ class AppState(private val lib: Lib, host: HostPreferences = HostPreferences { f
         screen = Screen.Palette
     }
 
-    // ---- Live Sketch ----
+    // ---- Into a room and back (the hand-off seam, the palette) ----
 
-    /** Where Back from Live Sketch goes: the palette, a paused session, a board, a concept. */
-    var sketchOrigin by mutableStateOf(Screen.Palette)
-        private set
+    /** Where Back from each room entered so goes: the palette, a board, a sketch, a paused session. */
+    private val origins = mutableMapOf<Screen, Screen>()
 
-    fun showSketch(from: Screen = Screen.Palette) {
-        if (screen != Screen.Sketch) sketchOrigin = if (from == Screen.Sketch) Screen.Palette else from
-        screen = Screen.Sketch
+    /** Where Back from [screen] goes. */
+    fun originOf(screen: Screen): Screen = origins[screen] ?: Screen.Palette
+
+    /**
+     * Into [to], remembering where Back there leads: [from] — where the app is, unless said
+     * otherwise. Already there, it keeps the way back it had.
+     */
+    fun enter(to: Screen, from: Screen = screen) {
+        if (screen != to) origins[to] = if (from == to) Screen.Palette else from
+        screen = to
+    }
+
+    /** Back from [from]: to where it was entered from. */
+    fun back(from: Screen) {
+        screen = originOf(from)
+        origins.remove(from)
     }
 
     /**
-     * Home from Live Sketch. A session paused for the sketch is not left behind: then home means
-     * back to that session, as Back does.
+     * Home from [from]: the palette. A session paused for this room is not left behind: then home
+     * means back to that session, as Back does.
      */
-    fun sketchHome() {
-        if (sketchOrigin == Screen.Practice) leaveSketch() else {
-            sketchOrigin = Screen.Palette
+    fun home(from: Screen) {
+        if (originOf(from) == Screen.Practice) {
+            back(from)
+        } else {
+            origins.remove(from)
             screen = Screen.Palette
         }
-    }
-
-    /**
-     * From a session: the sketch takes the main window, and Back returns to where it was — the
-     * Practice room, or the board whose session waits, paused, in its own window.
-     */
-    fun sketchFromSession() {
-        showSketch(from = screen)
-    }
-
-    fun leaveSketch() {
-        screen = sketchOrigin
-        sketchOrigin = Screen.Palette
     }
 }

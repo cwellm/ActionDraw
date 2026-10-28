@@ -70,4 +70,15 @@ interface Preferences {
     fun leadPresetsJson(): String?
 
     fun setLeadPresetsJson(json: String)
+
+    /** The glass as it was last settled — chosen or put away — or null until it first was. */
+    fun glass(): GlassSetting?
+
+    fun setGlass(setting: GlassSetting)
 }
+
+/**
+ * The glass held over a picture, as it is kept between runs: its optic by name, how much larger it
+ * shows, its radius in dp, and how much it bends laid over the whole picture.
+ */
+data class GlassSetting(val optic: String, val magnification: Float, val radius: Float, val bend: Float = 1f)

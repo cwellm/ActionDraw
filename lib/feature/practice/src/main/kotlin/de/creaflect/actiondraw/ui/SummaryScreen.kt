@@ -40,7 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.creaflect.actiondraw.PinTargets
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.practice.PracticeState
 import kotlinx.coroutines.Dispatchers
@@ -53,7 +53,7 @@ import java.io.File
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun SummaryScreen(state: PracticeState, pinTargets: PinTargets? = null, thumbs: Pictures? = null) {
+fun SummaryScreen(state: PracticeState, thumbs: Pictures? = null) {
     val fromBoard = state.sessionFromBoard
     Box(Modifier.fillMaxSize().grain().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(
@@ -98,19 +98,19 @@ fun SummaryScreen(state: PracticeState, pinTargets: PinTargets? = null, thumbs: 
                 }
                 if (flagged.size > 8) Text("and ${flagged.size - 8} more", fontSize = 12.sp, color = Design.colors.muted)
             }
-            if (pinTargets != null && flagged.isNotEmpty()) {
+            if (flagged.isNotEmpty()) {
                 var open by remember { mutableStateOf(false) }
                 Box {
                     CrossRoomButton(Room.BOARDS, "Pin ${flagged.size} flagged to a board ▾", Modifier.testTag("summary-pin")) { open = true }
                     DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                        val boards = pinTargets.boards()
+                        val boards = state.boards()
                         if (boards.isEmpty()) {
                             DropdownMenuItem(onClick = { open = false }) { Text("No boards yet") }
                         }
                         boards.forEach { (name, dir) ->
                             DropdownMenuItem(onClick = {
                                 open = false
-                                state.pinNotice = pinTargets.pin(dir, flagged)
+                                state.pin(dir, flagged)
                             }) { Text(name) }
                         }
                     }

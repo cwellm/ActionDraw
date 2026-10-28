@@ -568,7 +568,7 @@ findings as they come in [LEARNINGS.md](LEARNINGS.md). A page, a pencil, a colou
 
 ---
 
-## 🔄 M7 — Concepts
+## ✅ M7 — Concepts
 
 Ideation: [docs/Concepts-Ideation.md](docs/Concepts-Ideation.md) (§8 records what was built and
 the answers taken to its open questions). A thing that lives once and is linked onto many boards.
@@ -607,8 +607,8 @@ the answers taken to its open questions). A thing that lives once and is linked 
 - ✅ Deleting a concept names the boards it is linked on and takes it off them first
 - ✅ Covered by `ConceptTest` (14) and `ConceptLinkTest` (15); eleven guards checked by breaking them
 
-### 🔄 F8.4 Sketches and per-board opinions
-- ⬜ Live Sketch saves into a concept (needs M6)
+### ✅ F8.4 Sketches and per-board opinions
+- ✅ Live Sketch saves into a concept (with M6; through the domain's `ConceptSource` since F11.12)
 - ✅ Stars, tags and place of a borrowed card live on the board (matched by the card's id; the
   content id is carried along for recovery)
 - ✅ Practice memory of a borrowed card is the board's, keyed the way a session started there
@@ -914,19 +914,58 @@ What the design canvas shows and the first pass left out, gathered by laying the
 
 ---
 
-## ⬜ M9 — Shaping the features
+## 🔄 M9 — Shaping the features
 
 What the vision names and the app does not do yet, or does only halfway. Feature level on purpose;
 tasks are broken out when M9 becomes active. Shapes: [CONCEPT.md](CONCEPT.md) (*The rooms, one by
 one*, *How the rooms hand things over*) and the design canvas.
 
-### ⬜ F10.1 Lens — filters without a session
-- A picture from a file, the clipboard, a board card or the current collage, seen through the
-  session's lens tray (all nine view modes, every adjustment, the grids) with no clock running
-- Side by side: the picture and its lensed view, or two lenses at once (Notan beside Edge)
-- Save the lensed view as a PNG, or pin it to a board beside its original
-- `Filters.kt` and the shaders as they are; one `LensState` that the session uses too, so tray and
-  keys are one code path
+### ✅ F10.1 Lens — filters without a session
+- ✅ The Lens room, `:lib:feature:lens`, in Payne's grey: a picture from a file, the clipboard, a
+  board's card (*Check the values* on its ring and in its menu) or a sketch's page (*Check the
+  values* in Sketch's header), seen through the lens tray — all nine view modes, every adjustment,
+  the grids, the glass — with no clock running. Back returns to the board or the sketch it came
+  from; with nothing open, the room invites a picture in; the palette's well opens it, or says what
+  it is looking at. From the current collage once there is one (F10.6)
+- ✅ Side by side: alone, beside the original, or two lenses at once — the second starts as Edge
+  (Notan, where the first is Edge) until it is turned; a click on a side's name, or Tab, chooses
+  the lens the tray and the keys work
+- ✅ Save the view as a PNG where the person chooses, or pin it to a board beside its original —
+  both pinned at once, so they land together. The view is drawn off screen by the same `LensView`
+  the screen draws with (`lensedPng`, through an `ImageComposeScene`), whole and at the picture's
+  own size; the lens's sizes in pixels and the blur grow with it, so it looks as it did on screen,
+  and the grid and the glass stay behind. New in the domain: `Pictures.writePng`
+- ✅ The lens kit, `:lib:lens`, below the rooms: `Filters.kt` and the shaders as they were, the
+  glass, the grids; out of the session the tray and the settings above it (`LensControls`, for the
+  session and the room alike), the picture (`LensView`) and the lens's keys (`handleLensKey`,
+  `LensHotkeys`) — all over one `LensState`, so tray and keys are one code path. The tray and
+  Material's controls are lit in the pigment of the room they lie in; a memory pose's veil stands
+  in the picture's place through the view (`veil`), and Esc asks the lens first
+  (`LensState.stepBack`)
+- ✅ The session keeps its own keys and hands the rest to the lens's; a board's setup is the
+  session's lens and comes back out of it
+- ✅ Tests: `LensKeysTest`, `LensStateTest`, `LensViewTest`, `LensExportTest` (the picture's own
+  size, a pixelate's blocks grown with it, the grid and the glass left out), `LensRoomStateTest`,
+  `LensRoomKeysTest`, `LensRoomScreenTest` (opened, laid out, saved and pinned for real),
+  `RoomsTest` (a card and a sketch into the room and Back out again, a view pinned), the ring's new
+  button, and the room in `RoomScreenshotTest`. Broken on purpose and seen red after a no-op
+  control stayed green: in the kit, 17 guards (the session handing its other keys to the lens, Esc
+  asking the lens first, the keys 9 and G, stepping back from the glass, the picture through its
+  lens, invert, the veil keeping the picture and the glass out, the tray's pigment, a board's setup
+  in and out of the session's lens, the menu's starting lens and the lens exercise, the session's
+  tray, picture and memory veil on the session's own lens); in the room, 29 guards (the view saved at the screen's pixel sizes and without the grid, the glass kept and taken up again, the room's tray and Material's controls in its own pigment, the view drawn and the original beside it, where a view is saved and what is pinned, two lenses different, the tray on the lens chosen, a pasted picture, Tab, Esc, the lens keys only with a picture, a card's and a sketch's way in, Back, the pin through the app, the palette's well, the session's glass, a PNG written beside another, the optic kept); and
+  the build refuses the kit the Practice room, the default design and the files
+- ✅ The header in a narrow window (2026-10-28): every action out, all of them in one row, needed
+  960 dp — at the width the app opens, the picture's name was squeezed to nothing, and at 720 dp the
+  labels were cut. Now the header measures, rather than guesses, which of four arrangements fits
+  (`FirstThatFits`), keeping 120 dp for the picture's name: all out; as wide as the app opens,
+  *Open ▾* (open, paste); narrower, *Picture ▾* (open, paste, save, pin to each board) and the
+  layout's menu (*Two lenses ▾*); narrowest, everything under *More ▾* but Back. The layouts' chips
+  read *Alone · Beside · Two lenses*. The arrangements only measured are kept out of the
+  semantics, so what a test or a screen reader finds is what is shown. Tested in
+  `LensRoomScreenTest` at 1400, 1120, 1000, 720 and 480 dp — each action reached through its menu,
+  the way back inside the window, the name keeping its room — and in `RoomScreenshotTest` at
+  720 dp. Broken on purpose and seen red after a no-op control stayed green: 11 guards — the header never folding, no room kept for the name, the arrangements only measured found too, the semantics not following the fold, no fold at the width the app opens, no More at the narrowest; Open, a pin, the layout and the way on under their menus doing nothing, and the layout's menu named for none
 
 ### ⬜ F10.2 Flicker (Wechselzeichnung)
 - Two or more pictures trade places at an interval (1 s by default, 0.25–5 s), as a hard cut or a
@@ -968,15 +1007,34 @@ one*, *How the rooms hand things over*) and the design canvas.
 - Skia clip paths over cached images; the cut outline is the hit-tested path — the board's rule
   again
 
-### ⬜ F10.7 One seam for hand-offs
-- A `Handoff`, as `BoardHost` is for the board: each room says what it can send (a picture, a
-  selection, a document) and what it takes; the ring menu and every `CrossRoomButton` ask it, so a
-  new room joins every route at once
-- Back returns to where a hand-off came from, as *Sketch* from a session does today
+### ✅ F10.7 One seam for hand-offs
+- ✅ The hand-off seam in the domain: `Handed` (a picture on disk, or a page drawn as PNG when it
+  is taken), `Route` (the room, and what its button says), `Receiver` (a room that takes things:
+  what taking one is called there, and taking it) and `Handoff` (the routes there are, and sending
+  along one). `Rooms` builds it from the rooms that take pictures — Sketch (*Sketch over*, or
+  *Continue sketch* for a picture Live Sketch saved) and the Lens (*Check the values*, a file or a
+  page) — so a new room joins every route at once
+- ✅ Every way into another room asks it: the board's ring and card menu, a concept's picture, a
+  pose's side buttons, Sketch's header, the Lens's header. New routes it gave for free: a pose's
+  picture into the Lens, a concept's picture into Sketch and the Lens, the Lens's picture into
+  Sketch. `BoardHost`, `ConceptHost` and `SketchHost` lose their hand-offs; `Rooms.sketchFromSession`
+  goes
+- ✅ Back returns to where a hand-off came from, through every room on the way: `AppState.enter`,
+  `back` and `home` keep one origin per room (Sketch's and the Lens's own origins gave way), and
+  home from a room entered from a paused session is that session
+- ✅ What a board sends a session (*Draw these*: a pool, a folder for its memory, a setup) stays
+  `BoardHost`'s: one room, one window of its own
+- ✅ Tested: `RoomsTest` (which room takes what, a picture from the board into the Lens and on into
+  Sketch with Back through both, a pose's picture into Sketch with the session waiting), the
+  rooms' own hand-off tests (`SketchCardTest`, `ConceptTest`, `PracticeStateTest`,
+  `SketchStateTest`, `LensRoomStateTest`), `RingMenuTest`, `PaletteTest` (Back retracing the way,
+  home to a waiting session)
 
-### ⬜ F10.8 Concepts across the rooms
-- A concept's pictures as a Practice source — a warm-up on the thing you are about to draw
-- A concept as a Collage source and as a Sketch underlay
+### 🔄 F10.8 Concepts across the rooms
+- ✅ A concept's picture into Sketch (over it, or on with its sketch) and into the Lens, along the
+  hand-off seam (F10.7)
+- ⬜ A concept's pictures as a Practice source — a warm-up on the thing you are about to draw
+- ⬜ A concept as a Collage source and as a Sketch underlay
 - F8.4's open question settled: does practice on a concept's picture belong to the concept or to
   the board
 
@@ -1006,8 +1064,98 @@ one*, *How the rooms hand things over*) and the design canvas.
   dragged out, mirrored, lifted by the print and by a right click), `SessionKeysTest` (+2). Caught
   on the way: the print's click lifted the glass and the same release, passing on to the picture,
   set it straight down again. Seven guards broken on purpose and seen red
-- ⬜ The glass in the Lens room (F10.1), on a board's large view, and in Sketch over the reference
-- ⬜ Kept between runs (the optic and the magnification are kept only while the app runs)
+- 🔄 The glass in the Lens room ✅ (F10.1); on a board's large view and in Sketch over the
+  reference ⬜
+- ✅ Kept between runs: the optic, the magnification and the size, as they were when the glass
+  was last settled — an optic chosen, or the glass put away (`GlassState.keptIn`,
+  `Preferences.glass`) — in a session and in the Lens room alike
+- ✅ Its size in its settings, beside the magnification (Shift+wheel as before), the person's wish
+  after trying the Lens room
+- ✅ **Over the whole picture** (`W`, or *Over the whole picture* in its settings): the optic bends
+  all of the picture about a centre a click or a drag moves — anywhere, not only the middle — and
+  makes none of it larger. Its reach is the picture's farthest corner, which stays the corner
+  (`spreadZoom`: the optic's rim brought back to itself), so the bending happens inside the
+  picture. The wheel bends it more or less (*Bend*, 10–100 %, kept between runs); Esc or a right
+  click takes it back into the hand. A ring and a dot mark the centre on screen; a saved view keeps
+  the bending and leaves the mark — and the grid, the glass in hand — behind (`LensView(marks =
+  false)`). In a session and in the Lens room alike
+- ✅ Tested: `GlassTest` (laid over, moved, set down, gathered, put away; its size and bend in their
+  limits and kept; the far rim kept for every optic and bend), `LensStateTest` (Esc gathers first;
+  a saved view takes it along), `LensKeysTest` (`W`), `LensViewTest` (the picture bent about the
+  middle, a drag moving the centre, a right click; the settings), `LensExportTest` (saved with the
+  view, without its mark), `FileLibTest` (the bend kept), and the Lens room's screenshots. Broken on
+  purpose and seen red after a no-op control stayed green: 21 guards — laid over the whole in hand, off any part, given up when set down or put away, its centre on the picture; the size and the bend in their limits and kept, in the glass and on disk; the far rim kept, and the bend softening it; the picture bent, a drag moving the centre, a right click and Esc gathering it; a saved view taking it along and leaving the mark and the grid; W; the settings' size and placing
+
+### ✅ F10.10 Forms — the picture on a surface
+The person's wish after the glass (2026-10-27): projections onto a sphere and other figures, one
+day one's own. This is step 1; the rest — forms with sliders, a relief, one's own surfaces and
+models, panoramas, light speed, diffraction — waits in [IDEAS.md](IDEAS.md).
+- ✅ The picture on a form, in the lens kit beside the glass (`Form`, `FormState`): a sphere
+  (wrapped once round), a cylinder (as tall as the picture is for its width), a cone, a torus
+  (along the ring and round its tube), a plane tilted away (foreshortened, in the picture's
+  proportions) and a chrome ball (the picture as the world all round, reflected, the lamp shining
+  in it and its rim darker)
+- ✅ Turned by a drag, as a globe under the hand — mirrored or upside down as it is seen — and
+  tipped no further than its edge; each form first seen from where it reads (a solid from a little
+  above, a page tilted well back), and *Straighten* returns there. Lit by the lamp from above to
+  the left, or not, to see the picture's own values on the form
+- ✅ The *Form* knob and its settings (the forms as small drawings, the lamp, Straighten), `P` for
+  the next form; the lenses and the knobs work on the form as on the picture — a sphere in notan.
+  The picture is on a form or under the glass, never both: taking one up puts the other away
+  (`GlassState.onTakeUp`, `FormState.onShow`). Esc takes the picture off its form. In a session
+  and in the Lens room alike
+- ✅ One shader for every form (`FORM_SKSL`): a ray from a camera five radii away through each
+  pixel, turned into the form's frame, meeting it exactly (a sphere, a can, a cone, a page) or
+  marching to it (the ring, stopping where it lands); four rays a pixel for a smooth edge.
+  `formRay` is its arithmetic in Kotlin; a test draws a picture whose colours are its own
+  coordinates on every form and holds the two together, and another holds the turn to a turn
+- ✅ A saved view keeps the form; drawn rather than resampled, it is saved no larger than 1600
+  pixels on its long side (`FORM_SAVED`)
+- ✅ Tested: `FormTest` (`P` round every form; turned, tipped, straightened, copied; a turn that is
+  a turn, and the right way round; the form and the glass taking turns; Esc; every form drawn
+  where its twin says and clear around it; the lamp), `LensViewTest` (on screen, a drag turning
+  it; the settings), `LensKeysTest` (`P`), `LensExportTest` (saved on it, no larger), and the Lens
+  room's forms in `RoomScreenshotTest` — in a smaller window, since in a test every frame is drawn
+  on the processor: the first, full-size try took fourteen minutes, and caught *Chrome ball* cut
+  off in the settings. Broken on purpose and seen red after a no-op control stayed green:
+  24 guards — the ball and the can read upside down, the cone's near side, the ring never reached, the page without an edge, the chrome ball reflecting nothing, the lamp, a skewed turn, tipping past the edge, Straighten, P stopping; the form and the glass not taking turns (chosen, taken up, laid over the whole), Esc, a saved view flat or at full size; a drag the wrong way or turning nothing, the picture drawn flat (caught only once the screen test looked at the corner where the flat picture is light), P, the knob, the settings, the lamp switch
+
+### ✅ F10.11 Block, F10.12 Relief — forms shaped for the thing being drawn
+The next two of the forms' ideas (2026-10-28); the rest wait in [IDEAS.md](IDEAS.md).
+- ✅ **Block** (F10.11): one family of forms, the superquadrics, between the ball and the box — its
+  ends (top and bottom) and its round each from square through round to pointed, and its height
+  and depth for its width, on four sliders two to a row (`Block`). Round both ways, the ball; square
+  at the ends, a can; square both ways, a box with eased edges; pointed, a spinning top; flattened,
+  a cushion. Sized so its farthest point is where the sphere's edge is, so every shape of it fills
+  the view as the ball does. Found along each ray by Newton's steps down its gauge, each on the
+  slope just behind it, so the steps never pass the surface — the gauge is convex along any ray
+- ✅ **Relief** (F10.12): the picture on a page raised by a picture's values, light standing out —
+  by default its own values, made small and soft (`softHeights`, 384 px, a slight blur) so a
+  photograph's grain is no needles; or a picture chosen for it (*From a picture…*, through the
+  room's own dialogs, `HeightsSource`), decoded off the UI thread. Its depth on a slider; first
+  seen tilted less than a page, so it stands out; its side walls where it is raised at the page's
+  edge, its back plain paper. Each ray is stepped only through the relief's box and halved down to
+  the raised page
+- ✅ **Saved and on the processor**: a saved view of a form is drawn on the processor at up to
+  1600 pixels, where the first block took two minutes and the relief nearly four. Now it is drawn
+  with one ray a pixel and in bands side by side, four to a core (`drawnInBands`): every form
+  saves in under two seconds on sixteen cores. A window drawn on the processor rather than the
+  graphics card — Skia in software, as over a remote desktop, or a test — draws its forms in bands
+  too (`LocalDrawnOnProcessor`, set from the window's render API), which took the forms'
+  screenshots from nearly four minutes to twelve seconds
+- ✅ A picture's far edge read short of its repeat, so a relief's side wall at the page's right
+  edge does not read the left one
+- ✅ Tested: `FormTest` (every form, a shaped block and a relief among them, drawn where its twin
+  says; a round block of even measures the sphere; a can and a cushion told apart from the front
+  and from above, a tall block narrower; a flat relief the page, a raised one nearer, its back
+  plain on screen too; its flanks lit and shaded; its own heights small and soft; a saved form in
+  bands as one draw has it; shape and heights copied with a saved view), `LensViewTest` (the
+  block's four sliders and the relief's depth, heights from a picture chosen and back, the form
+  drawn as its settings say, a window on the processor drawing alike), `LensRoomStateTest` and
+  `PracticeStateTest` (both rooms' lenses choose heights through their dialogs), and the block and
+  the relief in `RoomScreenshotTest`, whose first try caught the block's sliders pushing the lamp
+  and Straighten out of a low window. Broken on purpose and seen red after a no-op control stayed
+  green: 23 guards — a block not fitted to the sphere's round, its ends shaped by its round, Newton's steps on the slope ahead in the shader and in the twin, a block read as if round; a relief flat in the shader and in the twin, its slope upside down, its back drawn as its front; the picture read round its repeat; the own heights neither soft nor small; a saved form's bands misplaced; the view ignoring the block, the depth or the heights chosen; the Ends slider shaping the round, the depth slider doing nothing, a chosen picture never used; a saved view losing the shape; a relief first seen as a page; the Lens room's and the session's lenses choosing heights through no dialog
 
 ---
 
@@ -1278,6 +1426,26 @@ device   pen
   sketch from a session and back, and the host's services reaching every room
 - ✅ The links in the docs follow the files to where they live now
 - ✅ Broken on purpose and seen red after a no-op control stayed green: every route of Rooms cut, one at a time — a board's session going nowhere, a board remembering a setup of its own, a concept not told which boards link it, a board unable to open a concept, a sketch saved to a board not pinned, the Practice room knowing no boards, a sketch from a session leaving it running — and each of the host's services withheld: the dialogs, the clipboard, the browser, the system's motion preference
+
+
+### ✅ F11.12 One contract per seam, every room in its colours
+- ✅ `BoardSource` in the domain — which boards there are, the pictures on one, pinning onto one —
+  answered by the board room (`BoardState`) and used by every room that draws from a board or
+  files a picture away on one: it replaces Practice's `PinTargets` and `PracticeBoards`, and the
+  board halves of `SketchHost` and `LensHost`. `BoardRef` is the board as they list it
+- ✅ `ConceptSource` grows `folderOf`, so Live Sketch saves into a concept through it, not its host;
+  `SketchHost` and `LensHost` are down to the way out
+- ✅ `Room` moves into the domain — the rooms are the product's vocabulary, which the hand-off
+  seam needs; their pigments stay the design's — and the design contract depends on the domain
+  alone, for it
+- ✅ `RoomTheme` in the design contract: Material's own controls — chips, sliders, switches,
+  filled buttons — in the room's pigment. The app shows the room on screen in it, each room's
+  dialogs in theirs, the reference strip and a board's session window in theirs; the atelier's
+  Material palette still leads with Practice's cadmium, now only on the palette. The Lens room's
+  own tint gave way to it
+- ✅ Two docs set straight: `LensState`'s note that the Lens room "will" use it, and F8.4's
+  "Live Sketch saves into a concept", long done
+- ✅ Broken on purpose and seen red after a no-op control stayed green: 31 guards — the board room listing and pinning, a concept's folder, a sketch saved onto a board and into a concept, the Practice room's board and pin, the Lens room's pin; the seam offering a picture back to its own room, not opening the room or not handing over, a receiver left out; Sketch going on with a sketched picture, refusing a page, the Lens taking one; the routes a card, the card's menu, the ring, a concept, a pose, Sketch's and the Lens's headers ask for and send along, a session waiting while its picture is away; Back, home to a waiting session, entering again; the room on screen in its colours, RoomTheme's colour — and the build refuses the domain the design, and the rooms each other
 
 ---
 

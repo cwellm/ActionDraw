@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.Room
 
 /**
  * What every room has in common (CONCEPT.md, *Home: the palette*), as the design system draws it:

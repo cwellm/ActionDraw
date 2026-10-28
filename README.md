@@ -521,15 +521,17 @@ An import that leaves something out (unreadable format, or a picture already on 
 on the board instead of silently ignoring the drop.
 
 ## How the code is laid out
-Gradle modules, each depending only on the ones below it. Where this is going, with a diagram,
-is [docs/Architecture.md](docs/Architecture.md); the steps are M10 in the [roadmap](ROADMAP.md).
+Gradle modules, each depending only on the ones below it. How they fit, with a diagram, is
+[docs/Architecture.md](docs/Architecture.md); M10 in the [roadmap](ROADMAP.md) built them.
 
 In three groups — `lib` for what an application builds on, `device` for the hardware it talks to,
 `app` for the applications on top:
 
 - `lib/domain` — the API: boards and their cards, concepts, the session's vocabulary and the
-  rules on them; `Lib`, through which everything is got and kept; and what the lib needs from its
-  host (clipboard, file dialogs, browser, pen)
+  rules on them; `Lib`, through which everything is got and kept; what the lib needs from its
+  host (clipboard, file dialogs, browser, pen); and the rooms and the seams between them — the
+  boards and the concepts as the other rooms reach them, and the hand-off seam along which a
+  picture goes into another room
 - `lib/data` — `FileLib`, the domain over the files: boards' and concepts' folders and their
   sidecars, the registries, settings, thumbnails, practice history, link previews — writing off
   the UI thread, and the only module that reaches the files or the network
@@ -542,12 +544,14 @@ In three groups — `lib` for what an application builds on, `device` for the ha
 - `lib/network` — the one way online: an HTTP GET for `http` and `https` only, with a size cap
 - `lib/sketch-engine` — the drawing engine: pen samples in, pixels out
 - `lib/design/contract` — the design system's contract: what a screen may ask of the design it is
-  drawn in (colours, pigments, type, materials, chrome), read through the theme; and the UI kit's
-  basics (motion, the chrome that steps back)
+  drawn in (colours, pigments, type, materials, chrome), read through the theme; each room in its
+  colours (`RoomTheme`); and the UI kit's basics (motion, the chrome that steps back)
 - `lib/design/atelier` — the default design: the atelier of [CONCEPT.md](CONCEPT.md), and its
   fonts
-- `lib/feature/practice`, `board`, `concept`, `sketch` — the rooms: each one's state and logic
-  over the domain, its screens on the design contract; none knows another
+- `lib/lens` — how a picture is seen: the lenses, the knobs, the grids and the glass, with the
+  tray, the picture and the keys that work them — shared by every room that shows a picture
+- `lib/feature/practice`, `board`, `concept`, `sketch`, `lens` — the rooms: each one's state and
+  logic over the domain, its screens on the design contract; none knows another
 - `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
 - `app/desktop` — the app: the palette, the windows, the rooms put together, the desktop's
   clipboard, dialogs, browser and pen, and the start-up

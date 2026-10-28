@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.RampStep
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.SessionPlan
 import de.creaflect.actiondraw.SessionPlans
 import de.creaflect.actiondraw.ViewMode
@@ -205,7 +206,7 @@ private fun TimingPanel(state: PracticeState, modifier: Modifier) {
             // Any exercise can start with a lens; a lens chosen makes it a lens study.
             Overline("Start with a lens")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LENSES.forEach { (mode, name) -> LensChoice(mode, name, state.viewMode == mode) { state.viewMode = mode } }
+                LENSES.forEach { (mode, name) -> LensChoice(mode, name, state.lens.viewMode == mode) { state.lens.viewMode = mode } }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = state.autoAdvance, onCheckedChange = { state.autoAdvance = it })
@@ -259,7 +260,7 @@ private fun DrawingFrom(state: PracticeState) {
             ) {
                 if (board != null) PigmentDab(Room.BOARDS.pigment, size = 10.dp, seed = Room.BOARDS.seed)
                 Text(
-                    board?.first ?: state.folder?.name ?: "no folder yet",
+                    board?.name ?: state.folder?.name ?: "no folder yet",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Design.colors.text,
@@ -274,16 +275,16 @@ private fun DrawingFrom(state: PracticeState) {
                     open = false
                     state.dialogs.chooseFolder(state.folder, "Select image folder")?.let { state.selectFolder(it) }
                 }, modifier = Modifier.testTag("source-folder")) { Text("A folder…") }
-                val boards = state.practiceBoards?.boards().orEmpty()
+                val boards = state.boards()
                 if (boards.isNotEmpty()) Divider()
-                boards.forEach { (name, dir) ->
+                boards.forEach { board ->
                     DropdownMenuItem(onClick = {
                         open = false
-                        state.selectBoard(name, dir)
-                    }, modifier = Modifier.testTag("source-board-$name")) {
+                        state.selectBoard(board)
+                    }, modifier = Modifier.testTag("source-board-" + board.name)) {
                         PigmentDab(Room.BOARDS.pigment, size = 10.dp, seed = Room.BOARDS.seed)
                         Spacer(Modifier.width(8.dp))
-                        Text(name)
+                        Text(board.name)
                     }
                 }
             }

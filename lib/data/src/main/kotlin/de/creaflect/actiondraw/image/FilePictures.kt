@@ -5,8 +5,11 @@ import de.creaflect.actiondraw.board.ImageItem
 import de.creaflect.actiondraw.board.ImportOutcome
 import de.creaflect.actiondraw.board.Importer
 import de.creaflect.actiondraw.board.Palette
+import de.creaflect.actiondraw.io.Folders
 import org.jetbrains.skia.Image
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 /** The [Pictures] over the files: `lib:core:io`'s decoding and scanning, with a thumbnail cache on disk. */
 internal class FilePictures(private val thumbs: ThumbCache) : Pictures {
@@ -27,6 +30,16 @@ internal class FilePictures(private val thumbs: ThumbCache) : Pictures {
 
     override fun importPng(root: File, png: ByteArray, groupId: String?, timestamp: String): ImageItem? =
         Importer.importBitmap(root, png, groupId, timestamp)
+
+    override fun writePng(png: ByteArray, target: File, beside: Boolean): File? = runCatching {
+        target.parentFile?.mkdirs()
+        val file = if (beside) Folders.freeFile(target) else target
+        // Whole or not at all: the bytes go to a file of their own first, then take the name.
+        val temp = File(file.parentFile, file.name + ".tmp")
+        temp.writeBytes(png)
+        Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        file
+    }.getOrNull()
 
     override fun contactSheet(title: String, cells: List<SheetCell>, target: File, columns: Int): Boolean =
         ContactSheet.write(title, cells, target, columns)

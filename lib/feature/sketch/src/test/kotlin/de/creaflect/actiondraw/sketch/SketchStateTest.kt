@@ -30,7 +30,16 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import de.creaflect.actiondraw.FileLib
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.board.BoardItem
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
 import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptSnapshot
+import de.creaflect.actiondraw.board.ConceptSource
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.sketch.input.PenSample
 import de.creaflect.actiondraw.sketch.input.PenSource
 import de.creaflect.actiondraw.sketch.ui.ColorPicker
@@ -52,6 +61,7 @@ import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -72,19 +82,36 @@ class SketchStateTest {
     private val added = mutableListOf<Pair<String, List<File>>>()
     private var left = 0
 
-    private val host = object : SketchHost {
-        override fun boards() = listOf("Buch" to boardDir)
-        override fun addToBoard(dir: File, pictures: List<File>): String {
+    private val sent = mutableListOf<Pair<Handed, Room>>()
+
+    private val host = SketchHost { left++ }
+
+    private val boards = object : BoardSource {
+        override fun available() = listOf(BoardRef("Buch", boardDir))
+        override fun pictures(dir: File) = emptyList<File>()
+        override fun pin(dir: File, pictures: List<File>): String {
             added += "board:" + dir.name to pictures
             return "Pinned ${pictures.size} to Buch."
         }
-        override fun concepts() = listOf(ConceptRef("c1", "Drache", "creature"))
-        override fun conceptDir(id: String) = if (id == "c1") conceptDir else null
-        override fun addToConcept(id: String, pictures: List<File>): Boolean {
+    }
+
+    private val concepts = object : ConceptSource {
+        override fun available() = listOf(ConceptRef("c1", "Drache", "creature"))
+        override fun folderOf(id: String) = if (id == "c1") conceptDir else null
+        override fun snapshot(id: String): ConceptSnapshot? = null
+        override fun addToConcept(id: String, pictures: List<File>, others: List<BoardItem>): List<BoardItem> {
             added += "concept:$id" to pictures
-            return true
+            return emptyList()
         }
-        override fun leaveSketch() { left++ }
+    }
+
+    /** The seam as the app has it: a page that is no file yet goes to the Lens. */
+    private val handoff = object : Handoff {
+        override fun routes(what: Handed, from: Room) =
+            if (what is Handed.Drawn && from != Room.LENS) listOf(Route(Room.LENS, "Check the values")) else emptyList()
+        override fun send(what: Handed, to: Room) {
+            sent += what to to
+        }
     }
 
     @After
@@ -93,7 +120,8 @@ class SketchStateTest {
     }
 
     private fun newState(): SketchState =
-        SketchState(FileLib(config), host, timestamp = { "2026-09-22 14.05" }).also { it.setSketchesHomeDir(home) }
+        SketchState(FileLib(config), host, timestamp = { "2026-09-22 14.05" }, boards = boards, concepts = concepts, handoff = handoff)
+            .also { it.setSketchesHomeDir(home) }
 
     /** A state with a small page, seen through a 400 × 300 view at zoom 1 with the page at (20, 20). */
     private fun ready(): SketchState {
@@ -125,6 +153,58 @@ class SketchStateTest {
         x = origin.x + 20f + x, y = origin.y + 20f + y, pressure = 0.9f, tiltX = 0, tiltY = 0, rotation = 0,
         contact = contact, barrel = false, eraser = false, pointerType = PenSample.PointerKind.PEN, timeNanos = ms * 1_000_000L,
     )
+
+    // ---- The hand-off seam ----
+
+    @Test
+    fun thePageGoesIntoTheOtherRoomsAsItIs() {
+        val state = newState()
+        assertEquals(emptyList(), state.routes(), "no page, nothing to hand on")
+        state.handOff(Room.LENS)
+        assertTrue(sent.isEmpty())
+        state.newSketch(PageSize.pixels(300, 200))
+        assertEquals(listOf(Route(Room.LENS, "Check the values")), state.routes())
+        state.handOff(Room.LENS)
+        val (page, to) = sent.single()
+        assertEquals(Room.LENS, to)
+        val drawn = assertIs<Handed.Drawn>(page)
+        assertEquals(state.title, drawn.name)
+        val picture = assertNotNull(org.jetbrains.skia.Image.makeFromEncoded(drawn.png()))
+        assertEquals(300 to 200, picture.width to picture.height, "the page itself, as a picture")
+        assertEquals(0, left, "and the sketch is not left: it waits as it is")
+    }
+
+    @Test
+    fun theHeaderLeadsWhereTheSeamGoes() {
+        val state = newState()
+        state.newSketch(PageSize.pixels(300, 200))
+        rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
+        rule.waitForIdle()
+        rule.onNodeWithTag("sketch-to-lens").performClick()
+        rule.waitForIdle()
+        assertEquals(Room.LENS, sent.single().second, "the page, into the Lens room")
+    }
+
+    @Test
+    fun aPictureHandedHereIsDrawnOverOrGoneOnWith() {
+        val saved = newState()
+        saved.newSketch(PageSize.pixels(120, 80))
+        assertNull(saved.saveAs("Flügel", boardDir))
+        val sketched = File(boardDir, "Flügel.png")
+        val photo = File(boardDir, "photo.png").apply { writeBytes(sketched.readBytes()) }
+
+        val state = newState()
+        assertEquals("Sketch over", state.offer(Handed.Picture(photo)))
+        assertEquals("Continue sketch", state.offer(Handed.Picture(sketched)), "a picture Live Sketch saved")
+        assertNull(state.offer(Handed.Drawn("page") { ByteArray(0) }), "a page that is no file is not taken")
+
+        state.take(Handed.Picture(photo))
+        assertEquals(photo, state.reference, "drawn over: the picture beside the page")
+        assertNotNull(state.session)
+        val again = newState()
+        again.take(Handed.Picture(sketched))
+        assertEquals(File(boardDir, "Flügel.sketch.json"), again.file, "gone on with: the sketch itself")
+    }
 
     // ---- The page and the view ----
 
@@ -790,7 +870,7 @@ class SketchStateTest {
         val state = newState()
         rule.setContent { ProvideAtelier { SketchScreen(state, FileLib(config).pictures) } }
         state.newSketch(PageSize.pixels(600, 400))
-        state.openFromSession(red)
+        state.sketchOver(red)
         rule.waitForIdle()
         state.fit()
         state.setLead(Lead.SOFT)

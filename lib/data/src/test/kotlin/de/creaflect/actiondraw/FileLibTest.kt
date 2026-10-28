@@ -10,6 +10,7 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /** The lib as one piece: where it keeps its own files, and that its parts are wired to each other. */
@@ -33,6 +34,13 @@ class FileLibTest {
         assertIs<BoardCreation.Created>(lib.boards.create(lib.preferences.boardsHome(), Board(name = "Drachen")))
         assertTrue(File(home, ".actiondraw/boards.json").isFile, "and the record of which boards there are")
         assertTrue(File(home, "ActionDraw Boards/Drachen/.actiondraw_board.json").isFile, "the board itself in its own folder")
+    }
+
+    @Test
+    fun theGlassIsKeptFromOneRunToTheNext() {
+        assertNull(FileLib(home).preferences.glass(), "nothing kept until it is first settled")
+        FileLib(home).preferences.setGlass(GlassSetting("CONVEX", 4f, 150f, bend = 0.4f))
+        assertEquals(GlassSetting("CONVEX", 4f, 150f, bend = 0.4f), FileLib(home).preferences.glass())
     }
 
     @Test

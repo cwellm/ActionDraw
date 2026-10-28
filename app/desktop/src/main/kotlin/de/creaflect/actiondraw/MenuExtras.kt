@@ -32,6 +32,7 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardCanvasSetting
 import de.creaflect.actiondraw.board.ui.BoardHotkeys
 import de.creaflect.actiondraw.board.ui.BoardsHomeSetting
+import de.creaflect.actiondraw.lens.ui.LensRoomHotkeys
 import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.sketch.SketchHotkeys
 import de.creaflect.actiondraw.ui.Design
@@ -134,5 +135,6 @@ object Hotkeys {
         SessionHotkeys.TITLE to SessionHotkeys.ROWS,
         BoardHotkeys.TITLE to BoardHotkeys.ROWS,
         SketchHotkeys.TITLE to SketchHotkeys.ROWS,
+        LensRoomHotkeys.TITLE to LensRoomHotkeys.ROWS,
     )
 }

@@ -1,7 +1,9 @@
 package de.creaflect.actiondraw
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -21,9 +23,12 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.lens.LensLayout
+import de.creaflect.actiondraw.ui.Atelier
+import de.creaflect.actiondraw.ui.Form
+import de.creaflect.actiondraw.ui.LocalDrawnOnProcessor
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.sketch.Lead
 import de.creaflect.sketch.PageSize
 import org.jetbrains.skia.EncodedImageFormat
@@ -34,6 +39,7 @@ import java.awt.image.BufferedImage
 import java.io.File
 import java.nio.file.Files
 import javax.imageio.ImageIO
+import kotlin.math.abs
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -74,9 +80,12 @@ class RoomScreenshotTest {
             sketch.setSketchesHomeDir(File(root, "sketches"))
         }
 
+        // A test draws every frame on the processor, as a window drawn in software does.
         fun show(test: ComposeUiTest) = test.setContent {
             ProvideAtelier {
-                App(rooms, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+                CompositionLocalProvider(LocalDrawnOnProcessor provides true) {
+                    App(rooms, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+                }
             }
         }
     }
@@ -148,7 +157,7 @@ class RoomScreenshotTest {
         mainClock.autoAdvance = false // a running pose ticks for ever
         mainClock.advanceTimeBy(1500)
         shoot("04-session", null)
-        world.practice.glass.choose(Optic.CONVEX)
+        world.practice.lens.glass.choose(Optic.CONVEX)
         val reference = onNodeWithTag("reference")
         val size = reference.fetchSemanticsNode().size
         reference.performMouseInput { moveTo(Offset(size.width * 0.5f, size.height * 0.35f)) }
@@ -238,7 +247,7 @@ class RoomScreenshotTest {
     fun sketchAtRestAndDrawing() = window {
         val world = World()
         world.sketch.newSketch(PageSize.pixels(1200, 850))
-        world.app.showSketch()
+        world.app.enter(Screen.Sketch)
         world.show(this)
         mainClock.advanceTimeBy(500)
         world.sketch.fit()
@@ -263,5 +272,94 @@ class RoomScreenshotTest {
         mainClock.advanceTimeBy(2500)
         shoot("14-sketch-drawing", Room.SKETCH)
         s.mouseUp()
+    }
+
+    @Test
+    fun theLensRoomEmptyAloneBesideAndThroughTwoLenses() = window {
+        val world = World()
+        val lens = world.rooms.lens
+        world.app.enter(Screen.Lens)
+        world.show(this)
+        mainClock.advanceTimeBy(500)
+        shoot("15-lens-empty", Room.LENS)
+        lens.open(picture(File(root, "pose.png")))
+        lens.first.viewMode = ViewMode.NOTAN
+        // The picture is decoded off the UI thread: real time, and the clock stepped with it.
+        for (i in 0 until 50) {
+            if (onAllNodesWithTag("reference").fetchSemanticsNodes().isNotEmpty()) break
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        mainClock.advanceTimeBy(500)
+        shoot("16-lens-notan", Room.LENS)
+        lens.arrange(LensLayout.BESIDE)
+        mainClock.advanceTimeBy(500)
+        shoot("17-lens-beside", Room.LENS)
+        // The layout chosen is one of Material's buttons: in the app, Material's colours are the room's.
+        val glow = Atelier.pigmentOf(Room.LENS).glow
+        val chip = onNodeWithTag("lens-layout-beside").captureToImage().toPixelMap()
+        val lit = chip[(6 * density.density).toInt(), chip.height / 2]
+        assertTrue(abs(lit.red - glow.red) < 0.04f && abs(lit.green - glow.green) < 0.04f && abs(lit.blue - glow.blue) < 0.04f, "Payne's grey, not Practice's orange: $lit")
+        lens.arrange(LensLayout.TWO)
+        lens.choose(de.creaflect.actiondraw.lens.LensSide.SECOND)
+        mainClock.advanceTimeBy(500)
+        shoot("18-lens-two", Room.LENS)
+        // The glass laid over the whole picture, bending it about a point off the middle.
+        lens.arrange(LensLayout.ALONE)
+        lens.first.viewMode = de.creaflect.actiondraw.ViewMode.NONE
+        lens.first.glass.choose(Optic.FISHEYE)
+        lens.first.glass.spreadOver(0.4f, 0.35f)
+        mainClock.advanceTimeBy(500)
+        shoot("19-lens-glass-over-whole", Room.LENS)
+    }
+
+    /**
+     * The picture on a form (F10.10), a block and a relief among them (F10.11, F10.12), in a lower
+     * window: in a test every frame is drawn on the processor, four rays a pixel, and the full window
+     * takes minutes a form. As wide as the app opens, so the header and the form's settings — the
+     * block's sliders, the relief's heights — still have to fit without a label cut off.
+     */
+    @Test
+    fun theLensRoomsForms() = runDesktopComposeUiTest(width = 1120, height = 560) {
+        val world = World()
+        val lens = world.rooms.lens
+        world.app.enter(Screen.Lens)
+        lens.open(picture(File(root, "pose.png")))
+        world.show(this)
+        for (i in 0 until 50) {
+            if (onAllNodesWithTag("reference").fetchSemanticsNodes().isNotEmpty()) break
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        listOf(Form.SPHERE, Form.CHROME, Form.BLOCK, Form.RELIEF).forEachIndexed { i, form ->
+            lens.first.form.choose(form)
+            repeat(3) { mainClock.advanceTimeByFrame() }
+            shoot("2$i-lens-form-" + form.name.lowercase(), Room.LENS)
+        }
+    }
+
+    /**
+     * The Lens room in a narrow window: the header folds its actions into menus rather than
+     * pushing them past the window's edge or cutting their labels (F10.1).
+     */
+    @Test
+    fun theLensRoomNarrow() = runDesktopComposeUiTest(width = 720, height = 560) {
+        val world = World()
+        val lens = world.rooms.lens
+        world.app.enter(Screen.Lens)
+        lens.open(picture(File(root, "pose.png")))
+        lens.arrange(LensLayout.TWO)
+        world.show(this)
+        for (i in 0 until 50) {
+            if (onAllNodesWithTag("reference").fetchSemanticsNodes().isNotEmpty()) break
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        mainClock.advanceTimeBy(500)
+        shoot("24-lens-narrow", Room.LENS)
+        val back = onNodeWithTag("lens-back").fetchSemanticsNode().boundsInRoot
+        val window = onAllNodes(isRoot()).onFirst().fetchSemanticsNode().boundsInRoot
+        assertTrue(back.right <= window.right + 0.5f, "the way back inside the window: ${back.right} of ${window.right}")
+        onNodeWithTag("lens-layout-menu").assertExists()
     }
 }

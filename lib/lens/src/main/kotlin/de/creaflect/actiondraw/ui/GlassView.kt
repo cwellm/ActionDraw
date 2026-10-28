@@ -59,7 +59,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.creaflect.actiondraw.practice.PracticeState
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.lens.LensState
 import org.jetbrains.skia.FilterTileMode
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.Paint
@@ -73,7 +74,7 @@ import org.jetbrains.skia.Rect as SkRect
 
 /** What the pointer is doing over the picture, in the picture area's own pixels. */
 @Stable
-class GlassPointer {
+internal class GlassPointer {
     /** Where the pointer is, or null when it is off the picture. */
     var at by mutableStateOf<Offset?>(null)
 
@@ -89,14 +90,15 @@ private const val CLICK_SLOP = 6f
 
 /**
  * The picture, drawn through the glass: whole and fitted, or the part the glass is down on, as
- * far as [progress] has come; and while the glass is in hand, a round of it larger under the
- * pointer. Drawn inside the picture's filter layers, so a lens and the knobs work on what the
- * glass shows as on the picture; the rim is [GlassOverlay]'s, over them.
+ * far as [progress] has come, or all of it bent about where the glass is laid over the whole; and
+ * while the glass is in hand, a round of it larger under the pointer. Drawn inside the picture's
+ * filter layers, so a lens and the knobs work on what the glass shows as on the picture; the rim
+ * and the centre's mark are [GlassOverlay]'s, over them.
  */
 @Composable
-fun GlassPicture(
+internal fun GlassPicture(
     bitmap: ImageBitmap,
-    state: PracticeState,
+    lens: LensState,
     picture: File?,
     pointer: GlassPointer,
     progress: Animatable<Float, *>,
@@ -104,7 +106,7 @@ fun GlassPicture(
     colorFilter: ColorFilter?,
     modifier: Modifier = Modifier,
 ) {
-    val glass = state.glass
+    val glass = lens.glass
     val image = remember(bitmap) { Image.makeFromBitmap(bitmap.asSkiaBitmap()) }
     DisposableEffect(image) { onDispose { image.close() } }
     val filter = remember(colorFilter) { colorFilter?.asSkiaColorFilter() }
@@ -120,20 +122,34 @@ fun GlassPicture(
             val native = canvas.nativeCanvas
             Paint().use { paint ->
                 paint.colorFilter = filter
-                // The picture, whole or under the glass that fills the view.
-                val shader = if (p > 0f && focus != null && glass.optic != Optic.PLAIN) {
-                    opticShader(image, view.matrix(), glass.optic, w / 2f, h / 2f, hypot(w, h) / 2f, zoom = 1f, strength = p)
-                } else {
-                    image.makeShader(FilterTileMode.DECAL, FilterTileMode.DECAL, GlassSampling, view.matrix())
+                // The picture, whole, under the glass that fills the view, or bent by the glass laid
+                // over all of it: about its centre, reaching to the picture's farthest corner, which
+                // stays where it is. Only the picture is drawn, so the bending stays inside it.
+                val spread = glass.spread?.takeIf { p == 0f && glass.optic != Optic.PLAIN }
+                val shader = when {
+                    p > 0f && focus != null && glass.optic != Optic.PLAIN ->
+                        opticShader(image, view.matrix(), glass.optic, w / 2f, h / 2f, hypot(w, h) / 2f, zoom = 1f, strength = p)
+                    spread != null -> {
+                        val c = view.toView(spread.x * iw, spread.y * ih)
+                        opticShader(image, view.matrix(), glass.optic, c.x, c.y, reachFrom(c, view, iw, ih), zoom = spreadZoom(glass.optic, glass.bend), strength = glass.bend)
+                    }
+                    else -> image.makeShader(FilterTileMode.DECAL, FilterTileMode.DECAL, GlassSampling, view.matrix())
                 }
                 shader.use {
                     paint.shader = it
-                    native.drawRect(SkRect.makeWH(w, h), paint)
+                    if (spread != null) {
+                        val a = view.toView(0f, 0f)
+                        val b = view.toView(iw, ih)
+                        native.drawRect(SkRect.makeLTRB(a.x, a.y, b.x, b.y), paint)
+                    } else {
+                        native.drawRect(SkRect.makeWH(w, h), paint)
+                    }
                 }
-                // The glass in hand, larger under the pointer — not while a part is being dragged out.
+                // The glass in hand, larger under the pointer — not while a part is being dragged
+                // out, nor while it lies over the whole picture.
                 val at = pointer.at
-                if (glass.inHand && p == 0f && at != null && pointer.dragFrom == null) {
-                    val c = toLayer(at, w, h, state.mirror, state.upsideDown)
+                if (glass.inHand && glass.spread == null && p == 0f && at != null && pointer.dragFrom == null) {
+                    val c = toLayer(at, w, h, lens.mirror, lens.upsideDown)
                     val r = glass.radius.dp.toPx()
                     native.save()
                     native.clipPath(org.jetbrains.skia.Path().addCircle(c.x, c.y, r), true)
@@ -151,6 +167,12 @@ fun GlassPicture(
     }
 }
 
+/** How far a glass laid over the whole picture at [c] reaches: to the picture's farthest corner. */
+private fun reachFrom(c: Offset, view: PictureView, iw: Float, ih: Float): Float =
+    listOf(view.toView(0f, 0f), view.toView(iw, 0f), view.toView(0f, ih), view.toView(iw, ih))
+        .maxOf { (it - c).getDistance() }
+        .coerceAtLeast(1f)
+
 /** No cursor while the glass is the pointer; made once, and a plain cross where a custom cursor cannot be made. */
 private val NoCursor: PointerIcon by lazy {
     runCatching {
@@ -164,12 +186,15 @@ private val MoveCursor = PointerIcon(Cursor(Cursor.MOVE_CURSOR))
  * The glass, taken in hand over the picture area: a click sets it down on the point under it,
  * a drag sets it down on the part dragged out; while it is down, a drag slides the picture under
  * it and the wheel brings it nearer about the pointer; a right click lifts it off. In the hand, the
- * wheel magnifies and Shift+wheel makes the glass larger. Without the glass, nothing is taken.
+ * wheel magnifies and Shift+wheel makes the glass larger. Laid over the whole picture, a click or a
+ * drag moves its centre, the wheel bends it more or less, and a right click takes it back into the
+ * hand. Without the glass, nothing is taken.
  */
-fun Modifier.glassInput(state: PracticeState, pointer: GlassPointer, picture: File?, iw: Float, ih: Float, focused: Boolean): Modifier =
+internal fun Modifier.glassInput(lens: LensState, pointer: GlassPointer, picture: File?, iw: Float, ih: Float, focused: Boolean): Modifier =
     pointerHoverIcon(
         when {
-            !state.glass.inHand -> PointerIcon.Default
+            !lens.glass.inHand -> PointerIcon.Default
+            lens.glass.spread != null -> PointerIcon.Crosshair
             focused -> MoveCursor
             else -> NoCursor
         },
@@ -180,11 +205,17 @@ fun Modifier.glassInput(state: PracticeState, pointer: GlassPointer, picture: Fi
             while (true) {
                 val event = awaitPointerEvent()
                 val change = event.changes.firstOrNull() ?: continue
-                val glass = state.glass
+                val glass = lens.glass
                 val pos = change.position
                 val w = size.width.toFloat()
                 val h = size.height.toFloat()
-                fun layer(p: Offset) = toLayer(p, w, h, state.mirror, state.upsideDown)
+                fun layer(p: Offset) = toLayer(p, w, h, lens.mirror, lens.upsideDown)
+
+                // Laid over the whole picture: its centre where the pointer is.
+                fun centreAt(p: Offset) {
+                    val at = pictureView(iw, ih, w, h, null, 0f).toPicture(layer(p))
+                    glass.spreadOver(at.x / iw, at.y / ih)
+                }
                 // A press or release something over the picture took — the print in the corner —
                 // is not the glass's: lifted by the print, it must not be set down again under it.
                 if (change.isConsumed && (event.type == PointerEventType.Press || event.type == PointerEventType.Release)) {
@@ -198,7 +229,9 @@ fun Modifier.glassInput(state: PracticeState, pointer: GlassPointer, picture: Fi
                         val from = downAt
                         if (from != null && change.pressed && glass.inHand) {
                             val focus = glass.focusOn(picture)
-                            if (focus != null) {
+                            if (glass.spread != null) {
+                                centreAt(pos)
+                            } else if (focus != null) {
                                 // Down: the picture slides under the glass, as under a hand.
                                 val a = layer(last ?: pos)
                                 val b = layer(pos)
@@ -214,17 +247,18 @@ fun Modifier.glassInput(state: PracticeState, pointer: GlassPointer, picture: Fi
                     PointerEventType.Exit -> pointer.at = null
                     PointerEventType.Press -> if (glass.inHand) {
                         if (event.buttons.isSecondaryPressed) {
-                            glass.wholePicture()
+                            if (glass.spread != null) glass.gather() else glass.wholePicture()
                         } else {
                             downAt = pos
                             last = pos
+                            if (glass.spread != null) centreAt(pos)
                         }
                         change.consume()
                     }
                     PointerEventType.Release -> {
                         val from = downAt
                         downAt = null
-                        if (from != null && glass.inHand && glass.focusOn(picture) == null) {
+                        if (from != null && glass.inHand && glass.spread == null && glass.focusOn(picture) == null) {
                             val whole = pictureView(iw, ih, w, h, null, 0f)
                             if ((pos - from).getDistance() < CLICK_SLOP) {
                                 val at = whole.toPicture(layer(pos))
@@ -245,6 +279,7 @@ fun Modifier.glassInput(state: PracticeState, pointer: GlassPointer, picture: Fi
                         val steps = -delta
                         val focus = glass.focusOn(picture)
                         when {
+                            glass.spread != null -> glass.bendBy(steps)
                             focus != null -> {
                                 // Nearer about the pointer: the point under it stays under it.
                                 val local = layer(pos)
@@ -265,25 +300,34 @@ fun Modifier.glassInput(state: PracticeState, pointer: GlassPointer, picture: Fi
 
 /**
  * Over the picture and its filters, what is not the picture: the glass in the hand — rim, handle,
- * the light on it, its shadow — or the part being dragged out; and, while the glass is down, its
- * edge round the view and the whole picture in the corner, one click back.
+ * the light on it, its shadow — or the part being dragged out; while the glass is down, its edge
+ * round the view and the whole picture in the corner, one click back; and while it lies over the
+ * whole picture, a mark where it bends the picture about.
  */
 @Composable
-fun BoxScope.GlassOverlay(
+internal fun BoxScope.GlassOverlay(
     bitmap: ImageBitmap,
-    state: PracticeState,
+    lens: LensState,
     picture: File?,
     pointer: GlassPointer,
     progress: Animatable<Float, *>,
     focused: Boolean,
 ) {
-    val glass = state.glass
+    val glass = lens.glass
     val design = LocalDesign.current
     Canvas(Modifier.fillMaxSize()) {
         val p = progress.value
         if (p > 0f) {
             // Looking through glass: its edge darkens the view's.
             drawRect(Brush.radialGradient(0.62f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.42f * p), center = center, radius = size.maxDimension * 0.62f))
+        }
+        val spread = glass.spread
+        if (spread != null && p == 0f) {
+            val iw = bitmap.width.toFloat()
+            val ih = bitmap.height.toFloat()
+            val c = pictureView(iw, ih, size.width, size.height, null, 0f).toView(spread.x * iw, spread.y * ih)
+            drawSpreadCentre(toLayer(c, size.width, size.height, lens.mirror, lens.upsideDown), design)
+            return@Canvas
         }
         val at = pointer.at
         if (!glass.inHand || p > 0f || at == null) return@Canvas
@@ -294,7 +338,15 @@ fun BoxScope.GlassOverlay(
             drawGlass(at, glass.radius.dp.toPx(), design)
         }
     }
-    if (focused) WholePicture(bitmap, state, picture, pointer, Modifier.align(Alignment.BottomStart).padding(16.dp))
+    if (focused) WholePicture(bitmap, lens, picture, pointer, Modifier.align(Alignment.BottomStart).padding(16.dp))
+}
+
+/** Where a glass laid over the whole picture bends it about: a lens's centre, as a ring and a dot. */
+private fun DrawScope.drawSpreadCentre(c: Offset, design: DesignSystem) {
+    val r = 9.dp.toPx()
+    drawCircle(Color.Black.copy(alpha = 0.45f), r + 1.5.dp.toPx(), c, style = Stroke(1.dp.toPx()))
+    drawCircle(design.colors.paper.copy(alpha = 0.9f), r, c, style = Stroke(1.5.dp.toPx()))
+    drawCircle(design.pigmentOf(Room.LENS).glow, 2.5.dp.toPx(), c)
 }
 
 /** A part being dragged out: a pencilled frame, the rest of the picture a shade darker. */
@@ -358,8 +410,8 @@ private fun DrawScope.drawGlass(c: Offset, r: Float, design: DesignSystem) {
  * ringed in pencil: a click on it, like Esc or a right click, lifts the glass off.
  */
 @Composable
-private fun WholePicture(bitmap: ImageBitmap, state: PracticeState, picture: File?, pointer: GlassPointer, modifier: Modifier) {
-    val glass = state.glass
+private fun WholePicture(bitmap: ImageBitmap, lens: LensState, picture: File?, pointer: GlassPointer, modifier: Modifier) {
+    val glass = lens.glass
     val longest = 150.dp
     val aspect = bitmap.width.toFloat() / bitmap.height
     val (pw, ph) = if (aspect >= 1f) longest to longest / aspect else longest * aspect to longest
@@ -375,8 +427,8 @@ private fun WholePicture(bitmap: ImageBitmap, state: PracticeState, picture: Fil
         ) {
             Box(
                 Modifier.size(pw, ph).graphicsLayer {
-                    if (state.upsideDown) rotationZ = 180f
-                    if (state.mirror) scaleX = -1f
+                    if (lens.upsideDown) rotationZ = 180f
+                    if (lens.mirror) scaleX = -1f
                 },
             ) {
                 Image(bitmap, contentDescription = "The whole picture", contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
@@ -417,8 +469,8 @@ private fun WholePicture(bitmap: ImageBitmap, state: PracticeState, picture: Fil
  * choosing one takes the glass up. O turns to the next.
  */
 @Composable
-fun OpticChoices(state: PracticeState) {
-    val glass = state.glass
+internal fun OpticChoices(lens: LensState) {
+    val glass = lens.glass
     val design = LocalDesign.current
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.testTag("glass-optics")) {
         Optic.entries.forEach { optic ->

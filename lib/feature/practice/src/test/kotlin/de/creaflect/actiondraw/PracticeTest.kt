@@ -11,6 +11,8 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
@@ -53,13 +55,20 @@ class PracticeTest {
         config.deleteRecursively()
     }
 
-    private fun stateWithPictures(n: Int = 3): PracticeState {
+    private fun stateWithPictures(n: Int = 3, boards: BoardSource = BoardSource.None): PracticeState {
         repeat(n) { i ->
             val image = BufferedImage(16, 16, BufferedImage.TYPE_INT_RGB)
             image.createGraphics().apply { paint = java.awt.Color.ORANGE; fillRect(0, 0, 16, 16); dispose() }
             ImageIO.write(image, "png", File(pictures, "pose$i.png"))
         }
-        return PracticeState(FileLib(config)).also { it.selectFolder(pictures) }
+        return PracticeState(FileLib(config), boards = boards).also { it.selectFolder(pictures) }
+    }
+
+    /** The boards as the board room would answer: one, called Buch, with [onBoard] on it. */
+    private fun boardsOf(boardDir: File, onBoard: List<File>) = object : BoardSource {
+        override fun available() = listOf(BoardRef("Buch", boardDir))
+        override fun pictures(dir: File) = if (dir == boardDir) onBoard else emptyList()
+        override fun pin(dir: File, pictures: List<File>) = ""
     }
 
     @Test
@@ -75,7 +84,7 @@ class PracticeTest {
     fun choosingAnExerciseSetsWhatMakesItThatExercise() {
         val state = PracticeState(FileLib(config))
         state.chooseExercise(Exercise.LENS)
-        assertEquals(ViewMode.NOTAN, state.viewMode)
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode)
         assertEquals(Exercise.LENS, state.exercise)
 
         state.chooseExercise(Exercise.MEMORY)
@@ -83,7 +92,7 @@ class PracticeTest {
         assertEquals(Exercise.MEMORY, state.exercise)
 
         state.chooseExercise(Exercise.ACTION)
-        assertEquals(ViewMode.NONE, state.viewMode)
+        assertEquals(ViewMode.NONE, state.lens.viewMode)
         assertEquals(SessionPlans.CLASSIC_GESTURE, state.rampPlan, "no longer hiding the picture")
         assertEquals(Exercise.ACTION, state.exercise)
 
@@ -116,10 +125,10 @@ class PracticeTest {
 
         rule.onNodeWithTag("exercise-lens").performClick()
         rule.waitForIdle()
-        assertEquals(ViewMode.NOTAN, state.viewMode)
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode)
         rule.onNodeWithTag("start-lens-edge").performClick()
         rule.waitForIdle()
-        assertEquals(ViewMode.EDGE, state.viewMode, "the starting lens")
+        assertEquals(ViewMode.EDGE, state.lens.viewMode, "the starting lens")
 
         rule.onNodeWithTag("exercise-memory").performClick()
         rule.waitForIdle()
@@ -139,15 +148,15 @@ class PracticeTest {
 
         rule.onNodeWithTag("lens-edge").performClick()
         rule.mainClock.advanceTimeBy(100)
-        assertEquals(ViewMode.EDGE, state.viewMode)
+        assertEquals(ViewMode.EDGE, state.lens.viewMode)
         rule.onNodeWithTag("lens-edge").assertIsSelected()
 
         rule.onNodeWithTag("knob-b").performClick()
         rule.mainClock.advanceTimeBy(100)
-        assertTrue(state.blur)
+        assertTrue(state.lens.blur)
         rule.onNodeWithTag("knob-g").performClick()
         rule.mainClock.advanceTimeBy(100)
-        assertEquals(GridMode.THIRDS, state.gridMode, "the grid knob turns the grids round, as G does")
+        assertEquals(GridMode.THIRDS, state.lens.gridMode, "the grid knob turns the grids round, as G does")
     }
 
     /** The ensō's brush is on screen, a tenth of the way round a tenth of the way into the pose. */
@@ -192,25 +201,20 @@ class PracticeTest {
         val onBoard = listOf(File(boardDir, "own.png"), File(elsewhere, "borrowed.png")).onEach { f ->
             ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", f)
         }
-        val boards = object : PracticeState.PracticeBoards {
-            override fun boards() = listOf("Buch" to boardDir)
-            override fun pictures(dir: File) = if (dir == boardDir) onBoard else emptyList()
-        }
+        val boards = boardsOf(boardDir, onBoard)
         try {
-            val state = stateWithPictures()
-            state.practiceBoards = boards
-            state.selectBoard("Buch", boardDir)
-            assertEquals("Buch" to boardDir, state.practiceBoard)
+            val state = stateWithPictures(boards = boards)
+            state.selectBoard(BoardRef("Buch", boardDir))
+            assertEquals(BoardRef("Buch", boardDir), state.practiceBoard)
             assertEquals(2, state.totalCount, "the board's own picture and its concept's")
             state.start()
             assertEquals(PracticePage.Session, state.page)
             assertTrue(state.currentImage in onBoard, "drawing from the board: ${state.currentImage}")
             assertEquals(2, state.totalCount, "the session holds the concept's picture too, not just the folder's")
 
-            val next = PracticeState(FileLib(config))
-            assertNull(next.practiceBoard, "until the boards are handed over")
-            next.practiceBoards = boards
-            assertEquals("Buch" to boardDir, next.practiceBoard, "remembered for the next start")
+            assertNull(PracticeState(FileLib(config)).practiceBoard, "with no boards to draw from, the folder")
+            val next = PracticeState(FileLib(config), boards = boards)
+            assertEquals(BoardRef("Buch", boardDir), next.practiceBoard, "remembered for the next start")
             next.selectFolder(pictures)
             assertNull(next.practiceBoard, "a folder chosen is a folder again")
             assertNull(FileLib(config).preferences.practiceBoard())
@@ -225,18 +229,14 @@ class PracticeTest {
         val boardDir = Files.createTempDirectory("practice-board").toFile()
         try {
             ImageIO.write(BufferedImage(8, 8, BufferedImage.TYPE_INT_RGB), "png", File(boardDir, "a.png"))
-            val state = stateWithPictures()
-            state.practiceBoards = object : PracticeState.PracticeBoards {
-                override fun boards() = listOf("Buch" to boardDir)
-                override fun pictures(dir: File) = listOf(File(boardDir, "a.png"))
-            }
+            val state = stateWithPictures(boards = boardsOf(boardDir, listOf(File(boardDir, "a.png"))))
             rule.setContent { ProvideAtelier { PracticeScreen(state, onHome = {}) } }
             rule.waitForIdle()
             rule.onNodeWithTag("drawing-from").performClick()
             rule.waitForIdle()
             rule.onNodeWithTag("source-board-Buch").performClick()
             rule.waitForIdle()
-            assertEquals("Buch" to boardDir, state.practiceBoard)
+            assertEquals(BoardRef("Buch", boardDir), state.practiceBoard)
             rule.onNodeWithTag("drawing-from").assertTextContains("Buch", substring = true)
         } finally {
             boardDir.deleteRecursively()
@@ -251,7 +251,7 @@ class PracticeTest {
         assertEquals(Exercise.ACTION, state.exercise)
         rule.onNodeWithTag("start-lens-notan").performClick()
         rule.waitForIdle()
-        assertEquals(ViewMode.NOTAN, state.viewMode)
+        assertEquals(ViewMode.NOTAN, state.lens.viewMode)
         assertEquals(Exercise.LENS, state.exercise, "a lens to start with makes it a lens study")
         rule.onNodeWithTag("start-lens-none").performClick()
         rule.waitForIdle()

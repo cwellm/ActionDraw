@@ -17,11 +17,15 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.rightClick
 import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.GridMode
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.SessionSetup
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.board.ui.BoardCanvas
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.ui.AtelierTheme
 import org.junit.After
 import org.junit.Rule
@@ -45,7 +49,7 @@ class RingMenuTest {
     private val conceptsHome: File = Files.createTempDirectory("ring-concepts").toFile()
     private val config: File = Files.createTempDirectory("ring-cfg").toFile()
     private var drawn: List<File> = emptyList()
-    private var sketchedOver: File? = null
+    private val sent = mutableListOf<Pair<Handed, Room>>()
 
     private val host = object : BoardHost {
         override fun startSession(root: File, images: List<File>, setup: SessionSetup?) { drawn = images }
@@ -53,8 +57,16 @@ class RingMenuTest {
         override fun showBoardList() = Unit
         override fun leaveBoard() = Unit
         override fun currentSetup() = SessionSetup(null, 120, true, ViewMode.NONE, GridMode.OFF)
-        override fun sketchOver(picture: File) { sketchedOver = picture }
     }
+
+    /** The seam as the app has it, for a board: a picture into Sketch and into the Lens. */
+    private val handoff = object : Handoff {
+        override fun routes(what: Handed, from: Room) = listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values"))
+        override fun send(what: Handed, to: Room) {
+            sent += what to to
+        }
+    }
+
     private val concepts = ConceptState(
         FileLib(config),
         object : ConceptHost {
@@ -72,7 +84,7 @@ class RingMenuTest {
     /** A free board of two pictures, and a concept that is not linked to it yet. */
     private fun board(): Pair<BoardState, List<String>> {
         concepts.createConcept("Drache", "creature")
-        val state = BoardState(FileLib(config), host, concepts = concepts)
+        val state = BoardState(FileLib(config), host, concepts = concepts, handoff = handoff)
         state.createBoard(home, "Ring")
         val root = state.root!!
         state.importExternal(listOf("a.jpg", "b.jpg").map { File(root, it).apply { createNewFile() } })
@@ -97,7 +109,7 @@ class RingMenuTest {
         val (state, ids) = board()
         ring(ids[0])
         assertEquals(setOf(ids[0]), state.selection, "the right click took the card")
-        listOf("ring-draw", "ring-sketch", "ring-concept", "ring-tag", "ring-group", "ring-more").forEach {
+        listOf("ring-draw", "ring-sketch", "ring-lens", "ring-concept", "ring-tag", "ring-group", "ring-more").forEach {
             rule.onNodeWithTag(it).assertIsEnabled()
         }
         rule.onNodeWithTag("ring-collage").assertIsNotEnabled()
@@ -115,7 +127,13 @@ class RingMenuTest {
         ring(ids[1])
         rule.onNodeWithTag("ring-sketch").performClick()
         rule.waitForIdle()
-        assertEquals("b.jpg", sketchedOver?.name, "into Sketch with it beside the page")
+        assertEquals("b.jpg" to Room.SKETCH, sent.last().let { (it.first as Handed.Picture).file.name to it.second }, "into Sketch with it beside the page")
+
+        ring(ids[0])
+        rule.onNodeWithTag("ring-lens").performClick()
+        rule.waitForIdle()
+        assertEquals("a.jpg" to Room.LENS, sent.last().let { (it.first as Handed.Picture).file.name to it.second }, "into the Lens room, to check its values")
+        rule.onNodeWithTag("ring-menu").assertDoesNotExist()
 
         ring(ids[0])
         rule.onNodeWithTag("ring-group").performClick()
@@ -156,7 +174,7 @@ class RingMenuTest {
         rule.onNodeWithTag("ring-sketch").assertIsFocused()
         rule.onNodeWithTag("ring-menu").performKeyInput { pressKey(Key.Enter) }
         rule.waitForIdle()
-        assertEquals("b.jpg", sketchedOver?.name, "Enter takes the button in focus")
+        assertEquals("b.jpg" to Room.SKETCH, sent.last().let { (it.first as Handed.Picture).file.name to it.second }, "Enter takes the button in focus")
         rule.onNodeWithTag("ring-menu").assertDoesNotExist()
         assertEquals(setOf(ids[1]), state.selection)
 

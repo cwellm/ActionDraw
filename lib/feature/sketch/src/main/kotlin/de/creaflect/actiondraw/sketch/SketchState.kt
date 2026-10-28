@@ -7,6 +7,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
 import de.creaflect.actiondraw.Diagnostics
 import de.creaflect.actiondraw.Lib
+import de.creaflect.actiondraw.Room
+import de.creaflect.actiondraw.board.BoardRef
+import de.creaflect.actiondraw.board.BoardSource
+import de.creaflect.actiondraw.board.ConceptRef
+import de.creaflect.actiondraw.board.ConceptSource
+import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Receiver
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.safeFileName
 import de.creaflect.actiondraw.sketch.input.PenSample
@@ -58,7 +67,13 @@ class SketchState(
     private val timestamp: () -> String = { LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm")) },
     /** The host's file dialogs, for Live Sketch's screens to ask with. */
     val dialogs: FileDialogs = FileDialogs.None,
-) {
+    /** The boards a sketch is saved onto. */
+    private val boards: BoardSource = BoardSource.None,
+    /** The concepts a sketch is saved into. */
+    private val concepts: ConceptSource = ConceptSource.None,
+    /** Where the page can be taken into the other rooms: the Lens. */
+    private val handoff: Handoff = Handoff.None,
+) : Receiver {
     // ---- The sketch ----
 
     var session by mutableStateOf<SketchSession?>(null)
@@ -273,10 +288,26 @@ class SketchState(
         if (dirty) editor = SketchEditor.Confirm(action) else action()
     }
 
-    /** From a session: the picture on screen comes along as the reference. */
-    fun openFromSession(picture: File?) {
+    /** A page with [picture] beside it as the reference, to draw over or from. */
+    fun sketchOver(picture: File?) {
         reference = picture
         ensurePage()
+    }
+
+    // ---- Taken from the other rooms (the hand-off seam) ----
+
+    override val room: Room get() = Room.SKETCH
+
+    /** A picture Live Sketch saved is gone on with; any other is drawn over. A page that is no file yet is not taken. */
+    override fun offer(what: Handed): String? = when (what) {
+        is Handed.Picture -> if (lib.sketches.documentOf(what.file) != null) "Continue sketch" else "Sketch over"
+        is Handed.Drawn -> null
+    }
+
+    override fun take(what: Handed) {
+        if (what !is Handed.Picture) return
+        val document = lib.sketches.documentOf(what.file)
+        if (document != null) open(document) else sketchOver(what.file)
     }
 
     // ---- The paper ----
@@ -553,18 +584,18 @@ class SketchState(
         val name = nameIn(dir)
         val problem = writeTo(dir, name)
         if (problem != null) return problem
-        val line = host.addToBoard(dir, listOf(File(dir, "$name.png")))
+        val line = boards.pin(dir, listOf(File(dir, "$name.png")))
         notice = "Saved $name. $line"
         return line
     }
 
     /** Into a concept's folder, and into the concept. */
     fun saveToConcept(id: String): String {
-        val dir = host.conceptDir(id) ?: return "That concept cannot be found."
+        val dir = concepts.folderOf(id) ?: return "That concept cannot be found."
         val name = nameIn(dir)
         val problem = writeTo(dir, name)
         if (problem != null) return problem
-        val ok = host.addToConcept(id, listOf(File(dir, "$name.png")))
+        val ok = concepts.addToConcept(id, listOf(File(dir, "$name.png")), emptyList()) != null
         val line = if (ok) "$name is in the concept now." else "Couldn't add to the concept."
         notice = line
         return line
@@ -601,10 +632,23 @@ class SketchState(
     private fun sameFile(a: File, b: File): Boolean =
         runCatching { a.canonicalFile == b.canonicalFile }.getOrDefault(a.absoluteFile == b.absoluteFile)
 
-    fun boards(): List<Pair<String, File>> = host.boards()
-    fun concepts() = host.concepts()
+    fun boards(): List<BoardRef> = boards.available()
+    fun concepts(): List<ConceptRef> = concepts.available()
 
     // ---- Leaving ----
+
+    /** The page as it is, to be handed on: drawn when it is taken. */
+    private fun page(): Handed? = session?.let { s -> Handed.Drawn(title) { s.exportPng() } }
+
+    /** Where the page can be taken: into the Lens, to check its values… */
+    fun routes(): List<Route> = page()?.let { handoff.routes(it, Room.SKETCH) }.orEmpty()
+
+    /** Takes the page as it is now into [to]'s room; the sketch waits as it is. */
+    fun handOff(to: Room) {
+        val page = page() ?: return
+        mouseUp()
+        handoff.send(page, to)
+    }
 
     /** Back to where Live Sketch was opened from; the sketch stays for next time. */
     fun leave() {

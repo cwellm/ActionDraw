@@ -77,6 +77,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.board.BoardEditor
 import de.creaflect.actiondraw.board.BoardItem
 import de.creaflect.actiondraw.board.BoardLayouts
@@ -96,7 +97,6 @@ import de.creaflect.actiondraw.ui.Design
 import de.creaflect.actiondraw.ui.HomeButton
 import de.creaflect.actiondraw.ui.Lift
 import de.creaflect.actiondraw.ui.PigmentDab
-import de.creaflect.actiondraw.ui.Room
 import de.creaflect.actiondraw.ui.formatTime
 import de.creaflect.actiondraw.ui.grainBehind
 import de.creaflect.actiondraw.ui.lampShadow
