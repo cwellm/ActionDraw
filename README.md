@@ -357,6 +357,36 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
 - Practice memory of a borrowed card (drawn, never drawn, redo) is kept per board, like
   everything else a board remembers about its cards.
 
+## Lens — any picture, seen differently
+
+The session's lenses without a session: open any picture — a file (*Open a picture…*, `Ctrl+O`),
+the clipboard (*Paste*, `Ctrl+V`), or with **Check the values** a board's card (on its ring and in
+its menu), a concept's picture, a sketch's page or a collage — and look at it through the same tray
+as a pose's, with no clock running: all nine view modes, the light, blur, invert, mirror and upside
+down, the proportion grids. Back returns to where it came from.
+
+- **Alone, beside the original, or two lenses at once.** Two start different — the second as Edge,
+  or Notan where the first is Edge — until it is turned; click a side's name, or press `Tab`, to
+  choose the lens the tray and the keys work.
+- **The glass.** A reading glass taken up from the tray (`L`) follows the pointer and magnifies
+  ×1.25–×12 (wheel; `Shift`+wheel its size). Six optics, as cross-sections of their glass (`O`
+  turns): plain, convex, concave, fisheye, cylinder, prism. A click sets it down on that point, a
+  drag on a part, which then fills the view; the print in the corner, a right click or `Esc` goes
+  back to the whole. `W` lays it over the whole picture instead, bending all of it about a centre a
+  click moves; the wheel bends it more or less. The optic, size and bend are kept between runs.
+- **Forms.** `P`, or the *Form* knob, puts the picture on a sphere, a cylinder, a cone, a torus, a
+  **block** — the family between ball and box, its ends and its round each square, round or pointed,
+  its height and depth on sliders — a page tilted away, a **relief** raised by a greyscale picture
+  (the picture's own values, or another), or a chrome ball reflecting it all round. Drag to turn it
+  like a globe; *Straighten* returns it; the lamp lights it from above to the left, or not. Every lens
+  works on the form too — a sphere in notan.
+- **Out.** *Save the view…* (`Ctrl+S`) writes it as a PNG at the picture's own size, the lens's
+  sizes grown with it and the grid and the glass left behind; *Pin to a board* puts it on the board
+  chosen beside its original. **Sketch over** and **To a collage** take the picture on.
+
+The header folds into menus where the window is narrow (*Open ▾*, *Send ▾*, *Picture ▾*, *More ▾*),
+so nothing is cut and the picture's name keeps its room.
+
 ## Live Sketch — a page, a pencil, a pen
 
 The drawing engine lives in its own module, `lib/sketch-engine`, with no Compose in it: pen samples
@@ -513,6 +543,20 @@ can be dragged onto another to reorder it, or onto a group header to file it the
 
 More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's design notes are in
 [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and planned work in [ROADMAP.md](ROADMAP.md).
+
+### Lens
+
+The lens's own keys are the session's (`1`–`9`, `N`, the light, `B` `I` `D` `M` `U`, `G`) and work
+on the lens chosen.
+
+| Key | Action |
+|---|---|
+| `Ctrl+O` / `Ctrl+V` / `Ctrl+S` | open a picture · look at the clipboard's · save the view |
+| `Tab` | the other lens, while two are compared |
+| `L` · `O` · `+` / `−` | the glass: take up / put away · next optic · nearer / further |
+| `W` | the glass over the whole picture, or back in hand |
+| `P` | the picture on the next form, or off it |
+| `Esc` | lift the glass · put it away · take the picture off its form · back |
 
 ### Live Sketch
 

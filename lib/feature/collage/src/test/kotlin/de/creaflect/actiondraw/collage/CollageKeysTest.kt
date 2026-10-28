@@ -1,6 +1,7 @@
 package de.creaflect.actiondraw.collage
 
 import androidx.compose.ui.input.key.Key
+import de.creaflect.actiondraw.collage.ui.handleCollageChar
 import de.creaflect.actiondraw.collage.ui.handleCollageKey
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -35,8 +36,15 @@ class CollageKeysTest {
         assertTrue(state.selectedPiece!!.flipped)
         key(Key.PageUp)
         assertEquals(listOf(b.id, a.id), state.collage.pieces.map { it.id })
-        key(Key.LeftBracket)
+        key(Key.PageDown)
         assertEquals(listOf(a.id, b.id), state.collage.pieces.map { it.id })
+        // [ and ] by the character typed, as a German keyboard types them with AltGr.
+        assertTrue(handleCollageChar(']', state))
+        assertEquals(listOf(b.id, a.id), state.collage.pieces.map { it.id }, "]: forward")
+        assertTrue(handleCollageChar('[', state))
+        assertEquals(listOf(a.id, b.id), state.collage.pieces.map { it.id }, "[: backward")
+        assertFalse(handleCollageChar('x', state))
+        assertFalse(handleCollageKey(Key.RightBracket, false, false, state), "not the key as well, or a US ] would restack twice")
         key(Key.Z, ctrl = true)
         assertEquals(listOf(b.id, a.id), state.collage.pieces.map { it.id }, "Ctrl+Z")
         key(Key.Y, ctrl = true)

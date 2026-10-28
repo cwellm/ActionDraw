@@ -1120,6 +1120,19 @@ Built on `dev/concept-feature` in steps (2026-10-28).
   Lens, Pin to a board, Save as picture, the rail's All layers, L and Ctrl+S doing nothing; the room
   given no boards, or no hand-offs. The first of them survived at first — the test had chosen
   nothing before cutting — and was seen red once it chose the piece underneath
+- ✅ What the room left open elsewhere (2026-10-28). A pose's side buttons — one more for *To a
+  collage* — reached into the lens tray in a window under 770 dp: they now stop above the tray and
+  go on in a second column to the left of the first where they do not fit (`ColumnsFromTheRight`).
+  `[` and `]` restack by the character typed, as Live Sketch's do, so a German keyboard's AltGr+8
+  and AltGr+9 work too (`handleCollageChar`; the window routes the room's typed characters to it).
+  The README has a section for the Lens room, and the lens's hotkey sheet names the block and the
+  relief among the forms. Tested in `SessionChromeTest` (a low window, every way on: above the
+  tray, in two columns, none over another), `CollageKeysTest` and `KeysTest` (new: AltGr+9 as the
+  window has it — Ctrl+9, then `]` typed — and a US `]`, pressed and typed, restacking once).
+  Broken on purpose and seen red after a no-op control stayed green: 6 guards — the buttons down
+  into the tray, never a second column, a second column over the first (survived at first: the test
+  looked only for two columns, and now holds every button clear of the others), a typed character
+  going nowhere, `]` sending the piece back, a US `]` restacking twice
 
 ### ✅ F10.7 One seam for hand-offs
 - ✅ The hand-off seam in the domain: `Handed` (a picture on disk, or a page drawn as PNG when it

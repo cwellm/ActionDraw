@@ -27,6 +27,17 @@ object CollageHotkeys {
     )
 }
 
+/**
+ * Keys by the character they type: `]` forward, `[` backward. Read from the typed character, not the
+ * key, because the keys differ by layout — on a German keyboard `[` is AltGr+8, which also reads as
+ * Ctrl — as Live Sketch's `[` `]` are.
+ */
+fun handleCollageChar(char: Char, state: CollageState): Boolean = when (char) {
+    ']' -> { state.forward(); true }
+    '[' -> { state.backward(); true }
+    else -> false
+}
+
 /** How far the arrow keys move a piece, in mat units: a little, or with Shift a quarter of a mark. */
 private const val NUDGE = 2f
 private const val NUDGE_FAR = 25f
@@ -64,8 +75,8 @@ fun handleCollageKey(key: Key, ctrl: Boolean, shift: Boolean, state: CollageStat
         Key.Q -> { state.turnBy(-turn); true }
         Key.E -> { state.turnBy(turn); true }
         Key.F -> { state.flip(); true }
-        Key.RightBracket, Key.PageUp -> { state.forward(); true }
-        Key.LeftBracket, Key.PageDown -> { state.backward(); true }
+        Key.PageUp -> { state.forward(); true }
+        Key.PageDown -> { state.backward(); true }
         Key.Delete, Key.Backspace -> { state.remove(); true }
         else -> false
     }

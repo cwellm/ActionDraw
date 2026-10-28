@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.runDesktopComposeUiTest
 import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.handoff.Handed
 import de.creaflect.actiondraw.handoff.Handoff
@@ -100,6 +101,30 @@ class SessionChromeTest {
         rule.onNodeWithTag("session-hide").performClick()
         step()
         assertTrue(state.referenceFlipped)
+    }
+
+    @Test
+    fun inALowWindowTheSideButtonsStayAboveTheTray() = runDesktopComposeUiTest(width = 1120, height = 560) {
+        repeat(2) { i -> ImageIO.write(BufferedImage(40, 30, BufferedImage.TYPE_INT_RGB), "png", File(pictures, "pose$i.png")) }
+        // Every room there is to go on into: a button each, as many as there will ever be.
+        val rooms = object : Handoff {
+            override fun routes(what: Handed, from: Room) =
+                listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.COLLAGE, "To a collage"), Route(Room.LENS, "Check the values"))
+            override fun send(what: Handed, to: Room) = Unit
+        }
+        val state = PracticeState(FileLib(config), handoff = rooms).also { it.selectFolder(pictures) }
+        state.start()
+        mainClock.autoAdvance = false
+        setContent { ProvideAtelier { SessionScreen(state, onToggleFullscreen = {}, isFullscreen = false) } }
+        mainClock.advanceTimeBy(300)
+        val tray = onNodeWithTag("session-chrome").fetchSemanticsNode().boundsInRoot
+        val buttons = listOf("session-redo", "session-hide", "session-sketch", "session-collage", "session-lens", "session-pin")
+            .map { tag -> tag to onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot }
+        buttons.forEach { (tag, b) -> assertTrue(b.bottom <= tray.top, "$tag above the tray: ${b.bottom} over ${tray.top}") }
+        assertTrue(buttons.map { it.second.left }.distinct().size > 1, "the ones that do not fit in a second column beside the first")
+        buttons.forEachIndexed { i, (one, a) ->
+            buttons.drop(i + 1).forEach { (other, b) -> assertFalse(a.overlaps(b), "$one clear of $other") }
+        }
     }
 
     @Test
