@@ -32,6 +32,9 @@ class AppDirs(val userHome: File = File(System.getProperty("user.home") ?: "."))
     /** Where sketches are saved until the user picks a home for them; need not exist yet. */
     val defaultSketchesHome: File get() = File(userHome, "ActionDraw Sketches")
 
+    /** Where collages are kept until the user picks a home for them; need not exist yet. */
+    val defaultCollagesHome: File get() = File(userHome, "ActionDraw Collages")
+
     companion object {
         /** The folders of the user running the app. */
         val current: AppDirs = AppDirs()

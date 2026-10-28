@@ -25,7 +25,7 @@ flowchart TB
   end
   subgraph LIB["lib"]
     subgraph UI["UI kit"]
-      features[":lib:feature:*<br/>practice · board · concept · sketch · lens"]
+      features[":lib:feature:*<br/>practice · board · concept · sketch · lens · collage"]
       lens[":lib:lens<br/>lenses · knobs · grids · the glass · forms"]
       atelier[":lib:design:atelier<br/>the default design system"]
       contract[":lib:design:contract<br/>tokens · materials · chrome · RoomTheme"]
@@ -68,7 +68,7 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 ## The layers
 
 - **`model`** — how things are stored: the sidecars' and the registries' formats (`BoardJson`,
-  `ConceptJson`, …), field for field what the files on disk hold. Only `data` sees it.
+  `ConceptJson`, `CollageJson`, …), field for field what the files on disk hold. Only `data` sees it.
 - **`io`** — files: the app's own folders, writing a file whole or not at all, moving and deleting
   folders, names Windows accepts, listing and decoding pictures.
 - **`lifecycle`** — the lib's run: loading it, the scopes and dispatchers its async work runs in,
@@ -152,7 +152,7 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 | `:lib:core:io` | `:core:io` (F11.2) |
 | `:lib:core:lifecycle` | new (F11.6): the run, its writes and its caches; before it each state picked its own `Dispatchers.IO`, and nothing was flushed on close |
 | `:lib:network` | `:core:network` (F11.3) |
-| `:lib:domain` | the types of `:core:model` (F11.7: `Board`, `Concept`, …); `Lib` and its contracts — `Boards`, `Concepts`, `Pictures`, `PracticeHistory`, `Sketches`, `LinkPreviews`, `Preferences`, `Diagnostics` (F11.8); the host contracts `SystemClipboard`, `Browser`, `FileDialogs`, `HostPreferences` and `PenSource`; the rooms (`Room`, out of the design contract) and the seams between them — `BoardSource`, `ConceptSource` and the hand-off seam `Handoff` (F10.7, F11.12) |
+| `:lib:domain` | the types of `:core:model` (F11.7: `Board`, `Concept`, …); `Lib` and its contracts — `Boards`, `Concepts`, `Pictures`, `PracticeHistory`, `Sketches`, `Collages` (F10.6), `LinkPreviews`, `Preferences`, `Diagnostics` (F11.8); the host contracts `SystemClipboard`, `Browser`, `FileDialogs`, `HostPreferences` and `PenSource`; the rooms (`Room`, out of the design contract) and the seams between them — `BoardSource`, `ConceptSource` and the hand-off seam `Handoff` (F10.7, F11.12) |
 | `:lib:data` | `FileLib`, over `BoardStore`, `ConceptStore`, the registries, `Settings`, `SeenStore`, `RedoStore`, `ThumbCache`, `Importer`, `LinkPreview`, `ContactSheet`, `Palette` — and the storage that was inside `BoardState`, `ConceptState`, `SketchState`, `AppState` (F11.8) |
 | `:lib:sketch-engine` | `:sketch-engine` |
 | `:lib:design:contract` | new: `DesignSystem`, `Materials` and `Chrome` as contracts, read through `DesignTheme`; and the kit's basics, `ui/Motion.kt` (without the bloom) and `Components.kt` (F11.9); `RoomTheme` (F11.12) |
@@ -163,6 +163,7 @@ with the domain's `Lib`, which the app makes from `data` and hands in.
 | `:lib:feature:concept` | `ConceptState` — the domain's `ConceptSource` — and `concept/ui` |
 | `:lib:feature:sketch` | `SketchState` — a `Receiver` of the hand-off seam — and `sketch/ui` |
 | `:lib:feature:lens` | new (F10.1): the Lens room — `LensRoomState`, a `Receiver` of the hand-off seam, its host `LensHost`, and `lens/ui` |
+| `:lib:feature:collage` | new (F10.6): the Collage room — `CollageState`, a `Receiver` of the hand-off seam, its host `CollageHost`, the pieces' geometry (`Pieces.kt`), cutting, tearing and tape's strips (`Cuts.kt`: an outline divided along a path, in plain Kotlin), and `collage/ui` — the mat, the pieces list, the source drawer over the domain's `BoardSource` and `ConceptSource`, and `drawCollage`, the collage drawn flat as a PNG for the ways out, which go along the hand-off seam as the picture saved beside it |
 | `:app:desktop` | `Main` (the windows), `App` (the palette, the room on screen in its `RoomTheme`), `Rooms` (the rooms put together, F11.11, and the hand-off seam built from them, F10.7), `Keys`, `AppState` (the way between the rooms, and Back through every hand-off), the settings sheet; the desktop's sides of the host contracts — `AwtClipboard`, `DesktopBrowser`, `SwingFileDialogs`, `SystemPreferences`, the pen delivered on the UI thread |
 | `:device:pen` | `PenSource`'s Windows side, `WindowsPointerSource` (F11.5, F11.7) |
 

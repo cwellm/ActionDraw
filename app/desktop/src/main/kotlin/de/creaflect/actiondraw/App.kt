@@ -15,6 +15,8 @@ import de.creaflect.actiondraw.board.BoardState
 import de.creaflect.actiondraw.board.ui.BoardDialogs
 import de.creaflect.actiondraw.board.ui.BoardListScreen
 import de.creaflect.actiondraw.board.ui.BoardScreen
+import de.creaflect.actiondraw.collage.Collages
+import de.creaflect.actiondraw.collage.ui.CollageScreen
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.concept.ui.ConceptDialogs
 import de.creaflect.actiondraw.concept.ui.ConceptListScreen
@@ -45,6 +47,7 @@ enum class Screen(val room: Room?) {
     Concepts(Room.CONCEPTS), Concept(Room.CONCEPTS),
     Sketch(Room.SKETCH),
     Lens(Room.LENS),
+    Collage(Room.COLLAGE),
 }
 
 /** The main window's content: the palette, or the room on screen, with the bloom between them. */
@@ -82,7 +85,10 @@ fun App(
                     when (state.screen) {
                         Screen.Palette -> {
                             // Read when the palette shows, not on every frame: it looks at the disk.
-                            val wells = remember(state.screen) { paletteWells(boardState.lastBoard(), sketchState.session != null, rooms.lens.picture?.name) }
+                            val wells = remember(state.screen) {
+                                val collage = (rooms.collage.file ?: rooms.collage.recent().firstOrNull())?.let(Collages::nameOf)
+                                paletteWells(boardState.lastBoard(), sketchState.session != null, rooms.lens.picture?.name, collage)
+                            }
                             PaletteScreen(
                                 wells,
                                 selected = state.paletteRoom,
@@ -104,6 +110,7 @@ fun App(
                         // Leaving the screen lets go of the pen and the mouse, as Back does (see Main).
                         Screen.Sketch -> SketchScreen(sketchState, thumbs, onHome = { state.home(Screen.Sketch) })
                         Screen.Lens -> LensRoomScreen(rooms.lens, onHome = { state.home(Screen.Lens) })
+                        Screen.Collage -> CollageScreen(rooms.collage, onHome = { state.home(Screen.Collage) })
                     }
                 }
                 // The room's pigment, settled into a line along the top — not over a running pose.
@@ -125,11 +132,10 @@ fun App(
 }
 
 /**
- * What each well of the palette says, from what exists: only rooms that are built have a next
- * step. Collage comes with M9; until then its well is dry. [lensPicture] is what the Lens room is
- * looking at, if anything.
+ * What each well of the palette says, from what exists: each room's next step. [lensPicture] is
+ * what the Lens room is looking at, if anything; [collage] the collage open or kept last.
  */
-internal fun paletteWells(lastBoard: Pair<String, java.io.File>?, sketchOpen: Boolean, lensPicture: String? = null): List<PaletteWell> =
+internal fun paletteWells(lastBoard: Pair<String, java.io.File>?, sketchOpen: Boolean, lensPicture: String? = null, collage: String? = null): List<PaletteWell> =
     listOf(
         PaletteWell(Room.PRACTICE, "draw against the clock", "Timed poses and memory drawing.", "Set up a session"),
         PaletteWell(Room.LENS, "see it differently", "Any picture through notan, edge or the glass.", lensPicture?.let { "Look at $it" } ?: "Open a picture"),
@@ -137,7 +143,7 @@ internal fun paletteWells(lastBoard: Pair<String, java.io.File>?, sketchOpen: Bo
             Room.SKETCH, "draw", "Seven tools, three papers, a real pen.",
             if (sketchOpen) "Continue the sketch" else "New sketch",
         ),
-        PaletteWell(Room.COLLAGE, "cut and compose", "Cut pictures, test a scene. Not built yet.", null),
+        PaletteWell(Room.COLLAGE, "cut and compose", "Cut pictures apart, test whether a scene holds.", collage?.let { "Continue $it" } ?: "New collage"),
         PaletteWell(Room.CONCEPTS, "keep", "Kept once, linked onto every board.", "All concepts"),
         PaletteWell(
             Room.BOARDS, "collect", "Pin, group and arrange your material.",
@@ -174,6 +180,6 @@ internal fun openRoom(room: Room, state: AppState, boards: BoardState, concepts:
         Room.CONCEPTS -> concepts.openList()
         Room.SKETCH -> state.enter(Screen.Sketch, from = Screen.Palette)
         Room.LENS -> state.enter(Screen.Lens, from = Screen.Palette)
-        Room.COLLAGE -> Unit
+        Room.COLLAGE -> state.enter(Screen.Collage, from = Screen.Palette)
     }
 }

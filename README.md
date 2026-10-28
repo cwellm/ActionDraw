@@ -17,10 +17,11 @@ Built with Compose for Desktop (Kotlin/JVM), so the same code runs on Windows an
 ## The palette — home
 
 ActionDraw opens on a porcelain mixing palette. Each of its six wells is a room — **Practice**
-(the timed sessions below), **Boards**, **Concepts**, **Sketch** (Live Sketch), and **Lens** and
-**Collage**, whose wells stay dry until they are built. The centre well says what the chosen room
-is for and offers its next step: *Set up a session*, *Open* the board you had open last, *All
-concepts*, *New sketch* or *Continue the sketch*.
+(the timed sessions below), **Boards**, **Concepts**, **Sketch** (Live Sketch), **Lens** (any
+picture seen through a lens, with no clock running) and **Collage** (pictures cut apart on a
+cutting mat). The centre well says what the chosen room is for and offers its next step: *Set up a
+session*, *Open* the board you had open last, *All concepts*, *New sketch* or *Continue the
+sketch*, *Open a picture*, *New collage* or *Continue* the one kept last.
 
 - A click chooses a well, a second click (or the centre's button) opens it. The arrow keys and
   `Tab` turn the palette, `Enter` opens. The well you chose is remembered for the next start.
@@ -129,11 +130,12 @@ the concept's green tab. A group is drawn round its cards in graphite, its name 
 paper tag pinned in the group's colour; what is selected is marked in ultramarine. *Plain* is the
 graphite table, *cork* and *papyrus* stay.
 
-**The ring.** Right-click a card and six porcelain buttons open round it, each leading into a
-room and carrying its pigment: **Draw these** (Practice), **Sketch over** — Live Sketch with the
-picture beside the page, or *Continue sketch* for one Live Sketch made — **To a collage** (a dry
-well until Collage is built), **To a concept** (any concept; linked onto the board if it is not
-yet, and the cards become the concept's), **Tag** and **Group**. The middle button, *More…*,
+**The ring.** Right-click a card and porcelain buttons open round it, each leading into a room and
+carrying its pigment: **Draw these** (Practice), **Sketch over** — Live Sketch with the picture
+beside the page, or *Continue sketch* for one Live Sketch made — **To a collage** (laid on the
+collage as a piece to cut from), **Check the values** (the Lens), **To a concept** (any concept;
+linked onto the board if it is not yet, and the cards become the concept's), **Tag** and
+**Group**. The middle button, *More…*,
 opens the full menu with every other command. The arrows or `Tab` go round the ring, `Enter`
 takes a button, `Esc` closes it.
 
@@ -355,6 +357,36 @@ apart. A concept lives once, in a folder of its own, and is **linked** onto any 
 - Practice memory of a borrowed card (drawn, never drawn, redo) is kept per board, like
   everything else a board remembers about its cards.
 
+## Lens — any picture, seen differently
+
+The session's lenses without a session: open any picture — a file (*Open a picture…*, `Ctrl+O`),
+the clipboard (*Paste*, `Ctrl+V`), or with **Check the values** a board's card (on its ring and in
+its menu), a concept's picture, a sketch's page or a collage — and look at it through the same tray
+as a pose's, with no clock running: all nine view modes, the light, blur, invert, mirror and upside
+down, the proportion grids. Back returns to where it came from.
+
+- **Alone, beside the original, or two lenses at once.** Two start different — the second as Edge,
+  or Notan where the first is Edge — until it is turned; click a side's name, or press `Tab`, to
+  choose the lens the tray and the keys work.
+- **The glass.** A reading glass taken up from the tray (`L`) follows the pointer and magnifies
+  ×1.25–×12 (wheel; `Shift`+wheel its size). Six optics, as cross-sections of their glass (`O`
+  turns): plain, convex, concave, fisheye, cylinder, prism. A click sets it down on that point, a
+  drag on a part, which then fills the view; the print in the corner, a right click or `Esc` goes
+  back to the whole. `W` lays it over the whole picture instead, bending all of it about a centre a
+  click moves; the wheel bends it more or less. The optic, size and bend are kept between runs.
+- **Forms.** `P`, or the *Form* knob, puts the picture on a sphere, a cylinder, a cone, a torus, a
+  **block** — the family between ball and box, its ends and its round each square, round or pointed,
+  its height and depth on sliders — a page tilted away, a **relief** raised by a greyscale picture
+  (the picture's own values, or another), or a chrome ball reflecting it all round. Drag to turn it
+  like a globe; *Straighten* returns it; the lamp lights it from above to the left, or not. Every lens
+  works on the form too — a sphere in notan.
+- **Out.** *Save the view…* (`Ctrl+S`) writes it as a PNG at the picture's own size, the lens's
+  sizes grown with it and the grid and the glass left behind; *Pin to a board* puts it on the board
+  chosen beside its original. **Sketch over** and **To a collage** take the picture on.
+
+The header folds into menus where the window is narrow (*Open ▾*, *Send ▾*, *Picture ▾*, *More ▾*),
+so nothing is cut and the picture's name keeps its room.
+
 ## Live Sketch — a page, a pencil, a pen
 
 The drawing engine lives in its own module, `lib/sketch-engine`, with no Compose in it: pen samples
@@ -426,6 +458,42 @@ step back; come up to any of them and they are there.
   page, **Put away** to put it away); **Back**
   returns to the paused session. The paper beside the monitor, digitised.
 
+## Collage — cut and compose
+
+Pictures laid on a green cutting mat, to test whether a scene holds. A picture comes onto the mat
+with **To a collage** — on a board's card and its ring, a concept's picture, a pose, Sketch's and
+the Lens's headers — or with *Add a picture…* and *Paste*; it lies whole in the middle, to cut
+from. Drag a piece to move it, its round handle to turn it (`Shift`: in steps of 15°), its corner
+to grow it; **Flip**, **Forward** and **Backward** on the left work the chosen piece, and the list
+on the right shows the pieces from the top of the stack down — a click chooses one, a double click
+renames it, a drag restacks it, × takes it away. Every change is kept at once in
+`<name>.collage.json` (in `~/ActionDraw Collages` unless it was opened from elsewhere) and can be
+undone. *Collage ▾* starts a new one and opens the recent ones; click the name to rename it.
+
+The tools are down the left. **Scissors** cut a piece the way paper is cut: a drag across it cuts
+freehand as you let go, `Shift` keeps the cut straight, and clicks lay corners for straight cuts —
+click the first corner again to cut all the way round a part, the last one (or `Enter`) to stop
+there. The path marches in Naples yellow while you make it. A cut from edge to edge parts the
+piece, as often as it goes through; a cut round a part cuts it out and leaves a hole, the scissors
+coming in from the nearest edge. The scissors cut the chosen piece, else the topmost the cut goes
+through; every part lies where it lay, the largest keeps the name, and the part cut off is chosen.
+**Tear** parts a piece along a drag with a ragged edge instead. **Tape** lays a strip of masking
+tape along a drag, or a short one with a click; the pictures it lies across are held together and
+move, turn, grow and flip as one, until the tape is taken away.
+Turn on **All layers** (`L`) and the scissors and the tear go through every picture under the cut
+at once — each parted as it would be on its own, as one change to undo.
+
+Under the mat is the **source drawer**: a board or a concept to draw from on its left (each a menu
+of the others), its pictures beside it as small prints. Click a print to lay it on the mat, or drag
+it out and let go where it should lie — as often as you like, each time a new piece to cut from.
+
+The ways out are in the header. **Sketch over** and **Check the values** take the collage into Live
+Sketch as the picture to draw over, or into the Lens; **Pin to a board** pins it to the board
+chosen; *Collage ▾ → Save as picture* (`Ctrl+S`) just saves it. Each draws the collage flat — its
+pieces as they lie, without their shadows, on paper, cut to the space they cover — and saves it as
+`<name>.png` beside the collage, again as it is now each time. *Add a picture…* and *Paste* are in
+*Collage ▾* too.
+
 ## Keyboard shortcuts
 
 ### Session
@@ -476,6 +544,20 @@ can be dragged onto another to reorder it, or onto a group header to file it the
 More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's design notes are in
 [docs/IdeaBoard-Shaping.md](docs/IdeaBoard-Shaping.md) and planned work in [ROADMAP.md](ROADMAP.md).
 
+### Lens
+
+The lens's own keys are the session's (`1`–`9`, `N`, the light, `B` `I` `D` `M` `U`, `G`) and work
+on the lens chosen.
+
+| Key | Action |
+|---|---|
+| `Ctrl+O` / `Ctrl+V` / `Ctrl+S` | open a picture · look at the clipboard's · save the view |
+| `Tab` | the other lens, while two are compared |
+| `L` · `O` · `+` / `−` | the glass: take up / put away · next optic · nearer / further |
+| `W` | the glass over the whole picture, or back in hand |
+| `P` | the picture on the next form, or off it |
+| `Esc` | lift the glass · put it away · take the picture off its form · back |
+
 ### Live Sketch
 
 | Key | Action |
@@ -487,6 +569,23 @@ More ideas and the filter backlog live in [IDEAS.md](IDEAS.md); the board's desi
 | `Ctrl`+`Z` / `Ctrl`+`Y` | undo / redo |
 | `Ctrl`+`S` · `Ctrl`+`N` · `Ctrl`+`O` | save · new sketch · open a sketch |
 | `Esc` | close a dialog · back (the sketch stays) |
+
+### Collage
+
+| Key | Action |
+|---|---|
+| `M` / `S` / `R` / `T` | Move · scissors · tear · tape |
+| `Enter` | cut along the corners clicked so far |
+| `L` | cut and tear through every layer, or one alone |
+| `←` `↑` `→` `↓` | move the chosen piece (`Shift`: further) |
+| `Q` / `E` | turn it (`Shift`: by 15°) |
+| `F` | flip it over |
+| `PgUp` / `PgDn` or `]` / `[` | bring it forward · send it backward |
+| `Del` | take it away |
+| `Ctrl+N` / `Ctrl+O` / `Ctrl+V` | a new collage · add a picture · paste one |
+| `Ctrl+S` | save the collage as a picture beside it |
+| `Ctrl+Z` / `Ctrl+Y` | undo · redo |
+| `Esc` | drop the cut · let go of the piece · Move again · back |
 
 ## Going online
 
@@ -550,7 +649,7 @@ In three groups — `lib` for what an application builds on, `device` for the ha
   fonts
 - `lib/lens` — how a picture is seen: the lenses, the knobs, the grids and the glass, with the
   tray, the picture and the keys that work them — shared by every room that shows a picture
-- `lib/feature/practice`, `board`, `concept`, `sketch`, `lens` — the rooms: each one's state and
+- `lib/feature/practice`, `board`, `concept`, `sketch`, `lens`, `collage` — the rooms: each one's state and
   logic over the domain, its screens on the design contract; none knows another
 - `device/pen` — the pen's own input: Windows Ink, through JNA, filling the domain's `PenSource`
 - `app/desktop` — the app: the palette, the windows, the rooms put together, the desktop's

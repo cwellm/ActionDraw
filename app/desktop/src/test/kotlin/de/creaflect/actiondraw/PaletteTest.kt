@@ -10,7 +10,6 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -114,10 +113,12 @@ class PaletteTest {
         assertEquals("Drachenbuch", shell.boards.board?.name)
         assertEquals(Room.BOARDS, app.paletteRoom, "the well opened stays chosen for the way back")
 
-        // A dry well does nothing.
+        // The Collage room is a room now, its well a new collage until one is kept.
         shell.boards.closeBoard()
+        assertEquals("New collage", paletteWells(null, false).single { it.room == Room.COLLAGE }.action)
+        assertEquals("Continue Cliff", paletteWells(null, false, collage = "Cliff").single { it.room == Room.COLLAGE }.action)
         shell.open(Room.COLLAGE)
-        assertEquals(Screen.Palette, app.screen)
+        assertEquals(Screen.Collage, app.screen)
     }
 
     @Test
@@ -184,12 +185,13 @@ class PaletteTest {
     }
 
     @Test
-    fun theKeysTurnThePalettePastTheDryWells() {
+    fun theKeysTurnThePaletteRoundEveryWell() {
         val wells = paletteWells(lastBoard = null, sketchOpen = false)
         assertEquals(PALETTE_ORDER, wells.map { it.room }, "the wells are listed in their order round the rim")
         assertEquals(Room.LENS, stepRoom(wells, Room.PRACTICE, 1), "Lens is a room now")
         assertEquals(Room.SKETCH, stepRoom(wells, Room.LENS, 1))
-        assertEquals(Room.CONCEPTS, stepRoom(wells, Room.SKETCH, 1), "Collage is dry")
+        assertEquals(Room.COLLAGE, stepRoom(wells, Room.SKETCH, 1), "Collage is a room now")
+        assertEquals(Room.CONCEPTS, stepRoom(wells, Room.COLLAGE, 1))
         assertEquals(Room.PRACTICE, stepRoom(wells, Room.BOARDS, 1), "round the rim")
         assertEquals(Room.BOARDS, stepRoom(wells, Room.PRACTICE, -1))
         assertEquals(1, paletteStep(Key.DirectionRight))
@@ -210,9 +212,7 @@ class PaletteTest {
         }
         rule.waitForIdle()
         for (room in PALETTE_ORDER) rule.onNodeWithTag("well-${room.name.lowercase()}").assertIsDisplayed()
-        rule.onNodeWithTag("well-lens").assertIsEnabled()
-        rule.onNodeWithTag("well-collage").assertIsNotEnabled()
-        rule.onNodeWithTag("well-sketch").assertIsEnabled()
+        for (room in PALETTE_ORDER) rule.onNodeWithTag("well-${room.name.lowercase()}").assertIsEnabled()
 
         // A click on another well chooses it; the centre well says so.
         rule.onNodeWithTag("well-sketch").performClick()
@@ -221,24 +221,26 @@ class PaletteTest {
         rule.onNodeWithTag("palette-open").assert(hasText("New sketch"))
         assertEquals(emptyList(), opened)
 
-        // A dry well cannot be chosen.
+        // The Collage room's well is chosen like any other now, a new collage its next step.
         rule.onNodeWithTag("well-collage").performClick()
         rule.waitForIdle()
+        rule.onNode(hasText("Cut pictures apart", substring = true)).assertIsDisplayed()
+        rule.onNodeWithTag("palette-open").assert(hasText("New collage"))
         assertEquals(emptyList(), opened)
 
         // A second click on the chosen well opens it, and so does the centre's button.
-        rule.onNodeWithTag("well-sketch").performClick()
+        rule.onNodeWithTag("well-collage").performClick()
         rule.onNodeWithTag("palette-open").performClick()
         rule.waitForIdle()
-        assertEquals(listOf(Room.SKETCH, Room.SKETCH), opened)
+        assertEquals(listOf(Room.COLLAGE, Room.COLLAGE), opened)
 
         // The keys: focus sits on the chosen well, the arrows turn it, Enter opens.
-        rule.onNodeWithTag("well-sketch").requestFocus()
-        rule.onNodeWithTag("well-sketch").performKeyInput { pressKey(Key.DirectionRight) }
+        rule.onNodeWithTag("well-collage").requestFocus()
+        rule.onNodeWithTag("well-collage").performKeyInput { pressKey(Key.DirectionRight) }
         rule.waitForIdle()
         rule.onNodeWithTag("well-concepts").assertIsFocused()
         rule.onNodeWithTag("well-concepts").performKeyInput { pressKey(Key.Enter) }
         rule.waitForIdle()
-        assertEquals(listOf(Room.SKETCH, Room.SKETCH, Room.CONCEPTS), opened)
+        assertEquals(listOf(Room.COLLAGE, Room.COLLAGE, Room.CONCEPTS), opened)
     }
 }

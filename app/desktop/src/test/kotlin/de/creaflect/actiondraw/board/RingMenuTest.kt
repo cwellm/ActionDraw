@@ -6,7 +6,6 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -61,7 +60,8 @@ class RingMenuTest {
 
     /** The seam as the app has it, for a board: a picture into Sketch and into the Lens. */
     private val handoff = object : Handoff {
-        override fun routes(what: Handed, from: Room) = listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.LENS, "Check the values"))
+        override fun routes(what: Handed, from: Room) =
+            listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.COLLAGE, "To a collage"), Route(Room.LENS, "Check the values"))
         override fun send(what: Handed, to: Room) {
             sent += what to to
         }
@@ -105,14 +105,13 @@ class RingMenuTest {
     }
 
     @Test
-    fun aRightClickOpensTheRingAndCollageIsADryWell() {
+    fun aRightClickOpensTheRingWithEveryRoomThePictureGoesTo() {
         val (state, ids) = board()
         ring(ids[0])
         assertEquals(setOf(ids[0]), state.selection, "the right click took the card")
-        listOf("ring-draw", "ring-sketch", "ring-lens", "ring-concept", "ring-tag", "ring-group", "ring-more").forEach {
+        listOf("ring-draw", "ring-sketch", "ring-collage", "ring-lens", "ring-concept", "ring-tag", "ring-group", "ring-more").forEach {
             rule.onNodeWithTag(it).assertIsEnabled()
         }
-        rule.onNodeWithTag("ring-collage").assertIsNotEnabled()
     }
 
     @Test
@@ -133,6 +132,11 @@ class RingMenuTest {
         rule.onNodeWithTag("ring-lens").performClick()
         rule.waitForIdle()
         assertEquals("a.jpg" to Room.LENS, sent.last().let { (it.first as Handed.Picture).file.name to it.second }, "into the Lens room, to check its values")
+
+        ring(ids[1])
+        rule.onNodeWithTag("ring-collage").performClick()
+        rule.waitForIdle()
+        assertEquals("b.jpg" to Room.COLLAGE, sent.last().let { (it.first as Handed.Picture).file.name to it.second }, "onto a collage, to cut it apart")
         rule.onNodeWithTag("ring-menu").assertDoesNotExist()
 
         ring(ids[0])

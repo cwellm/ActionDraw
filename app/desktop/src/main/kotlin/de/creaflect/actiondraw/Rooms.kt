@@ -2,6 +2,8 @@ package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.board.BoardHost
 import de.creaflect.actiondraw.board.BoardState
+import de.creaflect.actiondraw.collage.CollageHost
+import de.creaflect.actiondraw.collage.CollageState
 import de.creaflect.actiondraw.concept.ConceptHost
 import de.creaflect.actiondraw.concept.ConceptState
 import de.creaflect.actiondraw.handoff.Handed
@@ -109,8 +111,19 @@ class Rooms(val lib: Lib, host: HostServices = HostServices.None) {
         handoff = handoff,
     )
 
-    /** The rooms that take what others hand them, drawing first, then looking. */
-    private fun receivers(): List<Receiver> = listOf(sketch, lens)
+    /** The Collage room cuts the pictures handed to it apart, draws from the boards and concepts, and pins to the boards. */
+    val collage: CollageState = CollageState(
+        lib,
+        CollageHost { app.back(Screen.Collage) },
+        dialogs = host.dialogs,
+        clipboard = host.clipboard,
+        boards = boards,
+        concepts = concepts,
+        handoff = handoff,
+    )
+
+    /** The rooms that take what others hand them: drawing first, then composing, then looking. */
+    private fun receivers(): List<Receiver> = listOf(sketch, collage, lens)
 }
 
 /**

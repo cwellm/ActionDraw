@@ -12,6 +12,8 @@ import androidx.compose.ui.input.key.utf16CodePoint
 import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowState
 import de.creaflect.actiondraw.board.ui.handleBoardKey
+import de.creaflect.actiondraw.collage.ui.handleCollageChar
+import de.creaflect.actiondraw.collage.ui.handleCollageKey
 import de.creaflect.actiondraw.lens.ui.handleLensRoomKey
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
@@ -66,6 +68,10 @@ internal fun handleKey(event: KeyEvent, rooms: Rooms, windowState: WindowState):
         if (event.type != KeyEventType.KeyDown) return false
         return handleSketchShortcut(event.key, event.isCtrlPressed, sketchState)
     }
+    // The Collage room's [ ] by the character they type, whatever the layout (see handleCollageChar).
+    if (state.screen == Screen.Collage && event.type == KeyEventType.Unknown) {
+        return handleCollageChar(event.utf16CodePoint.toChar(), rooms.collage)
+    }
     if (event.type != KeyEventType.KeyDown) return false
     // A concept dialog owns the keyboard; Esc closes it, and on the concept screens Esc goes up.
     if (conceptState.editor != null) {
@@ -110,6 +116,8 @@ internal fun handleKey(event: KeyEvent, rooms: Rooms, windowState: WindowState):
         Screen.BoardList -> event.key == Key.Escape && escapeToPalette(state, practice, boardState)
 
         Screen.Lens -> handleLensRoomKey(event.key, event.isCtrlPressed, rooms.lens)
+
+        Screen.Collage -> handleCollageKey(event.key, event.isCtrlPressed, event.isShiftPressed, rooms.collage)
 
         Screen.Board -> handleBoardKey(
             event,

@@ -23,6 +23,8 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextOverflow
 import de.creaflect.actiondraw.board.BoardLayouts
 import de.creaflect.actiondraw.board.NoteKind
+import de.creaflect.actiondraw.collage.Spot
+import de.creaflect.actiondraw.collage.Tool
 import de.creaflect.actiondraw.lens.LensLayout
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Form
@@ -336,6 +338,55 @@ class RoomScreenshotTest {
             repeat(3) { mainClock.advanceTimeByFrame() }
             shoot("2$i-lens-form-" + form.name.lowercase(), Room.LENS)
         }
+    }
+
+    /**
+     * The Collage room (F10.6): the bare mat inviting a picture, then pieces on it — one turned, one
+     * flipped, the chosen one outlined with its handles — the pieces list beside it and a board's
+     * pictures in the drawer under it; then one torn, two taped, and the scissors on their way across
+     * the sky.
+     */
+    @Test
+    fun theCollageRoom() = window {
+        val world = World()
+        val collage = world.rooms.collage
+        // A board to draw from, in the drawer under the mat.
+        world.boards.createBoard(File(root, "boards"), "Drachenbuch")
+        world.boards.importExternal(listOf(0xB8C8D8, 0xE8DCC8, 0x9C8B74, 0xC9D8C0).mapIndexed { i, tint -> picture(File(world.boards.root!!, "p$i.png"), tint) })
+        world.app.enter(Screen.Collage)
+        world.show(this)
+        repeat(5) {
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        shoot("25-collage-empty", Room.COLLAGE)
+        val sky = collage.addPicture(picture(File(root, "sky.png"), 0xB8C8D8), Spot(700f, 480f))!!
+        val pose = collage.addPicture(picture(File(root, "pose.png")), Spot(1180f, 700f))!!
+        collage.select(pose.id)
+        collage.turnBy(-12f)
+        collage.addPicture(picture(File(root, "cliff.png"), 0x9C8B74), Spot(600f, 900f))
+        collage.flip()
+        collage.select(pose.id)
+        // The pictures are read off the UI thread: real time, and the clock stepped with it.
+        repeat(10) {
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        shoot("26-collage-pieces", Room.COLLAGE)
+        assertEquals(sky.id, collage.collage.pieces.first().id)
+
+        collage.select(null)
+        collage.tear(listOf(Spot(150f, 760f), Spot(1050f, 800f)))
+        collage.layTape(Spot(1000f, 520f), Spot(1160f, 490f))
+        collage.choose(Tool.SCISSORS)
+        collage.select(sky.id)
+        collage.trace(listOf(Spot(450f, 300f), Spot(700f, 250f), Spot(760f, 330f), Spot(830f, 400f)))
+        repeat(3) {
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        shoot("27-collage-cutting", Room.COLLAGE)
+        assertEquals(listOf("sky", "pose", "cliff", "cliff, torn", "Tape"), collage.collage.pieces.map { it.name })
     }
 
     /**

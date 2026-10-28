@@ -14,7 +14,7 @@ object LensHotkeys {
         "G" to "cycle the proportion grid",
         "L · O · + / −" to "the glass: take up / put away · next optic · nearer / further",
         "W" to "the glass over the whole picture, or back in hand",
-        "P" to "the picture on a form: sphere · cylinder · cone · torus · plane · chrome ball · none",
+        "P" to "the picture on a form: sphere · cylinder · cone · torus · block · plane · relief · chrome ball · none",
         "drag (on a form)" to "turn it",
         "click · drag · right click (glass in hand)" to "set it down on a point · on a part · lift it off",
         "click · drag · right click (over the whole)" to "move its centre · move it along · back in hand",

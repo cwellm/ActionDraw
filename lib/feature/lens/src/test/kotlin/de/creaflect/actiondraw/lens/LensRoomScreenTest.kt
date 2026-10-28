@@ -14,9 +14,12 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runDesktopComposeUiTest
+import de.creaflect.actiondraw.FileLib
 import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.handoff.Handed
+import de.creaflect.actiondraw.handoff.Handoff
+import de.creaflect.actiondraw.handoff.Route
 import de.creaflect.actiondraw.lens.ui.LensRoomScreen
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.ProvideAtelier
@@ -226,6 +229,29 @@ class LensRoomScreenTest {
         onNodeWithTag("lens-menu-pin-Buch").performClick()
         waitFor("the view pinned") { fixture.pinned.isNotEmpty() }
         assertEquals(fixture.board, fixture.pinned.single().first, "and pinned from the picture's menu")
+    }
+
+    @Test
+    fun moreWaysOnThanFitGoUnderSendBeforeAnythingElseFolds() = room {
+        val sendTo = object : Handoff {
+            override fun routes(what: Handed, from: Room) = listOf(Route(Room.SKETCH, "Sketch over"), Route(Room.COLLAGE, "To a collage"))
+            override fun send(what: Handed, to: Room) {
+                fixture.sent += what to to
+            }
+        }
+        val state = LensRoomState(FileLib(fixture.home), fixture.host, fixture.dialogs, fixture.clipboard, fixture.boards, sendTo)
+        val pose = fixture.picture("pose")
+        state.open(pose)
+        show(state)
+        onNodeWithTag("lens-layout-two").assertIsDisplayed()
+        onNodeWithTag("lens-save").assertIsDisplayed()
+        onNodeWithTag("lens-to-sketch").assertDoesNotExist()
+        backInside(1120)
+        onNodeWithTag("lens-send-menu").performClick()
+        waitForIdle()
+        onNodeWithTag("lens-menu-to-collage").performClick()
+        waitForIdle()
+        assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(pose) to Room.COLLAGE), fixture.sent, "sent on from its menu")
     }
 
     @Test

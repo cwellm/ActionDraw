@@ -42,7 +42,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -50,6 +53,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.Room
@@ -126,9 +131,10 @@ fun SessionScreen(
                 TopRow(state, onToggleFullscreen)
             }
             // Top right: the enso, which never leaves - a click pauses - and under it what can be
-            // done with this picture.
+            // done with this picture, kept above the tray.
+            val tray = with(LocalDensity.current) { barHeight.value.toDp() }
             Column(
-                Modifier.align(Alignment.TopEnd).padding(top = 20.dp, end = 20.dp),
+                Modifier.align(Alignment.TopEnd).padding(top = 20.dp, end = 20.dp, bottom = tray + 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -258,7 +264,7 @@ private fun QuietSwitch(label: String, key: String, on: Boolean, tag: String, on
 private fun SideButtons(state: PracticeState) {
     val current = state.currentImage
     val routes = remember(current) { state.routes() }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    ColumnsFromTheRight(gap = 10.dp) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RoundButton("Back", PREV_ICON, size = 34.dp, label = false, tag = "session-prev") { state.previous() }
             RoundButton("On", NEXT_ICON, size = 34.dp, label = false, tag = "session-next") { state.next() }
@@ -273,6 +279,43 @@ private fun SideButtons(state: PracticeState) {
             ) { state.handOff(route.to) }
         }
         PinButton(state)
+    }
+}
+
+/**
+ * [content] down a column from the top, each item in its middle — and where the room runs out, as it
+ * does above the tray in a low window, on down another column to the left of it, and so on, the
+ * columns against the right edge.
+ */
+@Composable
+private fun ColumnsFromTheRight(gap: Dp, content: @Composable () -> Unit) {
+    Layout(content) { measurables, constraints ->
+        val space = gap.roundToPx()
+        val columns = ArrayList<MutableList<Placeable>>()
+        var used = 0
+        measurables.map { it.measure(Constraints()) }.forEach { item ->
+            if (columns.isEmpty() || (columns.last().isNotEmpty() && used + space + item.height > constraints.maxHeight)) {
+                columns += ArrayList<Placeable>()
+                used = -space
+            }
+            columns.last() += item
+            used += space + item.height
+        }
+        val widths = columns.map { column -> column.maxOf { it.width } }
+        val wide = widths.sum() + space * (columns.size - 1).coerceAtLeast(0)
+        val high = columns.maxOfOrNull { column -> column.sumOf { it.height } + space * (column.size - 1) } ?: 0
+        layout(wide, high) {
+            var right = wide
+            columns.forEachIndexed { i, column ->
+                val left = right - widths[i]
+                var y = 0
+                column.forEach { item ->
+                    item.place(left + (widths[i] - item.width) / 2, y)
+                    y += item.height + space
+                }
+                right = left - space
+            }
+        }
     }
 }
 
@@ -325,7 +368,7 @@ private fun RoundButton(
     on: Boolean = false,
     room: Room? = null,
     enabled: Boolean = true,
-    size: androidx.compose.ui.unit.Dp = 46.dp,
+    size: Dp = 46.dp,
     label: Boolean = true,
     /** What a screen reader says it does, where that is more than its [name]. */
     description: String = name,

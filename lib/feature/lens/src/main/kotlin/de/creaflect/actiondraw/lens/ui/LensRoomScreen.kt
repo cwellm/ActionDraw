@@ -119,9 +119,10 @@ private fun SaveTheView(state: LensRoomState, bitmap: ImageBitmap?, shown: Mutab
 
 /**
  * The room's header: home, the room's name, what is open, and its actions — all of them out where
- * the window is wide; opening and pasting under *Open* as wide as the app opens; then all but the
- * ways on under *Picture* and the layout's menu; and, narrower still, all under *More*. Whichever
- * fits, measured, with room left for the picture's name.
+ * the window is wide; opening and pasting under *Open* as wide as the app opens; the ways on under
+ * *Send*, where there are more than one and they do not fit; then all but the ways on under
+ * *Picture* and the layout's menu, the ways on under *Send* again if need be; and, narrower still,
+ * all under *More*. Whichever fits, measured, with room left for the picture's name.
  */
 @Composable
 private fun Header(state: LensRoomState, onHome: (() -> Unit)?) {
@@ -141,7 +142,14 @@ private fun Header(state: LensRoomState, onHome: (() -> Unit)?) {
         },
         actions = {
             FirstThatFits(
-                listOf({ AllOut(state) }, { OpeningFolded(state) }, { Folded(state) }, { Fewest(state) }),
+                listOf(
+                    { AllOut(state) },
+                    { OpeningFolded(state, sent = false) },
+                    { OpeningFolded(state, sent = true) },
+                    { Folded(state, sent = false) },
+                    { Folded(state, sent = true) },
+                    { Fewest(state) },
+                ),
                 reserve = TITLE_ROOM,
             )
         },
@@ -173,7 +181,7 @@ private fun AllOut(state: LensRoomState) = Actions {
 
 /** As wide as the app opens: opening and pasting under *Open*, the rest out. */
 @Composable
-private fun OpeningFolded(state: LensRoomState) = Actions {
+private fun OpeningFolded(state: LensRoomState, sent: Boolean) = Actions {
     if (state.picture == null) {
         Flat("Open…", tag = "lens-open") { state.chooseFile() }
         Flat("Paste", tag = "lens-paste") { state.paste() }
@@ -182,7 +190,7 @@ private fun OpeningFolded(state: LensRoomState) = Actions {
         LayoutChips(state)
         Flat("Save…", tag = "lens-save") { state.save() }
         PinButton(state)
-        Routes(state)
+        WaysOn(state, sent)
     }
     Flat("Back", tag = "lens-back") { state.leave() }
 }
@@ -199,14 +207,14 @@ private fun LayoutChips(state: LensRoomState) {
 
 /** Narrower: opening, pasting, saving and pinning under *Picture*, the layouts under the one chosen. */
 @Composable
-private fun Folded(state: LensRoomState) = Actions {
+private fun Folded(state: LensRoomState, sent: Boolean) = Actions {
     if (state.picture == null) {
         Flat("Open…", tag = "lens-open") { state.chooseFile() }
         Flat("Paste", tag = "lens-paste") { state.paste() }
     } else {
         HeaderMenu("Picture ▾", "lens-picture-menu") { listOf(pictureEntries(state), pinEntries(state)) }
         HeaderMenu(state.layout.short + " ▾", "lens-layout-menu") { listOf(layoutEntries(state)) }
-        Routes(state)
+        WaysOn(state, sent)
     }
     Flat("Back", tag = "lens-back") { state.leave() }
 }
@@ -222,6 +230,12 @@ private fun Fewest(state: LensRoomState) = Actions {
         }
     }
     Flat("Back", tag = "lens-back") { state.leave() }
+}
+
+/** The ways on: out as buttons — or, [sent] and more than one, under *Send*. */
+@Composable
+private fun WaysOn(state: LensRoomState, sent: Boolean) {
+    if (sent && state.routes().size > 1) HeaderMenu("Send ▾", "lens-send-menu") { listOf(routeEntries(state)) } else Routes(state)
 }
 
 /** Into the other rooms with the picture: the ways the hand-off seam has. */

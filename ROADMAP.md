@@ -960,7 +960,9 @@ one*, *How the rooms hand things over*) and the design canvas.
   labels were cut. Now the header measures, rather than guesses, which of four arrangements fits
   (`FirstThatFits`), keeping 120 dp for the picture's name: all out; as wide as the app opens,
   *Open ▾* (open, paste); narrower, *Picture ▾* (open, paste, save, pin to each board) and the
-  layout's menu (*Two lenses ▾*); narrowest, everything under *More ▾* but Back. The layouts' chips
+  layout's menu (*Two lenses ▾*); narrowest, everything under *More ▾* but Back. With more ways on
+  than fit — *Sketch over* and *To a collage*, once the Collage room took pictures (F10.6) — they
+  fold under *Send ▾* first, before anything else does. The layouts' chips
   read *Alone · Beside · Two lenses*. The arrangements only measured are kept out of the
   semantics, so what a test or a screen reader finds is what is shown. Tested in
   `LensRoomScreenTest` at 1400, 1120, 1000, 720 and 480 dp — each action reached through its menu,
@@ -990,22 +992,147 @@ one*, *How the rooms hand things over*) and the design canvas.
 ### 🔄 F10.5 Sketch — the picture underneath
 - 🔄 Any picture under the page (from a session, a card, a concept, a collage, a file) at a chosen
   strength, moved, scaled and turned to fit, never part of the saved PNG — a session's reference
-  can lie under the page, fitted whole, at a strength (F9.10); the other sources, and moving,
-  scaling and turning it, remain
+  can lie under the page, fitted whole, at a strength (F9.10); a collage comes into Sketch as its
+  reference with *Sketch over* (F10.6); the other sources, and moving, scaling and turning it,
+  remain
 - ✅ *Lay it over instead*: the reference over the strokes, for checking at the end (F9.10)
 - ⬜ In `.sketch.json` by path and placement, so a continued sketch has it again; the reference
   beside the page stays as the other option
 
-### ⬜ F10.6 Collage — scissors on a cutting mat
-- `name.collage.json` beside `name.png`: pieces with a source (file, board card, concept item,
-  sketch), a cut outline (polygon or freehand), a torn-edge seed, a transform, the order, tape
-- Tools: move, scissors (clicks for straight cuts, a drag for freehand, Shift for straight),
-  tear (a noisy edge along a drag), tape, flip, order; undo throughout
-- The source drawer: boards and concepts as tabs; drag a picture onto the mat to cut from it, as
-  often as you like
-- Out: save as PNG, *Pin to a board*, *Sketch over it* (F10.5), *Check the values* (F10.1)
-- Skia clip paths over cached images; the cut outline is the hit-tested path — the board's rule
-  again
+### ✅ F10.6 Collage — scissors on a cutting mat
+Built on `dev/concept-feature` in steps (2026-10-28).
+- ✅ **The file and the room.** `name.collage.json`, its pieces from the bottom of the stack up,
+  each with the picture it is cut from — relative to the collage's folder where it lies inside it,
+  absolute where it lies on a board or in a concept — its outline in that picture's pixels, its
+  middle on the mat, its turn, scale and flip (`CollageJson` in the core's model). In the domain
+  `Collage`, `Piece`, `Spot` and the contract `Collages` — the recent ones, read, write, a name no
+  other collage there has, a rename that takes the picture along, opened — kept by `FileCollages`
+  whole or not at all (`SafeFile`); the collages home beside the boards (`ActionDraw Collages`).
+  New in `Pictures`: `sizeOf`, a picture's size from its header, so a big photo laid on the mat is
+  not decoded on the UI thread for it. The room, `:lib:feature:collage`: `CollageState` opens the
+  collage kept last on coming in, makes a new one's document with its first piece, keeps every
+  change at once and undoes any of them; the name is renamed in the header, *Collage ▾* starts a
+  new one and opens the recent ones again. It is a receiver of the hand-off seam, so *To a
+  collage* is on every board card and its ring, a concept's picture, a session's pose and the
+  headers of Sketch and the Lens at once; a page that is no file — a sketch's, a Lens view — is
+  written beside the collage and laid on it. The palette's well is wet: *New collage*, or
+  *Continue* the one kept last
+- ✅ **The mat and the pieces.** A green cutting mat, 1900 × 1300 units, with a grid, a ruled one
+  and a ruler along its top; each piece its picture clipped to its outline and lifted off the mat
+  in the lamp's shadow. The outline drawn is the outline a click hits — the board's rule again
+  (`Pieces.kt`: a piece's place, turn, scale and flip about its middle, and back). *Move*: a press
+  takes the chosen piece's handle or the topmost piece under it, a drag moves it, its round handle
+  turns it (Shift: in 15° steps), its corner grows it — one change a drag; a press on the bare mat
+  lets go. The rail: *Move*, *Flip*, *Forward*, *Backward*. The pieces list on the right, the top
+  of the stack first: a click chooses, a double click renames, a drag up or down restacks, × takes
+  away. Keys: the arrows (Shift: further), Q and E turn, F flips, PgUp/PgDn or ] and [ restack,
+  Del, Ctrl+Z/Y, Ctrl+N/O/V, Esc lets go and then leaves. The pictures are decoded off the UI thread
+  and drawn from no more than 2048 pixels
+- ✅ Tested: `FileCollagesTest` (kept and read back as laid out, its pictures where they are, a free
+  name, renamed with its picture, a broken document), `PiecesTest`, `CollageStateTest` (a picture in
+  whole, fitted, apart from the last, kept from the first piece; from a file, the clipboard, a
+  paste; handed here onto the collage kept last; a drag one change; nudged, turned, flipped,
+  restacked, renamed, taken away and undone; the topmost under a click; renamed, new and opened
+  again; coming in and Esc), `CollageKeysTest`, `CollageScreenTest` (the picture's halves where it
+  lies and swapped when flipped; dragged, turned by its handle, grown by its corner; the bare mat
+  letting go; the list, the rail and the header), `RoomsTest` (a card and a sketch's page onto the
+  collage, Back to where they came from, the host's dialogs and clipboard), `RingMenuTest`,
+  `PaletteTest` and the room in `RoomScreenshotTest`. Broken on purpose and seen red after a no-op
+  control stayed green: 40 guards — a picture beside the collage kept absolute, a relative one read back from nowhere, a new collage named over another, renamed without its picture or over a name that is taken, one kept elsewhere not among the recent; a piece's flip forgotten on the mat, back from the mat turned the wrong way, a click hitting a piece's box rather than its cut, every crossing counted as inside; nothing kept as it changes, a drag not one change to undo, a click taking the piece underneath, a picture laid as large as itself or over the last, a picture handed here onto a new collage, Esc leaving with a piece chosen, a collage opened with the last one's undo, restacking past the top, a paste never laid on the mat; a drag, the round handle or the corner doing nothing, a press on the bare mat keeping the piece, a piece drawn as plain paper or unflipped; the list choosing, renaming or taking away nothing, the rail's Forward, the header's rename, the menu and the invitation doing nothing; Q turning the wrong way, PgUp doing nothing; the Collage room taking no pictures or without the host's dialogs, its well opening nothing; and the Lens's ways on never folding under Send. One I tried was no defect: counting a ray's crossings to the left instead of the right gives the same answer
+- ✅ **Scissors.** The tools on the rail: *Move*, *Scissors*, *Tear*, *Tape* (M, S, R, T), one in
+  hand at a time, the mat saying in the hand of the design what the one in hand does. A drag on its
+  own cuts freehand as it lets go, Shift straight; clicks lay corners, a click on the first cuts all
+  the way round, on the last — or Enter — ends the cut there; Esc drops it. The path is dashed in
+  Naples yellow and marches (not with reduced motion), the next corner's line follows the pointer,
+  and a pair of scissors goes with it. A cut is paper's (`Cuts.kt`, in plain Kotlin and doubles):
+  from edge to edge it parts the piece, as often as it goes through; round a part inside, it cuts
+  it out and leaves a hole, the scissors coming in from the nearest edge so what is left is still
+  one outline — and that way in parts too when it is cut across later. The chosen piece is cut, else
+  the topmost picture the cut goes through; tape is not cut. Every part lies where it lay, the
+  largest keeps the piece's name and place in the stack, the others lie just above it as
+  *‹name›, cut* (*cut 2*, …), and the part cut off — or out — is chosen. One change to undo
+- ✅ **Tear and tape.** *Tear* parts a piece the same way along a drag made ragged — a long wander,
+  a shorter one and a fine fray, a few mat units either side — as *‹name›, torn*. *Tape* lays a
+  strip of the design's masking tape, torn at its ends, along a drag (Shift: in steps of 15°), or a
+  short one with a click; it lies over everything and holds the pictures it lies across, kept in
+  the file (`tape`, `holds`). What is held moves as one: moved, turned, grown and flipped about the
+  piece taken hold of, by hand, by the keys and by the rail; a cut piece is held by whichever of its
+  parts lie under the tape, and a piece taken away is held no more. *Flip* turns a piece over as a
+  sheet on the table is: one turned one way lies turned the other
+- ✅ Tested: `CutsTest` (across, in and out again, freehand, round a part inside and over an edge,
+  begun inside, across the scissors' way in, either way round; a tear's reach, a strip of tape,
+  overlaps, a place inside an L), `CuttingTest` (a cut's parts where they lay, named and chosen; cut
+  round, the larger part cut out; through nothing; the chosen piece first; cut again; torn; tape
+  holding, moving, turning, flipping and letting go; tape not cut; Esc's order), `CollageKeysTest`,
+  `CollageScreenTest` (the scissors by a drag and by clicks round a part, the path drawn in Naples
+  yellow, Shift straight however the pointer wanders, the tear and the tape by the mouse, the tape
+  drawn), `FileCollagesTest` (tape read back) and the cutting in `RoomScreenshotTest`. Broken on
+  purpose and seen red after a no-op control stayed green: 38 guards — a cut parting only once, a
+  cut round a part inside cutting nothing out, crossings at one place taken as they come, the hole
+  round the same way as the outline, a ring begun inside cut from there, a stretch outside cut as if
+  inside, a tear as straight as a cut, tape cut square, outlines across each other not
+  overlapping; a part moved from where it lay, the part cut off not chosen, the smaller part the
+  piece still, what a cut went round not cut out, the chosen piece not cut first, tape cut like a
+  picture, tape holding the larger part rather than the one under it, tape laid holding nothing,
+  taped pieces moving alone or turned about themselves, flipped with its turn kept, a piece taken
+  away still held; Esc leaving with a tool in hand, a tool taken up keeping the path, the tear's
+  path cut, not torn; a drag on its own waiting for more, the first corner clicked cutting no
+  further, each click starting the path again, Shift cutting freehand all the same, the tear in
+  hand taking hold instead, the tape laid nowhere, the path or the tape's paper not drawn; the
+  rail's Scissors and Tape, R and Enter doing nothing; tape read back as a picture, or without what
+  it holds
+- ✅ **Through every layer**, as the user asked: *All layers* on the rail (L) sends the scissors and
+  the tear through every picture under the cut, not the chosen or the topmost one alone — each
+  parted as one would be, its parts above it, the topmost one's part cut off chosen, all of it one
+  change to undo; tape still not cut. The mat says so while it is on
+- ✅ **The source drawer** under the mat, as the design has it: on its left what it draws from — a
+  board or a concept, each with its room's dab and a menu of the others; the first board to begin
+  with, kept while the room is left and read again on coming back — and that source's pictures
+  beside as small prints on their paper (a concept's pictures only, not its notes). A click lays a
+  print on the mat; dragged out, it follows the pointer and lies where it is let go over the mat. As
+  often as you like, each a new piece to cut from. The room is given the domain's `BoardSource` and
+  `ConceptSource`, as the other rooms are
+- ✅ **Out.** The collage drawn flat as one picture (`drawCollage`): its pieces as they lie, without
+  their shadows, cut to the space they cover with a margin, on the design's paper, as sharp as its
+  sharpest picture allows (at most 4000 px along), drawn off the UI thread where the design is and
+  handed back to the room, as the Lens's views are. It is saved as `<name>.png` beside the collage,
+  where `Collages` always meant it to be (renamed with it); *Collage ▾ → Save as picture* (Ctrl+S)
+  just saves it; *Pin to a board ▾* saves it and pins it; the ways on in the header — the rooms the
+  hand-off seam has for a picture, *Sketch over* and *Check the values* — save it and take it there,
+  Back returning to the collage. Each saves it again as it is now. *Add a picture…* and *Paste*
+  moved into *Collage ▾*, so the header holds the ways out
+- ✅ Tested: `CuttingTest` (through every layer, the chosen piece or not, as one change; torn so;
+  and one alone again), `WaysInAndOutTest` (new: the drawer from the first board, a concept's
+  pictures, as often as you like, read again; saved beside it, pinned, taken on once drawn, saved
+  over, renamed with it, nothing on the mat), `CollageKeysTest` (L, Ctrl+S), `CollageScreenTest`
+  (All layers on the rail; a print clicked and dragged onto the mat, where it is let go; the
+  concepts' tab; the header's way into the Lens drawing the collage — its size, the picture where it
+  lies, the paper round it — Pin to a board and Save as picture), `RoomsTest` (the drawer over the
+  real boards, into Sketch as its reference and back, into the Lens, pinned onto the board) and the
+  drawer in `RoomScreenshotTest`. Broken on purpose and seen red after a no-op control stayed green:
+  29 guards — through all layers cutting one alone or stopping at the chosen piece, the parts of
+  every piece but the first lost, the lowest piece's part chosen; the drawer starting on nothing,
+  showing a concept's notes, never reading a board again; a bare mat asking to be drawn, the picture
+  saved under a new name each time, pinned without the picture, taken on before it is drawn or into
+  no room, ways out offered from a bare mat; the collage drawn without its margin, flipped or on no
+  paper, a way out never drawn; a print let go of over the mat laid nowhere or where the drag began,
+  a print clicked laying nothing, the concepts' tab choosing nothing; the header's way into the
+  Lens, Pin to a board, Save as picture, the rail's All layers, L and Ctrl+S doing nothing; the room
+  given no boards, or no hand-offs. The first of them survived at first — the test had chosen
+  nothing before cutting — and was seen red once it chose the piece underneath
+- ✅ What the room left open elsewhere (2026-10-28). A pose's side buttons — one more for *To a
+  collage* — reached into the lens tray in a window under 770 dp: they now stop above the tray and
+  go on in a second column to the left of the first where they do not fit (`ColumnsFromTheRight`).
+  `[` and `]` restack by the character typed, as Live Sketch's do, so a German keyboard's AltGr+8
+  and AltGr+9 work too (`handleCollageChar`; the window routes the room's typed characters to it).
+  The README has a section for the Lens room, and the lens's hotkey sheet names the block and the
+  relief among the forms. Tested in `SessionChromeTest` (a low window, every way on: above the
+  tray, in two columns, none over another), `CollageKeysTest` and `KeysTest` (new: AltGr+9 as the
+  window has it — Ctrl+9, then `]` typed — and a US `]`, pressed and typed, restacking once).
+  Broken on purpose and seen red after a no-op control stayed green: 6 guards — the buttons down
+  into the tray, never a second column, a second column over the first (survived at first: the test
+  looked only for two columns, and now holds every button clear of the others), a typed character
+  going nowhere, `]` sending the piece back, a US `]` restacking twice
 
 ### ✅ F10.7 One seam for hand-offs
 - ✅ The hand-off seam in the domain: `Handed` (a picture on disk, or a page drawn as PNG when it
@@ -1034,7 +1161,7 @@ one*, *How the rooms hand things over*) and the design canvas.
 - ✅ A concept's picture into Sketch (over it, or on with its sketch) and into the Lens, along the
   hand-off seam (F10.7)
 - ⬜ A concept's pictures as a Practice source — a warm-up on the thing you are about to draw
-- ⬜ A concept as a Collage source and as a Sketch underlay
+- 🔄 A concept as a Collage source ✅ (the source drawer, F10.6) and as a Sketch underlay ⬜
 - F8.4's open question settled: does practice on a concept's picture belong to the concept or to
   the board
 
@@ -1145,6 +1272,15 @@ The next two of the forms' ideas (2026-10-28); the rest wait in [IDEAS.md](IDEAS
   screenshots from nearly four minutes to twelve seconds
 - ✅ A picture's far edge read short of its repeat, so a relief's side wall at the page's right
   edge does not read the left one
+- ✅ **The first form hung the window** (found by hand, 2026-10-28): the first *Form* clicked in
+  the Lens room left the window still for half a minute. On the graphics card (Direct3D) the one
+  shader for every form — the block's Newton steps, the relief's steps reading its heights, a copy
+  of the ray for each of four rays and one more — was compiled before the first frame: 27 to 38
+  seconds, measured in a real window on this machine. Now each form's shader is compiled alone,
+  its kind set in the source (`formSource`), and the ray is cast from one place in a loop: the
+  first frame of any form comes in 0.2 to 0.4 seconds, and switching to a form not yet shown costs
+  40 to 240 ms. `FormTest` holds both — every form's own source, and the ray cast from one place —
+  and each, broken on purpose, was seen red after a no-op control stayed green
 - ✅ Tested: `FormTest` (every form, a shaped block and a relief among them, drawn where its twin
   says; a round block of even measures the sphere; a can and a cushion told apart from the front
   and from above, a tall block narrower; a flat relief the page, a raised one nearer, its back
@@ -1173,7 +1309,8 @@ The shape, revised with the user on 2026-10-22, is in
 
 ```
 lib      bare:   core (model · io · lifecycle) · network · domain · data · sketch-engine
-         UI kit: design (contract · atelier) · feature (practice · board · concept · sketch)
+         UI kit: design (contract · atelier) · lens · feature (practice · board · concept ·
+                 sketch · lens · collage)
 app      desktop
 device   pen
 ```
