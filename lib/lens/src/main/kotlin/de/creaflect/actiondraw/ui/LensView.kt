@@ -73,7 +73,7 @@ private fun LastFocus(glass: GlassState, current: File?, lastFocus: MutableState
  * corner; laid over the whole picture, it bends all of it about a mark that shows where. Or the
  * picture is on a form (F10.10), turned by a drag. While there is a [veil], it stands in the
  * picture's place, and nothing is taken. Without [marks], only the picture is drawn: no grid, no
- * rim, no mark, no print — what a view saved is.
+ * rim, no mark, no print — what a view saved is; and a form drawn as a saved one is.
  */
 @Composable
 fun LensView(
@@ -142,7 +142,7 @@ fun LensView(
                     this.renderEffect = if (lens.defraction) defractionEffect else null
                 }
             if (shaped) {
-                FormPicture(bmp, lens, colorFilter, layers)
+                FormPicture(bmp, lens, colorFilter, layers, saved = !marks)
             } else {
                 GlassPicture(
                     bitmap = bmp,

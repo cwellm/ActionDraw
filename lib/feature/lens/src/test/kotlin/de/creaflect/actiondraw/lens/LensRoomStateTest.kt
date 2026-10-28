@@ -27,6 +27,18 @@ class LensRoomStateTest {
     // ---- The picture ----
 
     @Test
+    fun bothLensesChooseAReliefsHeightsThroughTheRoomsDialogs() {
+        val state = fixture.state()
+        val knee = fixture.picture("knee")
+        fixture.chosen = knee
+        for (lens in listOf(state.first, state.second)) {
+            val from = assertNotNull(lens.form.heightsFrom, "a relief's heights can be chosen")
+            assertEquals(knee, from.choose())
+            assertNotNull(from.decode(knee), "and decoded")
+        }
+    }
+
+    @Test
     fun aPictureComesFromAFileOrTheClipboard() {
         val state = fixture.state()
         assertEquals(false, state.chooseFile(), "nothing chosen, nothing open")

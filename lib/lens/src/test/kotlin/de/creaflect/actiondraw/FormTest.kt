@@ -1,13 +1,18 @@
 package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.lens.LensState
+import de.creaflect.actiondraw.ui.Block
 import de.creaflect.actiondraw.ui.Form
 import de.creaflect.actiondraw.ui.FormState
+import de.creaflect.actiondraw.ui.Heights
 import de.creaflect.actiondraw.ui.Optic
+import de.creaflect.actiondraw.ui.ReliefHeights
+import de.creaflect.actiondraw.ui.drawnInBands
 import de.creaflect.actiondraw.ui.formDims
 import de.creaflect.actiondraw.ui.formRay
 import de.creaflect.actiondraw.ui.formRows
 import de.creaflect.actiondraw.ui.formShader
+import de.creaflect.actiondraw.ui.softHeights
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Color
 import org.jetbrains.skia.ColorAlphaType
@@ -20,7 +25,9 @@ import org.jetbrains.skia.Surface
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.exp
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -58,6 +65,23 @@ class FormTest {
         val copy = FormState().apply { copyFrom(shape) }
         assertEquals(Form.SPHERE, copy.form)
         assertEquals(shape.yaw to shape.pitch, copy.yaw to copy.pitch)
+    }
+
+    @Test
+    fun aBlocksShapeAndAReliefsHeightsAreCopiedWithIt() {
+        val shape = FormState()
+        shape.choose(Form.RELIEF)
+        assertTrue(shape.pitch in 0.3f..0.9f, "a relief is first seen tilted less than a page, so it stands out")
+        shape.block = Block(ends = -1f, around = 0.4f, height = 2f)
+        shape.depth = 0.5f
+        val heights = Heights("knee", bitmapImage { _, _ -> Color.WHITE })
+        shape.useHeights(heights)
+        val copy = FormState().apply { copyFrom(shape) }
+        assertEquals(shape.block, copy.block)
+        assertEquals(0.5f, copy.depth)
+        assertTrue(copy.heights === heights, "a saved view is raised by the same heights")
+        shape.useHeights(null)
+        assertNull(shape.heights, "and back to the picture's own")
     }
 
     @Test
@@ -114,22 +138,31 @@ class FormTest {
     // ---- Drawn ----
 
     private val sub = listOf(-0.25f to -0.25f, 0.25f to -0.25f, -0.25f to 0.25f, 0.25f to 0.25f)
+    private val near = listOf(-1.25f to -1.25f, 1.25f to -1.25f, -1.25f to 1.25f, 1.25f to 1.25f)
 
     @Test
     fun everyFormIsDrawnWhereItsTwinSaysItIs() {
         val picture = bitmapImage { x, y -> Color.makeRGB(x, y, 0) }
+        // A relief raised by the picture's own values: here, the coordinates' greys; a block of
+        // uneven measures, so its round and its ends are not the ball's.
+        val own = ReliefHeights(256, 256) { u, v -> (0.299f * floor(u * 256f) + 0.587f * floor(v * 256f)) / 255f }
+        val shaped = Block(ends = -0.6f, around = -0.3f, height = 1.4f, depth = 0.8f)
         for (form in Form.entries) {
             val yaw = 0.6f
-            val pitch = -0.4f
-            val shot = render(form, picture, yaw, pitch, lit = false)
+            val pitch = if (form == Form.RELIEF) 0.5f else -0.4f
+            val shot = render(form, picture, yaw, pitch, lit = false, block = shaped)
             val rows = formRows(yaw, pitch)
             val dims = formDims(form, 1f)
             var compared = 0
             var clear = 0
             for (y in 3 until 197 step 3) for (x in 3 until 197 step 3) {
-                val hits = sub.map { (ox, oy) -> formRay(form, (x + 0.5f + ox - 100f) / 80f, (y + 0.5f + oy - 100f) / 80f, rows, dims) }
+                val hits = sub.map { (ox, oy) -> formRay(form, (x + 0.5f + ox - 100f) / 80f, (y + 0.5f + oy - 100f) / 80f, rows, dims, shaped, own) }
                 val c = shot.getColor(x, y)
                 if (hits.all { it == null }) {
+                    // Within a pixel of its edge a grazing ray may go either way: the processor's
+                    // powers are near enough, not exact.
+                    val edge = near.any { (ox, oy) -> formRay(form, (x + 0.5f + ox - 100f) / 80f, (y + 0.5f + oy - 100f) / 80f, rows, dims, shaped, own) != null }
+                    if (edge) continue
                     assertEquals(0, Color.getA(c), "$form: clear where it misses, at $x, $y")
                     clear++
                     continue
@@ -142,7 +175,7 @@ class FormTest {
                 }
                 if (found.maxOf { it.u } - found.minOf { it.u } > 0.02f || found.maxOf { it.v } - found.minOf { it.v } > 0.02f) continue
                 val k = if (form == Form.CHROME) 0.92 else 1.0
-                val u = found.map { floor(it.u * 256f).coerceIn(0f, 255f) }.average() * k
+                val u = found.map { floor(min(it.u, 0.999f) * 256f).coerceIn(0f, 255f) }.average() * k
                 val v = found.map { floor(min(it.v, 0.999f) * 256f).coerceIn(0f, 255f) }.average() * k
                 assertEquals(u, Color.getR(c).toDouble(), 3.0, "$form: across the picture at $x, $y")
                 assertEquals(v, Color.getG(c).toDouble(), 3.0, "$form: down the picture at $x, $y")
@@ -150,6 +183,113 @@ class FormTest {
             }
             assertTrue(compared > 20, "$form: enough of it compared ($compared)")
             assertTrue(clear > 20, "$form: and enough around it clear ($clear)")
+        }
+    }
+
+    // ---- Shaped ----
+
+    @Test
+    fun aRoundBlockOfEvenMeasuresIsTheSphere() {
+        val rows = formRows(0.6f, -0.4f)
+        val round = Block(ends = 0f, around = 0f)
+        var compared = 0
+        for (i in -12..12) for (j in -12..12) {
+            val q = i / 12f to j / 12f
+            if (hypot(q.first, q.second) in 0.85f..1.05f) continue // the edge, where a grazing ray may go either way
+            val ball = formRay(Form.SPHERE, q.first, q.second, rows, 0f to 0f)
+            val block = formRay(Form.BLOCK, q.first, q.second, rows, 0f to 0f, block = round)
+            assertEquals(ball == null, block == null, "met at the same places: $q")
+            if (ball == null || block == null || ball.u < 0.02f || ball.u > 0.98f) continue
+            assertEquals(ball.u, block.u, 0.002f, "across, at $q")
+            assertEquals(ball.v, block.v, 0.002f, "down, at $q")
+            compared++
+        }
+        assertTrue(compared > 200, "enough of it compared: $compared")
+    }
+
+    @Test
+    fun theSlidersShapeTheBlock() {
+        val front = formRows(0f, 0f)
+        val above = formRows(0f, -1.5f)
+        val can = Block(ends = -1f, around = 0f)
+        val cushion = Block(ends = 0f, around = -1f)
+        fun meets(block: Block, rows: Array<FloatArray>) = formRay(Form.BLOCK, 0.58f, 0.58f, rows, 0f to 0f, block = block) != null
+        // A corner of the view, off the round: a can's square ends reach it from the front, and a
+        // cushion's square round from above — not the other way about.
+        assertTrue(meets(can, front), "a can, from the front: a rectangle")
+        assertFalse(meets(can, above), "a can, from above: round")
+        assertFalse(meets(cushion, front), "a cushion, from the front: round")
+        assertTrue(meets(cushion, above), "a cushion, from above: square")
+        val tall = Block(ends = 0f, around = 0f, height = 2f)
+        assertNotNull(formRay(Form.BLOCK, 0f, -0.85f, front, 0f to 0f, block = tall), "twice as tall: up to the view's top")
+        assertNull(formRay(Form.BLOCK, 0.6f, 0f, front, 0f to 0f, block = tall), "and narrower for it")
+        assertNotNull(formRay(Form.BLOCK, 0.6f, 0f, front, 0f to 0f, block = Block(0f, 0f)), "where a round one is")
+    }
+
+    @Test
+    fun aReliefStandsOutOfItsPageWhereItsHeightsAreLight() {
+        val rows = formRows(0.3f, 0.5f)
+        val dims = formDims(Form.RELIEF, 1f)
+        val flat = ReliefHeights(64, 64) { _, _ -> 0f }
+        for (i in -10..10) for (j in -10..10) {
+            val q = i / 10f to j / 10f
+            val page = formRay(Form.PLANE, q.first, q.second, rows, dims)
+            val relief = formRay(Form.RELIEF, q.first, q.second, rows, dims, heights = flat)
+            assertEquals(page == null, relief == null, "flat, it is the page: $q")
+            if (page != null && relief != null) {
+                assertEquals(page.u, relief.u, 0.003f)
+                assertEquals(page.v, relief.v, 0.003f)
+            }
+        }
+        // Raised all over, it is the page brought nearer: seen straight on, larger, so a point of the
+        // view off its middle reads nearer the picture's middle.
+        val straight = formRows(0f, 0f)
+        val raised = ReliefHeights(64, 64) { _, _ -> 1f }
+        val near = assertNotNull(formRay(Form.RELIEF, 0.5f, 0f, straight, dims, heights = raised, depth = 0.5f))
+        val far = assertNotNull(formRay(Form.PLANE, 0.5f, 0f, straight, dims))
+        assertTrue(near.u - 0.5f < (far.u - 0.5f) * 0.95f, "raised, nearer: ${near.u} against ${far.u}")
+        // From behind: the plain back of its page — so the shader draws it too.
+        assertTrue(assertNotNull(formRay(Form.RELIEF, 0f, 0f, formRows(PI.toFloat(), 0f), dims, heights = raised)).plain)
+        val back = render(Form.RELIEF, bitmapImage { _, _ -> Color.makeRGB(40, 90, 200) }, PI.toFloat(), 0f, lit = false)
+        assertTrue(abs(Color.getR(back.getColor(100, 100)) - 219) <= 4, "the back, plain paper: ${Color.getR(back.getColor(100, 100))}")
+    }
+
+    @Test
+    fun aReliefsOwnHeightsAreMadeSmallAndSoft() {
+        val big = bitmapImage(1000, 500) { _, _ -> Color.WHITE }
+        val small = softHeights(big)
+        assertEquals(384 to 192, small.width to small.height, "no more than 384 pixels on its long side")
+        // A hard edge between black and white comes out graded, so a photograph's grain is no needle.
+        val edge = softHeights(bitmapImage { x, _ -> if (x < 128) Color.BLACK else Color.WHITE })
+        val row = Bitmap().apply { allocPixels(ImageInfo.makeN32(256, 256, ColorAlphaType.PREMUL)) }
+        assertTrue(edge.readPixels(row))
+        val greys = (124..131).map { Color.getR(row.getColor(it, 128)) }
+        assertTrue(greys.count { it in 20..235 } >= 3, "graded across the edge: $greys")
+    }
+
+    @Test
+    fun aReliefIsLitWhereItTurnsToTheLamp() {
+        // A round hill in the middle of a page seen straight on: its upper left flank faces the lamp.
+        val hill = bitmapImage { x, y -> exp(-(((x - 128) * (x - 128) + (y - 128) * (y - 128)) / 1800.0)).times(255).toInt().let { Color.makeRGB(it, it, it) } }
+        val grey = bitmapImage { _, _ -> Color.makeRGB(200, 200, 200) }
+        val shot = render(Form.RELIEF, grey, 0f, 0f, lit = true, heights = hill, depth = 0.5f)
+        val toward = Color.getR(shot.getColor(84, 84))
+        val away = Color.getR(shot.getColor(116, 116))
+        val level = Color.getR(shot.getColor(40, 160))
+        assertTrue(toward > level + 10, "the flank turned to the lamp, lighter than the level page: $toward, $level")
+        assertTrue(away < level - 10, "and the one turned away, darker: $away, $level")
+    }
+
+    @Test
+    fun aSavedFormIsDrawnInBandsJustAsOneDrawWouldDrawIt() {
+        val picture = bitmapImage { x, y -> Color.makeRGB(x, y, 0) }
+        for (form in listOf(Form.SPHERE, Form.RELIEF)) {
+            val whole = render(form, picture, 0.6f, 0.3f, lit = true, rays = 1)
+            val banded = Bitmap().apply { allocPixels(ImageInfo.makeN32(200, 200, ColorAlphaType.PREMUL)) }
+            drawnInBands(200, 200) { formShader(picture, form, 0.6f, 0.3f, 100f, 100f, 80f, true, sampling = SamplingMode.DEFAULT, rays = 1) }.use { assertTrue(it.readPixels(banded)) }
+            var differ = 0
+            for (y in 0 until 200) for (x in 0 until 200) if (whole.getColor(x, y) != banded.getColor(x, y)) differ++
+            assertEquals(0, differ, "$form: every pixel as one draw has it")
         }
     }
 
@@ -164,13 +304,13 @@ class FormTest {
         assertEquals(Color.getR(flat.getColor(70, 70)), Color.getR(flat.getColor(130, 130)), "unlit, only the picture's own values")
     }
 
-    private fun bitmapImage(color: (Int, Int) -> Int): Image {
+    private fun bitmapImage(w: Int = 256, h: Int = 256, color: (Int, Int) -> Int): Image {
         val bitmap = Bitmap()
-        bitmap.allocPixels(ImageInfo.makeN32(256, 256, ColorAlphaType.PREMUL))
-        val bytes = ByteArray(256 * 256 * 4)
-        for (y in 0 until 256) for (x in 0 until 256) {
+        bitmap.allocPixels(ImageInfo.makeN32(w, h, ColorAlphaType.PREMUL))
+        val bytes = ByteArray(w * h * 4)
+        for (y in 0 until h) for (x in 0 until w) {
             val c = color(x, y)
-            val i = (y * 256 + x) * 4
+            val i = (y * w + x) * 4
             // N32 on this platform is BGRA.
             bytes[i] = Color.getB(c).toByte()
             bytes[i + 1] = Color.getG(c).toByte()
@@ -182,9 +322,19 @@ class FormTest {
     }
 
     /** [image] on [form] in a 200 × 200 view, its middle in the middle, 80 pixels to the sphere's edge. */
-    private fun render(form: Form, image: Image, yaw: Float, pitch: Float, lit: Boolean): Bitmap {
+    private fun render(
+        form: Form,
+        image: Image,
+        yaw: Float,
+        pitch: Float,
+        lit: Boolean,
+        heights: Image? = null,
+        depth: Float = FormState.DEPTH,
+        rays: Int = 4,
+        block: Block = Block(),
+    ): Bitmap {
         val surface = Surface.makeRasterN32Premul(200, 200)
-        val shader = formShader(image, form, yaw, pitch, 100f, 100f, 80f, lit, sampling = SamplingMode.DEFAULT)
+        val shader = formShader(image, form, yaw, pitch, 100f, 100f, 80f, lit, SamplingMode.DEFAULT, block, heights, depth, rays)
         Paint().use { paint ->
             paint.shader = shader
             surface.canvas.drawRect(Rect.makeWH(200f, 200f), paint)

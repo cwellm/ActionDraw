@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import de.creaflect.actiondraw.GridMode
@@ -153,6 +154,19 @@ internal fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose:
                     }
                     LensSettings.FORM -> {
                         FormChoices(lens)
+                        when (lens.form.form) {
+                            Form.BLOCK -> BlockSliders(lens)
+                            Form.RELIEF -> {
+                                ReliefHeightsChoice(lens)
+                                ParamSlider(
+                                    label = "Depth: ${(lens.form.depth * 100).roundToInt()}%",
+                                    value = lens.form.depth,
+                                    range = FormState.MIN_DEPTH..FormState.MAX_DEPTH,
+                                    steps = 10,
+                                ) { lens.form.depth = it }
+                            }
+                            else -> Unit
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             SelectChip("Lit by the lamp", lens.form.lit, tag = "form-lit") { lens.form.lit = !lens.form.lit }
                             Spacer(Modifier.width(4.dp))
@@ -201,6 +215,38 @@ internal fun LensSettingsPopover(lens: LensState, target: LensSettings, onClose:
             )
         }
     }
+}
+
+/**
+ * A block's sliders, two to a row so the settings stay low: how square or pointed its ends and its
+ * round are, and how tall and how deep it is for its width. Each name keeps its width as it changes,
+ * so the slider beside it stays where it is under the hand.
+ */
+@Composable
+private fun BlockSliders(lens: LensState) {
+    val shape = lens.form
+    val block = shape.block
+    val label = 124.dp
+    val slider = 130.dp
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        ParamSlider("Ends: " + squareness(block.ends), block.ends, -1f..1f, steps = 19, label, slider) { shape.block = shape.block.copy(ends = it) }
+        ParamSlider("Around: " + squareness(block.around), block.around, -1f..1f, steps = 19, label, slider) { shape.block = shape.block.copy(around = it) }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        ParamSlider("Height: ×" + "%.1f".format(block.height), block.height, Block.MIN_SIZE..Block.MAX_SIZE, steps = 0, label, slider) {
+            shape.block = shape.block.copy(height = it)
+        }
+        ParamSlider("Depth: ×" + "%.1f".format(block.depth), block.depth, Block.MIN_SIZE..Block.MAX_SIZE, steps = 0, label, slider) {
+            shape.block = shape.block.copy(depth = it)
+        }
+    }
+}
+
+/** A block's slider read out: square, round, or pointed, and how much. */
+private fun squareness(s: Float): String = when {
+    s < -0.02f -> "square %.0f%%".format(-s * 100)
+    s > 0.02f -> "pointed %.0f%%".format(s * 100)
+    else -> "round"
 }
 
 /** Where the glass is: in the hand, over a part — or laid over the whole picture, bending all of it. */
@@ -370,25 +416,28 @@ private fun temperatureLabel(temperature: Float): String = when {
     else -> "Light: neutral"
 }
 
+/** A setting's slider and its name — the name [labelWidth] wide where given, the slider [width] wide. */
 @Composable
 private fun ParamSlider(
     label: String,
     value: Float,
     range: ClosedFloatingPointRange<Float>,
     steps: Int,
+    labelWidth: Dp? = null,
+    width: Dp = 240.dp,
     onChange: (Float) -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, fontSize = 12.sp, color = Design.colors.textSoft)
+        Text(label, fontSize = 12.sp, color = Design.colors.textSoft, maxLines = 1, modifier = if (labelWidth != null) Modifier.width(labelWidth) else Modifier)
         Slider(
             value = value,
             onValueChange = onChange,
             valueRange = range,
             steps = steps,
-            modifier = Modifier.width(240.dp),
+            modifier = Modifier.width(width),
         )
     }
 }

@@ -203,7 +203,9 @@ exercise*, *Open Drachenbuch* or *New sketch*.
   what one knows is there. It is the same glass in a session and in the Lens room
   (F10.9), and it is kept as it was left. And **forms** (F10.10): the picture wrapped round a
   sphere, a can, a cone or a ring, laid on a page tilted away, or reflected in a chrome ball —
-  turned under the hand and lit by the lamp, to see how a flat picture bends over form.
+  turned under the hand and lit by the lamp, to see how a flat picture bends over form. A block is
+  shaped on its sliders into the thing being drawn, from ball to box to spinning top (F10.11); a
+  relief raises the page by a picture's values, its own or another's — cloth over a knee (F10.12).
 
 ## What stays true
 

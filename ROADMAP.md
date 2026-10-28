@@ -955,6 +955,17 @@ one*, *How the rooms hand things over*) and the design canvas.
   in and out of the session's lens, the menu's starting lens and the lens exercise, the session's
   tray, picture and memory veil on the session's own lens); in the room, 29 guards (the view saved at the screen's pixel sizes and without the grid, the glass kept and taken up again, the room's tray and Material's controls in its own pigment, the view drawn and the original beside it, where a view is saved and what is pinned, two lenses different, the tray on the lens chosen, a pasted picture, Tab, Esc, the lens keys only with a picture, a card's and a sketch's way in, Back, the pin through the app, the palette's well, the session's glass, a PNG written beside another, the optic kept); and
   the build refuses the kit the Practice room, the default design and the files
+- ✅ The header in a narrow window (2026-10-28): every action out, all of them in one row, needed
+  960 dp — at the width the app opens, the picture's name was squeezed to nothing, and at 720 dp the
+  labels were cut. Now the header measures, rather than guesses, which of four arrangements fits
+  (`FirstThatFits`), keeping 120 dp for the picture's name: all out; as wide as the app opens,
+  *Open ▾* (open, paste); narrower, *Picture ▾* (open, paste, save, pin to each board) and the
+  layout's menu (*Two lenses ▾*); narrowest, everything under *More ▾* but Back. The layouts' chips
+  read *Alone · Beside · Two lenses*. The arrangements only measured are kept out of the
+  semantics, so what a test or a screen reader finds is what is shown. Tested in
+  `LensRoomScreenTest` at 1400, 1120, 1000, 720 and 480 dp — each action reached through its menu,
+  the way back inside the window, the name keeping its room — and in `RoomScreenshotTest` at
+  720 dp. Broken on purpose and seen red after a no-op control stayed green: 11 guards — the header never folding, no room kept for the name, the arrangements only measured found too, the semantics not following the fold, no fold at the width the app opens, no More at the narrowest; Open, a pin, the layout and the way on under their menus doing nothing, and the layout's menu named for none
 
 ### ⬜ F10.2 Flicker (Wechselzeichnung)
 - Two or more pictures trade places at an interval (1 s by default, 0.25–5 s), as a hard cut or a
@@ -1108,6 +1119,43 @@ models, panoramas, light speed, diffraction — waits in [IDEAS.md](IDEAS.md).
   on the processor: the first, full-size try took fourteen minutes, and caught *Chrome ball* cut
   off in the settings. Broken on purpose and seen red after a no-op control stayed green:
   24 guards — the ball and the can read upside down, the cone's near side, the ring never reached, the page without an edge, the chrome ball reflecting nothing, the lamp, a skewed turn, tipping past the edge, Straighten, P stopping; the form and the glass not taking turns (chosen, taken up, laid over the whole), Esc, a saved view flat or at full size; a drag the wrong way or turning nothing, the picture drawn flat (caught only once the screen test looked at the corner where the flat picture is light), P, the knob, the settings, the lamp switch
+
+### ✅ F10.11 Block, F10.12 Relief — forms shaped for the thing being drawn
+The next two of the forms' ideas (2026-10-28); the rest wait in [IDEAS.md](IDEAS.md).
+- ✅ **Block** (F10.11): one family of forms, the superquadrics, between the ball and the box — its
+  ends (top and bottom) and its round each from square through round to pointed, and its height
+  and depth for its width, on four sliders two to a row (`Block`). Round both ways, the ball; square
+  at the ends, a can; square both ways, a box with eased edges; pointed, a spinning top; flattened,
+  a cushion. Sized so its farthest point is where the sphere's edge is, so every shape of it fills
+  the view as the ball does. Found along each ray by Newton's steps down its gauge, each on the
+  slope just behind it, so the steps never pass the surface — the gauge is convex along any ray
+- ✅ **Relief** (F10.12): the picture on a page raised by a picture's values, light standing out —
+  by default its own values, made small and soft (`softHeights`, 384 px, a slight blur) so a
+  photograph's grain is no needles; or a picture chosen for it (*From a picture…*, through the
+  room's own dialogs, `HeightsSource`), decoded off the UI thread. Its depth on a slider; first
+  seen tilted less than a page, so it stands out; its side walls where it is raised at the page's
+  edge, its back plain paper. Each ray is stepped only through the relief's box and halved down to
+  the raised page
+- ✅ **Saved and on the processor**: a saved view of a form is drawn on the processor at up to
+  1600 pixels, where the first block took two minutes and the relief nearly four. Now it is drawn
+  with one ray a pixel and in bands side by side, four to a core (`drawnInBands`): every form
+  saves in under two seconds on sixteen cores. A window drawn on the processor rather than the
+  graphics card — Skia in software, as over a remote desktop, or a test — draws its forms in bands
+  too (`LocalDrawnOnProcessor`, set from the window's render API), which took the forms'
+  screenshots from nearly four minutes to twelve seconds
+- ✅ A picture's far edge read short of its repeat, so a relief's side wall at the page's right
+  edge does not read the left one
+- ✅ Tested: `FormTest` (every form, a shaped block and a relief among them, drawn where its twin
+  says; a round block of even measures the sphere; a can and a cushion told apart from the front
+  and from above, a tall block narrower; a flat relief the page, a raised one nearer, its back
+  plain on screen too; its flanks lit and shaded; its own heights small and soft; a saved form in
+  bands as one draw has it; shape and heights copied with a saved view), `LensViewTest` (the
+  block's four sliders and the relief's depth, heights from a picture chosen and back, the form
+  drawn as its settings say, a window on the processor drawing alike), `LensRoomStateTest` and
+  `PracticeStateTest` (both rooms' lenses choose heights through their dialogs), and the block and
+  the relief in `RoomScreenshotTest`, whose first try caught the block's sliders pushing the lamp
+  and Straighten out of a low window. Broken on purpose and seen red after a no-op control stayed
+  green: 23 guards — a block not fitted to the sphere's round, its ends shaped by its round, Newton's steps on the slope ahead in the shader and in the twin, a block read as if round; a relief flat in the shader and in the twin, its slope upside down, its back drawn as its front; the picture read round its repeat; the own heights neither soft nor small; a saved form's bands misplaced; the view ignoring the block, the depth or the heights chosen; the Ends slider shaping the round, the depth slider doing nothing, a chosen picture never used; a saved view losing the shape; a relief first seen as a page; the Lens room's and the session's lenses choosing heights through no dialog
 
 ---
 

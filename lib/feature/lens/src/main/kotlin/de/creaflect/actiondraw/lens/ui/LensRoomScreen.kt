@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Divider
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.MaterialTheme
@@ -115,6 +117,12 @@ private fun SaveTheView(state: LensRoomState, bitmap: ImageBitmap?, shown: Mutab
     }
 }
 
+/**
+ * The room's header: home, the room's name, what is open, and its actions — all of them out where
+ * the window is wide; opening and pasting under *Open* as wide as the app opens; then all but the
+ * ways on under *Picture* and the layout's menu; and, narrower still, all under *More*. Whichever
+ * fits, measured, with room left for the picture's name.
+ */
 @Composable
 private fun Header(state: LensRoomState, onHome: (() -> Unit)?) {
     RoomHeader(
@@ -132,24 +140,150 @@ private fun Header(state: LensRoomState, onHome: (() -> Unit)?) {
             )
         },
         actions = {
-            Flat("Open…", tag = "lens-open") { state.chooseFile() }
-            Flat("Paste", tag = "lens-paste") { state.paste() }
-            if (state.picture != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(horizontal = 8.dp)) {
-                    LensLayout.entries.forEach { layout ->
-                        SelectChip(layout.label, state.layout == layout, tag = "lens-layout-" + layout.name.lowercase()) { state.arrange(layout) }
-                    }
-                }
-                Flat("Save…", tag = "lens-save") { state.save() }
-                PinButton(state)
-                // Into the other rooms with the picture: the ways the hand-off seam has.
-                state.routes().forEach { route ->
-                    CrossRoomButton(route.to, route.label, Modifier.testTag("lens-to-" + route.to.name.lowercase())) { state.handOff(route.to) }
-                }
-            }
-            Flat("Back", tag = "lens-back") { state.leave() }
+            FirstThatFits(
+                listOf({ AllOut(state) }, { OpeningFolded(state) }, { Folded(state) }, { Fewest(state) }),
+                reserve = TITLE_ROOM,
+            )
         },
     )
+}
+
+/** How much of the header is kept for the picture's name, however narrow the window. */
+private val TITLE_ROOM = 120.dp
+
+/** The header's actions in a row, spaced as the header spaces its own. */
+@Composable
+private fun Actions(content: @Composable () -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) { content() }
+}
+
+/** Every action out: opening and pasting, the layouts, saving and pinning, the ways on, the way back. */
+@Composable
+private fun AllOut(state: LensRoomState) = Actions {
+    Flat("Open…", tag = "lens-open") { state.chooseFile() }
+    Flat("Paste", tag = "lens-paste") { state.paste() }
+    if (state.picture != null) {
+        LayoutChips(state)
+        Flat("Save…", tag = "lens-save") { state.save() }
+        PinButton(state)
+        Routes(state)
+    }
+    Flat("Back", tag = "lens-back") { state.leave() }
+}
+
+/** As wide as the app opens: opening and pasting under *Open*, the rest out. */
+@Composable
+private fun OpeningFolded(state: LensRoomState) = Actions {
+    if (state.picture == null) {
+        Flat("Open…", tag = "lens-open") { state.chooseFile() }
+        Flat("Paste", tag = "lens-paste") { state.paste() }
+    } else {
+        HeaderMenu("Open ▾", "lens-open-menu") { listOf(openingEntries(state)) }
+        LayoutChips(state)
+        Flat("Save…", tag = "lens-save") { state.save() }
+        PinButton(state)
+        Routes(state)
+    }
+    Flat("Back", tag = "lens-back") { state.leave() }
+}
+
+/** The layouts as chips, the one chosen lit. */
+@Composable
+private fun LayoutChips(state: LensRoomState) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(horizontal = 8.dp)) {
+        LensLayout.entries.forEach { layout ->
+            SelectChip(layout.short, state.layout == layout, tag = "lens-layout-" + layout.name.lowercase()) { state.arrange(layout) }
+        }
+    }
+}
+
+/** Narrower: opening, pasting, saving and pinning under *Picture*, the layouts under the one chosen. */
+@Composable
+private fun Folded(state: LensRoomState) = Actions {
+    if (state.picture == null) {
+        Flat("Open…", tag = "lens-open") { state.chooseFile() }
+        Flat("Paste", tag = "lens-paste") { state.paste() }
+    } else {
+        HeaderMenu("Picture ▾", "lens-picture-menu") { listOf(pictureEntries(state), pinEntries(state)) }
+        HeaderMenu(state.layout.short + " ▾", "lens-layout-menu") { listOf(layoutEntries(state)) }
+        Routes(state)
+    }
+    Flat("Back", tag = "lens-back") { state.leave() }
+}
+
+/** Narrowest: everything under *More*, but the way back. */
+@Composable
+private fun Fewest(state: LensRoomState) = Actions {
+    HeaderMenu("More ▾", "lens-more") {
+        if (state.picture == null) {
+            listOf(pictureEntries(state))
+        } else {
+            listOf(pictureEntries(state), layoutEntries(state), pinEntries(state), routeEntries(state))
+        }
+    }
+    Flat("Back", tag = "lens-back") { state.leave() }
+}
+
+/** Into the other rooms with the picture: the ways the hand-off seam has. */
+@Composable
+private fun Routes(state: LensRoomState) {
+    state.routes().forEach { route ->
+        CrossRoomButton(route.to, route.label, Modifier.testTag("lens-to-" + route.to.name.lowercase())) { state.handOff(route.to) }
+    }
+}
+
+/** One line of a header's menu: what it does, marked with the dab of the room it leads into, or as the one [chosen]. */
+private class Entry(val label: String, val tag: String, val room: Room? = null, val chosen: Boolean = false, val enabled: Boolean = true, val onClick: () -> Unit)
+
+private fun openingEntries(state: LensRoomState): List<Entry> = listOf(
+    Entry("Open a picture…", "lens-menu-open") { state.chooseFile() },
+    Entry("Paste", "lens-menu-paste") { state.paste() },
+)
+
+private fun pictureEntries(state: LensRoomState): List<Entry> =
+    openingEntries(state) + listOfNotNull(state.picture?.let { Entry("Save the view…", "lens-menu-save") { state.save() } })
+
+private fun layoutEntries(state: LensRoomState): List<Entry> = LensLayout.entries.map { layout ->
+    Entry(layout.label, "lens-menu-layout-" + layout.name.lowercase(), chosen = state.layout == layout) { state.arrange(layout) }
+}
+
+private fun pinEntries(state: LensRoomState): List<Entry> = state.boards().map { (name, dir) ->
+    Entry("Pin to $name", "lens-menu-pin-$name", room = Room.BOARDS) { state.pinTo(dir) }
+}.ifEmpty { listOf(Entry("No boards to pin to", "lens-menu-no-boards", room = Room.BOARDS, enabled = false) {}) }
+
+private fun routeEntries(state: LensRoomState): List<Entry> = state.routes().map { route ->
+    Entry(route.label, "lens-menu-to-" + route.to.name.lowercase(), room = route.to) { state.handOff(route.to) }
+}
+
+/** A quiet button opening a menu of [groups] — asked for as it opens, so the boards are the ones there are then. */
+@Composable
+private fun HeaderMenu(label: String, tag: String, groups: () -> List<List<Entry>>) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Flat(label, tag = tag) { open = true }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            groups().filter { it.isNotEmpty() }.forEachIndexed { i, group ->
+                if (i > 0) Divider()
+                group.forEach { entry ->
+                    DropdownMenuItem(
+                        onClick = {
+                            open = false
+                            entry.onClick()
+                        },
+                        enabled = entry.enabled,
+                        modifier = Modifier.testTag(entry.tag),
+                    ) {
+                        entry.room?.let {
+                            PigmentDab(it.pigment, size = 10.dp, seed = it.seed)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(entry.label, fontWeight = if (entry.chosen) FontWeight.SemiBold else FontWeight.Normal)
+                        if (entry.chosen) Text("  ✓", color = Room.LENS.pigment.glow)
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** What the last opening, save or pin came to — or that a view is being drawn. */

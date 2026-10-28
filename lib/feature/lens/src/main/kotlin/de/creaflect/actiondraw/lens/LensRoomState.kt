@@ -16,6 +16,7 @@ import de.creaflect.actiondraw.image.Pictures
 import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.platform.SystemClipboard
 import de.creaflect.actiondraw.safeFileName
+import de.creaflect.actiondraw.ui.HeightsSource
 import de.creaflect.actiondraw.ui.LENSES
 import de.creaflect.actiondraw.ui.keptIn
 import org.jetbrains.skia.Image
@@ -48,11 +49,11 @@ sealed class LensPicture {
     class Pasted(val png: ByteArray, override val name: String) : LensPicture()
 }
 
-/** How the room lays the picture out: through the lens alone, beside the original, or through two lenses at once. */
-enum class LensLayout(val label: String) {
-    ALONE("Alone"),
-    BESIDE("Beside the original"),
-    TWO("Two lenses"),
+/** How the room lays the picture out: through the lens alone, beside the original, or through two lenses at once — [short], where the header is narrow. */
+enum class LensLayout(val label: String, val short: String) {
+    ALONE("Alone", "Alone"),
+    BESIDE("Beside the original", "Beside"),
+    TWO("Two lenses", "Two lenses"),
 }
 
 /** The two lenses compared side by side: the first on the left, the second on the right. */
@@ -95,11 +96,20 @@ class LensRoomState(
     /** The picture's file, while it is one: what the glass knows it by. */
     val file: File? get() = (picture as? LensPicture.OnDisk)?.file
 
+    /** Where a relief's heights are chosen from: a picture, by the host's dialog. */
+    private val heights = HeightsSource(dialogs, lib.pictures)
+
     /** The lens the picture is seen through, its glass kept between runs. */
-    val first = LensState().also { it.glass.keptIn(lib.preferences) }
+    val first = LensState().also {
+        it.glass.keptIn(lib.preferences)
+        it.form.heightsFrom = heights
+    }
 
     /** The second lens, on the right while two are compared. */
-    val second = LensState().also { it.glass.keptIn(lib.preferences) }
+    val second = LensState().also {
+        it.glass.keptIn(lib.preferences)
+        it.form.heightsFrom = heights
+    }
 
     /** The original as it is, beside the lens: a lens never turned, and no glass taken up over it. */
     val plain = LensState()

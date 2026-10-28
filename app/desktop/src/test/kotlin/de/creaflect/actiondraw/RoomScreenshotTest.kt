@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.graphics.toPixelMap
@@ -25,6 +26,7 @@ import de.creaflect.actiondraw.board.NoteKind
 import de.creaflect.actiondraw.lens.LensLayout
 import de.creaflect.actiondraw.ui.Atelier
 import de.creaflect.actiondraw.ui.Form
+import de.creaflect.actiondraw.ui.LocalDrawnOnProcessor
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
 import de.creaflect.sketch.Lead
@@ -78,9 +80,12 @@ class RoomScreenshotTest {
             sketch.setSketchesHomeDir(File(root, "sketches"))
         }
 
+        // A test draws every frame on the processor, as a window drawn in software does.
         fun show(test: ComposeUiTest) = test.setContent {
             ProvideAtelier {
-                App(rooms, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+                CompositionLocalProvider(LocalDrawnOnProcessor provides true) {
+                    App(rooms, isFullscreen = false, onToggleFullscreen = {}, setFullscreen = {})
+                }
             }
         }
     }
@@ -309,9 +314,10 @@ class RoomScreenshotTest {
     }
 
     /**
-     * The picture on a form (F10.10), in a lower window: in a test every frame is drawn on the
-     * processor, four rays a pixel, and the full window takes minutes a form. As wide as the app
-     * opens, so the header and the form's settings still have to fit without a label cut off.
+     * The picture on a form (F10.10), a block and a relief among them (F10.11, F10.12), in a lower
+     * window: in a test every frame is drawn on the processor, four rays a pixel, and the full window
+     * takes minutes a form. As wide as the app opens, so the header and the form's settings — the
+     * block's sliders, the relief's heights — still have to fit without a label cut off.
      */
     @Test
     fun theLensRoomsForms() = runDesktopComposeUiTest(width = 1120, height = 560) {
@@ -325,10 +331,35 @@ class RoomScreenshotTest {
             Thread.sleep(100)
             mainClock.advanceTimeBy(100)
         }
-        listOf(Form.SPHERE, Form.CHROME).forEachIndexed { i, form ->
+        listOf(Form.SPHERE, Form.CHROME, Form.BLOCK, Form.RELIEF).forEachIndexed { i, form ->
             lens.first.form.choose(form)
             repeat(3) { mainClock.advanceTimeByFrame() }
             shoot("2$i-lens-form-" + form.name.lowercase(), Room.LENS)
         }
+    }
+
+    /**
+     * The Lens room in a narrow window: the header folds its actions into menus rather than
+     * pushing them past the window's edge or cutting their labels (F10.1).
+     */
+    @Test
+    fun theLensRoomNarrow() = runDesktopComposeUiTest(width = 720, height = 560) {
+        val world = World()
+        val lens = world.rooms.lens
+        world.app.enter(Screen.Lens)
+        lens.open(picture(File(root, "pose.png")))
+        lens.arrange(LensLayout.TWO)
+        world.show(this)
+        for (i in 0 until 50) {
+            if (onAllNodesWithTag("reference").fetchSemanticsNodes().isNotEmpty()) break
+            Thread.sleep(100)
+            mainClock.advanceTimeBy(100)
+        }
+        mainClock.advanceTimeBy(500)
+        shoot("24-lens-narrow", Room.LENS)
+        val back = onNodeWithTag("lens-back").fetchSemanticsNode().boundsInRoot
+        val window = onAllNodes(isRoot()).onFirst().fetchSemanticsNode().boundsInRoot
+        assertTrue(back.right <= window.right + 0.5f, "the way back inside the window: ${back.right} of ${window.right}")
+        onNodeWithTag("lens-layout-menu").assertExists()
     }
 }

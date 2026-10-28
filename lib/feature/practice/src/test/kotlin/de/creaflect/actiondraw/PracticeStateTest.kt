@@ -6,6 +6,7 @@ import de.creaflect.actiondraw.board.BoardSource
 import de.creaflect.actiondraw.handoff.Handed
 import de.creaflect.actiondraw.handoff.Handoff
 import de.creaflect.actiondraw.handoff.Route
+import de.creaflect.actiondraw.platform.FileDialogs
 import de.creaflect.actiondraw.practice.PracticePage
 import de.creaflect.actiondraw.practice.PracticeState
 import de.creaflect.actiondraw.ui.Optic
@@ -134,6 +135,17 @@ class PracticeStateTest {
         state.handOff(Room.LENS)
         assertEquals(listOf<Pair<Handed, Room>>(Handed.Picture(File(dir, "a.jpg")) to Room.LENS), sent, "the picture on screen")
         assertTrue(state.isPaused, "and the session waits for it")
+    }
+
+    @Test
+    fun theSessionsLensChoosesAReliefsHeightsThroughTheRoomsDialogs() {
+        makeImages("knee.jpg")
+        val knee = File(dir, "knee.jpg")
+        val dialogs = object : FileDialogs by FileDialogs.None {
+            override fun chooseFile(start: File?, title: String, description: String, accepts: (File) -> Boolean): File? = knee.takeIf(accepts)
+        }
+        val state = PracticeState(FileLib(settingsDir), dialogs = dialogs)
+        assertEquals(knee, state.lens.form.heightsFrom?.choose(), "a relief's heights, chosen as the room chooses")
     }
 
     @Test

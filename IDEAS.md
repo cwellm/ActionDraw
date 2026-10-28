@@ -168,11 +168,13 @@ should make the creative process better, not just add a feature.
 
 ### The Lens, further out (2026-10-27)
 The forms — a picture on a sphere, a cylinder, a cone, a torus, a tilted plane, in a chrome ball —
-are built (F10.10). These came up with them and wait.
-- ⬜ **Forms with a few sliders.** One formula family (superquadrics) covers ball, cushion, rounded
-  cube and cylinder with two sliders, so a form can be tuned to the thing being drawn.
-- ⬜ **A relief.** A greyscale picture as a height field, the picture draped over it: cloth over a
-  knee, a pattern over a face.
+are built (F10.10). These came up with them; the first two are built too.
+- ✅ **Forms with a few sliders.** One formula family (superquadrics) covers ball, cushion, rounded
+  cube and cylinder with two sliders, so a form can be tuned to the thing being drawn. Built as the
+  *Block* (F10.11), with its height and depth on two more.
+- ✅ **A relief.** A greyscale picture as a height field, the picture draped over it: cloth over a
+  knee, a pattern over a face. Built as the *Relief* (F10.12): the picture's own values, or a
+  picture chosen for its heights.
 - ⬜ **Your own surfaces.** A typed formula — `x(u, v)`, `y(u, v)`, `z(u, v)` — turned into a
   shader while the app runs (Skia compiles SkSL at runtime; mistakes and slow formulas have to be
   caught). Further still, a 3D model (OBJ) drawn as textured triangles with Skia's `drawVertices`,
