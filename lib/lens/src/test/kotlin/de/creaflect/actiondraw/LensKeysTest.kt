@@ -121,7 +121,10 @@ class LensKeysTest {
         assertTrue(lens.glass.magnification < m)
         press(Key.L, lens)
         assertFalse(lens.glass.inHand)
-        assertFalse(press(Key.Plus, lens), "without the glass, + is nobody's")
+        val kept = lens.glass.magnification
+        assertTrue(press(Key.Plus, lens), "without the glass, + zooms into the picture")
+        assertNotNull(lens.zoom)
+        assertEquals(kept, lens.glass.magnification, "and leaves the glass as it was")
     }
 
     @Test

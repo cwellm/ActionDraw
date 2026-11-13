@@ -3,6 +3,7 @@ package de.creaflect.actiondraw.ui
 import androidx.compose.ui.input.key.Key
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.lens.LensState
+import java.io.File
 
 /** The lens's hotkeys, as the hotkey sheet lists them — wherever a picture is seen through it. */
 object LensHotkeys {
@@ -13,8 +14,10 @@ object LensHotkeys {
         "B / I / D / M / U" to "blur / invert / defraction / mirror / upside down",
         "G" to "cycle the proportion grid",
         "L · O · + / −" to "the glass: take up / put away · next optic · nearer / further",
+        "+ / − · Z (no glass in hand)" to "zoom into the picture / out · the whole picture again",
+        "wheel · drag · Shift+drag (no glass in hand)" to "zoom in about the pointer · into the part dragged out · move the part zoomed into",
         "W" to "the glass over the whole picture, or back in hand",
-        "P" to "the picture on a form: sphere · cylinder · cone · torus · plane · chrome ball · none",
+        "P" to "the picture on a form: sphere · cylinder · cone · torus · block · plane · relief · chrome ball · none",
         "drag (on a form)" to "turn it",
         "click · drag · right click (glass in hand)" to "set it down on a point · on a part · lift it off",
         "click · drag · right click (over the whole)" to "move its centre · move it along · back in hand",
@@ -28,15 +31,24 @@ object LensHotkeys {
  * otherwise only ever show up under someone's fingers. Esc is not here — what it steps back from
  * goes beyond the lens ([LensState.stepBack] is the lens's part of it).
  */
-fun handleLensKey(key: Key, lens: LensState): Boolean =
+fun handleLensKey(key: Key, lens: LensState, picture: File? = null): Boolean =
     when (key) {
         // The glass: L takes it up or puts it away, O turns to the next optic, + − magnify.
         Key.L -> { lens.glass.toggle(); true }
         Key.O -> { lens.glass.nextOptic(); true }
         Key.W -> { lens.glass.toggleSpread(); true }
         Key.P -> { lens.form.next(); true }
-        Key.Plus, Key.Equals, Key.NumPadAdd -> lens.glass.inHand.also { if (it) lens.glass.magnifyBy(1f) }
-        Key.Minus, Key.NumPadSubtract -> lens.glass.inHand.also { if (it) lens.glass.magnifyBy(-1f) }
+        // + − bring the glass nearer, where it is in hand; else they zoom into [picture] and out.
+        Key.Plus, Key.Equals, Key.NumPadAdd -> {
+            if (lens.glass.inHand) lens.glass.magnifyBy(1f) else lens.zoomBy(picture, 1f)
+            true
+        }
+        Key.Minus, Key.NumPadSubtract -> when {
+            lens.glass.inHand -> { lens.glass.magnifyBy(-1f); true }
+            lens.zoomOn(picture) != null -> { lens.zoomBy(picture, -1f); true }
+            else -> false
+        }
+        Key.Z -> lens.zoomOn(picture) != null && run { lens.showWhole(); true }
         Key.G -> { lens.cycleGrid(); true }
         Key.I -> { lens.invert = !lens.invert; true }
         Key.D -> { lens.toggleDefraction(); true }

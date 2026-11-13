@@ -43,6 +43,11 @@ interface Preferences {
 
     fun setSketchesHome(dir: File)
 
+    /** Where new collages are kept. Need not exist yet. */
+    fun collagesHome(): File
+
+    fun setCollagesHome(dir: File)
+
     /** Align dragged cards to their neighbours' centre lines. Off unless switched on. */
     fun snapByDefault(): Boolean
 
@@ -65,6 +70,11 @@ interface Preferences {
     fun recentSketches(): List<File>
 
     fun addRecentSketch(file: File)
+
+    /** Collage documents kept or opened lately, anywhere; vanished ones are left out. */
+    fun recentCollages(): List<File>
+
+    fun addRecentCollage(file: File)
 
     /** The Tune panel's leads, as the sketch side encodes them; null when there are none. */
     fun leadPresetsJson(): String?

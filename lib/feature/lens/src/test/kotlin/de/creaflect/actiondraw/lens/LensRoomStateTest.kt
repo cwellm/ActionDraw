@@ -77,6 +77,21 @@ class LensRoomStateTest {
         assertNull(state.first.glass.focus)
     }
 
+    @Test
+    fun theViewsSideBySideShowThePartZoomedIntoAndAPictureOpenedStartsWhole() {
+        val state = fixture.state()
+        val pose = fixture.picture("pose")
+        state.open(pose)
+        state.second.zoomInto(pose, 0f, 0f, 0.5f, 0.5f)
+        val part = assertNotNull(state.first.zoomOn(pose), "zoomed on the second lens, the first shows it too")
+        assertEquals(part, state.plain.zoomOn(pose), "and so does the original beside it")
+        // A picture pasted has no file to tie the part to: opened, it starts whole all the same.
+        state.openPng(fixture.pngBytes(), "pasted")
+        state.first.zoomBy(null, 1f)
+        state.openPng(fixture.pngBytes(), "pasted again")
+        assertNull(state.first.zoomOn(null))
+    }
+
     // ---- The hand-off seam ----
 
     @Test

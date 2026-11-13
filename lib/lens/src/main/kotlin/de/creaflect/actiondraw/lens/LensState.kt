@@ -7,13 +7,19 @@ import de.creaflect.actiondraw.GridMode
 import de.creaflect.actiondraw.ViewMode
 import de.creaflect.actiondraw.ui.FormState
 import de.creaflect.actiondraw.ui.GlassState
+import de.creaflect.actiondraw.ui.ZOOM_STEP
+import de.creaflect.actiondraw.ui.Zoom
 import java.io.File
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import kotlin.random.Random
 
 /**
  * How a picture is seen (CONCEPT.md, *Lens*): the lens it is seen through, the knobs over it — the
- * light, blur, mirror, flip, invert, shards — the proportion grid, and the glass. Plain class backed
+ * light, blur, mirror, flip, invert, shards — the proportion grid, the glass, and the part of the
+ * picture zoomed into, which is then the picture for all the rest. Plain class backed
  * by Compose state, so whatever shows the picture recomposes on change. A session in the Practice
  * room holds one, and so does the Lens room: the tray, the picture and the keys over it are one
  * code path for both.
@@ -30,6 +36,17 @@ class LensState {
 
     /** The form the picture is wrapped onto, if any (F10.10). The picture is on a form or under the glass, not both. */
     val form = FormState()
+
+    /**
+     * The lens whose zoom this one shows — set where two views of one picture lie side by side, so
+     * they show the same part whichever of them is zoomed; none where it keeps its own.
+     */
+    var zoomsWith: LensState? = null
+
+    private var ownZoom by mutableStateOf<Zoom?>(null)
+
+    /** The part of a picture zoomed into, taken as the picture itself; none where the whole picture is shown. */
+    val zoom: Zoom? get() = zoomsWith?.zoom ?: ownZoom
 
     init {
         glass.onTakeUp = { form.choose(null) }
@@ -118,14 +135,61 @@ class LensState {
 
     /**
      * Esc, as far as the lens goes: the glass lifted off [picture], or off the whole picture back
-     * into the hand, or else put away; or the picture taken off its form. False when the lens has
-     * nothing to step back from, so whatever shows the picture takes the next step.
+     * into the hand, or else put away; or the picture taken off its form; or the whole picture shown
+     * again where it was zoomed into. False when the lens has nothing to step back from, so whatever
+     * shows the picture takes the next step.
      */
     fun stepBack(picture: File?): Boolean = when {
         glass.focusOn(picture) != null -> { glass.wholePicture(); true }
         glass.spread != null -> { glass.gather(); true }
         glass.inHand -> { glass.putAway(); true }
         form.form != null -> { form.choose(null); true }
+        zoomOn(picture) != null -> { showWhole(); true }
         else -> false
+    }
+
+    // ---- Zoomed into ----
+
+    /** The part of [picture] zoomed into — none on another picture: a new one starts whole. */
+    fun zoomOn(picture: File?): Zoom? = zoom?.takeIf { it.picture == picture }
+
+    /**
+     * Nearer to [picture] by [steps] of [ZOOM_STEP] — further, where they are fewer than none —
+     * about ([x], [y]) on what is shown, 0 to 1, which stays where it is: the wheel under the
+     * pointer, + and − about the middle. Out as far as the whole picture, and no further.
+     */
+    fun zoomBy(picture: File?, steps: Float, x: Float = 0.5f, y: Float = 0.5f) {
+        val now = zoomOn(picture) ?: Zoom.whole(picture)
+        val k = ZOOM_STEP.pow(steps)
+        val w = now.width / k
+        val h = now.height / k
+        val (px, py) = now.onWhole(x, y)
+        showPart(Zoom.of(picture, px - x * w, py - y * h, w, h))
+    }
+
+    /** Into the part of what is shown from ([x0], [y0]) to ([x1], [y1]), 0 to 1: a part dragged out — further in, where it is zoomed into already. */
+    fun zoomInto(picture: File?, x0: Float, y0: Float, x1: Float, y1: Float) {
+        val now = zoomOn(picture) ?: Zoom.whole(picture)
+        val (ax, ay) = now.onWhole(min(x0, x1).coerceIn(0f, 1f), min(y0, y1).coerceIn(0f, 1f))
+        val (bx, by) = now.onWhole(max(x0, x1).coerceIn(0f, 1f), max(y0, y1).coerceIn(0f, 1f))
+        showPart(Zoom.of(picture, ax, ay, bx - ax, by - ay))
+    }
+
+    /** What is shown moved across [picture] by ([dx], [dy]) of itself, and kept on it. Nothing to move where it is shown whole. */
+    fun panBy(picture: File?, dx: Float, dy: Float) {
+        val now = zoomOn(picture) ?: return
+        showPart(Zoom.of(picture, now.left + dx * now.width, now.top + dy * now.height, now.width, now.height))
+    }
+
+    /** The whole picture shown again. */
+    fun showWhole() = showPart(null)
+
+    /** [next] taken as the picture; the glass, if it was down on what was shown before, lifted off. */
+    private fun showPart(next: Zoom?) {
+        if (next == zoom) return
+        val keeper = zoomsWith ?: this
+        keeper.ownZoom = next
+        keeper.glass.wholePicture()
+        glass.wholePicture()
     }
 }

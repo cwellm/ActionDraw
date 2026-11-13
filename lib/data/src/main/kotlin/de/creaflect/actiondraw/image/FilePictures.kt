@@ -21,6 +21,8 @@ internal class FilePictures(private val thumbs: ThumbCache) : Pictures {
 
     override fun decode(file: File): Image? = runCatching { ImageDecoder.decode(file) }.getOrNull()
 
+    override fun sizeOf(file: File): Pair<Int, Int>? = ImageDecoder.size(file)
+
     override fun thumbnail(file: File, maxSize: Int): Image? = thumbs.load(file, maxSize)
 
     override fun palette(file: File, count: Int): List<Int> = Palette.of(file, count)

@@ -5,6 +5,8 @@ import de.creaflect.actiondraw.board.Boards
 import de.creaflect.actiondraw.board.FileBoards
 import de.creaflect.actiondraw.board.LinkPreview
 import de.creaflect.actiondraw.board.LinkPreviews
+import de.creaflect.actiondraw.collage.Collages
+import de.creaflect.actiondraw.collage.FileCollages
 import de.creaflect.actiondraw.concept.ConceptRegistry
 import de.creaflect.actiondraw.concept.Concepts
 import de.creaflect.actiondraw.concept.FileConcepts
@@ -38,7 +40,7 @@ class FileLib private constructor(dirs: AppDirs, run: LibRun, fetcher: Fetcher) 
 
     /**
      * The lib over [home] as though it were the person's home — the settings, the registries,
-     * the thumbnails and the default homes of boards, concepts and sketches all inside it: a
+     * the thumbnails and the default homes of boards, concepts, sketches and collages all inside it: a
      * test's temp folder.
      */
     constructor(home: File, run: LibRun = LibRun.inline()) : this(AppDirs(home), run, Http)
@@ -54,6 +56,7 @@ class FileLib private constructor(dirs: AppDirs, run: LibRun, fetcher: Fetcher) 
     override val pictures: Pictures = FilePictures(ThumbCache(dirs.thumbnails))
     override val practice: PracticeHistory = FilePracticeHistory
     override val sketches: Sketches = FileSketches(settings)
+    override val collages: Collages = FileCollages(settings)
     override val previews: LinkPreviews = LinkPreviews { dir, url, title -> LinkPreview.fetch(dir, url, title, fetcher) }
     override val diagnostics: Diagnostics = FileDiagnostics(dirs)
 }

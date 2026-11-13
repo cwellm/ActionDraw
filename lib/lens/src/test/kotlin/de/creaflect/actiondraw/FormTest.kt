@@ -2,6 +2,7 @@ package de.creaflect.actiondraw
 
 import de.creaflect.actiondraw.lens.LensState
 import de.creaflect.actiondraw.ui.Block
+import de.creaflect.actiondraw.ui.FORM_SKSL
 import de.creaflect.actiondraw.ui.Form
 import de.creaflect.actiondraw.ui.FormState
 import de.creaflect.actiondraw.ui.Heights
@@ -12,6 +13,7 @@ import de.creaflect.actiondraw.ui.formDims
 import de.creaflect.actiondraw.ui.formRay
 import de.creaflect.actiondraw.ui.formRows
 import de.creaflect.actiondraw.ui.formShader
+import de.creaflect.actiondraw.ui.formSource
 import de.creaflect.actiondraw.ui.softHeights
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.Color
@@ -112,6 +114,18 @@ class FormTest {
         assertTrue(lens.stepBack(File("pose.png")))
         assertNull(lens.form.form)
         assertFalse(lens.stepBack(File("pose.png")), "and then there is nothing to step back from")
+    }
+
+    @Test
+    fun eachFormIsCompiledAloneWithItsRaysCastFromOnePlace() {
+        // On the graphics card the first form shown waited half a minute while one shader for every
+        // form, a copy of the ray for each of its four, was compiled: the window hung.
+        assertEquals(2, Regex("""\bray\(""").findAll(FORM_SKSL).count(), "the ray defined once and cast from one place")
+        for (form in Form.entries) {
+            val source = formSource(form)
+            assertFalse("uniform float kind;" in source, "$form: its kind no uniform")
+            assertTrue("const float kind = ${form.ordinal}.0;" in source, "$form: its kind set")
+        }
     }
 
     // ---- Turned ----

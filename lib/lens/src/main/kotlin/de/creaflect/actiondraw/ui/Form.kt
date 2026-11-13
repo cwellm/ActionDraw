@@ -476,13 +476,31 @@ half4 ray(float2 p) {
     return colour;
 }
 
+// One place a ray is cast from, so the form's arithmetic is in the shader once: the graphics card's
+// compiler takes it in for every copy, and with a copy a ray it took half a minute.
 half4 main(float2 p) {
-    if (rays < 1.5) { return ray(p); }
-    return (ray(p + float2(-0.25, -0.25)) + ray(p + float2(0.25, -0.25)) + ray(p + float2(-0.25, 0.25)) + ray(p + float2(0.25, 0.25))) * 0.25;
+    float n = rays > 1.5 ? 4.0 : 1.0;
+    half4 sum = half4(0.0);
+    for (int i = 0; i < 4; i++) {
+        if (float(i) >= n) { break; }
+        float2 off = n > 1.5 ? float2(mod(float(i), 2.0) - 0.5, floor(float(i) / 2.0) - 0.5) * 0.5 : float2(0.0);
+        sum += ray(p + off);
+    }
+    return sum / half(n);
 }
 """
 
-private val formRuntime: RuntimeEffect by lazy { RuntimeEffect.makeForShader(FORM_SKSL) }
+/**
+ * [FORM_SKSL] made for each form as it is first drawn, its kind set rather than passed: the
+ * graphics card's compiler then sees that form's arithmetic alone. With every form in one shader,
+ * the first form shown kept the window waiting half a minute while it was compiled.
+ */
+private val formRuntimes = java.util.concurrent.ConcurrentHashMap<Form, RuntimeEffect>()
+
+private fun formRuntime(form: Form): RuntimeEffect = formRuntimes.getOrPut(form) { RuntimeEffect.makeForShader(formSource(form)) }
+
+/** [FORM_SKSL] for [form] alone: its kind a constant, so every other form's branch is left out. */
+internal fun formSource(form: Form): String = FORM_SKSL.replace("uniform float kind;", "const float kind = ${form.ordinal}.0;")
 
 /**
  * The form's own measures, for a picture [aspect] wide for its height: a can as tall as the picture
@@ -562,7 +580,7 @@ fun formShader(
     val rows = formRows(yaw, pitch)
     val dims = formDims(form, image.width.toFloat() / image.height)
     val shape = blockMeasures(block)
-    val builder = RuntimeShaderBuilder(formRuntime)
+    val builder = RuntimeShaderBuilder(formRuntime(form))
     builder.child("image", picture)
     // Heights are small and soft already: read between their pixels, never from smaller copies of them.
     val between = if (sampling == GlassSampling) SamplingMode.LINEAR else sampling
@@ -572,7 +590,6 @@ fun formShader(
     builder.uniform("rx", rows[0][0], rows[0][1], rows[0][2])
     builder.uniform("ry", rows[1][0], rows[1][1], rows[1][2])
     builder.uniform("rz", rows[2][0], rows[2][1], rows[2][2])
-    builder.uniform("kind", form.ordinal.toFloat())
     builder.uniform("dims", dims.first, dims.second)
     builder.uniform("picture", image.width.toFloat(), image.height.toFloat())
     builder.uniform("lit", if (lit) 1f else 0f)

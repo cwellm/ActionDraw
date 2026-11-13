@@ -50,7 +50,7 @@ fun handleSessionShortcut(
         Key.A -> { state.autoAdvance = !state.autoAdvance; true }
         // H covers the reference — or peeks at it, while drawing from memory.
         Key.H -> { state.toggleReference(); true }
-        else -> handleLensKey(key, state.lens)
+        else -> handleLensKey(key, state.lens, state.currentImage)
     }
 
 /** On the summary, Esc and Enter both leave it: to the menu, or back to the board. */

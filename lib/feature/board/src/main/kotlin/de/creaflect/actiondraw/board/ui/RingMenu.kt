@@ -127,8 +127,6 @@ private fun Ring(board: BoardState, close: () -> Unit, onConcepts: () -> Unit, o
             RingAction("ring-" + route.to.name.lowercase(), route.to, route.label, single != null) { single?.let { board.handOff(it, route.to) } }
         } +
         listOfNotNull(
-            // Collage is a dry well until it takes pictures (M9).
-            RingAction("ring-collage", Room.COLLAGE, "To a collage", false) {}.takeIf { routes.none { it.to == Room.COLLAGE } },
             RingAction("ring-concept", Room.CONCEPTS, "To a concept", own && board.conceptsAvailable().isNotEmpty()) { onConcepts() },
             RingAction("ring-tag", Room.BOARDS, "Tag", board.selection.isNotEmpty()) { board.openEditor(BoardEditor.EditTags(board.selection)) },
             RingAction("ring-group", Room.BOARDS, "Group", own) { board.startGrouping() },

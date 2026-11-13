@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -27,6 +28,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.test.performMultiModalInput
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.rightClick
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ import de.creaflect.actiondraw.ui.LensView
 import de.creaflect.actiondraw.ui.LocalDrawnOnProcessor
 import de.creaflect.actiondraw.ui.Optic
 import de.creaflect.actiondraw.ui.ProvideAtelier
+import de.creaflect.actiondraw.ui.ZOOM_STEP
 import org.junit.Rule
 import org.junit.Test
 import java.awt.image.BufferedImage
@@ -148,6 +151,75 @@ class LensViewTest {
         rule.onNodeWithTag("lens-notan").performClick()
         rule.waitForIdle()
         assertEquals(ViewMode.NOTAN, lens.viewMode, "and a slide chooses its lens")
+    }
+
+    @Test
+    fun withNoGlassInHandTheWheelAndADragZoomAndThePartIsWhatIsSeen() {
+        val lens = LensState()
+        val ramp = File("ramp.png")
+        show(lens)
+        // Along a row above the print of the whole, which lies over the bottom left of the picture while it is zoomed into.
+        fun upperRow(): List<Color> {
+            rule.waitForIdle()
+            return rule.onNodeWithTag("reference").captureToImage().toPixelMap().let { map -> (map.width / 10 until map.width * 9 / 10 step 8).map { map[it, map.height / 4] } }
+        }
+        val before = upperRow()
+        val area = rule.onNodeWithTag("reference").fetchSemanticsNode().size
+        fun at(x: Float, y: Float) = Offset(area.width * x, area.height * y)
+
+        // The wheel, up, three quarters of the way along: nearer about there.
+        rule.onNodeWithTag("reference").performMouseInput {
+            moveTo(at(0.75f, 0.5f))
+            scroll(-3f)
+        }
+        val zoom = assertNotNull(lens.zoomOn(ramp))
+        assertEquals(ZOOM_STEP * ZOOM_STEP * ZOOM_STEP, zoom.factor, 0.01f)
+        assertEquals(0.75f, zoom.onWhole(0.75f, 0.5f).first, 0.02f, "about the pointer")
+        assertTrue(upperRow().first().red > before.first().red + 0.2f, "the part fills the view: lighter at its left")
+        rule.onNodeWithTag("zoom-whole").performClick()
+        rule.waitForIdle()
+        assertNull(lens.zoomOn(ramp), "the print in the corner: the whole picture again")
+
+        // A part dragged out — the dark end — is zoomed into, and is all that is seen.
+        rule.onNodeWithTag("reference").performMouseInput {
+            moveTo(at(0.1f, 0.1f))
+            press()
+            repeat(20) { moveBy(Offset(area.width * 0.3f / 20f, area.height * 0.8f / 20f)) }
+            release()
+        }
+        val part = assertNotNull(lens.zoomOn(ramp))
+        assertEquals(0.1f, part.left, 0.02f)
+        assertEquals(0.3f, part.width, 0.02f)
+        val upper = upperRow()
+        assertTrue(upper.all { it.red < 0.5f }, "only the dark end seen: ${upper.map { (it.red * 100).toInt() }}")
+
+        // Shift and a drag move the part zoomed into, as a hand slides the picture — begun off the print.
+        rule.onNodeWithTag("reference").performMultiModalInput {
+            key { keyDown(Key.ShiftLeft) }
+            mouse {
+                moveTo(at(0.4f, 0.3f))
+                press()
+                repeat(10) { moveBy(Offset(-area.width * 0.1f / 10f, 0f)) }
+                release()
+            }
+            key { keyUp(Key.ShiftLeft) }
+        }
+        rule.waitForIdle()
+        val moved = assertNotNull(lens.zoomOn(ramp))
+        assertTrue(moved.left > part.left + 0.03f, "dragged left, the part further right shown: ${moved.left}")
+        assertEquals(part.width, moved.width, 0.001f)
+        rule.onNodeWithTag("reference").performMouseInput { rightClick(at(0.5f, 0.5f)) }
+        rule.waitForIdle()
+        assertNull(lens.zoomOn(ramp), "a right click: the whole picture again")
+
+        // With the glass in hand the wheel is the glass's.
+        lens.glass.takeUp()
+        rule.onNodeWithTag("reference").performMouseInput {
+            moveTo(at(0.5f, 0.5f))
+            scroll(-2f)
+        }
+        rule.waitForIdle()
+        assertNull(lens.zoomOn(ramp), "not zoomed")
     }
 
     @Test
