@@ -64,6 +64,7 @@ import de.creaflect.actiondraw.ui.fitScale
 import de.creaflect.actiondraw.ui.lensedPng
 import de.creaflect.actiondraw.ui.pigment
 import de.creaflect.actiondraw.ui.seed
+import de.creaflect.actiondraw.ui.zoomedPart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -92,7 +93,9 @@ fun LensRoomScreen(state: LensRoomState, onHome: (() -> Unit)? = null) {
             } else {
                 val room = with(LocalDensity.current) { barHeight.value.toDp() }
                 Views(state, bitmap, shown, Modifier.fillMaxSize().padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = room))
-                LensControls(state.lens, bitmap, Room.LENS, barHeight)
+                val zoom = state.lens.zoomOn(state.file)
+                val shown = remember(bitmap, zoom) { bitmap?.let { zoomedPart(it, zoom) } }
+                LensControls(state.lens, shown, Room.LENS, barHeight)
             }
         }
     }
@@ -110,9 +113,11 @@ private fun SaveTheView(state: LensRoomState, bitmap: ImageBitmap?, shown: Mutab
         val bmp = bitmap ?: return@LaunchedEffect
         if (state.export == null) return@LaunchedEffect
         val area = shown.value
-        val scale = if (area.width > 0 && area.height > 0) fitScale(bmp.width.toFloat(), bmp.height.toFloat(), area.width.toFloat(), area.height.toFloat()) else 1f
         val lens = state.lens
-        val png = withContext(Dispatchers.Default) { lensedPng(bmp, lens, scale, density, design) }
+        // Zoomed into, the part is the picture: saved at its own size, as it is seen.
+        val part = zoomedPart(bmp, lens.zoomOn(state.file))
+        val scale = if (area.width > 0 && area.height > 0) fitScale(part.width.toFloat(), part.height.toFloat(), area.width.toFloat(), area.height.toFloat()) else 1f
+        val png = withContext(Dispatchers.Default) { lensedPng(part, lens, scale, density, design) }
         state.finish(png)
     }
 }

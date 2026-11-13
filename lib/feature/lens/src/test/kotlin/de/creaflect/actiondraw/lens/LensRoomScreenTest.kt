@@ -141,6 +141,14 @@ class LensRoomScreenTest {
         val saved = assertNotNull(Image.makeFromEncoded(target.readBytes()))
         assertEquals(400 to 200, saved.width to saved.height, "the picture's own size")
         onNodeWithTag("lens-notice").assertTextEquals("Saved as view.png")
+
+        // Zoomed into, the part is the picture: saved at its own size.
+        state.first.zoomInto(state.file, 0f, 0f, 0.5f, 0.5f)
+        target.delete()
+        onNodeWithTag("lens-save").performClick()
+        waitFor("the part saved") { target.isFile && state.export == null }
+        val part = assertNotNull(Image.makeFromEncoded(target.readBytes()))
+        assertEquals(200 to 100, part.width to part.height, "the part's own size")
     }
 
     @Test

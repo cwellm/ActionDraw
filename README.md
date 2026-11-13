@@ -80,6 +80,17 @@ sketch*, *Open a picture*, *New collage* or *Continue* the one kept last.
 - **Proportion grids** (`G` cycles): **Thirds**, **Phi** (golden section), **Diagonal** — each
   with a centre cross.
 
+### Zoom — a part as the picture
+Zoom into the part you are drawing, and that part *is* the picture: every lens, the light, the
+knobs, the grid — the thirds divide the part — the glass and the forms work on it as on a picture
+of its own. With no glass in hand, the **wheel** zooms in and out about the pointer, **drag out**
+a rectangle to zoom into exactly that part (and again, to go further in), and **`Shift`+drag**
+moves the part you are zoomed into. `+` and `−` zoom in and out about the middle. The whole
+picture waits in the bottom left corner as a small print with the part ringed: click it, press
+`Z`, right-click the picture or press `Esc`, and you are back to the whole. A new pose starts whole.
+In the Lens room the views side by side show the same part, and a saved view is the part at its
+own size.
+
 ### The glass — drawing through a lens
 A reading glass to hold over the picture. The **Glass** knob in the tray (or `L`) takes it up: a
 round glass with a rim and a handle follows the pointer and shows what is under it larger —
@@ -368,6 +379,10 @@ down, the proportion grids. Back returns to where it came from.
 - **Alone, beside the original, or two lenses at once.** Two start different — the second as Edge,
   or Notan where the first is Edge — until it is turned; click a side's name, or press `Tab`, to
   choose the lens the tray and the keys work.
+- **Zoom.** As in a pose: the wheel, a part dragged out or `+` `−` zoom into the picture, and the
+  part is the picture for every lens, the glass and the forms; `Shift`+drag moves it, `Z` or the
+  print in the corner shows the whole again. Side by side, both views show the same part, and a
+  saved view is the part at its own size.
 - **The glass.** A reading glass taken up from the tray (`L`) follows the pointer and magnifies
   ×1.25–×12 (wheel; `Shift`+wheel its size). Six optics, as cross-sections of their glass (`O`
   turns): plain, convex, concave, fisheye, cylinder, prism. A click sets it down on that point, a
@@ -500,19 +515,21 @@ pieces as they lie, without their shadows, on paper, cut to the space they cover
 
 | Key | Action |
 |---|---|
-| `Space` | play / pause |
+| `Space` | play / pause — whichever button was clicked last |
 | `←` / `→` | previous / next image |
 | `1`–`9` | view mode (None … Notan) |
 | `N` | Notan view |
 | `,` / `.` / `0` | cooler light · warmer light · neutral |
 | `H` | hide the reference · peek at it while drawing from memory |
+| wheel · drag · `Shift`+drag | zoom in about the pointer · into the part dragged out · move the part (no glass in hand) |
+| `+` / `−` · `Z` | zoom in / out (the glass nearer / further, when it is in hand) · the whole picture again |
 | `B` / `I` / `D` / `M` / `U` | blur / invert / defraction / mirror / upside down |
 | `G` | cycle proportion grid |
 | `R` | toggle redo flag |
 | `A` | toggle auto-advance |
 | `F` | toggle fullscreen |
 | `L` · `O` · `+` / `−` | the glass: take up / put away · next optic · nearer / further |
-| `Esc` | lift the glass · put it away · leave fullscreen · stop session · close picker/summary |
+| `Esc` | lift the glass · put it away · the whole picture · leave fullscreen · stop session · close picker/summary |
 | `Enter` | close picker/summary |
 
 ### Board
@@ -553,10 +570,11 @@ on the lens chosen.
 |---|---|
 | `Ctrl+O` / `Ctrl+V` / `Ctrl+S` | open a picture · look at the clipboard's · save the view |
 | `Tab` | the other lens, while two are compared |
+| wheel · drag · `Shift`+drag · `+` / `−` · `Z` | with no glass in hand: zoom in about the pointer · into the part dragged out · move the part · zoom in / out · the whole picture again |
 | `L` · `O` · `+` / `−` | the glass: take up / put away · next optic · nearer / further |
 | `W` | the glass over the whole picture, or back in hand |
 | `P` | the picture on the next form, or off it |
-| `Esc` | lift the glass · put it away · take the picture off its form · back |
+| `Esc` | lift the glass · put it away · take the picture off its form · the whole picture · back |
 
 ### Live Sketch
 

@@ -14,10 +14,12 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -71,9 +73,12 @@ private fun LastFocus(glass: GlassState, current: File?, lastFocus: MutableState
  * it: taken up, it shows the picture larger under the pointer; set down, the part it is on fills
  * the area — zooming there and back over [Motion.GLASS_MS] — and the whole picture waits in the
  * corner; laid over the whole picture, it bends all of it about a mark that shows where. Or the
- * picture is on a form (F10.10), turned by a drag. While there is a [veil], it stands in the
- * picture's place, and nothing is taken. Without [marks], only the picture is drawn: no grid, no
- * rim, no mark, no print — what a view saved is; and a form drawn as a saved one is.
+ * picture is on a form (F10.10), turned by a drag. Zoomed into, the part is the picture for all of
+ * it — its lens, the knobs, the grid, the glass, the form — and the whole waits as a print in the
+ * corner; with no glass in hand the wheel, a drag and Shift with a drag zoom ([zoomInput]).
+ * While there is a [veil], it stands in the picture's place, and nothing is taken. Without
+ * [marks], only the picture is drawn: no grid, no rim, no mark, no print — what a view saved is;
+ * and a form drawn as a saved one is.
  */
 @Composable
 fun LensView(
@@ -95,7 +100,11 @@ fun LensView(
     // Where the glass was last down on this picture, so lifting it zooms back out from there.
     val lastFocus = remember(picture) { mutableStateOf<GlassFocus?>(null) }
     LastFocus(glass, picture, lastFocus)
-    val bmp = bitmap
+    // Zoomed into, the part is the picture from here on.
+    val zoom = lens.zoomOn(picture)
+    val bmp = remember(bitmap, zoom) { bitmap?.let { zoomedPart(it, zoom) } }
+    val shown = rememberUpdatedState(bmp?.let { Size(it.width.toFloat(), it.height.toFloat()) } ?: Size(1f, 1f))
+    val frame = remember { mutableStateOf<Rect?>(null) }
     val usable = bmp != null && veil == null
     val shaped = lens.form.form != null
     Box(
@@ -106,7 +115,10 @@ fun LensView(
                 when {
                     !usable -> Modifier
                     shaped -> Modifier.formInput(lens)
-                    else -> Modifier.glassInput(lens, pointer, picture, bmp!!.width.toFloat(), bmp.height.toFloat(), focused)
+                    else ->
+                        Modifier
+                            .glassInput(lens, pointer, picture, bmp!!.width.toFloat(), bmp.height.toFloat(), focused)
+                            .zoomInput(lens, picture, shown, frame)
                 },
             ),
         contentAlignment = Alignment.Center,
@@ -162,6 +174,7 @@ fun LensView(
                 ProportionOverlay(bmp, lens.gridMode, Modifier.fillMaxSize())
             }
             if (marks && !shaped) GlassOverlay(bmp, lens, picture, pointer, progress, focused)
+            if (marks) bitmap?.let { ZoomMarks(it, lens, picture, frame.value, glassDown = focused && !shaped) }
         } else {
             Text(if (picture == null) "No image" else "Loading…", color = Color.White)
         }

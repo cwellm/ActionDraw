@@ -46,6 +46,26 @@ class SessionKeysTest {
     }
 
     @Test
+    fun plusZoomsIntoThePictureOnScreenAndZAndEscShowItWhole() {
+        val pictures = File(settingsDir, "pictures").apply { mkdirs() }
+        repeat(2) { i -> javax.imageio.ImageIO.write(java.awt.image.BufferedImage(40, 30, java.awt.image.BufferedImage.TYPE_INT_RGB), "png", File(pictures, "pose$i.png")) }
+        val state = state().also { it.selectFolder(pictures) }
+        state.start()
+        val first = state.currentImage
+        assertTrue(press(Key.Plus, state))
+        assertTrue(state.lens.zoomOn(first) != null, "+ zooms into the picture on screen")
+        assertTrue(press(Key.Z, state))
+        assertEquals(null, state.lens.zoomOn(first), "Z shows it whole")
+        press(Key.Plus, state)
+        press(Key.Escape, state)
+        assertEquals(null, state.lens.zoomOn(first), "and so does Esc, before the session is stopped")
+        assertEquals(PracticePage.Session, state.page)
+        press(Key.Plus, state)
+        press(Key.DirectionRight, state)
+        assertEquals(null, state.lens.zoomOn(state.currentImage), "the next picture starts whole")
+    }
+
+    @Test
     fun theOtherSessionKeysStillDoTheirJob() {
         val state = state()
         val auto = state.autoAdvance

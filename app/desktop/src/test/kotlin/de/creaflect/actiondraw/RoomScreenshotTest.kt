@@ -159,6 +159,16 @@ class RoomScreenshotTest {
         mainClock.autoAdvance = false // a running pose ticks for ever
         mainClock.advanceTimeBy(1500)
         shoot("04-session", null)
+        // Zoomed into the figure's head and shoulders, the part is the picture: here in notan, with the thirds over it.
+        val lens = world.practice.lens
+        lens.zoomInto(world.practice.currentImage, 0.35f, 0.1f, 0.65f, 0.55f)
+        lens.viewMode = ViewMode.NOTAN
+        lens.gridMode = GridMode.THIRDS
+        mainClock.advanceTimeBy(500)
+        shoot("04b-session-zoomed", null)
+        lens.showWhole()
+        lens.viewMode = ViewMode.NONE
+        lens.gridMode = GridMode.OFF
         world.practice.lens.glass.choose(Optic.CONVEX)
         val reference = onNodeWithTag("reference")
         val size = reference.fetchSemanticsNode().size

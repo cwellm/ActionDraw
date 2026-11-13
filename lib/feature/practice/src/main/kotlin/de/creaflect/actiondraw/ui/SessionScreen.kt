@@ -42,6 +42,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.graphics.vector.PathParser
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.layout.layout
@@ -97,7 +102,7 @@ fun SessionScreen(
 
     if (isFullscreen) {
         // The picture fills the screen; only the ensō floats over its corner.
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().spaceIsThePause(state)) {
             ImageArea(state, bitmap, current, Modifier.fillMaxSize())
             Enso(state, dimmed = false, modifier = Modifier.align(Alignment.TopEnd).padding(20.dp))
         }
@@ -113,7 +118,7 @@ fun SessionScreen(
             tween(if (reduced) Motion.REDUCED_MS else if (receded.value) Motion.RECEDE_MS else Motion.RETURN_MS),
         )
         val barHeight = remember { mutableStateOf(0) }
-        Box(Modifier.fillMaxSize().watchPointer(watch)) {
+        Box(Modifier.fillMaxSize().spaceIsThePause(state).watchPointer(watch)) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -147,11 +152,27 @@ fun SessionScreen(
             }
             if (state.isPaused) PausePanel(state, Modifier.align(Alignment.TopCenter).padding(top = 20.dp))
             // Along the bottom the lens's tray, and the settings above it, stepping back with the rest.
-            LensControls(state.lens, bitmap, Room.PRACTICE, barHeight, tag = "session") { tag, modifier, content ->
+            // The tray's slides show what is shown: the part zoomed into, where it is.
+            val zoom = state.lens.zoomOn(current)
+            val shown = remember(bitmap, zoom) { bitmap?.let { zoomedPart(it, zoom) } }
+            LensControls(state.lens, shown, Room.PRACTICE, barHeight, tag = "session") { tag, modifier, content ->
                 SessionPiece(receded, watch, ChromeEdge.BOTTOM, tag, modifier, content)
             }
         }
     }
+}
+
+/**
+ * Space pauses and goes on, whatever has the keyboard. A button clicked last keeps it, and on the
+ * desktop a button with the keyboard takes Space as a click of its own — On or Back, the clock
+ * started again on another picture — so the pose takes Space first: its press, and its release,
+ * which would otherwise finish the button's click. Where nothing in the pose has the keyboard, the
+ * window's keys pause it ([handleSessionShortcut]).
+ */
+private fun Modifier.spaceIsThePause(state: PracticeState): Modifier = onPreviewKeyEvent { event ->
+    if (event.key != Key.Spacebar) return@onPreviewKeyEvent false
+    if (event.type == KeyEventType.KeyDown) state.togglePause()
+    true
 }
 
 /**

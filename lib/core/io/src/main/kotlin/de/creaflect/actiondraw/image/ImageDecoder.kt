@@ -1,8 +1,14 @@
 package de.creaflect.actiondraw.image
 
+import org.jetbrains.skia.ColorAlphaType
+import org.jetbrains.skia.ColorType
 import org.jetbrains.skia.Image
-import java.io.ByteArrayOutputStream
+import org.jetbrains.skia.ImageInfo
+import java.awt.image.BufferedImage
+import java.awt.image.DataBufferInt
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import javax.imageio.ImageIO
 
 /**
@@ -15,12 +21,28 @@ object ImageDecoder {
     fun decode(file: File): Image? {
         val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
         runCatching { Image.makeFromEncoded(bytes) }.getOrNull()?.let { return it }
-        // Fallback: whatever ImageIO can read, re-encoded as PNG so Skia can take it from there.
-        return runCatching {
-            val buffered = ImageIO.read(file) ?: return null
-            val png = ByteArrayOutputStream().also { ImageIO.write(buffered, "png", it) }.toByteArray()
-            Image.makeFromEncoded(png)
-        }.getOrNull()
+        // Fallback: whatever ImageIO can read, its pixels handed to Skia as they are seen.
+        return runCatching { ImageIO.read(file)?.let(::fromImageIo) }.getOrNull()
+    }
+
+    /**
+     * [picture] as Skia draws it: its pixels as eight bits a channel, through the picture's own
+     * colour model. Not re-encoded as PNG on the way — that writes a deep picture's samples as they
+     * are stored, and a 10-bit AVIF's, held in 16 bits but no larger than 1023, came out all but
+     * black.
+     */
+    internal fun fromImageIo(picture: BufferedImage): Image {
+        val w = picture.width
+        val h = picture.height
+        val argb = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+        argb.createGraphics().apply {
+            drawImage(picture, 0, 0, null)
+            dispose()
+        }
+        val ints = (argb.raster.dataBuffer as DataBufferInt).data
+        // 0xAARRGGBB, little end first: B, G, R, A.
+        val bytes = ByteBuffer.allocate(ints.size * 4).order(ByteOrder.LITTLE_ENDIAN).apply { asIntBuffer().put(ints) }.array()
+        return Image.makeRaster(ImageInfo(w, h, ColorType.BGRA_8888, ColorAlphaType.UNPREMUL), bytes, w * 4)
     }
 
     /**

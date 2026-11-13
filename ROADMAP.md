@@ -1293,6 +1293,55 @@ The next two of the forms' ideas (2026-10-28); the rest wait in [IDEAS.md](IDEAS
   and Straighten out of a low window. Broken on purpose and seen red after a no-op control stayed
   green: 23 guards — a block not fitted to the sphere's round, its ends shaped by its round, Newton's steps on the slope ahead in the shader and in the twin, a block read as if round; a relief flat in the shader and in the twin, its slope upside down, its back drawn as its front; the picture read round its repeat; the own heights neither soft nor small; a saved form's bands misplaced; the view ignoring the block, the depth or the heights chosen; the Ends slider shaping the round, the depth slider doing nothing, a chosen picture never used; a saved view losing the shape; a relief first seen as a page; the Lens room's and the session's lenses choosing heights through no dialog
 
+
+### ✅ F10.13 Zoom — a part as the picture
+The person's wish after drawing sessions (2026-11-13): zoom into a picture, and the part is the
+picture for all the effects — and back to the whole, or further in, at any time.
+- ✅ `Zoom` in the lens kit (`Zoom.kt`): a part of a picture, in its own measure, kept on it and no
+  nearer than ×64, tied to the picture it was taken on — another picture, a new pose, starts whole,
+  as the glass does. `LensState` zooms by steps of ×1.25 about a point that stays where it is, into
+  a part dragged out (further in from a part), moves the part and shows the whole again; Esc lets go
+  of it after the glass and the form. Any change of it lifts a glass down on what was shown
+- ✅ `LensView` cuts the part out first (`zoomedPart`: its pixels shared, not copied), so every
+  lens, the light, the knobs, the grid — the thirds divide the part — the glass and the forms work
+  on it as on a picture of its own; the tray's slides show it too. By hand, while no glass is in
+  hand (`zoomInput`): the wheel about the pointer, a drag outlining a part (dashed), Shift and a
+  drag moving it, a right click for the whole; keys `+` `−` (the glass's while it is in hand) and
+  `Z`. The whole waits in the bottom left corner as a print with the part ringed, above the glass's
+  own print where both are down; a click on it shows the whole again
+- ✅ In the Lens room the views side by side — beside the original, two lenses — show the same part
+  (`LensState.zoomsWith`), a picture opened starts whole, and a saved view is the part at its own
+  size
+- ✅ Tested: `ZoomTest` (about the pointer, out to the whole and no further, kept on the picture,
+  no nearer than the most, a part dragged out and further in, moved and kept on, another picture
+  whole, Esc after the glass, the glass lifted, views side by side, the keys with and without the
+  glass, the part's pixels), `LensViewTest` (the wheel, the print, a part dragged out and seen
+  alone, Shift moving it, a right click, the glass's wheel its own), `LensKeysTest`,
+  `SessionKeysTest` (+ on the picture on screen, Z, Esc before the session stops, the next picture
+  whole), `LensRoomScreenTest` (the part saved at its own size) and a zoomed pose in
+  `RoomScreenshotTest`
+- ✅ Two faults in a pose, found on the way (2026-11-13). **Space** paused only where the ensō had
+  been clicked last: a button clicked keeps the keyboard, and on the desktop a button with the
+  keyboard takes Space as a click of its own — *On* or *Back*, the clock started again on another
+  picture. The pose now takes Space before anything in it can (`spaceIsThePause`, in the preview
+  of the key), its release too. **A 10-bit AVIF** showed all but black: the AVIF reader gives its
+  samples in 16 bits but no larger than 1023, and the PNG they were passed through on the way to
+  Skia stored them as they were. ImageIO's pictures now reach Skia through their own colour model,
+  eight bits a channel, with no PNG between (`ImageDecoder.fromImageIo`); 8-bit AVIFs were never
+  affected. Tested in `SessionChromeTest` (Space after a click on On) and `ImageDecoderTest` (new:
+  an AVIF made for it, and a picture ten bits a channel deep)
+- ✅ Broken on purpose and seen red after a no-op control stayed green: 25 guards — the pose taking
+  no Space before the button with the keyboard, or Space only kept from the button; a deep picture
+  passed to Skia as PNG again, its pixels handed over the wrong way round; the wheel zooming about
+  the middle, a part off the picture's edge, zoomed past the most, a part dragged out taken from the
+  whole, another picture starting zoomed, Esc never showing the whole, a glass left down on the part,
+  a view side by side keeping its own zoom, Z showing nothing whole, + zooming nothing without the
+  glass; the whole picture shown rather than the part, the wheel the wrong way, a part dragged out
+  zoomed into nowhere, Shift and a drag moving nothing, a right click keeping the part, the wheel
+  zooming with the glass in hand, the print showing nothing whole; the pose's keys zooming no
+  picture; a zoomed view saved whole, the second lens keeping a zoom of its own, a pasted picture
+  opened zoomed
+
 ---
 
 ## ✅ M10 — Architecture: modules and layers

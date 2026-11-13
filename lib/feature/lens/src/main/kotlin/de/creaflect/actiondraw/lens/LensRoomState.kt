@@ -105,14 +105,15 @@ class LensRoomState(
         it.form.heightsFrom = heights
     }
 
-    /** The second lens, on the right while two are compared. */
+    /** The second lens, on the right while two are compared — showing the part the first is zoomed into. */
     val second = LensState().also {
         it.glass.keptIn(lib.preferences)
         it.form.heightsFrom = heights
+        it.zoomsWith = first
     }
 
-    /** The original as it is, beside the lens: a lens never turned, and no glass taken up over it. */
-    val plain = LensState()
+    /** The original as it is, beside the lens: a lens never turned, and no glass taken up over it — but the same part of it, zoomed into. */
+    val plain = LensState().also { it.zoomsWith = first }
 
     var layout by mutableStateOf(LensLayout.ALONE)
         private set
@@ -144,6 +145,7 @@ class LensRoomState(
         picture = next
         notice = null
         listOf(first, second).forEach { it.glass.wholePicture() }
+        first.showWhole()
     }
 
     /** Asks for a picture to look at; false when none was chosen. */

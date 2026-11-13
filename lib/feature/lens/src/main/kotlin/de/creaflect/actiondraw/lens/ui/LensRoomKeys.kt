@@ -39,6 +39,6 @@ fun handleLensRoomKey(key: Key, ctrl: Boolean, state: LensRoomState): Boolean {
             true
         }
         Key.Tab -> state.otherLens()
-        else -> state.picture != null && handleLensKey(key, state.lens)
+        else -> state.picture != null && handleLensKey(key, state.lens, state.file)
     }
 }

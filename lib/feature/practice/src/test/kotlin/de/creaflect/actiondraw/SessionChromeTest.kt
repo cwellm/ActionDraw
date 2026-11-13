@@ -1,5 +1,6 @@
 package de.creaflect.actiondraw
 
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextEquals
@@ -7,6 +8,8 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.runDesktopComposeUiTest
 import de.creaflect.actiondraw.Room
 import de.creaflect.actiondraw.handoff.Handed
@@ -101,6 +104,24 @@ class SessionChromeTest {
         rule.onNodeWithTag("session-hide").performClick()
         step()
         assertTrue(state.referenceFlipped)
+    }
+
+    @Test
+    fun spacePausesWhicheverButtonWasClickedLast() {
+        val state = pose()
+        // A button clicked keeps the keyboard; on the desktop a button with the keyboard takes Space
+        // as a click of its own — On, here, and the clock would start again on the next picture.
+        rule.onNodeWithTag("session-next").performClick()
+        step()
+        val shown = state.currentImage
+        rule.onNodeWithTag("session-next").performKeyInput { pressKey(Key.Spacebar) }
+        step()
+        assertTrue(state.isPaused, "Space pauses")
+        assertEquals(shown, state.currentImage, "and stays on the picture")
+        rule.onNodeWithTag("session-next").performKeyInput { pressKey(Key.Spacebar) }
+        step()
+        assertFalse(state.isPaused, "and goes on")
+        assertEquals(shown, state.currentImage)
     }
 
     @Test
